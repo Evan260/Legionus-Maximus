@@ -307,10 +307,10 @@ func _missile(s: Dictionary, dt: float, sim: Sim) -> void:
 	if s.type == "archer":
 		var fire := sim.rank("fire_arrows")
 		sim.shoot("arrow", s.pos, sim.horde.e_pos[t], float(info.arrow_speed), dmg, int(stat(s.type, "pierce")),
-			(_b.fire_arrows.dps + _b.fire_arrows.dps_per_level * (fire - 1)) if fire > 0 else 0.0)
+			(_b.fire_arrows.dps + _b.fire_arrows.dps_per_level * (fire - 1)) if fire > 0 else 0.0, {"src": "archer"})
 	else:
 		sim.shoot("stone", s.pos, sim.horde.e_pos[t], float(info.stone_speed), dmg, 0, 0.0,
-			{"knock": float(info.knockback), "bounces": int(stat(s.type, "bounces")), "bounce_reach": float(info.bounce_reach)})
+			{"knock": float(info.knockback), "bounces": int(stat(s.type, "bounces")), "bounce_reach": float(info.bounce_reach), "src": s.type})
 
 
 func _ballista(s: Dictionary, dt: float, sim: Sim) -> void:
@@ -324,7 +324,7 @@ func _ballista(s: Dictionary, dt: float, sim: Sim) -> void:
 		return
 	s.cd = float(info.cooldown)
 	sim.shoot("bolt", s.pos, sim.horde.e_pos[t], float(info.bolt_speed), float(info.damage), int(info.pierce), 0.0,
-		{"life": reach / float(info.bolt_speed), "explode": stat(s.type, "explode_radius")})
+		{"life": reach / float(info.bolt_speed), "explode": stat(s.type, "explode_radius"), "src": s.type})
 
 
 func _shout(s: Dictionary, dt: float, sim: Sim) -> void:
@@ -398,10 +398,10 @@ func _sortie(s: Dictionary, dt: float, sim: Sim) -> void:
 			for j in sim.enemies_near(s.pos, strike):
 				if not s.struck.has(sim.horde.e_id[j]):
 					s.struck[sim.horde.e_id[j]] = true
-					sim.hit(j, dmg)
+					sim.hit(j, dmg, 0.0, s.type)
 		if d - move <= strike:
 			if not s.struck.has(sim.horde.e_id[t]):
-				sim.hit(t, dmg)
+				sim.hit(t, dmg, 0.0, s.type)
 			sim.effects.append({"kind": "slash", "pos": s.pos, "to": sim.horde.e_pos[t], "t": 0.0})
 			s.cd = float(info.cooldown)
 			s.sortie = 2

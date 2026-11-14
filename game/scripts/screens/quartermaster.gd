@@ -27,7 +27,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 		var cost := Profile.next_cost(id, content)
 		var can := cost >= 0 and cost <= int(Profile.data.denarii)
 		var tone := Ui.BROWN if cost < 0 else (Color(0.2, 0.45, 0.15) if can else Ui.RED)
-		ui.button(c, rect, "buy:" + id, "%s  %d/%d" % [info.name, Profile.rank(id), int(info.ranks)], "MAX" if cost < 0 else str(cost), true, _icon_of(info), false, tone)
+		ui.button(c, rect, "buy:" + id, _label(info, id), "MAX" if cost < 0 else str(cost), true, _icon_of(info), false, tone)
 		i += 1
 	var focus_id := ui.focus.trim_prefix("buy:")
 	if content.quartermaster.has(focus_id):
@@ -39,6 +39,13 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 		var note := "Fully upgraded." if cost < 0 else "Next rank costs %d denarii." % cost
 		ui.text(c, note, Vector2(0, box.position.y + 15), Ui.BROWN, HORIZONTAL_ALIGNMENT_RIGHT, box.end.x - 8)
 		ui.text(c, ui.clip(info.text, box.size.x - 16), Vector2(box.position.x + 8, box.position.y + 30), Ui.INK)
+
+
+## The name and rank; with large text the rank leads so a long name is the part that is cut.
+func _label(info: Dictionary, id: String) -> String:
+	if Ui.scale > 1:
+		return "%d/%d %s" % [Profile.rank(id), int(info.ranks), info.name]
+	return "%s  %d/%d" % [info.name, Profile.rank(id), int(info.ranks)]
 
 
 ## The entry's icon when it names one that is drawn; otherwise the row is text only.

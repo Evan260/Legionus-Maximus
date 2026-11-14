@@ -1,0 +1,32 @@
+class_name PauseScreen
+extends RefCounted
+## Pause: resume, open the settings, or give up the run.
+
+var main: Node
+
+
+func _init(owner_node: Node) -> void:
+	main = owner_node
+
+
+func activate(id: String) -> void:
+	match id:
+		"resume":
+			main.state = "play"
+			main.ui.focus = ""
+		"settings":
+			main.open_settings("pause")
+		"giveup":
+			main.sim.over = true
+			main._finish_run()
+
+
+func draw(c: CanvasItem, ui: Ui) -> void:
+	c.draw_rect(Rect2(0, 0, Ui.W, Ui.H), Color(0, 0, 0, 0.45))
+	var h := 32.0 if Ui.scale > 1 else 22.0
+	var w := 260.0 if Ui.scale > 1 else 180.0
+	var top := Ui.H / 2 - (3 * h + 2 * 8) / 2 - 8
+	ui.text(c, "PAUSED", Vector2(0, top - 8), Ui.CREAM, HORIZONTAL_ALIGNMENT_CENTER, Ui.W, true)
+	ui.button(c, Rect2(Ui.W / 2 - w / 2, top, w, h), "resume", "RESUME", "", true, null, true)
+	ui.button(c, Rect2(Ui.W / 2 - w / 2, top + h + 8, w, h), "settings", "SETTINGS", "", true, null, true)
+	ui.button(c, Rect2(Ui.W / 2 - w / 2, top + 2 * (h + 8), w, h), "giveup", "GIVE UP THE RUN", "", true, null, true)

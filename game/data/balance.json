@@ -96,6 +96,10 @@
   "decimatio": {"start_soldiers": 30, "every": 120, "one_in": 10},
   "rerolls": 1,
   "banishes": 0,
+  "history_every": 10,
+  "damage_numbers": {"cap": 60, "seconds": 0.6, "rise": 14},
+  "shake": {"hurt": 0.12, "chieftain": 0.3, "testudo": 0.2, "pixels": 2},
+  "text_px": [8, 16],
   "demo": {
     "store_app_id": 0
   }

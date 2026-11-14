@@ -1,5 +1,6 @@
 {
  "base_commander": {
+  "name": "Commander",
   "hp": 160,
   "speed": 62,
   "damage": 14,

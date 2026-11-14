@@ -12,6 +12,9 @@ var ground: Texture2D
 var shadow: Texture2D
 var props_cache := {}
 var font: Font
+var shake_on := true
+var digits: Texture2D
+var _shake_rng := RandomNumberGenerator.new()
 
 var _keys := PackedInt64Array()
 var _rects: Array = []
@@ -30,11 +33,28 @@ func _ready() -> void:
 			if dx * dx + dy * dy <= 1.0:
 				img.set_pixel(x, y, Color(0.08, 0.06, 0.03, 0.38))
 	shadow = ImageTexture.create_from_image(img)
+	digits = _digit_texture()
+
+
+## The ten digits as 3 by 5 pixel shapes in one strip, four pixels apart.
+func _digit_texture() -> Texture2D:
+	var shapes := ["111101101101111", "010110010010111", "111001111100111", "111001111001111", "101101111001001",
+		"111100111001111", "111100111101111", "111001010010010", "111101111101111", "111101111001111"]
+	var strip := Image.create(40, 5, false, Image.FORMAT_RGBA8)
+	for d in 10:
+		for i in 15:
+			if shapes[d][i] == "1":
+				strip.set_pixel(d * 4 + i % 3, i / 3, Color.WHITE)
+	return ImageTexture.create_from_image(strip)
 
 
 func _process(_dt: float) -> void:
 	if sim:
-		position = (VIEW / 2.0 - sim.commander.pos).round()
+		var jolt := Vector2.ZERO
+		if shake_on and sim.shake > 0.0:
+			var reach := int(sim.b.shake.pixels)
+			jolt = Vector2(_shake_rng.randi_range(-reach, reach), _shake_rng.randi_range(-reach, reach))
+		position = (VIEW / 2.0 - sim.commander.pos).round() + jolt
 		queue_redraw()
 
 
@@ -137,6 +157,7 @@ func _draw() -> void:
 	_draw_elite_names(view)
 	_draw_lobs(tex)
 	_draw_effects()
+	_draw_numbers()
 	_draw_torches()
 	_draw_bars()
 
@@ -363,6 +384,23 @@ func _draw_effects() -> void:
 		if sim.horde.e_stun[i] > 0.0:
 			var q: Vector2 = sim.horde.e_pos[i] + Vector2(-3 + (int(sim.time * 12.0 + i) % 7), -26)
 			draw_rect(Rect2(q.round(), Vector2(2, 2)), Color(1, 0.95, 0.45))
+
+
+## Damage numbers rise from the enemy that was hit and fade out.
+func _draw_numbers() -> void:
+	var life := float(sim.b.damage_numbers.seconds)
+	var rise := float(sim.b.damage_numbers.rise)
+	for n in sim.numbers:
+		var text := str(n.v)
+		var k: float = n.t / life
+		var at: Vector2 = (n.pos + Vector2(-(text.length() * 4 - 1) / 2.0, -rise * k)).round()
+		var a := clampf((1.0 - k) * 3.0, 0.0, 1.0)
+		for pass_index in 2:
+			var tint := Color(0.16, 0.1, 0.08, a) if pass_index == 0 else Color(1.0, 0.95, 0.82, a)
+			var o := Vector2(1, 1) if pass_index == 0 else Vector2.ZERO
+			for i in text.length():
+				var d := text.unicode_at(i) - 48
+				draw_texture_rect_region(digits, Rect2(at + o + Vector2(i * 4, 0), Vector2(3, 5)), Rect2(d * 4, 0, 3, 5), tint)
 
 
 func _draw_bars() -> void:

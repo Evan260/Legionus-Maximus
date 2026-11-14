@@ -15,6 +15,10 @@ const RED := Color(0.72, 0.18, 0.14)
 const BROWN := Color(0.5, 0.36, 0.22)
 const MUTED := Color(0.55, 0.45, 0.34)
 
+# The text size setting: 1 draws at 8 px, 2 at 16 px (the sizes are in balance.json).
+static var scale := 1
+static var px := 8
+
 var font: Font
 var items: Array = []
 var focus := ""
@@ -24,6 +28,21 @@ var _icons := {}
 
 func _init() -> void:
 	font = load("res://assets/fonts/Silkscreen-Regular.ttf")
+
+
+static func set_text_size(size: int, balance: Dictionary) -> void:
+	scale = clampi(size, 1, 2)
+	px = int(balance.text_px[scale - 1])
+
+
+## The distance between two lines of text.
+static func leading() -> float:
+	return 10.0 * scale
+
+
+## The first row of a list of `visible` rows to show so the row at `index` is on screen, moving as little as it can.
+static func scroll_for(index: int, count: int, visible: int, current: int) -> int:
+	return clampi(clampi(current, index - visible + 1, index), 0, maxi(0, count - visible))
 
 
 func begin() -> void:
@@ -45,7 +64,7 @@ func has_item(id: String) -> bool:
 
 
 func width_of(s: String) -> float:
-	return font.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
+	return font.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
 
 
 ## The text cut with dots so it fits the width.
@@ -59,8 +78,8 @@ func clip(s: String, width: float) -> String:
 
 func text(c: CanvasItem, s: String, pos: Vector2, col: Color = INK, align := HORIZONTAL_ALIGNMENT_LEFT, width := -1.0, shade := false) -> void:
 	if shade:
-		c.draw_string(font, pos + Vector2(1, 1), s, align, width, 8, INK)
-	c.draw_string(font, pos, s, align, width, 8, col)
+		c.draw_string(font, pos + Vector2(scale, scale), s, align, width, px, INK)
+	c.draw_string(font, pos, s, align, width, px, col)
 
 
 ## Words wrapped to the width; returns the y of the line after the last one.
@@ -74,14 +93,14 @@ func wrap(c: CanvasItem, s: String, pos: Vector2, width: float, col: Color = INK
 			text(c, line, Vector2(pos.x, y), col)
 			lines += 1
 			if lines >= max_lines:
-				return y + 10.0
+				return y + leading()
 			line = w
-			y += 10.0
+			y += leading()
 		else:
 			line = trial
 	if line != "":
 		text(c, line, Vector2(pos.x, y), col)
-		y += 10.0
+		y += leading()
 	return y
 
 
@@ -96,8 +115,12 @@ func frame(c: CanvasItem, title: String, hint: String) -> Rect2:
 	c.draw_rect(Rect2(0, 0, W, H), Color(0, 0, 0, 0.5))
 	var r := Rect2(16, 12, W - 32, H - 40)
 	panel(c, r)
-	text(c, title, Vector2(r.position.x + 12, r.position.y + 16), BROWN)
-	text(c, hint, Vector2(0, H - 10), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W, true)
+	text(c, title, Vector2(r.position.x + 12, r.position.y + 8 + 8 * scale), BROWN)
+	# Long hints lose their first parts until the rest fits the screen.
+	var parts: Array = hint.split("     ")
+	while parts.size() > 1 and width_of("     ".join(parts)) > W - 16.0:
+		parts.remove_at(0)
+	text(c, "     ".join(parts), Vector2(0, H - 10), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W, true)
 	return r
 
 
@@ -118,7 +141,7 @@ func button(c: CanvasItem, r: Rect2, id: String, label: String, right := "", ena
 		var side := minf(r.size.y - 6.0, 16.0)
 		c.draw_texture_rect(icon, Rect2(x - 2.0, r.position.y + (r.size.y - side) / 2.0, side, side), false)
 		x += side + 2.0
-	var y := r.position.y + r.size.y / 2.0 + 3.0
+	var y := r.position.y + r.size.y / 2.0 + px * 3 / 8
 	var right_w := width_of(right) + 6.0 if right != "" else 0.0
 	if right != "":
 		text(c, right, Vector2(r.end.x - 6.0 - right_w + 6.0, y), right_col if enabled else MUTED)

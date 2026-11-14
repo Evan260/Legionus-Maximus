@@ -96,6 +96,13 @@ func group_of(id: String) -> String:
 	return ""
 
 
+## The player-facing name of a damage source: a soldier type, a weapon, or the commander. Empty when unknown.
+func source_name(id: String) -> String:
+	if id == "commander":
+		return str(base_commander.get("name", ""))
+	return str(upgrade(id).get("name", ""))
+
+
 func icon_key(id: String) -> String:
 	for key in upgrade(id).get("art", []):
 		if key.begins_with("icon:"):

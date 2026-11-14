@@ -2,6 +2,9 @@ class_name Arms
 extends RefCounted
 ## The legion-wide weapons and their forged forms. Each fires on its own timer from the ranks in the sim; every number is in balance.json.
 
+# A ground zone is named for its kind; fire is the burning ground the fire pots leave.
+const ZONE_WEAPON := {"fire": "fire_pots"}
+
 var zones: Array = []
 var lobs: Array = []
 var dogs: Array = []
@@ -80,7 +83,7 @@ func stake_dps(sim: Sim) -> float:
 
 ## A patch on the ground that acts on whatever stands in it until its life is over.
 func add_zone(kind: String, pos: Vector2, radius: float, life: float, dps: float, extra: Dictionary = {}) -> void:
-	var z := {"kind": kind, "pos": pos, "radius": radius, "t": 0.0, "life": life, "dps": dps, "tick": 0.2, "next": 0.0, "slow": 1.0, "pin": 0.0}
+	var z := {"kind": kind, "pos": pos, "radius": radius, "t": 0.0, "life": life, "dps": dps, "tick": 0.2, "next": 0.0, "slow": 1.0, "pin": 0.0, "src": ZONE_WEAPON.get(kind, kind)}
 	z.merge(extra, true)
 	zones.append(z)
 
@@ -138,13 +141,13 @@ func _scorpio(dt: float, sim: Sim) -> void:
 	if best < 0:
 		return
 	var dmg := lv(sc, "damage", sr)
-	sim.shoot("bolt", cpos, sim.horde.e_pos[best], sc.speed, dmg, int(sc.pierce))
+	sim.shoot("bolt", cpos, sim.horde.e_pos[best], sc.speed, dmg, int(sc.pierce), 0.0, {"src": "scorpio"})
 	if siege:
 		# The siege train fans extra bolts either side of the main one.
 		var fan := float(sim.b.siege_train.bolt_fan)
 		for k in int(sim.b.siege_train.extra_bolts):
 			var turn := fan * (k / 2 + 1) * (1.0 if k % 2 == 0 else -1.0)
-			sim.shoot("bolt", cpos, cpos + (sim.horde.e_pos[best] - cpos).rotated(turn), sc.speed, dmg, int(sc.pierce))
+			sim.shoot("bolt", cpos, cpos + (sim.horde.e_pos[best] - cpos).rotated(turn), sc.speed, dmg, int(sc.pierce), 0.0, {"src": "scorpio"})
 
 
 func _onager(dt: float, sim: Sim) -> void:
@@ -246,7 +249,7 @@ func _stakes(dt: float, sim: Sim) -> void:
 	for j in sim.enemies_near(cpos, ring + band):
 		if absf((sim.horde.e_pos[j] - cpos).length() - ring) > band:
 			continue
-		sim.hit(j, dmg)
+		sim.hit(j, dmg, 0.0, "stakes")
 		if camp:
 			sim.horde.e_slow[j] = minf(sim.horde.e_slow[j], float(sim.b.fortified_camp.slow))
 
@@ -327,7 +330,7 @@ func _war_dogs(dt: float, sim: Sim) -> void:
 		if ti >= 0 and dist <= float(cfg.strike):
 			if d.cd <= 0.0:
 				d.cd = float(cfg.cooldown)
-				sim.hit(ti, dmg)
+				sim.hit(ti, dmg, 0.0, "war_dogs")
 		elif dist > 2.0:
 			d.pos += to / dist * minf(dist, speed * dt)
 			d.face = to / dist
@@ -368,9 +371,9 @@ func _eagle(dt: float, sim: Sim) -> void:
 	var radius := lv(cfg, "radius", r)
 	var dmg := lv(cfg, "damage", r) * (float(f.damage_mult) if burning else 1.0)
 	for j in sim.enemies_near(sim.commander.pos, radius):
-		sim.hit(j, dmg)
+		sim.hit(j, dmg, 0.0, "eagle")
 		if burning:
-			sim.ignite(j, float(f.burn_dps), float(f.burn_seconds))
+			sim.ignite(j, float(f.burn_dps), float(f.burn_seconds), "eagle")
 	sim.effects.append({"kind": "flash", "pos": sim.commander.pos, "t": 0.0, "radius": radius})
 
 
@@ -389,7 +392,7 @@ func _torches(dt: float, sim: Sim) -> void:
 	var reach := float(cfg.reach) * _flame(sim)
 	for p in torch_points(sim):
 		for j in sim.enemies_near(p, reach):
-			sim.ignite(j, dps, float(cfg.burn_seconds))
+			sim.ignite(j, dps, float(cfg.burn_seconds), "torches")
 
 
 func _lobs(dt: float, sim: Sim) -> void:
@@ -413,7 +416,7 @@ func _lobs(dt: float, sim: Sim) -> void:
 
 func _land_stone(l: Dictionary, sim: Sim) -> void:
 	for j in sim.enemies_near(l.to, l.radius):
-		sim.hit(j, l.dmg)
+		sim.hit(j, l.dmg, 0.0, "onager")
 		var away: Vector2 = sim.horde.e_pos[j] - l.to
 		var d := away.length()
 		var dir := away / d if d > 0.001 else Vector2.from_angle(_rng.randf() * TAU)
@@ -440,9 +443,9 @@ func _zones(dt: float, sim: Sim) -> void:
 		z.next += z.tick
 		for j in sim.enemies_near(z.pos, z.radius):
 			if z.kind == "fire":
-				sim.scorch(j, z.dps * z.tick)
+				sim.scorch(j, z.dps * z.tick, z.src)
 			else:
-				sim.hit(j, z.dps * z.tick)
+				sim.hit(j, z.dps * z.tick, 0.0, z.src)
 				if z.pin > 0.0:
 					sim.horde.e_stun[j] = maxf(sim.horde.e_stun[j], z.pin)
 	zones = keep

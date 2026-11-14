@@ -1378,3 +1378,149 @@ func test_every_entry_has_a_history_line(b: Dictionary) -> void:
 func test_saved_settings_keep_only_text_for_province_and_commander(b: Dictionary) -> void:
 	var merged: Dictionary = ProfileScript.merge_saved({"settings": {"province": 5, "commander": "legate", "other": 1}})
 	check(not merged.settings.has("province") and merged.settings.commander == "legate", "only string choices are kept")
+
+
+func test_damage_is_counted_by_source(b: Dictionary) -> void:
+	var s := Sim.new(b, content, {"seed": 201})
+	var i := s.horde.spawn("barbarian_club", Vector2(300, 0))
+	s.hit(i, 6.0, 0.0, "pilum")
+	s.scorch(i, 4.0, "fire_pots")
+	check(is_equal_approx(float(s.damage_by_source.get("pilum", 0.0)), 6.0), "a hit is counted under its weapon")
+	check(is_equal_approx(float(s.damage_by_source.get("fire_pots", 0.0)), 4.0), "burning ground is counted under its pot")
+	s.hit(i, 1000.0, 0.0, "pilum")
+	check(is_equal_approx(float(s.damage_by_source.pilum), 6.0 + 10.0), "only the health that was left is counted, not the overkill")
+	var boosted := Sim.new(b, content, {"seed": 202, "profile_bonuses": {"damage": 2}})
+	var j := boosted.horde.spawn("barbarian_club", Vector2(300, 0))
+	boosted.hit(j, 5.0, 0.0, "stakes")
+	var want := 5.0 * (1.0 + 2.0 * float(content.quartermaster.damage.per_rank))
+	check(is_equal_approx(float(boosted.damage_by_source.stakes), want), "the quartermaster's bonus is in the count")
+	check(content.source_name("commander") != "" and content.source_name("pilum") == "Pilum volley", "sources have names from content")
+
+
+func test_every_damage_path_names_its_source(b: Dictionary) -> void:
+	var mixed := Content.with_all_art()
+	var s := Sim.new(b, mixed, {"seed": 203})
+	for kind in ["arms", "forged"]:
+		for id in mixed.get(kind):
+			if mixed.get(kind)[id].implemented:
+				s.ranks[id] = 3
+	for t in ["archer", "slinger", "cavalry", "standard_bearer", "centurion", "ballista", "medicus"]:
+		s.add_soldier(t)
+	var kinds := ["barbarian_club", "barbarian_spear", "wolf"]
+	for i in 90:
+		s.horde.spawn(kinds[i % kinds.size()], s.commander.pos + Vector2.from_angle(i * 0.7) * (30.0 + i * 1.5))
+	for f in 1200:
+		s.update(1.0 / 60.0, Vector2(cos(f * 0.01), sin(f * 0.01)), false)
+	check(s.damage_by_source.size() >= 4, "a busy twenty seconds is spread over several sources (%d)" % s.damage_by_source.size())
+	for id in s.damage_by_source:
+		check(mixed.source_name(id) != "", "the source '%s' has a name" % id)
+
+
+func test_history_samples_every_ten_seconds(b: Dictionary) -> void:
+	var s := Sim.new(b, content, {"seed": 204})
+	Upgrades.apply(s, "archer")
+	for f in 35 * 30:
+		s.update(1.0 / 30.0, Vector2.ZERO, false)
+		if s.over:
+			break
+	check(s.history.size() == 3, "three samples in 35 seconds (%d)" % s.history.size())
+	if s.history.size() == 3:
+		check(absf(float(s.history[0].t) - 10.0) < 0.1 and absf(float(s.history[2].t) - 30.0) < 0.1, "at 10, 20 and 30 seconds")
+		check(int(s.history[0].legion) == s.soldiers.size() + 1 and s.history[0].has("kills"), "each holds the legion size and the kills")
+
+
+func _has_key(action: String, code: int) -> bool:
+	for e in InputMap.action_get_events(action):
+		if e is InputEventKey and e.physical_keycode == code:
+			return true
+	return false
+
+
+func _has_button(action: String, button: int) -> bool:
+	for e in InputMap.action_get_events(action):
+		if e is InputEventJoypadButton and e.button_index == button:
+			return true
+	return false
+
+
+func test_rebinding_replaces_the_key(b: Dictionary) -> void:
+	var saved := {}
+	Controls.install(saved)
+	check(_has_key("testudo", KEY_SPACE) and _has_button("testudo", JOY_BUTTON_A), "the defaults are in place")
+	Controls.rebind(saved, "testudo", "keys", 0, KEY_T)
+	check(_has_key("testudo", KEY_T) and not _has_key("testudo", KEY_SPACE), "the new key replaces the old one")
+	check(_has_key("confirm", KEY_SPACE), "other actions keep their keys")
+	Controls.rebind(saved, "testudo", "pads", 0, JOY_BUTTON_B)
+	check(_has_button("testudo", JOY_BUTTON_B) and not _has_button("testudo", JOY_BUTTON_A), "a pad button is replaced the same way")
+	Controls.rebind(saved, "up", "keys", 1, KEY_I)
+	check(_has_key("up", KEY_W) and _has_key("up", KEY_I) and not _has_key("up", KEY_UP), "the second key slot leaves the first alone")
+	Controls.install(saved)
+	check(_has_key("testudo", KEY_T) and not _has_key("testudo", KEY_SPACE), "saved bindings are applied over the defaults")
+	check(not InputMap.action_get_events("left").filter(func(e): return e is InputEventJoypadMotion).is_empty(), "the stick still steers")
+	Controls.install({})
+	check(_has_key("testudo", KEY_SPACE) and not _has_key("testudo", KEY_T), "no saved bindings gives the defaults back")
+
+
+func test_saved_settings_are_checked(b: Dictionary) -> void:
+	var merged: Dictionary = ProfileScript.merge_saved({"settings": {"master": 4, "music": "loud", "text_size": 7, "shake": "yes", "numbers": false,
+		"bindings": {"testudo": {"keys": [KEY_T, "x"], "pads": [2.0]}, "bad": 3}}})
+	var cfg: Dictionary = ProfileScript.settings_of(merged)
+	check(is_equal_approx(float(cfg.master), 1.0), "a volume is held between 0 and 1")
+	check(is_equal_approx(float(cfg.music), float(ProfileScript.SETTING_DEFAULTS.music)), "a volume that is not a number gives the default")
+	check(int(cfg.text_size) == 1 and cfg.shake == true and cfg.numbers == false, "text size, and the on or off choices, are checked")
+	check(cfg.bindings.testudo.keys == [KEY_T] and cfg.bindings.testudo.pads == [2] and not cfg.bindings.has("bad"), "bindings keep only whole key and button numbers")
+
+
+func test_damage_numbers_are_capped(b: Dictionary) -> void:
+	var s := Sim.new(b, content, {"seed": 205})
+	for i in 100:
+		s.horde.spawn("barbarian_club", Vector2(200 + i, 0))
+	for i in 100:
+		s.hit(i, 3.0, 0.0, "pilum")
+	check(s.numbers.is_empty(), "no numbers are made while they are switched off")
+	s.show_numbers = true
+	for i in 100:
+		s.hit(i, 1.0, 0.0, "pilum")
+	check(s.numbers.size() == int(b.damage_numbers.cap), "at most %d are alive at once (%d)" % [int(b.damage_numbers.cap), s.numbers.size()])
+	for f in 60:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.numbers.is_empty() or s.numbers.size() < int(b.damage_numbers.cap), "they fade away")
+
+
+func test_shake_comes_from_hurt_chieftain_and_testudo(b: Dictionary) -> void:
+	var s := Sim.new(b, content, {"seed": 206})
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.shake <= 0.0, "a quiet legion does not shake")
+	s.update(1.0 / 60.0, Vector2.ZERO, true)
+	check(s.shake > 0.0, "raising the shields shakes the view")
+	var h := Sim.new(b, content, {"seed": 207})
+	h.update(1.0 / 60.0, Vector2.ZERO, false)
+	h.commander.hp -= 5.0
+	h.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(h.shake > 0.0, "the commander being hurt shakes the view")
+	for f in 60:
+		h.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(h.shake <= 0.0, "the shake dies away")
+
+
+func test_settings_make_the_audio_buses(b: Dictionary) -> void:
+	SettingsScreen.apply_audio({"master": 1.0, "music": 0.5, "effects": 0.0})
+	for name in ["Master", "Music", "Effects"]:
+		check(AudioServer.get_bus_index(name) >= 0, "the %s bus exists" % name)
+	check(absf(AudioServer.get_bus_volume_db(AudioServer.get_bus_index("Music")) - linear_to_db(0.5)) < 0.01, "a volume sets its bus")
+	check(AudioServer.is_bus_mute(AudioServer.get_bus_index("Effects")), "zero mutes the bus")
+	SettingsScreen.apply_audio(Profile.SETTING_DEFAULTS)
+
+
+func test_summary_lists_the_top_eight_sources(b: Dictionary) -> void:
+	var s := Sim.new(b, content, {"seed": 208})
+	for id in ["pilum", "fire_arrows", "scorpio", "onager", "caltrops", "stakes", "fire_pots", "war_dogs", "trumpets", "eagle"]:
+		s.damage_by_source[id] = 10.0 + s.damage_by_source.size()
+	s.damage_by_source["commander"] = 0.0
+	var rows := SummaryScreen.top_sources(s)
+	check(rows.size() == 8, "only eight bars")
+	check(rows[0][0] == "Eagle" or content.source_name("eagle") == rows[0][0], "the biggest is first")
+	check(rows[0][1] >= rows[7][1], "sorted from the most damage down")
+	s.history = [{"t": 10.0, "legion": 3, "kills": 1}]
+	s.time = 25.0
+	check(SummaryScreen.chart_points(s).size() == 2, "the line is carried to the end of the run")

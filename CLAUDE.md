@@ -17,7 +17,8 @@ Godot is `C:\Users\evand\AppData\Local\Microsoft\WinGet\Packages\GodotEngine.God
 - `game/scripts/arms.gd`: the twelve weapons and six forged forms, on their timers, with burning ground, oil, caltrops and the stake ring as zones.
 - `game/scripts/upgrades.gd`: the level-up choices, rerolls and banishes.
 - `game/scripts/world_view.gd`, `hud.gd`: drawing. Every sprite is in one atlas so the horde draws in one batch.
-- `game/scripts/main.gd`: input, screens and the command-line modes.
+- `game/scripts/main.gd`: input, screens and the command-line modes (`--screen=settings|summary|title|pause`, `--text-size=2`).
+- `game/scripts/controls.gd`: the default keys and pad buttons and the player's rebinding laid over them; `screens/`: title, camp, pause, settings and the run summary.
 - `game/data/balance.json`: every number.
 
 ## Art

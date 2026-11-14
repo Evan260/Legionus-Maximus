@@ -8,7 +8,10 @@ extends Node
 ##   --chieftain-at=S   bring the chieftain at this many seconds instead
 ##   --hold-choice      with --autoplay, give a level at once and leave its choices open
 ##   --hard, --endless, --decimatio   start the run in that mode
-##   --screen=NAME      open a camp screen (camp, quartermaster, tablinum, map, commanders) with a sample profile, for screenshots
+##   --screen=NAME      open a screen (camp, quartermaster, tablinum, map, commanders, settings) with a sample profile, for screenshots;
+##                      summary runs a skipped autoplay to its end and shows the run summary
+##   --page=controls    with --screen=settings, open the key and button page
+##   --text-size=N      use text size 1 or 2 without saving it
 ##   --commander=ID     start with that commander (the tribune when his art is not drawn)
 ##   --give=ID,ID:RANK  start the run with these arms or drills at the rank (default 1), for looking at them
 
@@ -24,6 +27,8 @@ var clock := 0.0
 var ui := Ui.new()
 var screens := {}
 var camp_sim: Sim
+var settings_from := "title"
+var swallow_input := false
 var run_setup := {"province": "germania", "commander": "tribune", "hard": false, "endless": false, "decimatio": false}
 
 @onready var world: Node2D = $World
@@ -55,14 +60,25 @@ func _ready() -> void:
 	hud.main = self
 	hud.ui = ui
 	screens = {"camp": CampScreen.new(self), "quartermaster": QuartermasterScreen.new(self), "tablinum": TablinumScreen.new(self),
-		"map": MapScreen.new(self), "commanders": CommandersScreen.new(self)}
+		"map": MapScreen.new(self), "commanders": CommandersScreen.new(self), "title": TitleScreen.new(self), "pause": PauseScreen.new(self),
+		"settings": SettingsScreen.new(self), "over": SummaryScreen.new(self)}
+	if args.has("text-size"):
+		Profile.data.settings.text_size = int(args["text-size"])
+	apply_settings()
 	_load_run_setup()
 	_new_sim()
-	if args.has("screen") and screens.has(args.screen):
+	ui.focus = "march"
+	if args.get("screen", "") == "summary":
+		_sample_profile()
+		_summary_shot()
+	elif args.has("screen") and screens.has(args.screen):
 		_sample_profile()
 		_enter_camp()
 		state = args.screen
 		ui.focus = ""
+		if state == "settings":
+			screens.settings.enter()
+			screens.settings.page = args.get("page", "main")
 	if args.has("autoplay") or args.has("skip"):
 		_start()
 		if args.has("skip"):
@@ -77,8 +93,56 @@ func _ready() -> void:
 		shot_at = float(args.get("at", "3"))
 
 
+## Runs an autoplay to its end and shows the summary, for a screenshot.
+func _summary_shot() -> void:
+	_start()
+	while not sim.over:
+		sim.update(1.0 / 30.0, Vector2(cos(sim.time * 0.3), sin(sim.time * 0.3)), false)
+		while sim.pending_levels > 0:
+			Upgrades.apply(sim, Upgrades.offers(sim)[0])
+	_finish_run()
+
+
+## Puts every saved setting to work: volumes, full screen, text size, damage numbers and screen shake.
+func apply_settings() -> void:
+	var cfg := Profile.settings_of(Profile.data)
+	SettingsScreen.apply_audio(cfg)
+	var want := DisplayServer.WINDOW_MODE_FULLSCREEN if cfg.fullscreen else DisplayServer.WINDOW_MODE_WINDOWED
+	if DisplayServer.window_get_mode() != want:
+		DisplayServer.window_set_mode(want)
+	Ui.set_text_size(int(cfg.text_size), balance)
+	world.shake_on = cfg.shake
+	for s in [sim, camp_sim]:
+		if s != null:
+			s.show_numbers = cfg.numbers
+
+
+func open_settings(from: String) -> void:
+	settings_from = from
+	state = "settings"
+	ui.focus = ""
+	screens.settings.enter()
+
+
+func close_settings() -> void:
+	Profile.save()
+	state = settings_from
+	ui.focus = "settings"
+
+
+func go_to_camp() -> void:
+	_enter_camp()
+
+
+func go_to_title() -> void:
+	_new_sim()
+	state = "title"
+	ui.focus = "march"
+
+
 func _new_sim() -> void:
 	sim = Sim.new(balance, content, _run_options())
+	sim.show_numbers = bool(Profile.setting("numbers"))
 	world.sim = sim
 	if args.has("autoplay") or args.has("skip"):
 		for entry in str(args.get("give", "")).split(",", false):
@@ -119,6 +183,7 @@ func _sample_profile() -> void:
 ## Back to the camp, with the legion standing on the field as the chosen commander and the quartermaster's ranks would start it.
 func _enter_camp(focus_id := "march") -> void:
 	camp_sim = Sim.new(balance, content, _run_options())
+	camp_sim.show_numbers = bool(Profile.setting("numbers"))
 	world.sim = camp_sim
 	state = "camp"
 	ui.focus = focus_id
@@ -126,6 +191,7 @@ func _enter_camp(focus_id := "march") -> void:
 
 func _finish_run() -> void:
 	state = "over"
+	ui.focus = "camp"
 	Profile.record_run(sim)
 
 
@@ -135,29 +201,7 @@ func _start() -> void:
 
 
 func _setup_input() -> void:
-	var keys := {
-		"left": [KEY_A, KEY_LEFT], "right": [KEY_D, KEY_RIGHT], "up": [KEY_W, KEY_UP], "down": [KEY_S, KEY_DOWN],
-		"testudo": [KEY_SPACE], "reroll": [KEY_R], "banish": [KEY_B], "confirm": [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER], "pause": [KEY_ESCAPE], "quit": [KEY_Q],
-		"fullscreen": [KEY_F11], "back": [KEY_ESCAPE],
-	}
-	for action in keys:
-		if not InputMap.has_action(action):
-			InputMap.add_action(action, 0.25)
-		for k in keys[action]:
-			var e := InputEventKey.new()
-			e.physical_keycode = k
-			InputMap.action_add_event(action, e)
-	var pad := {"back": JOY_BUTTON_B, "reroll": JOY_BUTTON_Y, "banish": JOY_BUTTON_X, "testudo": JOY_BUTTON_A, "confirm": JOY_BUTTON_A, "pause": JOY_BUTTON_START,
-		"left": JOY_BUTTON_DPAD_LEFT, "right": JOY_BUTTON_DPAD_RIGHT, "up": JOY_BUTTON_DPAD_UP, "down": JOY_BUTTON_DPAD_DOWN}
-	for action in pad:
-		var e := InputEventJoypadButton.new()
-		e.button_index = pad[action]
-		InputMap.action_add_event(action, e)
-	for pair in [["left", JOY_AXIS_LEFT_X, -1.0], ["right", JOY_AXIS_LEFT_X, 1.0], ["up", JOY_AXIS_LEFT_Y, -1.0], ["down", JOY_AXIS_LEFT_Y, 1.0]]:
-		var m := InputEventJoypadMotion.new()
-		m.axis = pair[1]
-		m.axis_value = pair[2]
-		InputMap.action_add_event(pair[0], m)
+	Controls.install(Profile.data.settings.get("bindings", {}))
 
 
 func _process(dt: float) -> void:
@@ -171,16 +215,16 @@ func _process(dt: float) -> void:
 		return
 	if Input.is_action_just_pressed("fullscreen"):
 		var full := DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
-		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if full else DisplayServer.WINDOW_MODE_FULLSCREEN)
+		Profile.data.settings.fullscreen = not full
+		apply_settings()
+		Profile.save()
 	match state:
-		"title":
-			if Input.is_action_just_pressed("confirm"):
-				_enter_camp()
-		"camp", "quartermaster", "tablinum", "map", "commanders":
+		"title", "camp", "quartermaster", "tablinum", "map", "commanders", "pause", "settings", "over":
 			_screen_input(dt)
 		"play":
 			if Input.is_action_just_pressed("pause"):
 				state = "pause"
+				ui.focus = "resume"
 				return
 			var move := Input.get_vector("left", "right", "up", "down")
 			var testudo := Input.is_action_just_pressed("testudo")
@@ -210,36 +254,47 @@ func _process(dt: float) -> void:
 					sim.pending_levels = 0
 					sim.free_choices = 0
 					state = "play"
-		"pause":
-			if Input.is_action_just_pressed("pause"):
-				state = "play"
-			elif Input.is_action_just_pressed("quit"):
-				sim.over = true
-				_finish_run()
-		"over":
-			if Input.is_action_just_pressed("confirm"):
-				_enter_camp()
-			elif Input.is_action_just_pressed("pause"):
-				_new_sim()
-				state = "title"
 
 
 func _screen_input(dt: float) -> void:
+	# The key that cancelled or finished a rebinding is already used up this frame.
+	if swallow_input:
+		swallow_input = false
+		return
+	if state == "settings" and not screens.settings.waiting.is_empty():
+		return
 	if state == "camp":
 		for u in [camp_sim.commander] + camp_sim.soldiers:
 			u.anim += dt * 6.0
-	if Input.is_action_just_pressed("back"):
-		if state == "camp":
-			_new_sim()
-			state = "title"
-		else:
-			_enter_camp(state)
+	if Input.is_action_just_pressed("back") or (state == "pause" and Input.is_action_just_pressed("pause")):
+		_back()
+		return
+	if state == "pause" and Input.is_action_just_pressed("quit"):
+		screens.pause.activate("giveup")
 		return
 	for dir in [["left", Vector2.LEFT], ["right", Vector2.RIGHT], ["up", Vector2.UP], ["down", Vector2.DOWN]]:
 		if Input.is_action_just_pressed(dir[0]):
+			if state == "settings" and dir[1].y == 0.0 and screens.settings.adjust(ui.focus, int(dir[1].x)):
+				continue
 			ui.move(dir[1])
 	if Input.is_action_just_pressed("confirm"):
 		_activate(ui.focus)
+
+
+func _back() -> void:
+	match state:
+		"title":
+			pass
+		"camp", "over":
+			go_to_title()
+		"pause":
+			state = "play"
+			ui.focus = ""
+		"settings":
+			if not screens.settings.back():
+				close_settings()
+		_:
+			_enter_camp(state)
 
 
 func _activate(id: String) -> void:
@@ -274,6 +329,10 @@ func _take(i: int) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if state == "settings" and screens.settings.capture(event):
+		swallow_input = true
+		get_viewport().set_input_as_handled()
+		return
 	if screens.has(state):
 		if event is InputEventMouseMotion:
 			ui.hover(hud.get_global_mouse_position())

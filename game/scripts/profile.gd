@@ -5,6 +5,9 @@ extends Node
 const DEFAULT_PATH := "user://profile.json"
 const NO_SAVE_FLAGS := ["run-tests", "bench", "autoplay", "skip", "shot", "screen"]
 
+const SETTING_DEFAULTS := {"master": 0.8, "music": 0.8, "effects": 0.8, "fullscreen": false, "shake": true, "numbers": true,
+	"text_size": 1, "bindings": {}, "language": "en"}
+
 var disabled := false
 var path := DEFAULT_PATH
 var data := {}
@@ -81,8 +84,52 @@ static func merge_saved(saved: Dictionary) -> Dictionary:
 			var v: Variant = saved.settings[key]
 			if key in ["province", "commander"] and not v is String:
 				continue
+			if SETTING_DEFAULTS.has(key):
+				v = _checked_setting(str(key), v)
+				if v == null:
+					continue
 			out.settings[str(key)] = v
 	return out
+
+
+## A saved setting made safe, or null when it is the wrong kind of value.
+static func _checked_setting(key: String, v: Variant) -> Variant:
+	match key:
+		"master", "music", "effects":
+			return clampf(float(v), 0.0, 1.0) if _is_number(v) else null
+		"fullscreen", "shake", "numbers":
+			return v if v is bool else null
+		"text_size":
+			return clampi(int(v), 1, 2) if _is_number(v) and int(v) in [1, 2] else null
+		"language":
+			return v if v is String else null
+		"bindings":
+			if not v is Dictionary:
+				return null
+			var out := {}
+			for action in v:
+				if not v[action] is Dictionary:
+					continue
+				var entry := {}
+				for kind in ["keys", "pads"]:
+					if v[action].get(kind) is Array:
+						entry[kind] = v[action][kind].filter(func(n): return _is_number(n) and n == floorf(n)).map(func(n): return int(n))
+				out[str(action)] = entry
+			return out
+	return v
+
+
+## Every setting, the saved value or its default.
+static func settings_of(from: Dictionary) -> Dictionary:
+	var out: Dictionary = SETTING_DEFAULTS.duplicate(true)
+	for key in from.get("settings", {}):
+		if SETTING_DEFAULTS.has(key):
+			out[key] = from.settings[key]
+	return out
+
+
+func setting(key: String) -> Variant:
+	return data.settings.get(key, SETTING_DEFAULTS[key])
 
 
 static func _merge_record(saved: Dictionary) -> Dictionary:

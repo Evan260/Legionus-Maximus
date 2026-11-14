@@ -42,6 +42,7 @@ var e_max := PackedFloat32Array()
 var e_kind := PackedInt32Array()
 var e_burn := PackedFloat32Array()
 var e_burn_dps := PackedFloat32Array()
+var e_burn_src := PackedStringArray()
 var e_flash := PackedFloat32Array()
 var e_phase := PackedInt32Array()
 var e_fighting := PackedByteArray()
@@ -161,6 +162,7 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 	e_kind.append(kind)
 	e_burn.append(0.0)
 	e_burn_dps.append(0.0)
+	e_burn_src.append("")
 	e_flash.append(0.0)
 	e_phase.append(rng.randi_range(0, 7))
 	e_fighting.append(0)
@@ -310,6 +312,7 @@ func cleave(ci: int, sim: Sim) -> bool:
 		hit_any = true
 	if hit_any:
 		sim.effects.append({"kind": "cleave", "pos": e_pos[ci], "dir": dir, "t": 0.0, "radius": reach, "arc": float(atk.arc)})
+		sim.shake = maxf(sim.shake, float(sim.b.shake.chieftain))
 		sim.legion.remove_fallen(sim)
 	return hit_any
 
@@ -324,6 +327,7 @@ func war_cry(ci: int, sim: Sim) -> void:
 		if (e_pos[i] - centre).length_squared() <= r2:
 			e_haste[i] = float(atk.seconds)
 	sim.effects.append({"kind": "cry", "pos": centre, "t": 0.0, "radius": float(atk.radius)})
+	sim.shake = maxf(sim.shake, float(sim.b.shake.chieftain))
 
 
 func _move(dt: float, sim: Sim) -> void:
@@ -631,6 +635,7 @@ func remove_at(i: int) -> void:
 	e_kind[i] = e_kind[last]; e_kind.resize(last)
 	e_burn[i] = e_burn[last]; e_burn.resize(last)
 	e_burn_dps[i] = e_burn_dps[last]; e_burn_dps.resize(last)
+	e_burn_src[i] = e_burn_src[last]; e_burn_src.resize(last)
 	e_flash[i] = e_flash[last]; e_flash.resize(last)
 	e_phase[i] = e_phase[last]; e_phase.resize(last)
 	e_fighting[i] = e_fighting[last]; e_fighting.resize(last)

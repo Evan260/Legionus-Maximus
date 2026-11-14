@@ -76,6 +76,13 @@ var decimate_next := 0.0
 var endless_since := -1.0
 var peak_soldiers := 0
 var killed_kinds := {}
+var damage_by_source := {}
+var history: Array = []
+var numbers: Array = []
+var show_numbers := false
+var shake := 0.0
+var _next_sample := 0.0
+var _last_hp := 0.0
 
 
 func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
@@ -105,6 +112,7 @@ func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
 	banishes = int(b.banishes) + int(_bonus_amount("banishes"))
 	xp_next = int(b.xp_first)
 	decimate_next = float(b.decimatio.every)
+	_next_sample = float(b.history_every)
 	var kit_types: Array = []
 	for key in kit.starts:
 		if key.begins_with("arm:"):
@@ -121,6 +129,7 @@ func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
 	for i in int(_bonus_amount("start_soldiers")):
 		add_soldier("legionary")
 	legion.place_all(facing_angle)
+	_last_hp = commander.hp
 
 
 ## The rank the profile holds in a quartermaster upgrade.
@@ -184,6 +193,7 @@ func update(dt: float, move: Vector2, testudo_pressed: bool) -> void:
 	if testudo_pressed and testudo_charge >= 1.0 and testudo_left <= 0.0:
 		testudo_left = b.testudo_hold + 1.0 * rank("testudo")
 		testudo_charge = 0.0
+		shake = maxf(shake, float(b.shake.testudo))
 	if testudo_left > 0.0:
 		testudo_left -= dt
 	else:
@@ -201,9 +211,21 @@ func update(dt: float, move: Vector2, testudo_pressed: bool) -> void:
 	_regen(dt)
 	_decimate()
 	peak_soldiers = maxi(peak_soldiers, soldiers.size())
+	_track(dt)
 	if commander.hp <= 0.0:
 		over = true
 		victory = false
+
+
+## The run's history sample, and the screen shake that follows the commander being hurt.
+func _track(dt: float) -> void:
+	if time >= _next_sample:
+		_next_sample += float(b.history_every)
+		history.append({"t": time, "legion": soldiers.size() + 1, "kills": kills})
+	if commander.hp < _last_hp:
+		shake = maxf(shake, float(b.shake.hurt))
+	_last_hp = commander.hp
+	shake = maxf(0.0, shake - dt)
 
 
 func _move_legion(dt: float, move: Vector2) -> void:
@@ -252,27 +274,41 @@ func enemies_near(p: Vector2, r: float) -> Array:
 
 
 ## Every harm to an enemy goes through here so the quartermaster's damage bonus counts for hits, burns and scorching alike.
-func _harm(i: int, dmg: float) -> void:
-	horde.e_hp[i] -= dmg * (1.0 + _bonus_amount("damage"))
+## The health it took is added to `src`, the id of the weapon or soldier type that did it, and returned.
+func _harm(i: int, dmg: float, src: String) -> float:
+	var full := dmg * (1.0 + _bonus_amount("damage"))
+	var taken := minf(full, maxf(horde.e_hp[i], 0.0))
+	horde.e_hp[i] -= full
+	if src != "":
+		damage_by_source[src] = float(damage_by_source.get(src, 0.0)) + taken
+	return taken
 
 
-func hit(i: int, dmg: float, burn_dps: float = 0.0) -> void:
-	_harm(i, dmg)
+## A small number rises from the enemy; the count alive is capped so a big fight stays readable.
+func _number(i: int, taken: float) -> void:
+	if not show_numbers or numbers.size() >= int(b.damage_numbers.cap) or taken < 0.5:
+		return
+	numbers.append({"pos": horde.e_pos[i] + Vector2((horde.e_id[i] * 7) % 9 - 4, -12), "v": roundi(taken), "t": 0.0})
+
+
+func hit(i: int, dmg: float, burn_dps: float = 0.0, src := "") -> void:
+	_number(i, _harm(i, dmg, src))
 	horde.e_flash[i] = 0.1
 	if burn_dps > 0.0:
 		var greek: float = float(b.greek_fire.burn_mult) if rank("greek_fire") > 0 else 1.0
-		ignite(i, burn_dps * greek, burn_seconds())
+		ignite(i, burn_dps * greek, burn_seconds(), "fire_arrows")
 
 
-## Sets an enemy alight; the burn takes its health on the next update.
-func ignite(i: int, dps: float, seconds: float) -> void:
+## Sets an enemy alight; the burn takes its health on the next update and is counted for `src`.
+func ignite(i: int, dps: float, seconds: float, src := "") -> void:
 	horde.e_burn[i] = maxf(horde.e_burn[i], seconds)
 	horde.e_burn_dps[i] = maxf(horde.e_burn_dps[i], dps)
+	horde.e_burn_src[i] = src
 
 
 ## Harm from standing in fire: it takes health and shows the flames without lighting a new burn.
-func scorch(i: int, dmg: float) -> void:
-	_harm(i, dmg)
+func scorch(i: int, dmg: float, src := "") -> void:
+	_number(i, _harm(i, dmg, src))
 	horde.e_burn[i] = maxf(horde.e_burn[i], 0.4)
 
 
@@ -283,7 +319,7 @@ func melee(u: Dictionary, dmg: float, reach: float, cooldown: float, dt: float) 
 	var t := nearest_enemy(u.pos, reach + 6.0)
 	if t < 0:
 		return
-	hit(t, dmg * (1.0 + 0.2 * rank("gladius")))
+	hit(t, dmg * (1.0 + 0.2 * rank("gladius")), 0.0, u.type)
 	u.cd = cooldown
 	effects.append({"kind": "slash", "pos": u.pos, "to": horde.e_pos[t], "t": 0.0})
 
@@ -298,7 +334,7 @@ func _legion_attacks(dt: float) -> void:
 func shoot(kind: String, from: Vector2, to: Vector2, spd: float, dmg: float, pierce: int, burn: float = 0.0, extra: Dictionary = {}) -> void:
 	var dir := (to - from).normalized()
 	var shot := {"kind": kind, "pos": from + dir * 6.0, "vel": dir * spd, "dmg": dmg, "pierce": pierce,
-		"burn": burn, "life": 1.4, "hit": {}, "knock": 0.0, "bounces": 0, "bounce_reach": 0.0, "explode": 0.0, "pin": 0.0}
+		"burn": burn, "life": 1.4, "hit": {}, "knock": 0.0, "bounces": 0, "bounce_reach": 0.0, "explode": 0.0, "pin": 0.0, "src": kind}
 	shot.merge(extra, true)
 	shots.append(shot)
 
@@ -323,7 +359,7 @@ func _move_shots(dt: float) -> void:
 						continue
 					var r := horde.k_radius[horde.e_kind[j]] + 3.0
 					if (horde.e_pos[j] - s.pos).length_squared() < r * r:
-						hit(j, s.dmg, s.burn)
+						hit(j, s.dmg, s.burn, s.src)
 						if s.pin > 0.0:
 							horde.e_stun[j] = maxf(horde.e_stun[j], s.pin)
 						if s.knock > 0.0:
@@ -338,7 +374,7 @@ func _move_shots(dt: float) -> void:
 		if not spent and s.life > 0.0:
 			keep.append(s)
 		elif s.explode > 0.0:
-			_explode(s.pos, s.explode, s.dmg)
+			_explode(s.pos, s.explode, s.dmg, s.src)
 	shots = keep
 
 
@@ -362,9 +398,9 @@ func _bounce(s: Dictionary, from_enemy: int) -> bool:
 	return true
 
 
-func _explode(p: Vector2, radius: float, dmg: float) -> void:
+func _explode(p: Vector2, radius: float, dmg: float, src: String) -> void:
 	for j in enemies_near(p, radius):
-		hit(j, dmg)
+		hit(j, dmg, 0.0, src)
 	effects.append({"kind": "boom", "pos": p, "t": 0.0, "radius": radius})
 
 
@@ -372,7 +408,7 @@ func _burns(dt: float) -> void:
 	for i in horde.e_pos.size():
 		if horde.e_burn[i] > 0.0:
 			horde.e_burn[i] -= dt
-			_harm(i, horde.e_burn_dps[i] * dt)
+			_harm(i, horde.e_burn_dps[i] * dt, horde.e_burn_src[i])
 
 
 func _remove_dead() -> void:
@@ -451,9 +487,21 @@ func _effects(dt: float) -> void:
 		if e.t < (0.12 if e.kind == "slash" else 0.45):
 			keep.append(e)
 	effects = keep
+	_float_numbers(dt)
 	for u in [commander] + soldiers:
 		if u.flash > 0.0:
 			u.flash -= dt
+
+
+func _float_numbers(dt: float) -> void:
+	if numbers.is_empty():
+		return
+	var keep: Array = []
+	for n in numbers:
+		n.t += dt
+		if n.t < float(b.damage_numbers.seconds):
+			keep.append(n)
+	numbers = keep
 
 
 func _regen(dt: float) -> void:
