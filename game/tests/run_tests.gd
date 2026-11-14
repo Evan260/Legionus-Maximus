@@ -1081,6 +1081,10 @@ func test_decimatio_takes_one_in_ten(b: Dictionary) -> void:
 	small.time = float(b.decimatio.every) - 0.01
 	small.update(1.0 / 60.0, Vector2.ZERO, false)
 	check(small.soldiers.size() == 9, "ten soldiers lose one")
+	var falls := 0
+	for e in small.effects:
+		falls += 1 if e.kind == "fallen" else 0
+	check(falls == 1, "the lost soldier is shown falling")
 	var tiny := _mode_sim(b, {"seed": 114, "decimatio": true})
 	tiny.soldiers.resize(9)
 	tiny.time = float(b.decimatio.every) - 0.01
@@ -1137,10 +1141,51 @@ func test_each_commander_starts_with_his_kit(b: Dictionary) -> void:
 
 
 func test_quartermaster_ranks_change_the_start(b: Dictionary) -> void:
-	var s := _mode_sim(b, {"seed": 120, "profile_bonuses": {"start_health": 2, "start_soldiers": 3, "rerolls": 2, "banishes": 1}})
 	var fresh := Sim.new(b, Content.with_all_art(), {"seed": 120, "profile_bonuses": {"start_health": 2, "start_soldiers": 3, "rerolls": 2, "banishes": 1, "move_speed": 2}})
 	var qm: Dictionary = fresh.content.quartermaster
 	check(fresh.commander.max_hp == float(fresh.content.base_commander.hp) + 2.0 * float(qm.start_health.per_rank), "two ranks of health")
 	check(fresh.count("legionary") == 2 + 3, "three more soldiers")
 	check(fresh.rerolls == int(b.rerolls) + 2 and fresh.banishes == int(b.banishes) + 1, "more rerolls and banishes")
+	check(Sim.new(b, Content.with_all_art(), {"commander": "nobody"}).commander_id == "tribune", "an unknown commander becomes the tribune")
+	var base := _mode_sim(b, {"seed": 121})
+	var boosted := _mode_sim(b, {"seed": 121, "profile_bonuses": {"damage": 4, "pickup_radius": 3, "testudo_charge": 4, "experience": 2, "denarii": 5, "no_such_upgrade": 9}})
+	var qd: Dictionary = base.content.quartermaster
+	for s in [base, boosted]:
+		s.horde.spawn("barbarian_club", Vector2(300, 0))
+	var hp0: float = base.horde.e_hp[0]
+	base.scorch(0, 5.0)
+	boosted.scorch(0, 5.0)
+	check(absf((hp0 - boosted.horde.e_hp[0]) / (hp0 - base.horde.e_hp[0]) - (1.0 + 4.0 * float(qd.damage.per_rank))) < 0.001, "the damage bonus counts for scorching")
+	base.horde.e_burn[0] = 1.0
+	base.horde.e_burn_dps[0] = 10.0
+	boosted.horde.e_burn[0] = 1.0
+	boosted.horde.e_burn_dps[0] = 10.0
+	var h1: float = base.horde.e_hp[0]
+	var h2: float = boosted.horde.e_hp[0]
+	base._burns(0.1)
+	boosted._burns(0.1)
+	check(absf((h2 - boosted.horde.e_hp[0]) / (h1 - base.horde.e_hp[0]) - (1.0 + 4.0 * float(qd.damage.per_rank))) < 0.001, "and for burning")
+	check(is_equal_approx(boosted.pickup_radius() / base.pickup_radius(), 1.0 + 3.0 * float(qd.pickup_radius.per_rank)), "pickup radius grows")
+	for s in [base, boosted]:
+		s.testudo_charge = 0.0
+		s.update(1.0, Vector2.ZERO, false)
+	check(boosted.testudo_charge > base.testudo_charge, "the testudo charges sooner")
+	base.gain(100)
+	boosted.gain(100)
+	check(boosted.xp + boosted.level * 1000 > base.xp + base.level * 1000, "coins give more experience")
+	for s in [base, boosted]:
+		s.c_pos.clear()
+		s.c_val.clear()
+		for i in 400:
+			s.horde.spawn("barbarian_club", Vector2(300, 0))
+			s.horde.e_hp[s.horde.e_hp.size() - 1] = 0.0
+		s._remove_dead()
+	var paid_base := 0
+	var paid_boosted := 0
+	for v in base.c_val:
+		paid_base += v
+	for v in boosted.c_val:
+		paid_boosted += v
+	check(paid_boosted > paid_base * 1.15, "kills pay more denarii")
+	check(boosted._bonus_amount("no_such_upgrade") == 0.0, "an unknown upgrade adds nothing")
 	check(fresh.speed() > Sim.new(b, Content.with_all_art(), {"seed": 120}).speed(), "a faster march")

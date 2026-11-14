@@ -79,6 +79,8 @@ var endless_since := -1.0
 func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
 	province = options.get("province", "germania")
 	commander_id = options.get("commander", "tribune")
+	if not game_content.commanders.has(commander_id):
+		commander_id = "tribune"
 	hard = options.get("hard", false)
 	endless = options.get("endless", false)
 	decimatio = options.get("decimatio", false)
@@ -96,6 +98,7 @@ func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
 	legion.commander.hp = legion.commander.max_hp
 	horde = Horde.new(b, content, rng, legion.commander, province)
 	horde.hard = hard
+	horde.sim_ref = weakref(self)
 	rerolls = int(b.rerolls) + int(kit.get("rerolls", 0)) + int(_bonus_amount("rerolls"))
 	banishes = int(b.banishes) + int(_bonus_amount("banishes"))
 	xp_next = int(b.xp_first)
@@ -125,6 +128,8 @@ func _bonus(id: String) -> int:
 
 ## What a quartermaster upgrade adds, its rank times its step.
 func _bonus_amount(id: String) -> float:
+	if not content.quartermaster.has(id):
+		return 0.0
 	return float(_bonus(id)) * float(content.quartermaster[id].per_rank)
 
 
@@ -243,8 +248,13 @@ func enemies_near(p: Vector2, r: float) -> Array:
 	return horde.near(p, r)
 
 
-func hit(i: int, dmg: float, burn_dps: float = 0.0) -> void:
+## Every harm to an enemy goes through here so the quartermaster's damage bonus counts for hits, burns and scorching alike.
+func _harm(i: int, dmg: float) -> void:
 	horde.e_hp[i] -= dmg * (1.0 + _bonus_amount("damage"))
+
+
+func hit(i: int, dmg: float, burn_dps: float = 0.0) -> void:
+	_harm(i, dmg)
 	horde.e_flash[i] = 0.1
 	if burn_dps > 0.0:
 		var greek: float = float(b.greek_fire.burn_mult) if rank("greek_fire") > 0 else 1.0
@@ -259,7 +269,7 @@ func ignite(i: int, dps: float, seconds: float) -> void:
 
 ## Harm from standing in fire: it takes health and shows the flames without lighting a new burn.
 func scorch(i: int, dmg: float) -> void:
-	horde.e_hp[i] -= dmg
+	_harm(i, dmg)
 	horde.e_burn[i] = maxf(horde.e_burn[i], 0.4)
 
 
@@ -359,7 +369,7 @@ func _burns(dt: float) -> void:
 	for i in horde.e_pos.size():
 		if horde.e_burn[i] > 0.0:
 			horde.e_burn[i] -= dt
-			horde.e_hp[i] -= horde.e_burn_dps[i] * dt
+			_harm(i, horde.e_burn_dps[i] * dt)
 
 
 func _remove_dead() -> void:
@@ -389,7 +399,6 @@ func _kill(i: int) -> void:
 	if horde.e_id[i] == horde.chieftain_id:
 		if endless:
 			endless_since = time
-			horde.endless_since = time
 		else:
 			over = true
 			victory = true

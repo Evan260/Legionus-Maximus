@@ -9,8 +9,6 @@
   "max_enemies": 1100,
   "spawn_radius": 390,
   "recycle_radius": 620,
-  "start_legionaries": 2,
-  "start_archers": 0,
   "legion_cap": 100,
   "promotion_picks": 5,
   "legion": {

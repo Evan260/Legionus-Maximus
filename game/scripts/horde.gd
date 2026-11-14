@@ -79,7 +79,7 @@ var chests: Array = []
 var elite_ids: Array = []
 var chief_dead := false
 var hard := false
-var endless_since := -1.0
+var sim_ref: WeakRef
 var carts: Array = []
 
 
@@ -148,8 +148,10 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 		hp *= 1.0 + float(b.enemy_health_growth) * time
 	if hard:
 		hp *= float(b.hard.health_mult)
-	if endless_since >= 0.0 and tag != CHIEF:
-		hp *= 1.0 + float(b.endless.health_per_minute) * floorf((time - endless_since) / float(b.endless.step_seconds))
+	var owner_sim: Sim = sim_ref.get_ref() if sim_ref != null else null
+	var since: float = owner_sim.endless_since if owner_sim != null else -1.0
+	if since >= 0.0 and tag != CHIEF:
+		hp *= 1.0 + float(b.endless.health_per_minute) * floorf((time - since) / float(b.endless.step_seconds))
 	e_id.append(next_id)
 	next_id += 1
 	e_pos.append(pos)
