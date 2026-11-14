@@ -18,6 +18,7 @@ boot_splash/show_image=false
 
 Profile="*res://scripts/profile.gd"
 Audio="*res://scripts/audio.gd"
+Steamworks="*res://scripts/steam.gd"
 
 [display]
 

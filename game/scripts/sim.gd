@@ -22,6 +22,9 @@ var denarii := 0
 var pending_levels := 0
 var over := false
 var victory := false
+## The demo's time limit in seconds (0 for none), and whether the run ended by reaching it.
+var demo_seconds := 0.0
+var demo_over := false
 var ranks := {}
 
 var legion: Legion
@@ -107,6 +110,7 @@ func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
 	hard = options.get("hard", false)
 	endless = options.get("endless", false)
 	decimatio = options.get("decimatio", false)
+	demo_seconds = float(options.get("demo_seconds", 0.0))
 	bonuses = options.get("profile_bonuses", {})
 	b = balance
 	content = game_content
@@ -235,6 +239,10 @@ func update(dt: float, move: Vector2, testudo_pressed: bool) -> void:
 	if commander.hp <= 0.0:
 		over = true
 		victory = false
+	elif not over and demo_seconds > 0.0 and time >= demo_seconds:
+		over = true
+		victory = true
+		demo_over = true
 
 
 ## Reports something rare at once. The list is capped so a reader that never clears it cannot grow it.

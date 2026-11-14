@@ -1591,3 +1591,77 @@ func test_summary_lists_the_top_eight_sources(b: Dictionary) -> void:
 	s.history = [{"t": 10.0, "legion": 3, "kills": 1}]
 	s.time = 25.0
 	check(SummaryScreen.chart_points(s).size() == 2, "the line is carried to the end of the run")
+
+
+func test_achievements_unlock_from_the_run(b: Dictionary) -> void:
+	var saved: Dictionary = Profile.data
+	Profile.data = Profile.defaults()
+	var s := Sim.new(b, content, {"seed": 30})
+	var fresh: Array = Steamworks.check(s)
+	check(fresh == ["commander_tribune"], "only the free commander is earned at the start")
+	s.ranks["hooked_pila"] = 1
+	for i in 30:
+		s.add_soldier("legionary")
+	s.update(1.0 / 60.0, Vector2.RIGHT, false)
+	s.kills = 1000
+	fresh = Steamworks.check(s)
+	check("forge_hooked_pila" in fresh and "legion_25" in fresh and "kills_1000" in fresh, "forged form, legion size and kills are earned live")
+	check(not "legion_50" in fresh and not "kills_10000" in fresh, "larger targets stay unearned")
+	check(Steamworks.check(s).is_empty(), "an earned achievement is not earned again")
+	check(Profile.data.achievements.size() == 4, "every earned one is kept in the profile")
+	s.victory = true
+	s.over = true
+	Profile.record_run(s)
+	fresh = Steamworks.check(s, true)
+	check("win_germania" in fresh and "commander_archer_captain" in fresh and not "kills_10000" in fresh, "a won province and the commander it opens are earned when the run ends, and kills are not counted twice")
+	check(Profile.merge_saved(JSON.parse_string(JSON.stringify(Profile.data))).achievements == Profile.data.achievements, "the earned list survives saving")
+	Steamworks.queue.clear()
+	Profile.data = saved
+
+
+func test_presence_names_the_province_minute_and_legion(b: Dictionary) -> void:
+	var march: Dictionary = Steamworks.presence_of("Germania", 4, 12)
+	check(march == {"steam_display": "#Status_Marching", "province": "Germania", "minute": "4", "legion": "12"}, "marching presence")
+	check(Steamworks.presence_of("", 0, 0) == {"steam_display": "#Status_Camp"}, "camp presence")
+	var vdf := FileAccess.get_file_as_string(ProjectSettings.globalize_path("res://").path_join("../tools/steam/rich_presence.vdf"))
+	for token in ["#Status_Marching", "#Status_Camp", "%province%", "%minute%", "%legion%"]:
+		check(vdf.contains(token), "the vdf has " + token)
+	Steamworks.presence("Germania", 1, 3)
+	check(not Steamworks.running(), "no Steam is called in a test")
+
+
+func test_demo_caps_the_run_at_fifteen_minutes(b: Dictionary) -> void:
+	var s := Sim.new(b, content, {"seed": 31, "demo_seconds": 900.0})
+	s.commander.hp = 1.0e9
+	s.commander.max_hp = 1.0e9
+	while s.time < 899.0:
+		s.update(0.5, Vector2.ZERO, false)
+		s.pending_levels = 0
+	check(not s.over, "a minute before the cap the run goes on")
+	for i in 4:
+		s.update(0.5, Vector2.ZERO, false)
+	check(s.over and s.victory and s.demo_over, "the run ends as a demo victory at the cap")
+	var full := Sim.new(b, content, {"seed": 31})
+	full.time = 905.0
+	full.update(0.5, Vector2.ZERO, false)
+	check(not full.over, "the full game has no cap")
+	var saved: Dictionary = Profile.data
+	Profile.data = Profile.defaults()
+	Profile.record_run(s)
+	check(not Profile.record_of("germania").won and int(Profile.data.totals.wins) == 0, "a demo ending does not count as a win")
+	Profile.data = saved
+
+
+func test_demo_offers_three_commanders(b: Dictionary) -> void:
+	var ready: Array = []
+	for id in content.commanders:
+		if content.ready("commanders", id):
+			ready.append(id)
+	check(Game.commanders(content, b) == ready, "the full game lists every drawn commander")
+	check(Game.province_allowed("gaul", b), "the full game opens every province")
+	check(Game.run_cap(b) == 0.0, "the full game has no cap")
+	Game.demo_forced = true
+	check(Game.commanders(content, b) == ready.slice(0, 3), "the demo lists the first three drawn commanders")
+	check(Game.province_allowed("germania", b) and not Game.province_allowed("gaul", b), "the demo opens Germania only")
+	check(Game.run_cap(b) == 900.0, "the demo caps the run at 900 seconds")
+	Game.demo_forced = false

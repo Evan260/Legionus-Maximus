@@ -11,6 +11,7 @@ const PARCH_DARK := Color(0.82, 0.7, 0.52)
 const GOLD := Color(0.91, 0.69, 0.25)
 const GOLD_LIGHT := Color(1.0, 0.89, 0.59)
 const RED := Color(0.72, 0.18, 0.14)
+const BROWN_TEXT := Color(0.5, 0.36, 0.22)
 
 var main: Node
 var ui: Ui
@@ -66,6 +67,40 @@ func panel(r: Rect2, fill: Color = PARCH) -> void:
 func _draw() -> void:
 	if main == null:
 		return
+	_scene()
+	_card()
+
+
+## An achievement card sliding in at the top right, a parchment panel with a laurel, over whatever is on screen.
+func _card() -> void:
+	var card: Dictionary = Steamworks.card
+	if card.is_empty():
+		return
+	var big := Ui.scale > 1
+	var w := 190.0 if not big else 280.0
+	var h := 16.0 + 2.0 * Ui.leading() + (4.0 if big else 0.0)
+	var slide := Steamworks.card_slide()
+	var r := Rect2(lerpf(W + 2.0, W - 6.0 - w, slide), 44.0 if not big else 68.0, w, h)
+	panel(r)
+	_laurel(r.position + Vector2(18.0, h / 2.0))
+	var tx := r.position.x + 34.0
+	var room := w - 40.0
+	text(ui.clip("ACHIEVEMENT", room), Vector2(tx, r.position.y + 6.0 + Ui.px * 3 / 4), BROWN_TEXT, HORIZONTAL_ALIGNMENT_LEFT, -1, false)
+	text(ui.clip(str(card.name).to_upper(), room), Vector2(tx, r.position.y + 6.0 + Ui.px * 3 / 4 + Ui.leading()), INK, HORIZONTAL_ALIGNMENT_LEFT, -1, false)
+
+
+## A small wreath of gold leaves around a dot.
+func _laurel(c: Vector2) -> void:
+	for side in [-1.0, 1.0]:
+		for i in 6:
+			var a := deg_to_rad(120.0 + 20.0 * i)
+			var p := c + Vector2(cos(a) * side, -sin(a)) * 8.0
+			draw_rect(Rect2(floorf(p.x) - 1.0, floorf(p.y) - 1.0, 3, 3), GOLD if i % 2 == 0 else GOLD_LIGHT)
+			draw_rect(Rect2(floorf(p.x) - 1.0, floorf(p.y) + 2.0, 3, 1), INK)
+	draw_rect(Rect2(c.x - 2.0, c.y - 2.0, 4, 4), RED)
+
+
+func _scene() -> void:
 	var sim: Sim = main.sim
 	if main.screens.has(main.state):
 		if main.state == "pause" or main.state == "over":

@@ -145,6 +145,15 @@
     }
   },
   "demo": {
-    "store_app_id": 0
+    "store_app_id": 0,
+    "seconds": 900,
+    "commanders": 3,
+    "province": "germania"
+  },
+  "steam": {
+    "card_hold": 5.0,
+    "card_slide": 0.35,
+    "presence_every": 10.0,
+    "check_every": 1.0
   }
 }

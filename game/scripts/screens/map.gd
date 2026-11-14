@@ -41,7 +41,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	var step := h + 6.0
 	var ids: Array = []
 	for id in content.provinces:
-		if content.ready("provinces", id) and Profile.province_unlocked(id):
+		if content.ready("provinces", id) and Profile.province_unlocked(id) and Game.province_allowed(id, main.balance):
 			ids.append(id)
 	var visible := int((r.size.y - 36.0) / step)
 	scroll = Ui.scroll_for(maxi(ids.find(ui.focus.get_slice(":", 1)), 0), ids.size(), visible, scroll)

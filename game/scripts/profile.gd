@@ -31,6 +31,7 @@ static func defaults() -> Dictionary:
 		"seen": {},
 		"totals": {"kills": 0, "runs": 0, "wins": 0},
 		"settings": {},
+		"achievements": [],
 	}
 
 
@@ -79,6 +80,10 @@ static func merge_saved(saved: Dictionary) -> Dictionary:
 		for key in out.totals:
 			if _is_number(saved.totals.get(key)):
 				out.totals[key] = maxi(0, int(saved.totals[key]))
+	if saved.get("achievements") is Array:
+		for id in saved.achievements:
+			if id is String and not out.achievements.has(id):
+				out.achievements.append(id)
 	if saved.get("settings") is Dictionary:
 		for key in saved.settings:
 			var v: Variant = saved.settings[key]
@@ -230,7 +235,9 @@ func record_run(sim: Sim) -> void:
 	data.totals.kills = int(data.totals.kills) + sim.kills
 	var rec: Dictionary = record_of(sim.province)
 	rec.longest = maxf(float(rec.longest), sim.time)
-	if sim.victory:
+	# A demo that reaches its time limit shows the victory screen but is not a win.
+	var won := sim.victory and not sim.demo_over
+	if won:
 		data.totals.wins = int(data.totals.wins) + 1
 		if sim.hard:
 			rec.hard_won = true
@@ -277,7 +284,7 @@ func _unlock(sim: Sim) -> void:
 			"kills":
 				earned = int(data.totals.kills) >= int(rule.get("count", 0))
 			"survive":
-				earned = sim.victory and sim.time >= float(rule.get("seconds", 0)) and sim.peak_soldiers <= int(rule.get("max_soldiers", 0))
+				earned = sim.victory and not sim.demo_over and sim.time >= float(rule.get("seconds", 0)) and sim.peak_soldiers <= int(rule.get("max_soldiers", 0))
 			"win_all":
 				earned = all_won
 		if earned:

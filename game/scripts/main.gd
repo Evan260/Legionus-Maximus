@@ -13,6 +13,8 @@ extends Node
 ##   --page=controls    with --screen=settings, open the key and button page
 ##   --text-size=N      use text size 1 or 2 without saving it
 ##   --commander=ID     start with that commander (the tribune when his art is not drawn)
+##   --as-demo          play as the demo: Germania, three commanders and 15 minutes
+##   --card=ID          show that achievement's card, for looking at it
 ##   --give=ID,ID:RANK  start the run with these arms or drills at the rank (default 1), for looking at them
 
 var balance: Dictionary
@@ -29,6 +31,7 @@ var screens := {}
 var camp_sim: Sim
 var settings_from := "title"
 var swallow_input := false
+var check_clock := 0.0
 var run_setup := {"province": "germania", "commander": "tribune", "hard": false, "endless": false, "decimatio": false}
 
 @onready var world: Node2D = $World
@@ -41,6 +44,7 @@ func _ready() -> void:
 		args[parts[0]] = parts[1] if parts.size() > 1 else ""
 	balance = JSON.parse_string(FileAccess.get_file_as_string("res://data/balance.json"))
 	content = Content.load_all(Content.available_art())
+	Steamworks.content = content
 	if args.has("chieftain-at"):
 		balance.chieftain_at = float(args["chieftain-at"])
 	if args.has("run-tests") or args.has("bench"):
@@ -87,6 +91,8 @@ func _ready() -> void:
 				sim.update(1.0 / 30.0, Vector2(cos(sim.time * 0.3), sin(sim.time * 0.3)), false)
 				while sim.pending_levels > 0:
 					Upgrades.apply(sim, Upgrades.offers(sim)[0])
+	if args.has("card") and content.achievements.has(args.card):
+		Steamworks.show_card(args.card)
 	if args.has("hold-choice"):
 		sim.gain(sim.xp_next - sim.xp)
 	if args.has("shot"):
@@ -155,11 +161,12 @@ func _new_sim() -> void:
 ## The camp's choices, the saved ones first, then anything the command line asks for.
 func _load_run_setup() -> void:
 	var settings: Dictionary = Profile.data.settings
-	if content.ready("provinces", str(settings.get("province", ""))) and Profile.province_unlocked(settings.province):
+	var offered := Game.commanders(content, balance)
+	if content.ready("provinces", str(settings.get("province", ""))) and Profile.province_unlocked(settings.province) and Game.province_allowed(settings.province, balance):
 		run_setup.province = settings.province
-	if content.ready("commanders", str(settings.get("commander", ""))) and Profile.commander_unlocked(settings.commander):
+	if settings.get("commander", "") in offered and Profile.commander_unlocked(settings.commander):
 		run_setup.commander = settings.commander
-	if args.has("commander") and content.ready("commanders", args.commander):
+	if args.has("commander") and args.commander in offered:
 		run_setup.commander = args.commander
 	for mode in ["hard", "endless", "decimatio"]:
 		run_setup[mode] = args.has(mode)
@@ -169,6 +176,7 @@ func _load_run_setup() -> void:
 func _run_options() -> Dictionary:
 	var options: Dictionary = run_setup.duplicate()
 	options.profile_bonuses = Profile.bonuses()
+	options.demo_seconds = Game.run_cap(balance)
 	return options
 
 
@@ -193,6 +201,7 @@ func _finish_run() -> void:
 	state = "over"
 	ui.focus = "camp"
 	Profile.record_run(sim)
+	Steamworks.check(sim, true)
 
 
 func _start() -> void:
@@ -206,6 +215,8 @@ func _setup_input() -> void:
 
 func _process(dt: float) -> void:
 	clock += dt
+	Steamworks.blocked = state == "choose"
+	_steam_update(dt)
 	Audio.set_run(state in ["play", "choose", "pause"], sim.time if sim != null else 0.0)
 	if shot_at >= 0.0 and clock >= shot_at:
 		shot_at = -1.0
@@ -256,6 +267,18 @@ func _process(dt: float) -> void:
 					sim.pending_levels = 0
 					sim.free_choices = 0
 					state = "play"
+
+
+## Earns achievements the run meets while it is on, and tells Steam where the player is.
+func _steam_update(dt: float) -> void:
+	if sim != null and state in ["play", "choose", "pause"]:
+		check_clock += dt
+		if check_clock >= float(balance.steam.check_every):
+			check_clock = 0.0
+			Steamworks.check(sim)
+		Steamworks.presence(content.provinces[sim.province].name, int(sim.time / 60.0), sim.soldiers.size() + 1)
+	else:
+		Steamworks.presence("", 0, 0)
 
 
 func _screen_input(dt: float) -> void:

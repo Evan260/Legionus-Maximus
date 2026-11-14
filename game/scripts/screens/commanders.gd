@@ -20,10 +20,7 @@ func activate(id: String) -> void:
 func draw(c: CanvasItem, ui: Ui) -> void:
 	var content: Content = main.content
 	var r := ui.frame(c, "COMMANDERS", "Arrows or WASD move     Space choose     Esc back")
-	var ids: Array = []
-	for id in content.commanders:
-		if content.ready("commanders", id):
-			ids.append(id)
+	var ids := Game.commanders(content, main.balance)
 	var h := 40.0 if Ui.scale == 1 else 58.0
 	var step := h + 4.0
 	var visible := int((r.size.y - 36.0) / step)

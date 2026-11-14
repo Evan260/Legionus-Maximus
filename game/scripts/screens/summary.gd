@@ -16,6 +16,8 @@ func activate(id: String) -> void:
 		main.go_to_camp()
 	elif id == "title":
 		main.go_to_title()
+	elif id == "wishlist":
+		Steamworks.open_store()
 
 
 static func clock(seconds: float) -> String:
@@ -56,7 +58,10 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	var held := ""
 	if sim.endless and sim.endless_since >= 0.0:
 		held = "Held out %s after the chieftain" % clock(sim.endless_seconds())
-	var r := ui.frame(c, title, held if held != "" else "Space camp     Esc title")
+	var hint := held if held != "" else "Space camp     Esc title"
+	if sim.demo_over:
+		hint = "The full game continues past %d minutes" % (int(main.balance.demo.seconds) / 60)
+	var r := ui.frame(c, title, hint)
 	if not modes.is_empty():
 		var room := r.size.x - 36.0 - ui.width_of(title)
 		ui.text(c, ui.clip(" + ".join(modes), room), Vector2(0, r.position.y + 8 + 8 * s), Ui.INK, HORIZONTAL_ALIGNMENT_RIGHT, r.end.x - 12)
@@ -78,6 +83,9 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	var bw := 100.0 if s > 1 else 80.0
 	ui.button(c, Rect2(r.end.x - 12.0 - 2.0 * bw - 8.0, r.end.y - h - 6.0, bw, h), "camp", "CAMP", "", true, null, true)
 	ui.button(c, Rect2(r.end.x - 12.0 - bw, r.end.y - h - 6.0, bw, h), "title", "TITLE", "", true, null, true)
+	if sim.demo_over and int(main.balance.demo.store_app_id) > 0:
+		var wide := 150.0 if s > 1 else 120.0
+		ui.button(c, Rect2(r.end.x - 12.0 - 2.0 * bw - 16.0 - wide, r.end.y - h - 6.0, wide, h), "wishlist", "WISHLIST", "", true, null, true)
 
 
 func _bars(c: CanvasItem, ui: Ui, sim: Sim, area: Rect2, row: float) -> void:
