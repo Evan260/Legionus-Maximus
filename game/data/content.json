@@ -574,6 +574,7 @@
    "dps": 3,
    "radius": 6,
    "coins": 1,
+      "sprint": {"every": 5.0, "speed_mult": 2.2, "seconds": 1.0},
    "art": [
     "unit:barbarian_club"
    ]
@@ -599,13 +600,14 @@
    "behaviour": "ranged",
    "hp": 24,
    "speed": 38,
-   "dps": 4,
+   "dps": 2,
    "radius": 6,
    "coins": 2,
+      "arrives": 180,
    "art": [
     "unit:axe_thrower"
    ],
-   "range": 110
+   "range": 70
   },
   "wolf": {
    "name": "Wolf",
@@ -617,6 +619,7 @@
    "dps": 3,
    "radius": 5,
    "coins": 1,
+      "arrives": 90,
    "art": [
     "unit:wolf"
    ]

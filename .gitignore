@@ -5,3 +5,4 @@ __pycache__/
 art_test/raw/job_*.log
 art_test/raw/*.log
 .superpowers/
+game/tests/balance_overrides.json

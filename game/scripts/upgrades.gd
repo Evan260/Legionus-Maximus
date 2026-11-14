@@ -45,6 +45,16 @@ static func offers(sim: Sim, n: int = -1, skip: Array = []) -> Array:
 		if not skip.has(id):
 			pool.append(id)
 	var picks: Array = []
+	# A full set of choices always holds one recruit while the legion has room, since a growing legion is the heart of the game.
+	if n >= 3:
+		var recruits: Array = []
+		for id in pool:
+			if sim.content.recruits.has(id):
+				recruits.append(id)
+		if not recruits.is_empty():
+			var r: String = recruits[sim.rng.randi_range(0, recruits.size() - 1)]
+			picks.append(r)
+			pool.erase(r)
 	# Recruits come up more often, since a growing legion is the heart of the game, and a forged form is a prize.
 	var weights := {}
 	for id in pool:

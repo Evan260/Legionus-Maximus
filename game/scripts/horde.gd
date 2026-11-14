@@ -52,6 +52,8 @@ var e_push := PackedVector2Array()
 var e_tag := PackedByteArray()
 var e_cd := PackedFloat32Array()
 var e_dash := PackedFloat32Array()
+# Throws left before a ranged enemy closes in to fight hand to hand.
+var e_ammo := PackedInt32Array()
 var e_dir := PackedVector2Array()
 var e_haste := PackedFloat32Array()
 var next_id := 1
@@ -68,6 +70,7 @@ var chief_kind := ""
 var spawn_acc := 0.0
 var next_surge := 0.0
 var next_cart := 0.0
+var next_band := 0.0
 var frame := 0
 var haste_mult := 1.0
 var cleave_cd := 0.0
@@ -111,6 +114,10 @@ func _init(balance: Dictionary, game_content: Content, random: RandomNumberGener
 			mult = float(c.speed_mult)
 			secs = float(c.seconds)
 			burst = float(info.dps) * float(c.burst_mult)
+		elif info.has("sprint"):
+			every = float(info.sprint.every)
+			mult = float(info.sprint.speed_mult)
+			secs = float(info.sprint.seconds)
 		elif beh == CHARGER:
 			every = float(ch.every)
 			mult = float(ch.speed_mult)
@@ -127,6 +134,7 @@ func _init(balance: Dictionary, game_content: Content, random: RandomNumberGener
 	var chief: String = content.provinces[province].chieftain
 	chief_kind = chief if content.ready("enemies", chief) else ""
 	next_surge = float(b.surge_every)
+	next_band = float(b.war_band.first)
 	next_cart = float(b.cart.every)
 	var attacks: Dictionary = content.enemies[chief].get("attacks", {})
 	cleave_cd = float(attacks.get("cleave", {}).get("every", 5.0)) * 0.5
@@ -178,6 +186,7 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 		wait = float(b.ranged.every) * (0.5 + 0.5 * rng.randf())
 	e_cd.append(wait)
 	e_dash.append(0.0)
+	e_ammo.append(int(b.ranged.get("throws", 1 << 30)))
 	e_dir.append(Vector2.ZERO)
 	e_haste.append(0.0)
 	return e_id.size() - 1
@@ -188,14 +197,19 @@ func ring_point() -> Vector2:
 	return commander.pos + Vector2(cos(a) * 1.15, sin(a) * 0.75) * b.spawn_radius
 
 
-## An ordinary enemy of the province: the first listed at first, the others more often as the run goes on.
+## An ordinary enemy for the stream: the first in the province's list most often, the rest more often as the run goes on.
+## An enemy with an "arrives" time in content.json joins the stream only from that second.
 func _pick_ordinary() -> String:
-	if ordinary.size() == 1:
+	var open: Array = []
+	for id in ordinary:
+		if float(content.enemies[id].get("arrives", 0.0)) <= time:
+			open.append(id)
+	if open.size() <= 1:
 		return ordinary[0]
 	var later := float(b.spawn_mix.later_start) + time / float(b.spawn_mix.later_seconds)
 	if rng.randf() < later:
-		return ordinary[1] if ordinary.size() == 2 else ordinary[rng.randi_range(1, ordinary.size() - 1)]
-	return ordinary[0]
+		return open[rng.randi_range(1, open.size() - 1)]
+	return open[0]
 
 
 func cidx(p: Vector2) -> int:
@@ -249,6 +263,9 @@ func _spawn(dt: float, sim: Sim) -> void:
 		spawn_acc -= 1.0
 		if e_pos.size() < int(b.max_enemies) and not ordinary.is_empty():
 			spawn(_pick_ordinary(), ring_point())
+	if time >= next_band:
+		next_band += float(b.war_band.every)
+		_war_band(sim)
 	if time >= next_surge:
 		next_surge += b.surge_every
 		sim.event("surge", commander.pos)
@@ -271,6 +288,22 @@ func _spawn(dt: float, sim: Sim) -> void:
 		next_cart += float(b.cart.every)
 		if content.available.has("prop:supply_cart"):
 			spawn_cart()
+
+
+## A tight band gathers in the legion's path or closes in from behind, so marching straight on is never safe for long.
+func _war_band(sim: Sim) -> void:
+	if ordinary.is_empty():
+		return
+	var wb: Dictionary = b.war_band
+	var ahead := Vector2.from_angle(sim.facing_angle)
+	var dir := ahead if rng.randf() < 0.5 else -ahead
+	var centre: Vector2 = commander.pos + dir.rotated(rng.randf_range(-0.4, 0.4)) * Vector2(1.15, 0.75) * float(b.spawn_radius)
+	var n := int(float(wb.size_start) + float(wb.size_growth) * time)
+	for i in n:
+		if e_pos.size() >= int(b.max_enemies):
+			break
+		spawn(_pick_ordinary(), centre + Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(0.0, float(wb.spread)))
+	sim.event("surge", commander.pos)
 
 
 func chieftain_index() -> int:
@@ -347,6 +380,13 @@ func _move(dt: float, sim: Sim) -> void:
 	var sep_range: float = b.separation_range
 	var u_grid := sim.u_grid
 	var units := sim.units
+	var t_origin := sim.terrain.origin
+	var t_start := sim.terrain.start
+	var t_items := sim.terrain.items
+	var t_solid := sim.terrain.solid
+	var t_cell := Terrain.CELL
+	var t_n := Terrain.GN
+	var solid_range: float = b.get("solid_range", 400.0)
 	for i in e_pos.size():
 		var kind := e_kind[i]
 		var p := e_pos[i]
@@ -372,13 +412,23 @@ func _move(dt: float, sim: Sim) -> void:
 			spd *= haste_mult
 		var v := to / maxf(d, 0.001) * spd
 		var dashing := false
-		if k_beh[kind] == RANGED:
+		var throwing := k_beh[kind] == RANGED and e_ammo[i] > 0
+		if throwing:
 			if d <= k_range[kind] + legion_reach:
 				v = Vector2.ZERO
 				e_cd[i] -= dt
 				if e_cd[i] <= 0.0:
 					e_cd[i] = throw_every
-					_throw(p, to / maxf(d, 0.001), k_dps[kind] * throw_every)
+					# A thrower aims at the nearest Roman, so the outer ranks take the axes before the commander does.
+					var aim := to
+					var best := d * d
+					for u in units:
+						var off: Vector2 = u.pos - p
+						if off.length_squared() < best:
+							best = off.length_squared()
+							aim = off
+					_throw(p, aim.normalized(), k_dps[kind] * throw_every)
+					e_ammo[i] -= 1
 		elif k_dash_every[kind] > 0.0:
 			if e_dash[i] > 0.0:
 				e_dash[i] -= dt
@@ -422,7 +472,7 @@ func _move(dt: float, sim: Sim) -> void:
 			e_push[i] = Vector2.ZERO
 			push = Vector2.ZERO
 		e_fighting[i] = 0
-		if k_beh[kind] != RANGED and d < legion_reach + r and (to.length_squared() < reach2 or e_tag[i] == CHIEF):
+		if not throwing and d < legion_reach + r and (to.length_squared() < reach2 or e_tag[i] == CHIEF):
 			var k := Vector2i(floori(p.x / CELL), floori(p.y / CELL))
 			var target_unit := -1
 			var best := INF
@@ -449,7 +499,23 @@ func _move(dt: float, sim: Sim) -> void:
 				if out.length() > 0.001:
 					push += out.normalized() * maxf(0.0, Sim.UNIT_RADIUS + r - out.length()) * 2.0
 				v = Vector2.ZERO
-		e_pos[i] = p + v * dt + push * 0.6
+		var np := p + v * dt + push * 0.6
+		# Trees and rocks push the barbarian back out, read straight from the terrain grid since this runs for the whole horde.
+		# Barbarians well off the screen pass through, since nobody sees them and the check is costly for a full horde.
+		var gx := floori((np.x - t_origin.x) / t_cell)
+		var gy := floori((np.y - t_origin.y) / t_cell)
+		if d < solid_range and gx >= 0 and gy >= 0 and gx < t_n and gy < t_n:
+			var gc := gx + gy * t_n
+			for t in range(t_start[gc], t_start[gc + 1]):
+				var so := t_solid[t_items[t]]
+				var ax := np.x - so.x
+				var ay := np.y - so.y
+				var reach := so.z + r
+				var d2 := ax * ax + ay * ay
+				if d2 < reach * reach and d2 > 0.000001:
+					var dl := sqrt(d2)
+					np = Vector2(so.x + ax / dl * reach, so.y + ay / dl * reach)
+		e_pos[i] = np
 		if v != Vector2.ZERO:
 			e_face[i] = to / maxf(d, 0.001) if not dashing else e_dir[i]
 		if e_flash[i] > 0.0:
@@ -652,5 +718,6 @@ func remove_at(i: int) -> void:
 	e_tag[i] = e_tag[last]; e_tag.resize(last)
 	e_cd[i] = e_cd[last]; e_cd.resize(last)
 	e_dash[i] = e_dash[last]; e_dash.resize(last)
+	e_ammo[i] = e_ammo[last]; e_ammo.resize(last)
 	e_dir[i] = e_dir[last]; e_dir.resize(last)
 	e_haste[i] = e_haste[last]; e_haste.resize(last)

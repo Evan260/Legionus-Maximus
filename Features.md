@@ -6,9 +6,13 @@ Everything the finished game has. [Plan.md](Plan.md) has why the game exists and
 
 - A run is one campaign in one province. It lasts 20 minutes and ends when the province's chieftain falls, or earlier when the commander does.
 - The camera follows the commander over an endless field. Trees, rocks, rivers and ruins are scattered on it.
+- Trees, rocks and logs are solid for the legion and the barbarians alike. Thickets packed too tight to pass and long lines of rocks and logs cut across the field, so a legion that marches straight on runs into them and has to steer round or turn and fight.
 - Barbarians arrive from beyond the edges of the screen in a steady stream that thickens over the 20 minutes, with a surge every 2 minutes.
-- Every fallen barbarian drops denarii. Collecting them fills the level bar. The amount needed rises with each level.
-- At each level-up the game pauses and offers three choices. One can be rerolled per run for free, more with a permanent upgrade.
+- War bands of a dozen or more gather in a tight group every 35 seconds, either in the legion's path or closing in from behind.
+- Barbarians walk slower than the legion, but club warriors sprint in short bursts faster than it and wolves always run faster, so no direction is safe for long.
+- The commander's own blow is weak: the soldiers do the killing, so an enemy at his back is dangerous until the formation turns to meet it. He recovers health slowly on his own.
+- Every fallen barbarian drops denarii. Any soldier who walks over them collects them for the legion. Collecting them fills the level bar. The amount needed rises with each level.
+- At each level-up the game pauses and offers three choices, one of them always a recruit while the legion has room. One can be rerolled per run for free, more with a permanent upgrade.
 - Supply carts cross the field now and then. Breaking one open gives a free choice, a heal for the whole legion, or a magnet that pulls in every coin on screen.
 - When the run ends, the denarii carried go to the camp for permanent upgrades, whatever the result.
 
@@ -103,7 +107,8 @@ Every province has four ordinary enemies, two elites that arrive with the surges
 | Dacia | falx warrior, archer, wolf-standard bearer, mountain bear | falx band, priest | king behind a moving shield wall |
 | Parthia | horse archer, cataphract, camel rider, slinger | cataphract charge, war elephant | shah on an elephant |
 
-- Ranged enemies stop at a distance and fire, which is what the testudo answers.
+- Ranged enemies stop at a distance and fire at the nearest Roman, which is what the testudo answers. After three throws they close in to fight hand to hand.
+- Some enemies join the stream later in the run: in Germania, wolves from 1:30 and axe throwers from 3:00.
 - Elites have far more health, a name over their heads and drop a chest with one free choice.
 - A chieftain has a health bar across the top of the screen and three attacks of his own.
 

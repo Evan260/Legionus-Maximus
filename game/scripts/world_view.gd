@@ -2,15 +2,12 @@ extends Node2D
 ## Draws the field around the commander: ground, scattered props, coins, the legion and the horde in depth order,
 ## then missiles and effects.
 
-const CHUNK := 160.0
-const PROP_KINDS := ["oak", "fir", "rock", "log", "bush", "stones", "bush", "stones", "fir", "rock"]
 
 var sim: Sim
 var atlas: Atlas
 var ground: Texture2D
 var _ground_of := "germania"
 var shadow: Texture2D
-var props_cache := {}
 var shake_on := true
 var digits: Texture2D
 var _shake_rng := RandomNumberGenerator.new()
@@ -58,22 +55,6 @@ func _process(dt: float) -> void:
 		queue_redraw()
 
 
-func _chunk_props(cx: int, cy: int) -> Array:
-	var key := Vector2i(cx, cy)
-	if props_cache.has(key):
-		return props_cache[key]
-	var r := RandomNumberGenerator.new()
-	r.seed = hash(key)
-	var out: Array = []
-	for i in r.randi_range(0, 2):
-		var p := Vector2((cx + r.randf()) * CHUNK, (cy + r.randf()) * CHUNK)
-		# The field where the legion starts stays open.
-		if p.length() > 90.0:
-			out.append([PROP_KINDS[r.randi_range(0, PROP_KINDS.size() - 1)], p])
-	props_cache[key] = out
-	return out
-
-
 func _add(y: float, rect: Rect2, dest: Vector2, mod: Color) -> void:
 	_keys.append((int(y) + 100000) * 65536 + _rects.size())
 	_rects.append(rect)
@@ -107,11 +88,9 @@ func _draw() -> void:
 	var margin := 80.0
 	var view := Rect2(top_left - Vector2(margin, margin), screen + Vector2(margin, margin) * 2.0)
 
-	for cx in range(floori(view.position.x / CHUNK), floori(view.end.x / CHUNK) + 1):
-		for cy in range(floori(view.position.y / CHUNK), floori(view.end.y / CHUNK) + 1):
-			for pr in _chunk_props(cx, cy):
-				var f := atlas.prop_frame(pr[0])
-				_add(pr[1].y, f[0], pr[1] - f[1], white)
+	for pr in sim.terrain.props_in(view):
+		var f := atlas.prop_frame(pr[0])
+		_add(pr[1].y, f[0], pr[1] - f[1], white)
 
 
 	var gold := Color(1.0, 0.92, 0.7)

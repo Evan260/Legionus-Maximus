@@ -1,5 +1,5 @@
 extends SceneTree
-## Plays whole runs headless with four bots (standing still, circling, turning to face the crowd, and facing with recruits first)
+## Plays whole runs headless with four bots (standing still, marching straight, circling, turning to face the crowd, and facing with recruits first until the legion has 30)
 ## and prints when each dies, for tuning balance.json. Optional overrides go in tests/balance_overrides.json.
 
 func run(balance: Dictionary, content: Content, seed: int, mode: String) -> String:
@@ -22,6 +22,8 @@ func run(balance: Dictionary, content: Content, seed: int, mode: String) -> Stri
 				var want := sum.normalized()
 				var ahead := Vector2.from_angle(sim.facing_angle)
 				move = want * 0.3 if ahead.dot(want) < 0.9 else -want * 0.25
+		elif mode == "straight":
+			move = Vector2.RIGHT
 		elif mode == "circle":
 			move = Vector2(cos(sim.time * 0.4), sin(sim.time * 0.4))
 		sim.update(dt, move, mode != "idle" and sim.testudo_charge >= 1.0 and sim.commander.hp < sim.commander.max_hp * 0.5)
@@ -32,7 +34,7 @@ func run(balance: Dictionary, content: Content, seed: int, mode: String) -> Stri
 			var pick: String = picks[rng.randi_range(0, picks.size() - 1)]
 			if mode == "smart":
 				for id in picks:
-					if sim.content.recruits.has(id):
+					if sim.content.recruits.has(id) and sim.soldiers.size() < 30:
 						pick = id
 			Upgrades.apply(sim, pick)
 		if sim.time > 300.0:
@@ -53,7 +55,7 @@ func _init() -> void:
 	content.base_commander.merge(over.get("commander", {}), true)
 	for k in over.get("enemies", {}):
 		content.enemies[k].merge(over.enemies[k], true)
-	for mode in ["idle", "circle", "face", "smart"]:
-		for seed in [1, 2, 3, 4, 5]:
+	for mode in over.get("modes", ["idle", "straight", "circle", "face", "smart"]):
+		for seed in over.get("seeds", [1, 2, 3, 4, 5]):
 			print(run(balance, content, seed, mode))
 	quit()

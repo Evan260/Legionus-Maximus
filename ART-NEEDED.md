@@ -2,7 +2,7 @@
 
 Prices are in USD, with the CAD amount alongside (1 USD is about 1.39 CAD).
 
-Everything here is content that is built and tested but stays hidden in the game until its art exists, because an entry whose art keys are missing is not offered (`Content.ready()`). None of it is made yet. `python tools/art/pixellab.py balance` shows what is left on the PixelLab account.
+Everything here is content that is built and tested but stays hidden in the game until its art exists, because an entry whose art keys are missing is not offered (`Content.ready()`). Germania is complete: its four extra enemies, every icon, the weapon props, the chest and the supply cart were made on 2026-11-14 for \$1.11 (about \$1.54 CAD). `python tools/art/pixellab.py balance` shows what is left on the PixelLab account.
 
 ## How to make it
 
@@ -18,8 +18,8 @@ id(){ python -c "import json;print(json.load(open('$R/$1/character.json'))['char
 anim(){ n=0; for d in $DIRS; do $PL animate "$(id $1)" x --template-action $2 --direction $d --out-dir $R/$1/t_$2_$d & n=$((n+1)); [ $((n % 7)) -eq 0 ] && wait; done; wait; }
 # prop NAME WxH "prompt": Pro Flash with the style image, so props match the rest of the game
 prop(){ $PL proflash "$3, top-down game prop, selective outline, transparent background, warm afternoon light" $2 --style $R/style_ref.png --style-use "match this art style, palette, shading and pixel density" --transparent --out $R/props3/$1.png; }
-# icon NAME "prompt": 32 px side-view icon straight into the game
-icon(){ $PL pixen "$2, game upgrade icon, centered, warm afternoon light" 32x32 --view side --outline "selective outline" --detail "medium detail" --transparent --raw --out game/assets/icons/$1.png; }
+# icon NAME "prompt": 32 px side-view icon straight into the game; naming it an object with no people or faces stops pixen drawing a figure
+icon(){ $PL pixen "inventory item icon of a single object: $2. Object only, no people, no faces, no creatures, plain transparent background" 32x32 --view side --outline "selective outline" --detail "medium detail" --transparent --raw --out game/assets/icons/$1.png; }
 ```
 
 Estimates come from the averages in `tools/art/ledger.csv`. A 48 px character costs about \$0.084, a 64 px one \$0.134, one animated direction about \$0.056 (so about \$0.45 for the 8 directions; the built-in loops often cost less, so treat it as a ceiling), a Pro Flash prop about \$0.117, a Pro Flash ground about \$0.111 and a pixen icon about \$0.022.
@@ -35,7 +35,7 @@ Grounds need no code change: save each as `game/assets/grounds/<province>.png` a
 
 ## Recruits
 
-Each recruit needs a unit and an icon (icons are under Icons below). The cavalryman also unlocks the cavalry prefect, the centurion the old centurion and the standard bearer the legate.
+Each recruit needs a unit; its icon is already made. The cavalryman also unlocks the cavalry prefect, the centurion the old centurion and the standard bearer the legate.
 
 ### unit:slinger
 
@@ -93,10 +93,6 @@ anim centurion walking
 
 Subtotal: \$3.19 (about \$4.44 CAD).
 
-## War dogs (arm)
-
-The dog pack of the War dogs weapon.
-
 ### unit:war_dog
 
 Unlocks: arm war_dogs. Estimate \$0.53 (about \$0.74 CAD).
@@ -107,10 +103,6 @@ anim war_dog running
 ```
 
 Subtotal: \$0.53 (about \$0.74 CAD).
-
-## Germania enemies
-
-The club warrior, spearman and the chieftain exist already.
 
 ### unit:axe_thrower
 
@@ -430,38 +422,6 @@ Subtotal: \$3.82 (about \$5.32 CAD).
 
 Pro Flash with `--style art_test/raw/style_ref.png`, saved in `art_test/raw/props3/` (create it first). The chest and supply cart are in no `art` list: the game skips them until a `chest` or `supply_cart` prop is in the atlas, and the tests count them as drawn.
 
-### prop:stake
-
-Unlocks: arm stakes (Ditch and stakes). Estimate \$0.12 (about \$0.16 CAD).
-
-```bash
-prop stake 32x32 "a sharpened wooden stake driven into the ground, pointing up"
-```
-
-### prop:caltrops
-
-Unlocks: arm caltrops. Estimate \$0.12 (about \$0.16 CAD).
-
-```bash
-prop caltrops 24x24 "a small scatter of iron caltrop spikes on the ground"
-```
-
-### prop:fire_pot
-
-Unlocks: arm fire_pots. Estimate \$0.12 (about \$0.16 CAD).
-
-```bash
-prop fire_pot 32x32 "a clay pot with a burning rag, flames rising"
-```
-
-### prop:onager_stone
-
-Unlocks: arm onager. Estimate \$0.12 (about \$0.16 CAD).
-
-```bash
-prop onager_stone 24x24 "a large round grey stone, as thrown by a Roman onager"
-```
-
 ### prop:pine
 
 Unlocks: province dacia. Estimate \$0.12 (about \$0.16 CAD).
@@ -526,24 +486,6 @@ Unlocks: province parthia. Estimate \$0.12 (about \$0.16 CAD).
 prop palm 64x96 "a date palm tree with a curved trunk"
 ```
 
-### prop:chest
-
-Unlocks: every elite, which drops a chest with a free choice (hidden until drawn). Estimate \$0.12 (about \$0.16 CAD).
-
-```bash
-prop chest 32x32 "a small iron-bound wooden chest with a gold lock, lid shut"
-```
-
-### prop:supply_cart
-
-Unlocks: the supply carts (hidden until drawn). Estimate \$0.12 (about \$0.16 CAD).
-
-```bash
-prop supply_cart 64x48 "a Roman supply cart, two wooden wheels, loaded with sacks and barrels, no horse"
-```
-
-Subtotal: \$1.64 (about \$2.28 CAD).
-
 ## Grounds
 
 One seamless 256x256 tile per province, Pro Flash with the style image, then `tools/art/make_seamless.py`, then copy the tile to its place. Germania's ground exists.
@@ -590,74 +532,6 @@ cp $R/ground/parthia_tile.png game/assets/grounds/parthia.png
 
 Subtotal: \$0.44 (about \$0.62 CAD).
 
-## Icons
-
-Pixen, 32 px, side view, saved straight into `game/assets/icons/`.
-
-```bash
-icon slinger "Roman sling with a round stone"
-icon cavalry "Roman cavalry helmet with a horsehair plume and a horse head"
-icon standard_bearer "Roman legion standard pole with gold hand and silver discs"
-icon ballista "Roman ballista bolt thrower with a heavy bolt"
-icon centurion "Roman centurion helmet with a tall transverse crest and a vine staff"
-icon onager "Roman onager catapult with its arm raised"
-icon caltrops "iron caltrop spikes"
-icon stakes "ring of sharpened wooden stakes"
-icon fire_pots "clay pot with flames"
-icon war_dogs "snarling war dog head with a spiked collar"
-icon trumpets "curved Roman cornu horn trumpet"
-icon eagle "Roman aquila eagle with spread wings and lightning bolts"
-icon oil_jars "clay amphora spilling dark oil"
-icon torches "two burning torches"
-icon hooked_pila "Roman pilum with a barbed hook head"
-icon greek_fire "clay pot with green-white flames"
-icon siege_train "Roman onager and scorpio side by side"
-icon hunting_horn "curved horn trumpet with a hound's head"
-icon burning_eagle "golden Roman eagle wreathed in flames"
-icon fortified_camp "Roman palisade fort with a gate and a banner"
-icon shield_wall "Roman shields locked in a row"
-icon better_bows "long composite bow with a fine arrow"
-icon close_order "three Roman helmets packed close together"
-icon plunder "overflowing sack of coins"
-icon veterans "Roman helmet with three chevron service stripes"
-icon reserves "two Roman helmets behind a gate"
-icon fortune "golden four-leaf clover with a coin"
-icon glory "golden laurel wreath with a star"
-```
-
-| Icon | Unlocks |
-|---|---|
-| slinger | recruit slinger |
-| cavalry | recruit cavalry |
-| standard_bearer | recruit standard_bearer |
-| ballista | recruit ballista |
-| centurion | recruit centurion |
-| onager | arm onager |
-| caltrops | arm caltrops |
-| stakes | arm stakes |
-| fire_pots | arm fire_pots |
-| war_dogs | arm war_dogs |
-| trumpets | arm trumpets |
-| eagle | arm eagle |
-| oil_jars | arm oil_jars |
-| torches | arm torches |
-| hooked_pila | forged form hooked_pila |
-| greek_fire | forged form greek_fire |
-| siege_train | forged form siege_train |
-| hunting_horn | forged form hunting_horn |
-| burning_eagle | forged form burning_eagle |
-| fortified_camp | forged form fortified_camp |
-| shield_wall | drill shield_wall |
-| better_bows | drill better_bows |
-| close_order | drill close_order |
-| plunder | drill plunder |
-| veterans | drill veterans |
-| reserves | drill reserves |
-| fortune | drill fortune |
-| glory | drill glory |
-
-28 icons at \$0.02 (about \$0.03 CAD) each. Subtotal: \$0.62 (about \$0.86 CAD).
-
 ## Optional: the camp scene
 
 The camp screens draw on a plain backdrop today. If the Roman marching camp from Features.md is wanted as a picture, it is one Pro Flash image (not counted in the total below), saved as `game/assets/camp.png`, which the camp screen would need code to draw.
@@ -673,14 +547,11 @@ Estimate \$0.15 (about \$0.21 CAD).
 | Group | Estimate |
 |---|---|
 | Recruits | \$3.19 (about \$4.44 CAD) |
-| War dogs (arm) | \$0.53 (about \$0.74 CAD) |
-| Germania enemies | \$2.13 (about \$2.96 CAD) |
 | Britannia enemies | \$3.77 (about \$5.25 CAD) |
 | Gaul enemies | \$3.77 (about \$5.25 CAD) |
 | Dacia enemies | \$3.77 (about \$5.25 CAD) |
 | Parthia enemies | \$3.82 (about \$5.32 CAD) |
-| Props | \$1.64 (about \$2.28 CAD) |
+| Props | \$0.94 (about \$1.31 CAD) |
 | Grounds | \$0.44 (about \$0.62 CAD) |
-| Icons | \$0.62 (about \$0.86 CAD) |
-| **Everything above, camp scene left out** | **\$23.70 (about \$32.94 CAD)** |
+| **Everything above, camp scene left out** | **\$19.70 (about \$27.38 CAD)** |
 

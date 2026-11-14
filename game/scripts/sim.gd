@@ -40,6 +40,7 @@ var facing_angle := 0.0
 var moving := false
 
 var horde: Horde
+var terrain: Terrain
 var province := "germania"
 var free_choices := 0
 var g_origin: Vector2i:
@@ -125,6 +126,9 @@ func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
 	legion.commander.max_hp = legion.max_hp_of("commander")
 	legion.commander.hp = legion.commander.max_hp
 	horde = Horde.new(b, content, rng, legion.commander, province)
+	terrain = Terrain.new(rng.seed)
+	terrain.clear_radius = float(b.get("terrain_clear_radius", 200.0))
+	terrain.refresh(legion.commander.pos)
 	horde.hard = hard
 	horde.sim_ref = weakref(self)
 	rerolls = int(b.rerolls) + int(kit.get("rerolls", 0)) + int(_bonus_amount("rerolls"))
@@ -304,9 +308,13 @@ func _move_legion(dt: float, move: Vector2) -> void:
 		commander.pos += dir * speed() * dt
 		facing_angle = lerp_angle(facing_angle, move.angle(), minf(1.0, dt * 5.0))
 		commander.facing = move.normalized()
+	commander.pos = terrain.push_out(commander.pos, UNIT_RADIUS)
+	terrain.refresh(commander.pos)
 	commander.moving = moving
 	commander.anim += dt * 10.0
 	legion.follow(dt, self)
+	for so in soldiers:
+		so.pos = terrain.push_out(so.pos, UNIT_RADIUS)
 
 
 func _cell(p: Vector2) -> Vector2i:
@@ -643,6 +651,9 @@ func _float_numbers(dt: float) -> void:
 
 
 func _regen(dt: float) -> void:
+	# The commander slowly recovers on his own, so stray axes wear him down only while the fighting is thick.
+	if commander.hp > 0.0:
+		commander.hp = minf(commander.max_hp, commander.hp + float(b.get("commander_regen", 0.0)) * dt)
 	var r := 0.6 * rank("rations")
 	if r <= 0.0:
 		return

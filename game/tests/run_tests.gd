@@ -6,9 +6,7 @@ var passes := 0
 const WAITING_FOR_ART := ["slinger", "cavalry", "standard_bearer", "medicus", "ballista", "centurion"]
 
 # Built before their icons and small props are drawn; every other implemented entry must have all its art.
-const NO_ICON_YET := ["onager", "caltrops", "stakes", "fire_pots", "war_dogs", "trumpets", "eagle", "oil_jars", "torches",
-	"hooked_pila", "greek_fire", "siege_train", "hunting_horn", "burning_eagle", "fortified_camp",
-	"shield_wall", "better_bows", "close_order", "plunder", "veterans", "reserves", "fortune", "glory"]
+const NO_ICON_YET := []
 
 var content: Content
 
@@ -158,6 +156,80 @@ func test_soldiers_gather_coins_for_the_commander(b: Dictionary) -> void:
 	check(s.xp + (s.level - 1) * 1000 > before, "and counted for the legion")
 
 
+func test_solid_props_block_the_march(b: Dictionary) -> void:
+	var s := Sim.new(b, content, {"seed": 120})
+	s.terrain.clear()
+	s.terrain.empty = false
+	s.terrain._chunks[Vector2i(0, 0)] = [["rock", Vector2(60, 0), 10.0]]
+	s.terrain._anchor = Vector2i(1 << 30, 0)
+	s.terrain.refresh(s.commander.pos)
+	for f in 120:
+		s.update(1.0 / 60.0, Vector2.RIGHT, false)
+	var rock_side: bool = absf(s.commander.pos.y) < 1.0 and s.commander.pos.x < 60.0
+	check(s.commander.pos.distance_to(Vector2(60, 0)) >= 10.0 + Sim.UNIT_RADIUS - 0.5, "the commander never stands inside the rock")
+	check(rock_side or s.commander.pos.x > 60.0, "he stops at it or slides round it")
+
+
+func test_a_thicket_is_too_tight_to_walk_through(b: Dictionary) -> void:
+	var t := Terrain.new(7)
+	var found := false
+	for rx in 6:
+		for ry in 6:
+			var trees: Array = []
+			for p in t._region(rx, ry):
+				if p[0] == "oak" or p[0] == "fir":
+					trees.append(p[1])
+			if trees.size() < 20:
+				continue
+			found = true
+			var widest := 0.0
+			for a in trees:
+				var nearest := INF
+				for c in trees:
+					if a != c:
+						nearest = minf(nearest, a.distance_to(c))
+				widest = maxf(widest, nearest)
+			check(widest - 2.0 * 8.0 < 2.0 * Sim.UNIT_RADIUS, "no gap in a thicket lets a soldier through (%.1f)" % widest)
+	check(found, "a thicket appears within a few regions")
+
+
+func test_a_war_band_arrives_together(b: Dictionary) -> void:
+	var s := Sim.new(b, content, {"seed": 121})
+	s.b = b.duplicate()
+	s.b.spawn_per_second_start = 0.0
+	s.b.spawn_per_second_growth = 0.0
+	s.horde.next_surge = 1e9
+	s.time = float(b.war_band.first) - 0.01
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.horde.e_pos.size() == int(b.war_band.size_start), "the band has its size (%d)" % s.horde.e_pos.size())
+	var centre := Vector2.ZERO
+	for p in s.horde.e_pos:
+		centre += p
+	centre /= maxf(1.0, s.horde.e_pos.size())
+	var tight := true
+	for p in s.horde.e_pos:
+		tight = tight and p.distance_to(centre) <= float(b.war_band.spread) * 2.0
+	check(tight, "its men stand close together")
+
+
+func test_a_sprinting_clubman_outruns_the_commander(b: Dictionary) -> void:
+	var info: Dictionary = content.enemies.barbarian_club
+	check(float(info.speed) * float(info.sprint.speed_mult) > float(content.base_commander.speed), "his sprint is faster than the commander")
+	check(float(info.speed) < float(content.base_commander.speed), "but his walk is slower")
+
+
+func test_every_full_choice_holds_a_recruit(b: Dictionary) -> void:
+	var s := Sim.new(b, Content.with_all_art(), {"seed": 122})
+	var always := true
+	for k in 50:
+		var picks := Upgrades.offers(s)
+		var has := false
+		for id in picks:
+			has = has or s.content.recruits.has(id)
+		always = always and has
+	check(always, "fifty sets of choices each held a recruit")
+
+
 func test_lorica_raises_health(b: Dictionary) -> void:
 	var s := Sim.new(b, content, {"seed": 12})
 	var before: float = s.commander.max_hp
@@ -225,7 +297,7 @@ func test_content_without_art_is_hidden(b: Dictionary) -> void:
 
 
 func test_germania_has_the_existing_enemies(b: Dictionary) -> void:
-	check(content.province_enemies("germania") == ["barbarian_club", "barbarian_spear"], "only the drawn Germanic enemies")
+	check(content.province_enemies("germania") == content.provinces.germania.ordinary, "every Germanic enemy is drawn")
 	check(content.province_enemies("parthia").is_empty(), "a province with no art has no enemies")
 
 
@@ -911,11 +983,26 @@ func _step_dt(s: Sim, seconds: float, move := Vector2.ZERO, testudo := false) ->
 
 func test_ranged_enemy_keeps_its_distance(b: Dictionary) -> void:
 	var s := Sim.new(b, Content.with_all_art(), {"seed": 91})
-	s.horde.spawn("axe_thrower", Vector2(300, 0))
-	_step_dt(s, 12.0)
+	s.terrain.clear()
+	s.b = b.duplicate()
+	s.b.spawn_per_second_start = 0.0
+	s.b.spawn_per_second_growth = 0.0
+	s.horde.next_surge = 1e9
+	s.horde.next_band = 1e9
+	var reach := float(Content.with_all_art().enemies.axe_thrower.range)
+	s.horde.spawn("axe_thrower", Vector2(200, 0))
+	var id := s.horde.e_id[0]
+	_step_dt(s, 4.0)
 	var d: float = s.horde.e_pos[0].distance_to(s.commander.pos)
-	check(d > 110.0 and d <= 110.0 + s.legion_reach + 4.0, "the thrower stops at its range from the legion (%.1f)" % d)
-	check(not s.horde.sp_pos.is_empty() or s.commander.hp < float(content.base_commander.hp) or s.soldiers[0].hp < 50.0, "and throws spears")
+	check(d > reach and d <= reach + s.legion_reach + 4.0, "the thrower stops at its range from the legion (%.1f)" % d)
+	var closed := false
+	for f in 8 * 60:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+		var i := s.horde.e_id.find(id)
+		if i < 0 or s.horde.e_fighting[i] == 1:
+			closed = true
+			break
+	check(closed, "after its throws it closes in to fight")
 
 
 func test_testudo_blocks_thrown_spears(b: Dictionary) -> void:
@@ -949,7 +1036,9 @@ func test_elite_drops_a_chest(b: Dictionary) -> void:
 	var picks := Upgrades.next_choices(s)
 	Upgrades.apply(s, picks[0])
 	check(s.free_choices == 0 and s.level == before, "the choice does not change the level")
-	var bare := Sim.new(b, content, {"seed": 94})
+	var no_chest := Content.available_art()
+	no_chest.erase("prop:chest")
+	var bare := Sim.new(b, Content.load_all(no_chest), {"seed": 94})
 	var j: int = bare.horde.spawn("berserker", Vector2(300, 0))
 	bare.hit(j, 1e9)
 	bare.update(1.0 / 60.0, Vector2.ZERO, false)
@@ -972,7 +1061,9 @@ func test_cart_magnet_pulls_every_coin(b: Dictionary) -> void:
 	s.soldiers[0].hp = 1.0
 	s.horde.open_cart(s, "heal")
 	check(s.soldiers[0].hp == s.soldiers[0].max_hp, "or heal the legion")
-	var none := Sim.new(b, content, {"seed": 96})
+	var no_cart := Content.available_art()
+	no_cart.erase("prop:supply_cart")
+	var none := Sim.new(b, Content.load_all(no_cart), {"seed": 96})
 	none.time = float(b.cart.every) + 1.0
 	none.update(1.0 / 60.0, Vector2.ZERO, false)
 	check(none.horde.carts.is_empty(), "no cart without its art")
@@ -1049,7 +1140,8 @@ func test_a_province_turns_on_with_its_ground_and_draws_it(b: Dictionary) -> voi
 func test_province_only_spawns_its_ready_enemies(b: Dictionary) -> void:
 	var s := Sim.new(b, content, {"seed": 100})
 	var ready_ids: Array = content.province_enemies("germania")
-	check(not ready_ids.has("axe_thrower") and not ready_ids.has("wolf"), "today only the drawn enemies are ready")
+	check(ready_ids.has("axe_thrower") and ready_ids.has("wolf"), "the drawn Germanic enemies are ready")
+	ready_ids = ready_ids + s.horde.elites
 	s.time = 300.0
 	_step_dt(s, 30.0)
 	var seen := {}
@@ -1057,7 +1149,7 @@ func test_province_only_spawns_its_ready_enemies(b: Dictionary) -> void:
 		seen[s.horde.kind_ids[k]] = true
 	for id in seen:
 		check(ready_ids.has(id), "%s may spawn" % id)
-	check(not seen.has("berserker") and not seen.has("axe_thrower"), "no hidden enemy appears")
+	check(not seen.has("painted_warrior") and not seen.has("gaul_swordsman"), "no enemy from another province appears")
 	var wide := Sim.new(b, Content.with_all_art(), {"seed": 101})
 	wide.time = 119.9
 	wide.horde.next_surge = 120.0
@@ -1078,7 +1170,11 @@ func test_thrower_stays_outside_a_big_legion(b: Dictionary) -> void:
 	for i in 38:
 		s.add_soldier("legionary")
 	s.legion.place_all(0.0)
+	s.terrain.clear()
 	s.horde.spawn("axe_thrower", Vector2(400, 0))
+	# Enough throws for the whole test, so only the standing off is checked here.
+	s.horde.e_ammo[0] = 1000
+	var reach := float(Content.with_all_art().enemies.axe_thrower.range)
 	var hp0 := 0.0
 	for u in [s.commander] + s.soldiers:
 		hp0 += u.hp
@@ -1087,7 +1183,7 @@ func test_thrower_stays_outside_a_big_legion(b: Dictionary) -> void:
 		s.update(1.0 / 60.0, Vector2.ZERO, false)
 		for u in s.soldiers:
 			nearest = minf(nearest, u.pos.distance_to(s.horde.e_pos[0]))
-	check(nearest > 110.0, "the thrower stays outside every soldier (%.1f)" % nearest)
+	check(nearest > reach, "while it has axes the thrower stays outside every soldier (%.1f)" % nearest)
 	check(s.horde.e_fighting[0] == 0, "and never fights in melee")
 
 
