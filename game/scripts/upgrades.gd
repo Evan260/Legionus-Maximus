@@ -13,7 +13,7 @@ static func available(sim: Sim) -> Array:
 
 static func _offerable(sim: Sim, kind: String, id: String) -> bool:
 	var info: Dictionary = sim.content.get(kind)[id]
-	if not info.implemented or not sim.content.ready(kind, id):
+	if not info.get("implemented", false) or not sim.content.ready(kind, id):
 		return false
 	if id == "legionary":
 		return sim.count("legionary") < int(sim.b.max_legionaries)
@@ -21,7 +21,7 @@ static func _offerable(sim: Sim, kind: String, id: String) -> bool:
 		return sim.count("archer") < int(sim.b.max_archers)
 	if id == "fire_arrows" and sim.count("archer") == 0:
 		return false
-	return sim.rank(id) < int(info.max)
+	return sim.rank(id) < int(info.get("max", 0))
 
 
 static func offers(sim: Sim, n: int = 3) -> Array:
@@ -55,8 +55,8 @@ static func level_text(sim: Sim, id: String) -> String:
 static func describe(sim: Sim, id: String) -> String:
 	var info: Dictionary = sim.content.upgrade(id)
 	if sim.rank(id) > 0 and info.has("more"):
-		return info.more
-	return info.text
+		return info.get("more", "")
+	return info.get("text", "")
 
 
 static func apply(sim: Sim, id: String) -> void:

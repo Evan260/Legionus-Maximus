@@ -228,3 +228,16 @@ func test_every_content_entry_has_a_name_and_text(b: Dictionary) -> void:
 	for p in content.provinces:
 		var pr: Dictionary = content.provinces[p]
 		check(pr.ordinary.size() == 4 and pr.elites.size() == 2 and content.enemies.has(pr.chieftain), "%s has its enemies" % p)
+
+
+func test_every_implemented_entry_is_ready_and_complete(b: Dictionary) -> void:
+	for kind in ["recruits", "arms", "forged", "drills"]:
+		var entries: Dictionary = content.get(kind)
+		for id in entries:
+			var e: Dictionary = entries[id]
+			if not e.get("implemented", false):
+				continue
+			check(content.ready(kind, id), "%s %s has all its art" % [kind, id])
+			check(str(e.get("name", "")) != "" and str(e.get("text", "")) != "", "%s %s has a name and text" % [kind, id])
+			if kind != "recruits":
+				check(int(e.get("max", 0)) > 0, "%s %s has a last level" % [kind, id])
