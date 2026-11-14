@@ -15,10 +15,8 @@ static func _offerable(sim: Sim, kind: String, id: String) -> bool:
 	var info: Dictionary = sim.content.get(kind)[id]
 	if not info.get("implemented", false) or not sim.content.ready(kind, id):
 		return false
-	if id == "legionary":
-		return sim.count("legionary") < int(sim.b.max_legionaries)
-	if id == "archer":
-		return sim.count("archer") < int(sim.b.max_archers)
+	if kind == "recruits":
+		return sim.soldiers.size() < int(sim.b.legion_cap)
 	if id == "fire_arrows" and sim.count("archer") == 0:
 		return false
 	return sim.rank(id) < int(info.get("max", 0))
@@ -60,25 +58,18 @@ static func describe(sim: Sim, id: String) -> String:
 
 
 static func apply(sim: Sim, id: String) -> void:
-	match id:
-		"legionary":
-			for i in 2:
-				if sim.count("legionary") < int(sim.b.max_legionaries):
-					sim.add_soldier("legionary")
-		"archer":
-			for i in 2:
-				if sim.count("archer") < int(sim.b.max_archers):
-					sim.add_soldier("archer")
-		_:
-			sim.ranks[id] = sim.rank(id) + 1
-			if id == "lorica":
-				for u in [sim.commander] + sim.soldiers:
-					var base: float = sim.content.unit(u.type).hp
-					u.max_hp = base * (1.0 + 0.2 * sim.rank("lorica"))
-					u.hp = minf(u.max_hp, u.hp + base * 0.2)
-			elif id == "pilum" and sim.rank("pilum") == 1:
-				sim.pilum_timer = 0.5
-			elif id == "scorpio" and sim.rank("scorpio") == 1:
-				sim.scorpio_timer = 0.5
+	if sim.content.recruits.has(id):
+		sim.legion.pick(id)
+	else:
+		sim.ranks[id] = sim.rank(id) + 1
+		if id == "lorica":
+			for u in [sim.commander] + sim.soldiers:
+				var base: float = sim.content.unit(u.type).hp
+				u.max_hp = sim.max_hp_of(u.type)
+				u.hp = minf(u.max_hp, u.hp + base * 0.2)
+		elif id == "pilum" and sim.rank("pilum") == 1:
+			sim.pilum_timer = 0.5
+		elif id == "scorpio" and sim.rank("scorpio") == 1:
+			sim.scorpio_timer = 0.5
 	if sim.pending_levels > 0:
 		sim.pending_levels -= 1

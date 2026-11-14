@@ -21,8 +21,15 @@ var over := false
 var victory := false
 var ranks := {}
 
-var commander := {}
-var soldiers: Array = []
+var legion: Legion
+var commander: Dictionary:
+	get:
+		return legion.commander
+var soldiers: Array:
+	get:
+		return legion.soldiers
+	set(value):
+		legion.soldiers = value
 var facing_angle := 0.0
 var moving := false
 
@@ -37,6 +44,7 @@ var e_burn_dps := PackedFloat32Array()
 var e_flash := PackedFloat32Array()
 var e_phase := PackedInt32Array()
 var e_fighting := PackedByteArray()
+var e_stun := PackedFloat32Array()
 var next_id := 1
 var chieftain_id := -1
 
@@ -73,9 +81,7 @@ func _init(balance: Dictionary, game_content: Content, seed_value: int = 0) -> v
 	b = balance
 	content = game_content
 	rng.seed = seed_value if seed_value != 0 else int(Time.get_unix_time_from_system())
-	var cu: Dictionary = content.base_commander
-	commander = {"type": "commander", "pos": Vector2.ZERO, "hp": float(cu.hp), "max_hp": float(cu.hp), "cd": 0.0,
-		"anim": 0.0, "facing": Vector2.RIGHT, "moving": false, "flash": 0.0}
+	legion = Legion.new(b, content, rng, ranks)
 	for kind in KINDS:
 		k_radius.append(float(content.enemies[kind].radius))
 		k_speed.append(float(content.enemies[kind].speed))
@@ -86,8 +92,7 @@ func _init(balance: Dictionary, game_content: Content, seed_value: int = 0) -> v
 		add_soldier("legionary")
 	for i in int(b.start_archers):
 		add_soldier("archer")
-	for s in soldiers:
-		s.pos = commander.pos + slot_of(s)
+	legion.place_all(facing_angle)
 
 
 func rank(id: String) -> int:
@@ -95,59 +100,19 @@ func rank(id: String) -> int:
 
 
 func count(type: String) -> int:
-	var n := 0
-	for s in soldiers:
-		if s.type == type:
-			n += 1
-	return n
+	return legion.count(type)
 
 
 func max_hp_of(type: String) -> float:
-	return float(content.unit(type).hp) * (1.0 + 0.2 * rank("lorica"))
+	return legion.max_hp_of(type)
 
 
 func add_soldier(type: String) -> void:
-	var hp := max_hp_of(type)
-	soldiers.append({"type": type, "pos": commander.pos, "hp": hp, "max_hp": hp, "cd": rng.randf() * 0.5,
-		"anim": rng.randf() * 8.0, "facing": Vector2.RIGHT, "moving": false, "flash": 0.0})
+	legion.add(type)
 
 
-## Places in the formation, in the legion's own frame where +x is the way it faces.
-static func formation(n_legionaries: int, n_archers: int) -> Array:
-	var out: Array = []
-	out.append_array(_block(n_legionaries, 22.0, 1.0))
-	out.append_array(_block(n_archers, -20.0, -1.0))
-	return out
-
-
-static func _block(n: int, start: float, way: float) -> Array:
-	var out: Array = []
-	var cols := clampi(ceili(sqrt(n * 1.6)), 3, 9)
-	var placed := 0
-	var row := 0
-	while placed < n:
-		var in_row := mini(cols, n - placed)
-		for c in in_row:
-			# Alternate ranks sit half a place across, so the men behind see past the men in front.
-			var across := (c - (in_row - 1) / 2.0) * 16.0 + (8.0 if row % 2 == 1 and in_row < cols else 0.0)
-			out.append(Vector2(start + way * row * 15.0, across))
-		placed += in_row
-		row += 1
-	return out
-
-
-func slot_of(s: Dictionary) -> Vector2:
-	var places := formation(count("legionary"), count("archer"))
-	var li := 0
-	var ai := count("legionary")
-	for o in soldiers:
-		if is_same(o, s):
-			return places[li if s.type == "legionary" else ai].rotated(facing_angle)
-		if o.type == "legionary":
-			li += 1
-		else:
-			ai += 1
-	return Vector2.ZERO
+func slot_of(soldier: Dictionary) -> Vector2:
+	return legion.slot_of(soldier, facing_angle)
 
 
 func speed() -> float:
@@ -200,24 +165,7 @@ func _move_legion(dt: float, move: Vector2) -> void:
 		commander.facing = move.normalized()
 	commander.moving = moving
 	commander.anim += dt * 10.0
-	var places := formation(count("legionary"), count("archer"))
-	var li := 0
-	var ai := count("legionary")
-	for s in soldiers:
-		var off: Vector2 = places[li] if s.type == "legionary" else places[ai]
-		if s.type == "legionary":
-			li += 1
-		else:
-			ai += 1
-		var target: Vector2 = commander.pos + off.rotated(facing_angle)
-		var to: Vector2 = target - s.pos
-		var d := to.length()
-		var step := speed() * 1.5 * dt
-		s.moving = d > 1.5
-		if d > 0.01:
-			s.pos += to / d * minf(d, step)
-		s.facing = to.normalized() if d > 3.0 else commander.facing
-		s.anim += dt * 10.0
+	legion.follow(dt, self)
 
 
 func _cell(p: Vector2) -> Vector2i:
@@ -292,6 +240,7 @@ func spawn_enemy(kind: int, pos: Vector2) -> void:
 	e_flash.append(0.0)
 	e_phase.append(rng.randi_range(0, 7))
 	e_fighting.append(0)
+	e_stun.append(0.0)
 	e_push.append(Vector2.ZERO)
 
 
@@ -340,6 +289,12 @@ func _move_enemies(dt: float) -> void:
 			# Barbarians left far behind come round again from ahead, so the field never empties.
 			e_pos[i] = cpos - to * (b.spawn_radius / d)
 			continue
+		if e_stun[i] > 0.0:
+			e_stun[i] -= dt
+			e_fighting[i] = 0
+			if e_flash[i] > 0.0:
+				e_flash[i] -= dt
+			continue
 		var r := k_radius[kind]
 		var v := to / maxf(d, 0.001) * k_speed[kind]
 		var push := e_push[i]
@@ -384,7 +339,7 @@ func _move_enemies(dt: float) -> void:
 							best = dd
 							target_unit = ui
 			if target_unit >= 0:
-				var u: Dictionary = units[target_unit]
+				var u: Dictionary = legion.shield(units[target_unit])
 				u.hp -= k_dps[kind] * dt * shield
 				u.flash = 0.08
 				e_fighting[i] = 1
@@ -397,13 +352,7 @@ func _move_enemies(dt: float) -> void:
 			e_face[i] = v / k_speed[kind]
 		if e_flash[i] > 0.0:
 			e_flash[i] -= dt
-	var alive: Array = []
-	for s in soldiers:
-		if s.hp > 0.0:
-			alive.append(s)
-		else:
-			effects.append({"kind": "fallen", "pos": s.pos, "t": 0.0, "type": s.type, "facing": s.facing})
-	soldiers = alive
+	legion.remove_fallen(self)
 
 
 func nearest_enemy(p: Vector2, reach: float) -> int:
@@ -427,6 +376,26 @@ func nearest_enemy(p: Vector2, reach: float) -> int:
 	return best
 
 
+## Indexes of the living enemies within r of p.
+func enemies_near(p: Vector2, r: float) -> Array:
+	var out: Array = []
+	var c := _cidx(p)
+	if c < 0:
+		return out
+	var kx := c % GW
+	var ky := c / GW
+	var rings := ceili(r / CELL)
+	var r2 := r * r
+	for cy in range(maxi(0, ky - rings), mini(GW, ky + rings + 1)):
+		for cx in range(maxi(0, kx - rings), mini(GW, kx + rings + 1)):
+			var cell := cx + cy * GW
+			for t in range(g_start[cell], g_start[cell + 1]):
+				var j := g_items[t]
+				if e_hp[j] > 0.0 and (e_pos[j] - p).length_squared() <= r2:
+					out.append(j)
+	return out
+
+
 func hit(i: int, dmg: float, burn_dps: float = 0.0) -> void:
 	e_hp[i] -= dmg
 	e_flash[i] = 0.1
@@ -435,8 +404,8 @@ func hit(i: int, dmg: float, burn_dps: float = 0.0) -> void:
 		e_burn_dps[i] = maxf(e_burn_dps[i], burn_dps)
 
 
-func _melee(u: Dictionary, dmg: float, reach: float, cooldown: float, dt: float) -> void:
-	u.cd -= dt * attack_rate()
+func melee(u: Dictionary, dmg: float, reach: float, cooldown: float, dt: float) -> void:
+	u.cd -= dt * attack_rate() * u.haste
 	if u.cd > 0.0:
 		return
 	var t := nearest_enemy(u.pos, reach + 6.0)
@@ -449,29 +418,17 @@ func _melee(u: Dictionary, dmg: float, reach: float, cooldown: float, dt: float)
 
 func _legion_attacks(dt: float) -> void:
 	var cu: Dictionary = content.base_commander
-	_melee(commander, cu.damage, cu.reach, cu.cooldown, dt)
-	var lu: Dictionary = content.recruits.legionary
-	var au: Dictionary = content.recruits.archer
-	for s in soldiers:
-		if s.type == "legionary":
-			_melee(s, lu.damage, lu.reach, lu.cooldown, dt)
-		else:
-			s.cd -= dt * attack_rate()
-			if s.cd > 0.0:
-				continue
-			var t := nearest_enemy(s.pos, au.range)
-			if t < 0:
-				continue
-			s.cd = au.cooldown
-			var fire := rank("fire_arrows")
-			_shoot("arrow", s.pos, e_pos[t], au.arrow_speed, au.damage * (1.0 + 0.2 * rank("gladius") * 0.5), 0,
-				(b.fire_arrows.dps + b.fire_arrows.dps_per_level * (fire - 1)) if fire > 0 else 0.0)
+	melee(commander, cu.damage, cu.reach, cu.cooldown, dt)
+	legion.update(dt, self)
 
 
-func _shoot(kind: String, from: Vector2, to: Vector2, spd: float, dmg: float, pierce: int, burn: float = 0.0) -> void:
+## A missile in flight; extra can set knock, bounces, bounce_reach, explode and life.
+func shoot(kind: String, from: Vector2, to: Vector2, spd: float, dmg: float, pierce: int, burn: float = 0.0, extra: Dictionary = {}) -> void:
 	var dir := (to - from).normalized()
-	shots.append({"kind": kind, "pos": from + dir * 6.0, "vel": dir * spd, "dmg": dmg, "pierce": pierce,
-		"burn": burn, "life": 1.4, "hit": {}})
+	var shot := {"kind": kind, "pos": from + dir * 6.0, "vel": dir * spd, "dmg": dmg, "pierce": pierce,
+		"burn": burn, "life": 1.4, "hit": {}, "knock": 0.0, "bounces": 0, "bounce_reach": 0.0, "explode": 0.0}
+	shot.merge(extra, true)
+	shots.append(shot)
 
 
 func _arms(dt: float) -> void:
@@ -489,11 +446,11 @@ func _arms(dt: float) -> void:
 			for s in order:
 				if thrown >= throwers:
 					break
-				if s.type == "archer":
+				if content.unit(s.type).get("place", "front") != "front":
 					continue
 				var t := nearest_enemy(s.pos, p.range)
 				if t >= 0:
-					_shoot("pilum", s.pos, e_pos[t], p.speed, p.damage + p.damage_per_level * (pr - 1), 1 + pr / 2)
+					shoot("pilum", s.pos, e_pos[t], p.speed, p.damage + p.damage_per_level * (pr - 1), 1 + pr / 2)
 					thrown += 1
 	var sr := rank("scorpio")
 	if sr > 0:
@@ -509,7 +466,7 @@ func _arms(dt: float) -> void:
 					best_hp = e_hp[i]
 					best = i
 			if best >= 0:
-				_shoot("bolt", commander.pos, e_pos[best], sc.speed, sc.damage + sc.damage_per_level * (sr - 1), int(sc.pierce))
+				shoot("bolt", commander.pos, e_pos[best], sc.speed, sc.damage + sc.damage_per_level * (sr - 1), int(sc.pierce))
 
 
 func _move_shots(dt: float) -> void:
@@ -533,14 +490,46 @@ func _move_shots(dt: float) -> void:
 					var r := k_radius[e_kind[j]] + 3.0
 					if (e_pos[j] - s.pos).length_squared() < r * r:
 						hit(j, s.dmg, s.burn)
+						if s.knock > 0.0:
+							e_pos[j] += (e_pos[j] - s.pos).normalized() * s.knock
 						s.hit[e_id[j]] = true
 						s.pierce -= 1
 						if s.pierce < 0:
+							if s.bounces > 0 and _bounce(s, j):
+								continue
 							spent = true
 							break
 		if not spent and s.life > 0.0:
 			keep.append(s)
+		elif s.explode > 0.0:
+			_explode(s.pos, s.explode, s.dmg)
 	shots = keep
+
+
+## Turns a spent stone toward the nearest enemy it has not struck; false when none is near.
+func _bounce(s: Dictionary, from_enemy: int) -> bool:
+	var best := -1
+	var best_d := INF
+	for j in enemies_near(e_pos[from_enemy], s.bounce_reach):
+		if s.hit.has(e_id[j]):
+			continue
+		var d := (e_pos[j] - e_pos[from_enemy]).length_squared()
+		if d < best_d:
+			best_d = d
+			best = j
+	if best < 0:
+		return false
+	s.bounces -= 1
+	s.pierce = 0
+	s.pos = e_pos[from_enemy]
+	s.vel = (e_pos[best] - s.pos).normalized() * s.vel.length()
+	return true
+
+
+func _explode(p: Vector2, radius: float, dmg: float) -> void:
+	for j in enemies_near(p, radius):
+		hit(j, dmg)
+	effects.append({"kind": "boom", "pos": p, "t": 0.0, "radius": radius})
 
 
 func _burns(dt: float) -> void:
@@ -583,6 +572,7 @@ func _kill(i: int) -> void:
 	e_flash[i] = e_flash[last]; e_flash.resize(last)
 	e_phase[i] = e_phase[last]; e_phase.resize(last)
 	e_fighting[i] = e_fighting[last]; e_fighting.resize(last)
+	e_stun[i] = e_stun[last]; e_stun.resize(last)
 	e_push[i] = e_push[last]; e_push.resize(last)
 
 

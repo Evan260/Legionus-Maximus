@@ -31,22 +31,6 @@ func test_the_run_starts_with_the_commander_and_two_legionaries(b: Dictionary) -
 	check(s.count("legionary") == 2, "both are legionaries")
 
 
-func test_formation_puts_legionaries_ahead_and_archers_behind(b: Dictionary) -> void:
-	var places := Sim.formation(6, 4)
-	check(places.size() == 10, "one place per soldier")
-	for i in 6:
-		check(places[i].x > 0.0, "legionary %d is ahead" % i)
-	for i in range(6, 10):
-		check(places[i].x < 0.0, "archer %d is behind" % i)
-
-
-func test_formation_places_never_overlap(b: Dictionary) -> void:
-	var places := Sim.formation(40, 30)
-	for i in places.size():
-		for j in range(i + 1, places.size()):
-			check(places[i].distance_to(places[j]) >= 8.0, "places %d and %d apart" % [i, j])
-
-
 func test_soldiers_reach_their_places_after_marching(b: Dictionary) -> void:
 	var s := Sim.new(b, content, 2)
 	Upgrades.apply(s, "archer")
@@ -103,14 +87,6 @@ func test_testudo_cuts_the_harm_taken(b: Dictionary) -> void:
 	var lost_shielded: float = shielded.commander.max_hp - shielded.commander.hp
 	check(lost_shielded < lost_plain * 0.4, "testudo takes much less harm (%.1f vs %.1f)" % [lost_shielded, lost_plain])
 	check(shielded.testudo_charge == 0.0, "the charge is spent")
-
-
-func test_recruits_join_until_the_cap(b: Dictionary) -> void:
-	var s := Sim.new(b, content, 7)
-	for i in 50:
-		Upgrades.apply(s, "legionary")
-	check(s.count("legionary") == int(b.max_legionaries), "legionaries stop at the cap")
-	check(not Upgrades.available(s).has("legionary"), "and are no longer offered")
 
 
 func test_arms_stop_at_their_last_level(b: Dictionary) -> void:
@@ -237,7 +213,190 @@ func test_every_implemented_entry_is_ready_and_complete(b: Dictionary) -> void:
 			var e: Dictionary = entries[id]
 			if not e.get("implemented", false):
 				continue
-			check(content.ready(kind, id), "%s %s has all its art" % [kind, id])
+			# Recruits are implemented before their sprites are drawn, and the art gate keeps them hidden.
+			if kind != "recruits":
+				check(content.ready(kind, id), "%s %s has all its art" % [kind, id])
 			check(str(e.get("name", "")) != "" and str(e.get("text", "")) != "", "%s %s has a name and text" % [kind, id])
 			if kind != "recruits":
 				check(int(e.get("max", 0)) > 0, "%s %s has a last level" % [kind, id])
+
+
+## A run with no soldiers, then one of each listed type added and set on its place.
+func _legion_sim(b: Dictionary, seed_value: int, types: Array) -> Sim:
+	var s := Sim.new(b, content, seed_value)
+	s.soldiers.clear()
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	# No barbarians arrive on their own, so a test sees only the ones it places.
+	s.b = b.duplicate()
+	s.b.spawn_per_second_start = 0.0
+	s.b.spawn_per_second_growth = 0.0
+	s.next_surge = 1e9
+	for t in types:
+		s.legion.add(t)
+	var places: Array = s.legion.formation()
+	for i in s.soldiers.size():
+		s.soldiers[i].pos = s.commander.pos + places[i]
+	return s
+
+
+func test_legion_stops_at_one_hundred(b: Dictionary) -> void:
+	var s := _legion_sim(b, 7, [])
+	var last := true
+	for i in 150:
+		last = s.legion.add("legionary" if i % 2 == 0 else "archer")
+	check(s.soldiers.size() == 100, "the legion holds 100 soldiers (%d)" % s.soldiers.size())
+	check(not last, "adding at the cap says no")
+	check(not Upgrades.available(s).has("legionary") and not Upgrades.available(s).has("archer"), "recruits are no longer offered")
+	check(Upgrades.available(s).has("pilum"), "weapons still are")
+
+
+func test_places_by_kind(b: Dictionary) -> void:
+	var types: Array = []
+	for i in 12:
+		types.append("legionary")
+	types.append_array(["centurion", "archer", "archer", "slinger", "ballista", "cavalry", "cavalry", "medicus", "standard_bearer"])
+	var s := _legion_sim(b, 1, types)
+	var places: Array = s.legion.formation()
+	check(places.size() == s.soldiers.size(), "one place per soldier")
+	var front_width := 0.0
+	for i in s.soldiers.size():
+		if content.unit(s.soldiers[i].type).place == "front":
+			front_width = maxf(front_width, absf(places[i].y))
+	for i in s.soldiers.size():
+		var kind: String = content.unit(s.soldiers[i].type).place
+		var p: Vector2 = places[i]
+		match kind:
+			"front":
+				check(p.x > 0.0, "front %s is ahead" % s.soldiers[i].type)
+			"rear":
+				check(p.x < 0.0, "rear %s is behind" % s.soldiers[i].type)
+			"flank":
+				check(absf(p.y) > front_width, "flank %s is wider than every front place" % s.soldiers[i].type)
+			"middle":
+				check(p.length() < 20.0, "middle %s is near the commander" % s.soldiers[i].type)
+	for i in places.size():
+		for j in range(i + 1, places.size()):
+			check(places[i].distance_to(places[j]) >= 8.0, "places %d and %d apart" % [i, j])
+
+
+func test_front_rank_takes_the_blow(b: Dictionary) -> void:
+	var s := _legion_sim(b, 2, ["legionary", "archer"])
+	var front: Dictionary = s.soldiers[0]
+	var rear: Dictionary = s.soldiers[1]
+	front.pos = Vector2(300, 0)
+	rear.pos = Vector2(312, 0)
+	s.spawn_enemy(0, Vector2(322, 0))
+	s._rebuild_grids()
+	s.legion.assign_guards()
+	for i in 20:
+		s._move_enemies(1.0 / 60.0)
+	check(front.hp < front.max_hp, "the front-rank man took the hit")
+	check(rear.hp == rear.max_hp, "the archer behind him was spared")
+	rear.pos = Vector2(300, 60)
+	s._rebuild_grids()
+	s.legion.assign_guards()
+	s.e_pos[0] = Vector2(310, 60)
+	for i in 20:
+		s._move_enemies(1.0 / 60.0)
+	check(rear.hp < rear.max_hp, "with no shield near, the archer is hit")
+
+
+func test_fifth_pick_promotes(b: Dictionary) -> void:
+	var s := _legion_sim(b, 3, [])
+	for i in 4:
+		Upgrades.apply(s, "legionary")
+	check(s.count("legionary") == 8, "two legionaries join per pick")
+	check(not s.legion.promoted("legionary"), "four picks do not promote")
+	var hp_before: float = s.soldiers[0].max_hp
+	Upgrades.apply(s, "legionary")
+	check(s.legion.promoted("legionary"), "the fifth does")
+	check(is_equal_approx(s.soldiers[0].max_hp, hp_before * 2.0), "veterans have double health")
+	check(not s.legion.promoted("archer"), "other types are unchanged")
+	Upgrades.apply(s, "centurion")
+	check(s.count("centurion") == 1, "one centurion joins per pick")
+
+
+func test_medicus_heals_the_wounded(b: Dictionary) -> void:
+	var s := _legion_sim(b, 4, ["legionary", "legionary", "medicus"])
+	var hurt: Dictionary = s.soldiers[1]
+	hurt.hp = 10.0
+	var well: Dictionary = s.soldiers[0]
+	well.hp = 40.0
+	for i in 60:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(hurt.hp > 10.0 + float(content.recruits.medicus.heal) * 0.8, "the most wounded was healed (%.1f)" % hurt.hp)
+	check(well.hp <= 40.0 + 0.01, "the less wounded waited")
+	hurt.pos = Vector2(500, 500)
+	var before: float = hurt.hp
+	s.legion.update(0.5, s)
+	check(hurt.hp == before, "out of reach gets nothing")
+
+
+func test_medicus_promoted_revives_a_fallen_soldier(b: Dictionary) -> void:
+	var s := _legion_sim(b, 5, ["legionary", "medicus"])
+	s.legion.picks["medicus"] = 5
+	s.soldiers[0].hp = 0.0
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.count("legionary") == 0, "he fell")
+	for i in 62:
+		s.update(1.0, Vector2.ZERO, false)
+		s.commander.hp = 1e9
+	check(s.count("legionary") == 1, "the medicus brought him back")
+
+
+func test_standard_bearer_speeds_attacks(b: Dictionary) -> void:
+	var s := _legion_sim(b, 6, ["legionary", "standard_bearer"])
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	var haste: float = s.soldiers[0].haste
+	check(is_equal_approx(haste, 1.25), "attack speed up by a quarter (%.2f)" % haste)
+	s.soldiers[0].pos = Vector2(400, 0)
+	s.legion.update(1.0 / 60.0, s)
+	check(is_equal_approx(s.soldiers[0].haste, 1.0), "out of his reach there is no bonus")
+	s.legion.picks["standard_bearer"] = 5
+	s.legion.update(1.0 / 60.0, s)
+	check(is_equal_approx(s.soldiers[0].haste, 1.25), "promoted, the whole legion gets it")
+
+
+func test_cavalry_rides_out_and_back(b: Dictionary) -> void:
+	var s := _legion_sim(b, 8, ["cavalry"])
+	var cav: Dictionary = s.soldiers[0]
+	var home: Vector2 = cav.pos
+	s.spawn_enemy(0, home + Vector2(0, 70) * signf(home.y))
+	var went := 0.0
+	for i in 240:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+		went = maxf(went, cav.pos.distance_to(home))
+		s.commander.hp = 1e9
+	check(went > 30.0, "he rode out (%.0f)" % went)
+	check(s.kills >= 1 or s.e_hp[0] < s.e_max[0], "and struck")
+	check(cav.pos.distance_to(s.commander.pos + s.slot_of(cav)) < 8.0, "and is back in his place")
+
+
+func test_ballista_bolt_pierces_all(b: Dictionary) -> void:
+	var s := _legion_sim(b, 9, ["ballista"])
+	for k in 3:
+		s.spawn_enemy(0, Vector2(-80 - 25 * k, 0))
+	for i in 20:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+		s.commander.hp = 1e9
+	check(s.shots.size() == 1 and s.shots[0].pierce >= 100, "a bolt that pierces everything flew")
+	for i in 90:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+		s.commander.hp = 1e9
+	var hurt := 0
+	for k in s.e_pos.size():
+		if s.e_hp[k] < s.e_max[k]:
+			hurt += 1
+	check(hurt + s.kills >= 2, "it hit the enemies down its line (%d)" % (hurt + s.kills))
+
+
+func test_centurion_shout_stuns(b: Dictionary) -> void:
+	var s := _legion_sim(b, 10, ["centurion"])
+	var c: Dictionary = s.soldiers[0]
+	c.shout = 0.0
+	s.spawn_enemy(0, c.pos + Vector2(20, 0))
+	s.spawn_enemy(0, c.pos + Vector2(200, 0))
+	s._rebuild_grids()
+	s.legion.update(1.0 / 60.0, s)
+	check(s.e_stun[0] > 0.0 and s.e_stun[1] == 0.0, "only the enemy in the shout is stunned")

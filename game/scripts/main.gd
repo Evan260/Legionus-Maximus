@@ -184,8 +184,9 @@ func _bench() -> void:
 	var s := Sim.new(balance, content, 7)
 	for id in ["pilum", "pilum", "scorpio", "fire_arrows"]:
 		s.ranks[id] = s.rank(id) + 1
-	for i in 40:
-		s.add_soldier("legionary" if i % 3 else "archer")
+	var mix := ["legionary", "archer", "slinger", "cavalry", "standard_bearer", "medicus", "ballista", "centurion", "legionary", "archer"]
+	for i in 100:
+		s.add_soldier(mix[i % mix.size()])
 	for i in 1000:
 		s.spawn_enemy(i % 2, s._ring_point() * randf_range(0.3, 1.0))
 	var start := Time.get_ticks_usec()

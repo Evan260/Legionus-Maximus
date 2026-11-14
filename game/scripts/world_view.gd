@@ -166,6 +166,9 @@ func _draw_shots(tex: Texture2D) -> void:
 				var r: Rect2 = pil[0]
 				draw_texture_rect_region(tex, Rect2(-r.size / 2.0, r.size), r)
 				draw_set_transform(Vector2.ZERO)
+			"stone":
+				draw_rect(Rect2((s.pos - dir * 3.0).round(), Vector2(1, 1)), Color(0.75, 0.74, 0.7, 0.5))
+				draw_rect(Rect2(s.pos.round(), Vector2(2, 2)), Color(0.62, 0.6, 0.56))
 			"bolt":
 				draw_line(s.pos - dir * 11.0, s.pos, Color(0.3, 0.2, 0.12), 2.0)
 				draw_line(s.pos - dir * 2.0, s.pos + dir * 2.0, Color(0.8, 0.8, 0.78), 2.0)
@@ -181,11 +184,24 @@ func _draw_effects() -> void:
 			var side := dir.orthogonal() * 4.0
 			draw_line(mid - side - dir * 2.0, mid + dir * 2.0, c, 1.0)
 			draw_line(mid + dir * 2.0, mid + side - dir * 2.0, c, 1.0)
+		elif e.kind == "shout" or e.kind == "boom":
+			var k: float = e.t / 0.45
+			var col := Color(1.0, 0.85, 0.4, 1.0 - k) if e.kind == "shout" else Color(1.0, 0.55, 0.2, 1.0 - k)
+			draw_arc(e.pos, e.radius * (0.4 + 0.6 * k), 0.0, TAU, 24, col, 1.0)
+		elif e.kind == "heal":
+			var k: float = e.t / 0.45
+			var h: Vector2 = (e.pos + Vector2(-1, -14.0 - k * 8.0)).round()
+			var green := Color(0.5, 1.0, 0.55, 1.0 - k)
+			draw_rect(Rect2(h + Vector2(1, 0), Vector2(1, 3)), green)
+			draw_rect(Rect2(h + Vector2(0, 1), Vector2(3, 1)), green)
 	for i in sim.e_pos.size():
 		if sim.e_burn[i] > 0.0:
 			var p: Vector2 = sim.e_pos[i] + Vector2(-2 + (int(sim.time * 20.0 + i) % 4), -22)
 			draw_rect(Rect2(p.round(), Vector2(1, 2)), Color(1, 0.6, 0.15, 0.9))
 			draw_rect(Rect2((p + Vector2(2, 2)).round(), Vector2(1, 1)), Color(1, 0.85, 0.3, 0.9))
+		if sim.e_stun[i] > 0.0:
+			var q: Vector2 = sim.e_pos[i] + Vector2(-3 + (int(sim.time * 12.0 + i) % 7), -26)
+			draw_rect(Rect2(q.round(), Vector2(2, 2)), Color(1, 0.95, 0.45))
 
 
 func _draw_bars() -> void:

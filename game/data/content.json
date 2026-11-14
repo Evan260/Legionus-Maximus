@@ -26,7 +26,8 @@
    "art": [
     "unit:legionary",
     "icon:legionary"
-   ]
+   ],
+   "per_pick": 2
   },
   "archer": {
    "name": "Archers",
@@ -47,7 +48,8 @@
    "art": [
     "unit:archer",
     "icon:archer"
-   ]
+   ],
+   "per_pick": 2
   },
   "slinger": {
    "name": "Slingers",
@@ -58,7 +60,7 @@
    "damage": 8,
    "cooldown": 1.3,
    "max": 0,
-   "implemented": false,
+   "implemented": true,
    "promotion": {
     "text": "Stones bounce once.",
     "bounces": 1
@@ -68,7 +70,10 @@
    "art": [
     "unit:slinger",
     "icon:slinger"
-   ]
+   ],
+   "per_pick": 2,
+   "bounce_reach": 70,
+   "stone_speed": 200
   },
   "cavalry": {
    "name": "Cavalrymen",
@@ -79,7 +84,7 @@
    "damage": 16,
    "cooldown": 1.4,
    "max": 0,
-   "implemented": false,
+   "implemented": true,
    "promotion": {
     "text": "Tramples everything in his path.",
     "trample": true
@@ -88,7 +93,10 @@
    "art": [
     "unit:cavalry",
     "icon:cavalry"
-   ]
+   ],
+   "per_pick": 2,
+   "ride_speed": 200,
+   "strike_reach": 10
   },
   "standard_bearer": {
    "name": "Standard bearer",
@@ -99,17 +107,18 @@
    "damage": 0,
    "cooldown": 1.0,
    "max": 0,
-   "implemented": false,
+   "implemented": true,
    "promotion": {
     "text": "His aura covers the whole legion.",
     "aura_radius": 9999
    },
-   "radius": 60,
-   "speed_bonus": 0.2,
+   "radius": 40,
+   "speed_bonus": 0.25,
    "art": [
     "unit:standard_bearer",
     "icon:standard_bearer"
-   ]
+   ],
+   "per_pick": 1
   },
   "medicus": {
    "name": "Medicus",
@@ -120,17 +129,18 @@
    "damage": 0,
    "cooldown": 1.5,
    "max": 0,
-   "implemented": false,
+   "implemented": true,
    "promotion": {
     "text": "Revives one fallen soldier a minute.",
     "revives_per_minute": 1
    },
-   "radius": 70,
-   "heal": 8,
+   "radius": 40,
+   "heal": 6,
    "art": [
     "unit:medicus",
     "icon:medicus"
-   ]
+   ],
+   "per_pick": 1
   },
   "ballista": {
    "name": "Ballista crew",
@@ -139,9 +149,9 @@
    "attack": "bolt",
    "hp": 45,
    "damage": 40,
-   "cooldown": 3.5,
+   "cooldown": 4.0,
    "max": 0,
-   "implemented": false,
+   "implemented": true,
    "promotion": {
     "text": "Bolts explode at the end.",
     "explode_radius": 30
@@ -151,7 +161,9 @@
    "art": [
     "unit:ballista",
     "icon:ballista"
-   ]
+   ],
+   "per_pick": 1,
+   "pierce": 999
   },
   "centurion": {
    "name": "Centurion",
@@ -162,19 +174,20 @@
    "damage": 18,
    "cooldown": 0.6,
    "max": 0,
-   "implemented": false,
+   "implemented": true,
    "promotion": {
     "text": "His shout doubles in size.",
     "shout_scale": 2
    },
    "reach": 26,
-   "shout_radius": 40,
-   "shout_every": 8.0,
-   "stun": 1.0,
+   "shout_radius": 30,
+   "shout_every": 6.0,
+   "stun": 1.5,
    "art": [
     "unit:centurion",
     "icon:centurion"
-   ]
+   ],
+   "per_pick": 1
   }
  },
  "arms": {
