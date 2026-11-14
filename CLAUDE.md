@@ -32,3 +32,11 @@ All art is PixelLab, made with `tools/art/pixellab.py` (token in `.env`, never i
 
 - The horde is packed arrays with a flat grid; keep per-enemy work out of dictionaries, and check `--bench` after touching `_move_enemies`.
 - Packed arrays copy when changed through another container, so change them by name.
+
+## Release
+
+- Pushing a tag like `v0.1.0` runs `.github/workflows/release.yml` ("Release builds"). The tag must match `config/version` in `game/project.godot` or the run stops. It can also be started by hand with `gh workflow run "Release builds"`.
+- Jobs: the tests, then a full and a demo export for Windows, macOS and Linux, then macOS signing, then a GitHub release for tags. Demo builds come from the "... demo" presets, which carry the `demo` feature (`OS.has_feature("demo")`).
+- Mac builds ship unsigned until the Apple secrets (`MACOS_CERTIFICATE_P12` and the rest, see `.github/scripts/sign_macos.sh`) are set on the repo.
+- Steam uploads stay off until `tools/steam/steam.json` has real app and depot ids and the repo variable `STEAM_UPLOAD` is `true`. Every id is 0 for now.
+- Local export: `python tools/export.py [--demo] [windows|macos|linux]`.
