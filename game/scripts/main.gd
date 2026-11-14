@@ -9,6 +9,7 @@ extends Node
 ##   --hold-choice      with --autoplay, give a level at once and leave its choices open
 
 var balance: Dictionary
+var content: Content
 var sim: Sim
 var state := "title"
 var choices: Array = []
@@ -26,6 +27,7 @@ func _ready() -> void:
 		var parts := a.trim_prefix("--").split("=", true, 1)
 		args[parts[0]] = parts[1] if parts.size() > 1 else ""
 	balance = JSON.parse_string(FileAccess.get_file_as_string("res://data/balance.json"))
+	content = Content.load_all(Content.available_art())
 	if args.has("chieftain-at"):
 		balance.chieftain_at = float(args["chieftain-at"])
 	if args.has("run-tests") or args.has("bench"):
@@ -59,7 +61,7 @@ func _ready() -> void:
 
 
 func _new_sim() -> void:
-	sim = Sim.new(balance)
+	sim = Sim.new(balance, content)
 	world.sim = sim
 
 
@@ -179,7 +181,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _bench() -> void:
-	var s := Sim.new(balance, 7)
+	var s := Sim.new(balance, content, 7)
 	for id in ["pilum", "pilum", "scorpio", "fire_arrows"]:
 		s.ranks[id] = s.rank(id) + 1
 	for i in 40:

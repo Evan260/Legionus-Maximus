@@ -66,18 +66,20 @@ var frame := 0
 var legion_reach := 0.0
 var u_grid := {}
 var units: Array = []
+var content: Content
 
 
-func _init(balance: Dictionary, seed_value: int = 0) -> void:
+func _init(balance: Dictionary, game_content: Content, seed_value: int = 0) -> void:
 	b = balance
+	content = game_content
 	rng.seed = seed_value if seed_value != 0 else int(Time.get_unix_time_from_system())
-	var cu: Dictionary = b.units.commander
+	var cu: Dictionary = content.base_commander
 	commander = {"type": "commander", "pos": Vector2.ZERO, "hp": float(cu.hp), "max_hp": float(cu.hp), "cd": 0.0,
 		"anim": 0.0, "facing": Vector2.RIGHT, "moving": false, "flash": 0.0}
 	for kind in KINDS:
-		k_radius.append(float(b.enemies[kind].radius))
-		k_speed.append(float(b.enemies[kind].speed))
-		k_dps.append(float(b.enemies[kind].dps))
+		k_radius.append(float(content.enemies[kind].radius))
+		k_speed.append(float(content.enemies[kind].speed))
+		k_dps.append(float(content.enemies[kind].dps))
 	xp_next = int(b.xp_first)
 	next_surge = float(b.surge_every)
 	for i in int(b.start_legionaries):
@@ -101,7 +103,7 @@ func count(type: String) -> int:
 
 
 func max_hp_of(type: String) -> float:
-	return float(b.units[type].hp) * (1.0 + 0.2 * rank("lorica"))
+	return float(content.unit(type).hp) * (1.0 + 0.2 * rank("lorica"))
 
 
 func add_soldier(type: String) -> void:
@@ -149,7 +151,7 @@ func slot_of(s: Dictionary) -> Vector2:
 
 
 func speed() -> float:
-	var v: float = b.units.commander.speed * (1.0 + 0.08 * rank("march"))
+	var v: float = content.base_commander.speed * (1.0 + 0.08 * rank("march"))
 	return v * (b.testudo_speed if testudo_left > 0.0 else 1.0)
 
 
@@ -268,7 +270,7 @@ func _rebuild_grids() -> void:
 
 
 func enemy_hp_for(kind: int) -> float:
-	var base: float = b.enemies[KINDS[kind]].hp
+	var base: float = content.enemies[KINDS[kind]].hp
 	if kind == 2:
 		return base
 	return base * (1.0 + b.enemy_health_growth * time)
@@ -446,10 +448,10 @@ func _melee(u: Dictionary, dmg: float, reach: float, cooldown: float, dt: float)
 
 
 func _legion_attacks(dt: float) -> void:
-	var cu: Dictionary = b.units.commander
+	var cu: Dictionary = content.base_commander
 	_melee(commander, cu.damage, cu.reach, cu.cooldown, dt)
-	var lu: Dictionary = b.units.legionary
-	var au: Dictionary = b.units.archer
+	var lu: Dictionary = content.recruits.legionary
+	var au: Dictionary = content.recruits.archer
 	for s in soldiers:
 		if s.type == "legionary":
 			_melee(s, lu.damage, lu.reach, lu.cooldown, dt)
@@ -559,7 +561,7 @@ func _remove_dead() -> void:
 func _kill(i: int) -> void:
 	var kind := e_kind[i]
 	kills += 1
-	var value := int(b.enemies[KINDS[kind]].coins)
+	var value := int(content.enemies[KINDS[kind]].coins)
 	if value > 0:
 		c_pos.append(e_pos[i])
 		c_val.append(value)

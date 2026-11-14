@@ -1,6 +1,6 @@
 {
-  "run_seconds": 600,
-  "chieftain_at": 600,
+  "run_seconds": 1200,
+  "chieftain_at": 1200,
   "surge_every": 120,
   "spawn_per_second_start": 0.8,
   "spawn_per_second_growth": 0.01,
@@ -20,51 +20,6 @@
   "testudo_recharge": 15.0,
   "testudo_damage_taken": 0.2,
   "testudo_speed": 0.5,
-  "units": {
-    "commander": {
-      "hp": 160,
-      "speed": 62,
-      "damage": 14,
-      "reach": 24,
-      "cooldown": 0.6
-    },
-    "legionary": {
-      "hp": 50,
-      "damage": 12,
-      "reach": 24,
-      "cooldown": 0.6
-    },
-    "archer": {
-      "hp": 30,
-      "damage": 9,
-      "range": 150,
-      "cooldown": 1.1,
-      "arrow_speed": 230
-    }
-  },
-  "enemies": {
-    "barbarian_club": {
-      "hp": 20,
-      "speed": 36,
-      "dps": 3,
-      "radius": 6,
-      "coins": 1
-    },
-    "barbarian_spear": {
-      "hp": 30,
-      "speed": 31,
-      "dps": 4,
-      "radius": 6,
-      "coins": 2
-    },
-    "chieftain": {
-      "hp": 2600,
-      "speed": 27,
-      "dps": 30,
-      "radius": 14,
-      "coins": 0
-    }
-  },
   "enemy_health_growth": 0.0012,
   "pilum": {
     "every": 3.2,

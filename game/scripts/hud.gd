@@ -22,14 +22,14 @@ var choice_rects: Array = []
 func _ready() -> void:
 	font = load("res://assets/fonts/Silkscreen-Regular.ttf")
 	logo = load("res://assets/logo.png")
-	for id in Upgrades.ALL:
-		var path := "res://assets/icons/%s.png" % _icon_name(id)
-		if ResourceLoader.exists(path):
-			icons[id] = load(path)
 
 
-func _icon_name(id: String) -> String:
-	return {"reach": "magnet", "rations": "medicus"}.get(id, id)
+## The level-up icon of an id, loaded the first time it is drawn.
+func icon_of(id: String) -> Texture2D:
+	if not icons.has(id):
+		var path := "res://assets/icons/%s.png" % main.sim.content.icon_key(id)
+		icons[id] = load(path) if ResourceLoader.exists(path) else null
+	return icons[id]
 
 
 func _process(_dt: float) -> void:
@@ -99,8 +99,8 @@ func _top_bar(sim: Sim) -> void:
 	text("KILLS %d" % sim.kills, Vector2(0, 35), CREAM, HORIZONTAL_ALIGNMENT_RIGHT, W - 10)
 	# The testudo charge sits bottom left, gold when it is ready.
 	var ready := sim.testudo_charge >= 1.0 and sim.testudo_left <= 0.0
-	if icons.has("testudo"):
-		draw_texture(icons.testudo, Vector2(8, H - 42), Color.WHITE if ready or sim.testudo_left > 0.0 else Color(0.5, 0.5, 0.5))
+	if icon_of("testudo") != null:
+		draw_texture(icon_of("testudo"), Vector2(8, H - 42), Color.WHITE if ready or sim.testudo_left > 0.0 else Color(0.5, 0.5, 0.5))
 	draw_rect(Rect2(8, H - 9, 34, 4), INK)
 	var charge := 1.0 if sim.testudo_left > 0.0 else sim.testudo_charge
 	draw_rect(Rect2(9, H - 8, 32 * charge, 2), GOLD if ready or sim.testudo_left > 0.0 else PARCH_DARK)
@@ -131,10 +131,10 @@ func _choices(sim: Sim) -> void:
 		if picked:
 			draw_rect(r.grow(3), GOLD)
 		panel(r, CREAM if picked else PARCH)
-		var info: Dictionary = Upgrades.ALL[id]
-		if icons.has(id):
-			draw_texture_rect(icons[id], Rect2(r.position.x + bw / 2 - 32, r.position.y + 10, 64, 64), false)
-		text(info.group.to_upper(), Vector2(r.position.x, r.position.y + 86), Color(0.5, 0.36, 0.22), HORIZONTAL_ALIGNMENT_CENTER, bw, false)
+		var info: Dictionary = sim.content.upgrade(id)
+		if icon_of(id) != null:
+			draw_texture_rect(icon_of(id), Rect2(r.position.x + bw / 2 - 32, r.position.y + 10, 64, 64), false)
+		text(sim.content.group_of(id).to_upper(), Vector2(r.position.x, r.position.y + 86), Color(0.5, 0.36, 0.22), HORIZONTAL_ALIGNMENT_CENTER, bw, false)
 		text(info.name.to_upper(), Vector2(r.position.x, r.position.y + 98), INK, HORIZONTAL_ALIGNMENT_CENTER, bw, false)
 		text(Upgrades.level_text(sim, id), Vector2(r.position.x, r.position.y + 109), RED, HORIZONTAL_ALIGNMENT_CENTER, bw, false)
 		wrap_text(Upgrades.describe(sim, id), Vector2(r.position.x + 9, r.position.y + 122), bw - 18, INK)
