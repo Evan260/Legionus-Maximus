@@ -806,7 +806,9 @@ func test_close_order_keeps_places_faster(b: Dictionary) -> void:
 
 
 func test_plunder_and_glory_pay_more(b: Dictionary) -> void:
-	var s := _arms_sim(b, 63, {"plunder": 5})
+	var uncapped := b.duplicate(true)
+	uncapped.max_coins = 100000
+	var s := _arms_sim(uncapped, 63, {"plunder": 5})
 	for i in 400:
 		s.horde.spawn("barbarian_club", Vector2(300, 300))
 		s.hit(s.horde.e_hp.size() - 1, 9999.0)
@@ -2068,3 +2070,20 @@ func test_losing_focus_pauses_only_while_playing(_b: Dictionary) -> void:
 	check(Game.pauses_on_focus_loss("play", false), "focus lost in play pauses")
 	check(not Game.pauses_on_focus_loss("play", true), "not in an autoplay")
 	check(not Game.pauses_on_focus_loss("camp", false) and not Game.pauses_on_focus_loss("choose", false), "other states are left alone")
+
+
+func test_coins_on_the_field_are_capped_without_losing_value(b: Dictionary) -> void:
+	var s := Sim.new(b, content, {"seed": 61})
+	var total := 0
+	for i in 1000:
+		s.time = i * 0.1
+		s.drop_coin(Vector2(i, 0), 1 + i % 3)
+		total += 1 + i % 3
+		check(s.c_pos.size() <= int(b.max_coins), "coin count stays at the cap")
+		if s.c_pos.size() > int(b.max_coins):
+			return
+	var held := 0
+	for v in s.c_val:
+		held += v
+	check(held == total, "the merged coins hold the same value (%d of %d)" % [held, total])
+	check(s.c_pos.size() == s.c_born.size() and s.c_pos.size() == s.c_pull.size(), "the coin arrays stay in step")

@@ -61,6 +61,7 @@ var shots: Array = []
 var c_pos := PackedVector2Array()
 var c_val := PackedInt32Array()
 var c_pull := PackedByteArray()
+var c_born := PackedFloat32Array()
 var effects: Array = []
 
 var arms: Arms
@@ -508,9 +509,7 @@ func _kill(i: int) -> void:
 	# A fraction of a coin is paid as the same chance of one more.
 	var value := int(pay) + (1 if pay > floorf(pay) and rng.randf() < pay - floorf(pay) else 0)
 	if value > 0:
-		c_pos.append(horde.e_pos[i])
-		c_val.append(value)
-		c_pull.append(0)
+		drop_coin(horde.e_pos[i], value)
 	effects.append({"kind": "death", "pos": horde.e_pos[i], "t": 0.0, "type": id, "facing": horde.e_face[i]})
 	if horde.e_tag[i] == Horde.ELITE:
 		horde.drop_chest(horde.e_pos[i])
@@ -524,6 +523,43 @@ func _kill(i: int) -> void:
 			victory = true
 			event("victory", horde.e_pos[i])
 	horde.remove_at(i)
+
+
+## Leaves a coin on the field. Past the cap, the oldest coins still lying there are merged into one of their total value.
+func drop_coin(pos: Vector2, value: int) -> void:
+	c_pos.append(pos)
+	c_val.append(value)
+	c_pull.append(0)
+	c_born.append(time)
+	if c_pos.size() <= int(b.max_coins):
+		return
+	var lying: Array = []
+	for i in c_pos.size():
+		if c_pull[i] == 0:
+			lying.append(i)
+	lying.sort_custom(func(x: int, y: int) -> bool: return c_born[x] < c_born[y])
+	var merge := lying.slice(0, int(b.coin_merge))
+	if merge.size() < 2:
+		return
+	var total := 0
+	for i in merge:
+		total += c_val[i]
+	var keep: int = merge[0]
+	c_val[keep] = total
+	merge.remove_at(0)
+	# Removing from the highest index down keeps the lower indices valid.
+	merge.sort()
+	for k in range(merge.size() - 1, -1, -1):
+		var i: int = merge[k]
+		var last := c_pos.size() - 1
+		c_pos[i] = c_pos[last]
+		c_val[i] = c_val[last]
+		c_pull[i] = c_pull[last]
+		c_born[i] = c_born[last]
+		c_pos.resize(last)
+		c_val.resize(last)
+		c_pull.resize(last)
+		c_born.resize(last)
 
 
 func _coins(dt: float) -> void:
@@ -542,9 +578,11 @@ func _coins(dt: float) -> void:
 				c_pos[i] = c_pos[last]
 				c_val[i] = c_val[last]
 				c_pull[i] = c_pull[last]
+				c_born[i] = c_born[last]
 				c_pos.resize(last)
 				c_val.resize(last)
 				c_pull.resize(last)
+				c_born.resize(last)
 			else:
 				c_pos[i] += to / d * minf(d, 220.0 * dt)
 		i -= 1
