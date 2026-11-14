@@ -238,7 +238,8 @@ func update(dt: float, move: Vector2, testudo_pressed: bool) -> void:
 	_flush_events()
 	if commander.hp <= 0.0:
 		over = true
-		victory = false
+		# A chieftain already slain in an endless run keeps the win.
+		victory = endless_since >= 0.0
 	elif not over and demo_seconds > 0.0 and time >= demo_seconds:
 		over = true
 		victory = true
@@ -516,6 +517,8 @@ func _kill(i: int) -> void:
 	if horde.e_id[i] == horde.chieftain_id:
 		if endless:
 			endless_since = time
+			victory = true
+			event("victory", horde.e_pos[i])
 		else:
 			over = true
 			victory = true

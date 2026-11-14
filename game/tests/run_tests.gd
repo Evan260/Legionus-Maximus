@@ -1078,7 +1078,16 @@ func test_endless_keeps_going_after_the_chieftain(b: Dictionary) -> void:
 	check(ci >= 0, "the chieftain arrived")
 	s.hit(ci, 1e9)
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
-	check(not s.over and not s.victory, "his death does not end an endless run")
+	check(not s.over and s.victory, "his death does not end an endless run but wins it")
+	s.commander.hp = 0.0
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.over and s.victory, "the win stands when the legion falls later")
+	var saved: Dictionary = Profile.data
+	Profile.data = Profile.defaults()
+	Profile.record_run(s)
+	check(bool(Profile.record_of(s.province).won), "the win is recorded")
+	check(Profile.province_unlocked("britannia"), "and opens the next province")
+	Profile.data = saved
 	var plain := _mode_sim(b, {"seed": 110})
 	var since := s.time
 	s.time = since + 120.0
