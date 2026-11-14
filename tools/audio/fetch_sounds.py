@@ -2,11 +2,12 @@
 
 Run: python tools/audio/fetch_sounds.py
 Each recording is the public preview mp3 of a Freesound page, saved as ID.mp3. Only audio files are fetched, and they are
-only ever read as data. Every page is checked to say Creative Commons 0 before its preview is kept.
+only ever read as data. Every page must say Creative Commons 0, or the run stops.
 """
 import html
 import json
 import re
+import sys
 import urllib.request
 from pathlib import Path
 
@@ -45,14 +46,13 @@ def main():
         page = f"https://freesound.org/people/{user}/sounds/{sid}/"
         text = get(page).decode("utf8", "replace")
         if "Creative Commons 0" not in text and "publicdomain/zero" not in text:
-            print(f"{sid}: not CC0, skipped")
-            continue
+            sys.exit(f"{sid} is not CC0, remove it from SOUNDS")
         title = html.unescape(re.search(r'data-title="([^"]*)"', text).group(1))
         mp3 = re.search(r'data-mp3="([^"]+)"', text).group(1).replace("-lq.mp3", "-hq.mp3")
         target = DOWNLOADS / f"{sid}.mp3"
         if not target.exists():
             target.write_bytes(get(mp3))
-        out[str(sid)] = {"author": user, "title": title, "page": page}
+        out[str(sid)] = {"license": "CC0", "author": user, "title": title, "page": page}
         print(sid, title)
     (HERE / "sources.json").write_text(json.dumps(out, indent=1, ensure_ascii=False), encoding="utf8")
 

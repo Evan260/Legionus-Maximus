@@ -13,6 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 GAME = "Legionus Maximus"
+CREDITS_FILE = "Credits and licences.txt"
 GODOT = os.environ.get("GODOT", str(Path.home() / "AppData/Local/Microsoft/WinGet/Packages"
     / "GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe/Godot_v4.7.2-stable_win64_console.exe"))
 PRESETS = {
@@ -43,6 +44,8 @@ def export(platform, folder, demo=False):
     result = godot("--export-release", preset, str(target))
     if not target.exists() or "ERROR:" in result.stdout + result.stderr:
         sys.exit(f"the {platform} export failed:\n{result.stdout[-2000:]}\n{result.stderr[-2000:]}")
+    # The licences of the sounds, the font and Godot ask for their notices to ship with the game.
+    godot("--script", "res://tools/write_credits.gd", "--", f"--out={folder / CREDITS_FILE}")
     print(f"built {platform}{' demo' if demo else ''}: {target}")
     return target
 

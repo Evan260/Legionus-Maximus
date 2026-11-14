@@ -5,39 +5,6 @@ extends Node
 
 const SFX_DIR := "res://assets/audio/sfx/"
 const MUSIC_DIR := "res://assets/audio/music/"
-const VOICES := 24
-const WINDOW := 0.1
-const PAN_BUSES := [-0.8, -0.4, 0.0, 0.4, 0.8]
-const VIEW_HALF_WIDTH := 320.0
-const CALM_DB := -7.0
-const DRUMS_QUIET_DB := -32.0
-const DRUMS_LOUD_DB := -7.0
-const DRUMS_FULL_SECONDS := 1080.0
-const SURGE_BOOST_DB := 5.0
-const SURGE_SECONDS := 14.0
-const FADE_DB_PER_SECOND := 24.0
-
-# kind: sound set, most plays per window, volume in dB, pitch spread, base pitch, priority (above 0 may take a busy voice)
-const KINDS := {
-	"hit": {"set": "hit", "max": 3, "db": -11.0, "spread": 0.12, "pitch": 1.0, "priority": 0},
-	"kill": {"set": "die", "max": 1, "db": -14.0, "spread": 0.18, "pitch": 1.0, "priority": 0},
-	"pilum": {"set": "pilum", "max": 2, "db": -9.0, "spread": 0.1, "pitch": 1.0, "priority": 0},
-	"arrow": {"set": "arrow", "max": 2, "db": -10.0, "spread": 0.1, "pitch": 1.0, "priority": 0},
-	"bolt": {"set": "bolt", "max": 1, "db": -6.0, "spread": 0.08, "pitch": 0.8, "priority": 0},
-	"testudo": {"set": "thump", "max": 1, "db": -3.0, "spread": 0.03, "pitch": 0.8, "priority": 1},
-	"level": {"set": "level", "max": 1, "db": -5.0, "spread": 0.0, "pitch": 1.0, "priority": 2},
-	"coin": {"set": "coin", "max": 2, "db": -15.0, "spread": 0.3, "pitch": 1.1, "priority": 0},
-	"hurt": {"set": "hurt", "max": 1, "db": -5.0, "spread": 0.1, "pitch": 1.0, "priority": 1},
-	"surge": {"set": "horn_1", "max": 1, "db": -7.0, "spread": 0.0, "pitch": 1.0, "priority": 2},
-	"chieftain": {"set": "horn_2", "max": 1, "db": -5.0, "spread": 0.0, "pitch": 0.95, "priority": 2},
-	"victory": {"set": "roar", "max": 1, "db": -5.0, "spread": 0.0, "pitch": 1.0, "priority": 2},
-	"roar": {"set": "roar", "max": 1, "db": -8.0, "spread": 0.05, "pitch": 1.0, "priority": 1},
-	"drum": {"set": "drum", "max": 2, "db": -6.0, "spread": 0.05, "pitch": 1.0, "priority": 0},
-	"click": {"set": "click", "max": 2, "db": -8.0, "spread": 0.04, "pitch": 1.0, "priority": 1},
-	"confirm": {"set": "click", "max": 2, "db": -6.0, "spread": 0.0, "pitch": 1.25, "priority": 1},
-	"back": {"set": "click", "max": 2, "db": -8.0, "spread": 0.0, "pitch": 0.75, "priority": 1},
-}
-
 var enabled := false
 var in_run := false
 var _sets := {}
@@ -48,6 +15,8 @@ var _clock := 0.0
 var _window_start := {}
 var _window_count := {}
 var _rng := RandomNumberGenerator.new()
+var cfg: Dictionary
+var _kinds: Dictionary
 var _calm: AudioStreamPlayer
 var _drums: AudioStreamPlayer
 var _drums_target := -80.0
@@ -57,6 +26,8 @@ var _surge_left := 0.0
 
 func _ready() -> void:
 	_rng.randomize()
+	cfg = JSON.parse_string(FileAccess.get_file_as_string("res://data/balance.json")).audio
+	_kinds = cfg.kinds
 	var with_sound := "--with-sound" in OS.get_cmdline_user_args()
 	enabled = (not Profile.disabled or with_sound) and DisplayServer.get_name() != "headless"
 	if not enabled:
@@ -69,15 +40,20 @@ func _ready() -> void:
 			AudioServer.set_bus_name(b, bus_name)
 			AudioServer.set_bus_send(b, "Master")
 	# A limiter on the master bus keeps a crowd of loud sounds from clipping.
-	var limiter := AudioEffectHardLimiter.new()
-	limiter.ceiling_db = -1.5
-	AudioServer.add_bus_effect(AudioServer.get_bus_index("Master"), limiter)
-	for kind in KINDS:
-		var set_name: String = KINDS[kind].set
+	var master := AudioServer.get_bus_index("Master")
+	var has_limiter := false
+	for k in AudioServer.get_bus_effect_count(master):
+		has_limiter = has_limiter or AudioServer.get_bus_effect(master, k) is AudioEffectHardLimiter
+	if not has_limiter:
+		var limiter := AudioEffectHardLimiter.new()
+		limiter.ceiling_db = float(cfg.limiter_ceiling_db)
+		AudioServer.add_bus_effect(master, limiter)
+	for kind in _kinds:
+		var set_name: String = _kinds[kind].set
 		if not _sets.has(set_name):
 			_sets[set_name] = _load_set(set_name)
 	# Each pan position is a bus with a panner, since a single voice cannot be placed left or right on its own.
-	for pan in PAN_BUSES:
+	for pan in cfg.pan_positions:
 		AudioServer.add_bus()
 		var b := AudioServer.bus_count - 1
 		var bus_name := StringName("Pan%d" % roundi(pan * 10.0))
@@ -87,12 +63,12 @@ func _ready() -> void:
 		panner.pan = pan
 		AudioServer.add_bus_effect(b, panner)
 		_pan_buses.append(bus_name)
-	for i in VOICES:
+	for i in int(cfg.voices):
 		var p := AudioStreamPlayer.new()
 		add_child(p)
 		_players.append(p)
-	_calm = _music_player("calm", CALM_DB)
-	_drums = _music_player("drums", -80.0)
+	_calm = _music_player("calm", cfg.calm_db)
+	_drums = _music_player("drums", cfg.silent_db)
 
 
 func _music_player(track: String, db: float) -> AudioStreamPlayer:
@@ -126,10 +102,10 @@ func _load(path: String) -> AudioStream:
 
 ## Plays one sound of a kind. `pan` runs from -1 (far left) to 1 (far right); `loudness_db` is added to the kind's own volume.
 func play(kind: String, pan := 0.0, loudness_db := 0.0) -> void:
-	if not enabled or not KINDS.has(kind):
+	if not enabled or not _kinds.has(kind):
 		return
-	var info: Dictionary = KINDS[kind]
-	if _clock - float(_window_start.get(kind, -1.0)) >= WINDOW:
+	var info: Dictionary = _kinds[kind]
+	if _clock - float(_window_start.get(kind, -1.0)) >= float(cfg.window):
 		_window_start[kind] = _clock
 		_window_count[kind] = 0
 	if int(_window_count[kind]) >= int(info.max):
@@ -150,14 +126,14 @@ func play(kind: String, pan := 0.0, loudness_db := 0.0) -> void:
 
 ## A voice that is not playing, or, for a sound that matters, the next one in turn even if it is busy.
 func _free_voice(priority: int) -> AudioStreamPlayer:
-	for k in VOICES:
-		var p := _players[(_next + k) % VOICES]
+	for k in _players.size():
+		var p := _players[(_next + k) % _players.size()]
 		if not p.playing:
-			_next = (_next + k + 1) % VOICES
+			_next = (_next + k + 1) % _players.size()
 			return p
 	if priority > 0:
 		var p := _players[_next]
-		_next = (_next + 1) % VOICES
+		_next = (_next + 1) % _players.size()
 		return p
 	return null
 
@@ -170,14 +146,15 @@ func drain(sim: Sim) -> void:
 		sim.events.clear()
 		return
 	var centre: float = sim.commander.pos.x
+	var half_width := get_viewport().get_visible_rect().size.x / 2.0
 	_run_time = sim.time
 	for e in sim.events:
 		var n: int = e.get("n", 1)
-		var pan := clampf((e.pos.x - centre) / VIEW_HALF_WIDTH, -1.0, 1.0)
+		var pan := clampf((e.pos.x - centre) / half_width, -1.0, 1.0)
 		# A crowd of hits is louder than one, up to a few decibels.
-		play(e.kind, pan, minf(5.0, 2.0 * log(float(n)) / log(2.0)) if n > 1 else 0.0)
+		play(e.kind, pan, minf(float(cfg.crowd_db_max), float(cfg.crowd_db_per_doubling) * log(float(n)) / log(2.0)) if n > 1 else 0.0)
 		if e.kind == "surge" or e.kind == "chieftain":
-			_surge_left = SURGE_SECONDS
+			_surge_left = float(cfg.surge_seconds)
 	sim.events.clear()
 
 
@@ -194,11 +171,11 @@ func _process(dt: float) -> void:
 		_drums.play()
 	_surge_left = maxf(0.0, _surge_left - dt)
 	if in_run:
-		var rise := pow(clampf(_run_time / DRUMS_FULL_SECONDS, 0.0, 1.0), 0.8)
-		_drums_target = lerpf(DRUMS_QUIET_DB, DRUMS_LOUD_DB, rise) + SURGE_BOOST_DB * clampf(_surge_left / SURGE_SECONDS * 2.0, 0.0, 1.0)
+		var rise := pow(clampf(_run_time / float(cfg.drums_full_seconds), 0.0, 1.0), float(cfg.drums_curve))
+		_drums_target = lerpf(float(cfg.drums_quiet_db), float(cfg.drums_loud_db), rise) + float(cfg.surge_boost_db) * clampf(_surge_left / float(cfg.surge_seconds) * float(cfg.surge_ramp), 0.0, 1.0)
 	else:
-		_drums_target = -80.0
-	_drums.volume_db = move_toward(_drums.volume_db, _drums_target, FADE_DB_PER_SECOND * dt)
+		_drums_target = float(cfg.silent_db)
+	_drums.volume_db = move_toward(_drums.volume_db, _drums_target, float(cfg.fade_db_per_second) * dt)
 	# The layers share one length, and this keeps them from drifting apart.
-	if _calm.playing and _drums.playing and absf(_calm.get_playback_position() - _drums.get_playback_position()) > 0.05:
+	if _calm.playing and _drums.playing and absf(_calm.get_playback_position() - _drums.get_playback_position()) > float(cfg.resync_seconds):
 		_drums.seek(_calm.get_playback_position())

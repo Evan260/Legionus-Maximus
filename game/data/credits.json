@@ -4,7 +4,8 @@
 		"Evan"
 	],
 	"music": [
-		"Calm harp and drum loops built by the game's own tool from the CC0 recordings listed under Sounds"
+		"Calm harp and drum loops built by the game's own tool from the CC0 recordings listed under Sounds",
+		"Harp samples: VSCO 2 CE (Versilian Studios Chamber Orchestra 2 Community Edition) by sgossner, CC0"
 	],
 	"sounds": [
 		"Hit Impact Sword 3 by CogFireStudios (freesound.org), CC0",
@@ -53,6 +54,9 @@
 		"Harp - E#4 (KSHarp_F4_mf.wav) by sgossner (freesound.org), CC0",
 		"Harp - E#6 (KSHarp_F6_mf.wav) by sgossner (freesound.org), CC0",
 		"Harp - F#5 (KSHarp_G5_mf.wav) by sgossner (freesound.org), CC0"
+	],
+	"art": [
+		"All pictures were made with PixelLab (pixellab.ai); the cost of each is in tools/art/ledger.csv"
 	],
 	"font": [
 		"Silkscreen by Jason Kottke, SIL Open Font Licence 1.1"

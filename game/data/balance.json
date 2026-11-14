@@ -100,6 +100,50 @@
   "damage_numbers": {"cap": 60, "seconds": 0.6, "rise": 14},
   "shake": {"hurt": 0.12, "chieftain": 0.3, "testudo": 0.2, "pixels": 2},
   "text_px": [8, 16],
+  "audio": {
+    "voices": 24,
+    "window": 0.1,
+    "pan_positions": [
+      -0.8,
+      -0.4,
+      0.0,
+      0.4,
+      0.8
+    ],
+    "calm_db": -7.0,
+    "silent_db": -80.0,
+    "drums_quiet_db": -32.0,
+    "drums_loud_db": -7.0,
+    "drums_full_seconds": 1080.0,
+    "drums_curve": 0.8,
+    "surge_boost_db": 5.0,
+    "surge_seconds": 14.0,
+    "surge_ramp": 2.0,
+    "fade_db_per_second": 24.0,
+    "crowd_db_per_doubling": 2.0,
+    "crowd_db_max": 5.0,
+    "limiter_ceiling_db": -1.5,
+    "resync_seconds": 0.05,
+    "kinds": {
+      "hit": {"set": "hit", "max": 3, "db": -11.0, "spread": 0.12, "pitch": 1.0, "priority": 0},
+      "kill": {"set": "die", "max": 1, "db": -14.0, "spread": 0.18, "pitch": 1.0, "priority": 0},
+      "pilum": {"set": "pilum", "max": 2, "db": -9.0, "spread": 0.1, "pitch": 1.0, "priority": 0},
+      "arrow": {"set": "arrow", "max": 2, "db": -10.0, "spread": 0.1, "pitch": 1.0, "priority": 0},
+      "bolt": {"set": "bolt", "max": 1, "db": -6.0, "spread": 0.08, "pitch": 0.8, "priority": 0},
+      "testudo": {"set": "thump", "max": 1, "db": -3.0, "spread": 0.03, "pitch": 0.8, "priority": 1},
+      "level": {"set": "level", "max": 1, "db": -5.0, "spread": 0.0, "pitch": 1.0, "priority": 2},
+      "coin": {"set": "coin", "max": 2, "db": -15.0, "spread": 0.3, "pitch": 1.1, "priority": 0},
+      "hurt": {"set": "hurt", "max": 1, "db": -5.0, "spread": 0.1, "pitch": 1.0, "priority": 1},
+      "surge": {"set": "horn_1", "max": 1, "db": -7.0, "spread": 0.0, "pitch": 1.0, "priority": 2},
+      "chieftain": {"set": "horn_2", "max": 1, "db": -5.0, "spread": 0.0, "pitch": 0.95, "priority": 2},
+      "victory": {"set": "roar", "max": 1, "db": -5.0, "spread": 0.0, "pitch": 1.0, "priority": 2},
+      "roar": {"set": "roar", "max": 1, "db": -8.0, "spread": 0.05, "pitch": 1.0, "priority": 1},
+      "drum": {"set": "drum", "max": 2, "db": -6.0, "spread": 0.05, "pitch": 1.0, "priority": 0},
+      "click": {"set": "click", "max": 2, "db": -8.0, "spread": 0.04, "pitch": 1.0, "priority": 1},
+      "confirm": {"set": "click", "max": 2, "db": -6.0, "spread": 0.0, "pitch": 1.25, "priority": 1},
+      "back": {"set": "click", "max": 2, "db": -8.0, "spread": 0.0, "pitch": 0.75, "priority": 1}
+    }
+  },
   "demo": {
     "store_app_id": 0
   }

@@ -14,6 +14,7 @@ rm -rf "$WORK" "$DIST"
 mkdir -p "$WORK/$GAME_NAME" "$DIST"
 exported=("$EXPORT"/*.zip)
 ditto -x -k "${exported[0]}" "$WORK/$GAME_NAME"
+cp "$EXPORT/Credits and licences.txt" "$WORK/$GAME_NAME/"
 apps=("$WORK/$GAME_NAME"/*.app)
 app="${apps[0]}"
 [ -d "$app" ] || { echo "::error::No .app inside ${exported[0]}"; exit 1; }
