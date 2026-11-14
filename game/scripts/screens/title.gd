@@ -37,26 +37,26 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	if Game.is_demo():
 		var tag := Rect2(logo_pos.x + logo.get_width() - 56.0, logo_pos.y + logo.get_height() - 8.0, 56.0, 8.0 + 8.0 * Ui.scale)
 		ui.panel(c, tag)
-		ui.text(c, "DEMO", Vector2(tag.position.x, tag.end.y - 4.0 - Ui.px * 3 / 8), Ui.RED, HORIZONTAL_ALIGNMENT_CENTER, tag.size.x)
+		ui.text(c, tr("Demo").to_upper(), Vector2(tag.position.x, tag.end.y - 4.0 - Ui.px * 3 / 8), Ui.RED, HORIZONTAL_ALIGNMENT_CENTER, tag.size.x)
 	if big:
 		ui.panel(c, Rect2(Ui.W / 2 - 210, 108, 420, 64))
-		ui.text(c, "Your soldiers fight on their own.", Vector2(0, 134), Ui.INK, HORIZONTAL_ALIGNMENT_CENTER, Ui.W)
-		ui.text(c, "Kill the chieftain to win.", Vector2(0, 158), Ui.INK, HORIZONTAL_ALIGNMENT_CENTER, Ui.W)
+		ui.text(c, tr("Your soldiers fight on their own."), Vector2(0, 134), Ui.INK, HORIZONTAL_ALIGNMENT_CENTER, Ui.W)
+		ui.text(c, tr("Kill the chieftain to win."), Vector2(0, 158), Ui.INK, HORIZONTAL_ALIGNMENT_CENTER, Ui.W)
 	else:
 		ui.panel(c, Rect2(Ui.W / 2 - 130, 140, 260, 92))
 		var lines := [
-			"%s  march" % _march_keys(),
-			"%s  testudo: shields up, 80%% less harm" % Controls.slot_text(saved, "testudo", "keys", 0),
-			"%s  pause" % Controls.slot_text(saved, "pause", "keys", 0),
+			tr("%s  march") % _march_keys(),
+			tr("%s  testudo: shields up, 80%% less harm") % Controls.slot_text(saved, "testudo", "keys", 0),
+			tr("%s  pause") % Controls.slot_text(saved, "pause", "keys", 0),
 			"",
-			"Your soldiers fight on their own.",
-			"Survive 10 minutes and kill the chieftain.",
+			tr("Your soldiers fight on their own."),
+			tr("Survive 10 minutes and kill the chieftain."),
 		]
 		for i in lines.size():
 			ui.text(c, lines[i], Vector2(0, 156 + i * 11), Ui.INK, HORIZONTAL_ALIGNMENT_CENTER, Ui.W)
 	var top := 190.0 if big else 250.0
 	var h := 34.0 if big else 24.0
-	ui.button(c, Rect2(Ui.W / 2 - 100, top, 200, h), "march", "MARCH", "", true, null, true)
-	ui.button(c, Rect2(Ui.W / 2 - 100, top + h + 10, 200, h), "settings", "SETTINGS", "", true, null, true)
+	ui.button(c, Rect2(Ui.W / 2 - 100, top, 200, h), "march", tr("March").to_upper(), "", true, null, true)
+	ui.button(c, Rect2(Ui.W / 2 - 100, top + h + 10, 200, h), "settings", tr("Settings").to_upper(), "", true, null, true)
 	if Game.is_demo() and int(main.balance.demo.store_app_id) > 0:
-		ui.button(c, Rect2(Ui.W / 2 - 100, top + 2.0 * (h + 10), 200, h), "wishlist", "WISHLIST ON STEAM", "", true, null, true)
+		ui.button(c, Rect2(Ui.W / 2 - 100, top + 2.0 * (h + 10), 200, h), "wishlist", tr("Wishlist on Steam").to_upper(), "", true, null, true)

@@ -16,6 +16,10 @@ var quartermaster := {}
 var achievements := {}
 var base_commander := {}
 var available := {}
+# The English words as the file has them, which the translations are laid over by localize().
+var _english := {}
+## The fields of an entry that the player reads; the others are data.
+const WORDS := ["name", "text", "history", "more"]
 
 
 ## The art keys that exist: "unit:<name>" and "prop:<name>" from the atlas, "icon:<name>" from the icons folder.
@@ -39,7 +43,33 @@ static func load_all(available_keys: Dictionary) -> Content:
 	c.base_commander = data.base_commander
 	for kind in KINDS:
 		c.set(kind, data[kind])
+	c._english = data.duplicate(true)
+	c.localize()
 	return c
+
+
+## The translation key of an entry's field, such as "content.recruits.legionary.name"; tools/extract_strings.py builds the same keys.
+static func key_of(kind: String, id: String, field: String) -> String:
+	return "content.%s.%s.%s" % [kind, id, field]
+
+
+## Puts the words of the language showing into every entry, keeping the English where a language has no translation.
+func localize() -> void:
+	var cmd: Dictionary = _english.base_commander
+	base_commander.name = _words("base_commander", "", "name", cmd.name)
+	for kind in KINDS:
+		var entries: Dictionary = get(kind)
+		for id in entries:
+			var english: Dictionary = _english[kind][id]
+			for field in WORDS:
+				if english.has(field):
+					entries[id][field] = _words(kind, id, field, english[field])
+
+
+func _words(kind: String, id: String, field: String, english: String) -> String:
+	var key := key_of(kind, id, field) if id != "" else "content.%s.%s" % [kind, field]
+	var out := TranslationServer.translate(key)
+	return english if out == key or out == "" else out
 
 
 ## Content with every art key counted as drawn, for tests and the bench that need enemies and props that have no art yet.

@@ -18,26 +18,67 @@ const MUTED := Color(0.55, 0.45, 0.34)
 # The text size setting: 1 draws at 8 px, 2 at 16 px (the sizes are in balance.json).
 static var scale := 1
 static var px := 8
+# A language whose text is drawn in its own font, for the picker that names every language in its own letters.
+static var _own: Font
+static var _balance_px := 8
 
-var font: Font
 var items: Array = []
 var focus := ""
 var _next: Array = []
 var _icons := {}
 
 
-func _init() -> void:
-	font = load("res://assets/fonts/Silkscreen-Regular.ttf")
-
-
+## The text size setting in the language's own font: its base size times the scale, so 10 px fonts draw at 10 and 20.
 static func set_text_size(size: int, balance: Dictionary) -> void:
 	scale = clampi(size, 1, 2)
-	px = int(balance.text_px[scale - 1])
+	_balance_px = int(balance.text_px[scale - 1])
+	px = _px_for(Lang.code)
 
 
-## The distance between two lines of text.
+## The 10 px Latin font is drawn at 10 and, for large text, at 16 like the 8 px fonts' double, so one layout fits every language.
+static func _px_for(loc: String) -> int:
+	return _balance_px if Lang.base_px(loc) == 8 or scale > 1 else 10
+
+
+## The font of the language showing, or of the one chosen by `draw_in`.
+static func font() -> Font:
+	return _own if _own != null else Lang.font()
+
+
+## Draws the text that follows in a language's own font and size until `draw_in("")` puts the showing language back.
+static func draw_in(loc: String) -> void:
+	_own = Lang.font(loc) if loc != "" else null
+	px = _px_for(loc if loc != "" else Lang.code)
+
+
+## The distance between two lines of text; the 10 px font needs two more pixels than the 8 px ones.
 static func leading() -> float:
-	return 10.0 * scale
+	return 10.0 * scale if Lang.base_px() == 8 or scale > 1 else 12.0
+
+
+## Text cut into lines no wider than the width, breaking at spaces, or between any two letters in languages written without them.
+static func lines_of(s: String, width: float) -> Array:
+	var out: Array = []
+	var line := ""
+	var f := font()
+	if Lang.is_han():
+		for ch in s:
+			if line != "" and f.get_string_size(line + ch, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x > width:
+				out.append(line)
+				line = ""
+			if not (line == "" and ch == " "):
+				line += ch
+	else:
+		for w in s.split(" "):
+			var trial: String = w if line == "" else line + " " + w
+			if f.get_string_size(trial, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x > width and line != "":
+				out.append(line)
+				line = w
+			else:
+				line = trial
+	if line != "":
+		out.append(line)
+	return out
 
 
 ## The first row of a list of `visible` rows to show so the row at `index` is on screen, moving as little as it can.
@@ -64,7 +105,7 @@ func has_item(id: String) -> bool:
 
 
 func width_of(s: String) -> float:
-	return font.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
+	return font().get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
 
 
 ## The text cut with dots so it fits the width.
@@ -78,30 +119,23 @@ func clip(s: String, width: float) -> String:
 
 func text(c: CanvasItem, s: String, pos: Vector2, col: Color = INK, align := HORIZONTAL_ALIGNMENT_LEFT, width := -1.0, shade := false) -> void:
 	if shade:
-		c.draw_string(font, pos + Vector2(scale, scale), s, align, width, px, INK)
-	c.draw_string(font, pos, s, align, width, px, col)
+		c.draw_string(font(), pos + Vector2(scale, scale), s, align, width, px, INK)
+	c.draw_string(font(), pos, s, align, width, px, col)
 
 
 ## Words wrapped to the width; returns the y of the line after the last one.
 func wrap(c: CanvasItem, s: String, pos: Vector2, width: float, col: Color = INK, max_lines := 99) -> float:
-	var line := ""
 	var y := pos.y
-	var lines := 0
-	for w in s.split(" "):
-		var trial: String = w if line == "" else line + " " + w
-		if width_of(trial) > width and line != "":
-			text(c, line, Vector2(pos.x, y), col)
-			lines += 1
-			if lines >= max_lines:
-				return y + leading()
-			line = w
-			y += leading()
-		else:
-			line = trial
-	if line != "":
-		text(c, line, Vector2(pos.x, y), col)
+	var lines := lines_of(s, width)
+	for i in mini(lines.size(), max_lines):
+		text(c, lines[i], Vector2(pos.x, y), col)
 		y += leading()
 	return y
+
+
+## The number of lines the text takes at the width.
+func line_count(s: String, width: float) -> int:
+	return lines_of(s, width).size()
 
 
 func panel(c: CanvasItem, r: Rect2, fill: Color = PARCH) -> void:

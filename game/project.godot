@@ -17,6 +17,7 @@ boot_splash/show_image=false
 [autoload]
 
 Profile="*res://scripts/profile.gd"
+Lang="*res://scripts/lang.gd"
 Audio="*res://scripts/audio.gd"
 Steamworks="*res://scripts/steam.gd"
 
@@ -28,6 +29,10 @@ window/size/window_width_override=1280
 window/size/window_height_override=720
 window/stretch/mode="viewport"
 window/stretch/scale_mode="integer"
+
+[internationalization]
+
+locale/include_text_server_data=true
 
 [gui]
 

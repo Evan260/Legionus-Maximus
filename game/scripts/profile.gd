@@ -6,7 +6,7 @@ const DEFAULT_PATH := "user://profile.json"
 const NO_SAVE_FLAGS := ["run-tests", "bench", "autoplay", "skip", "shot", "screen"]
 
 const SETTING_DEFAULTS := {"master": 0.8, "music": 0.8, "effects": 0.8, "fullscreen": false, "shake": true, "numbers": true,
-	"text_size": 1, "bindings": {}, "language": "en"}
+	"text_size": 1, "bindings": {}, "language": ""}
 
 var disabled := false
 var path := DEFAULT_PATH
@@ -218,14 +218,14 @@ static func unlock_text(info: Dictionary, content: Content) -> String:
 	var rule: Dictionary = info.get("unlock", {})
 	match rule.get("type", "free"):
 		"win":
-			return "Win in %s" % content.provinces.get(rule.get("province", ""), {}).get("name", "a province")
+			return TranslationServer.translate("Win in %s") % content.provinces.get(rule.get("province", ""), {}).get("name", TranslationServer.translate("a province"))
 		"kills":
-			return "Defeat %d barbarians in total" % int(rule.get("count", 0))
+			return TranslationServer.translate("Defeat %d barbarians in total") % int(rule.get("count", 0))
 		"survive":
-			return "Survive %d minutes with %d soldiers or fewer" % [int(rule.get("seconds", 0)) / 60, int(rule.get("max_soldiers", 0))]
+			return TranslationServer.translate("Survive %d minutes with %d soldiers or fewer") % [int(rule.get("seconds", 0)) / 60, int(rule.get("max_soldiers", 0))]
 		"win_all":
-			return "Win in every province"
-	return "Free"
+			return TranslationServer.translate("Win in every province")
+	return TranslationServer.translate("Free")
 
 
 ## Banks a finished run: its denarii (win or lose), the records, the totals, the codex, and every unlock it earned.

@@ -34,7 +34,7 @@ static func clock(seconds: float) -> String:
 
 func draw(c: CanvasItem, ui: Ui) -> void:
 	var content: Content = main.content
-	var r := ui.frame(c, "MAP", "Arrows or WASD move     Space choose     Esc back")
+	var r := ui.frame(c, tr("Map").to_upper(), tr("Arrows or WASD move     Space choose     Esc back"))
 	var setup: Dictionary = main.run_setup
 	var big := Ui.scale > 1
 	var h := 68.0 if not big else 118.0
@@ -58,21 +58,21 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 		ui.button(c, row, "prov:" + id, "")
 		ui.text(c, info.name.to_upper(), Vector2(row.position.x + 8, y), Ui.INK)
 		if chosen:
-			ui.text(c, "MARCHING HERE", Vector2(0, y), Ui.BROWN, HORIZONTAL_ALIGNMENT_RIGHT, row.end.x - 8)
+			ui.text(c, tr("Marching here").to_upper(), Vector2(0, y), Ui.BROWN, HORIZONTAL_ALIGNMENT_RIGHT, row.end.x - 8)
 		y += Ui.leading() + 1.0
 		ui.text(c, ui.clip(info.text, row.size.x - 16), Vector2(row.position.x + 8, y), Ui.BROWN)
 		y += Ui.leading() + 1.0
-		var results: Array = ["Best time " + clock(rec.best_time) if rec.best_time > 0.0 else "Not won yet"]
-		results.append("Won" if rec.won else "Not won")
-		results.append("Hard won" if rec.hard_won else "Hard not won")
+		var results: Array = [tr("Best time %s") % clock(rec.best_time) if rec.best_time > 0.0 else tr("Not won yet")]
+		results.append(tr("Won") if rec.won else tr("Not won"))
+		results.append(tr("Hard won") if rec.hard_won else tr("Hard not won"))
 		if rec.endless_best > 0.0:
-			results.append("Endless " + clock(rec.endless_best))
+			results.append(tr("Endless %s") % clock(rec.endless_best))
 		ui.text(c, ui.clip("     ".join(results) if not big else "  ".join(results), row.size.x - 16), Vector2(row.position.x + 8, y), Ui.INK)
 		y += 6.0
 		var bw := 106.0 if not big else 178.0
 		for k in MODES.size():
 			var on: bool = setup[MODES[k][0]] and chosen
-			var label: String = ("[x] " if on else "[ ] ") + MODES[k][1]
+			var label: String = ("[x] " if on else "[ ] ") + tr(MODES[k][1])
 			ui.button(c, Rect2(row.position.x + 8 + k * (bw + 6.0), y, bw, 16 if not big else 24), "%s:%s" % [MODES[k][0], id], label, "", rec.won, null, true)
 		if not rec.won:
-			ui.text(c, "Win here to open these", Vector2(0, row.end.y - 6), Ui.MUTED, HORIZONTAL_ALIGNMENT_RIGHT, row.end.x - 8)
+			ui.text(c, tr("Win here to open these"), Vector2(0, row.end.y - 6), Ui.MUTED, HORIZONTAL_ALIGNMENT_RIGHT, row.end.x - 8)

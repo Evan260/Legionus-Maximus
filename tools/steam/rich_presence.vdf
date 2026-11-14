@@ -4,8 +4,112 @@
 	{
 		"tokens"
 		{
-			"#Status_Marching"	"Marching through %province%, minute %minute%, legion of %legion%"
 			"#Status_Camp"	"In the camp"
+			"#Status_Marching"	"Marching through %province%, minute %minute%, legion of %legion%"
+		}
+	}
+	"french"
+	{
+		"tokens"
+		{
+			"#Status_Camp"	"Dans le camp"
+			"#Status_Marching"	"Marchant à travers %province%, minute %minute%, légion de %legion%"
+		}
+	}
+	"german"
+	{
+		"tokens"
+		{
+			"#Status_Camp"	"Im Lager"
+			"#Status_Marching"	"Marschiert durch %province%, Minute %minute%, Legion von %legion%"
+		}
+	}
+	"spanish"
+	{
+		"tokens"
+		{
+			"#Status_Camp"	"En el campamento"
+			"#Status_Marching"	"Marchando por %province%, minuto %minute%, legión de %legion%"
+		}
+	}
+	"italian"
+	{
+		"tokens"
+		{
+			"#Status_Camp"	"Nel campo"
+			"#Status_Marching"	"Marciando attraverso %province%, minuto %minute%, legione di %legion%"
+		}
+	}
+	"brazilian"
+	{
+		"tokens"
+		{
+			"#Status_Camp"	"No acampamento"
+			"#Status_Marching"	"Marchando por %province%, minuto %minute%, legião de %legion%"
+		}
+	}
+	"polish"
+	{
+		"tokens"
+		{
+			"#Status_Camp"	"W obozie"
+			"#Status_Marching"	"Maszerując przez %province%, minuta %minute%, legion %legion%"
+		}
+	}
+	"turkish"
+	{
+		"tokens"
+		{
+			"#Status_Camp"	"Kampta"
+			"#Status_Marching"	"%province% boyunca yürüyüş, %minute%. dakika, lejyon büyüklüğü %legion%"
+		}
+	}
+	"russian"
+	{
+		"tokens"
+		{
+			"#Status_Camp"	"В лагере"
+			"#Status_Marching"	"Марш через %province%, минута %minute%, легион из %legion%"
+		}
+	}
+	"ukrainian"
+	{
+		"tokens"
+		{
+			"#Status_Camp"	"У таборі"
+			"#Status_Marching"	"Марш через %province%, хвилина %minute%, легіон із %legion%"
+		}
+	}
+	"japanese"
+	{
+		"tokens"
+		{
+			"#Status_Camp"	"キャンプにいる"
+			"#Status_Marching"	"%province%を行軍中、%minute%分、軍団 %legion%人"
+		}
+	}
+	"koreana"
+	{
+		"tokens"
+		{
+			"#Status_Camp"	"야영지에서"
+			"#Status_Marching"	"%province% 행군 중, %minute%분, 군단 %legion%명"
+		}
+	}
+	"schinese"
+	{
+		"tokens"
+		{
+			"#Status_Camp"	"在营地中"
+			"#Status_Marching"	"正在行军穿越 %province%，第 %minute% 分钟，军团规模 %legion%"
+		}
+	}
+	"tchinese"
+	{
+		"tokens"
+		{
+			"#Status_Camp"	"在營地中"
+			"#Status_Marching"	"正在行軍穿越 %province%，第 %minute% 分鐘，軍團規模 %legion%"
 		}
 	}
 }

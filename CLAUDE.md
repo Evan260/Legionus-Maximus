@@ -20,6 +20,8 @@ Godot is `C:\Users\evand\AppData\Local\Microsoft\WinGet\Packages\GodotEngine.God
 - `game/scripts/main.gd`: input, screens and the command-line modes (`--screen=settings|summary|title|pause`, `--text-size=2`).
 - `game/scripts/controls.gd`: the default keys and pad buttons and the player's rebinding laid over them; `screens/`: title, camp, pause, settings and the run summary.
 - `game/data/balance.json`: every number.
+- `game/scripts/lang.gd` (autoload `Lang`): the 14 languages, their fonts and the saved or system language. Every player-facing string goes through `tr("English words")`, and `content.json` names, texts and histories get a key such as `content.recruits.legionary.name` that `Content.localize()` lays over the English. `--lang=CODE` shows another language.
+- Translations: `python tools/extract_strings.py` fills `game/translations/strings.csv`, `python tools/translate_strings.py` sends the empty cells to Azure (key in `.env`), `python tools/write_presence.py` writes `tools/steam/rich_presence.vdf`; reimport the project afterwards. English, French, German, Spanish, Italian and Portuguese draw in Silkscreen, Polish, Turkish, Russian and Ukrainian in Fusion Pixel 10 px (16 px at large text), Chinese, Japanese and Korean in Fusion Pixel 8 px. Draw text through `Ui.font()` and `Ui.px`, and wrap it with `Ui.lines_of`, which breaks between letters in Chinese and Japanese.
 
 ## Art
 

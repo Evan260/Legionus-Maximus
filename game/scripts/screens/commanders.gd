@@ -19,7 +19,7 @@ func activate(id: String) -> void:
 
 func draw(c: CanvasItem, ui: Ui) -> void:
 	var content: Content = main.content
-	var r := ui.frame(c, "COMMANDERS", "Arrows or WASD move     Space choose     Esc back")
+	var r := ui.frame(c, tr("Commanders").to_upper(), tr("Arrows or WASD move     Space choose     Esc back"))
 	var ids := Game.commanders(content, main.balance)
 	var h := 40.0 if Ui.scale == 1 else 58.0
 	var step := h + 4.0
@@ -39,8 +39,8 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 		var tone := Ui.INK if open else Ui.MUTED
 		ui.text(c, info.name.to_upper(), Vector2(rect.position.x + 8, rect.position.y + 8 + 8 * Ui.scale), tone)
 		ui.text(c, ui.clip(info.text, rect.size.x - 16), Vector2(rect.position.x + 8, rect.end.y - 8), tone)
-		var tag := "LOCKED: " + Profile.unlock_text(info, content)
+		var tag := (tr("Locked: %s") % Profile.unlock_text(info, content)).to_upper()
 		if open:
-			tag = "CHOSEN" if main.run_setup.commander == id else ""
+			tag = tr("Chosen").to_upper() if main.run_setup.commander == id else ""
 		if tag != "":
 			ui.text(c, ui.clip(tag, rect.size.x - 150), Vector2(0, rect.position.y + 8 + 8 * Ui.scale), Ui.RED if not open else Ui.BROWN, HORIZONTAL_ALIGNMENT_RIGHT, rect.end.x - 8)

@@ -59,6 +59,8 @@
 		"All pictures were made with PixelLab (pixellab.ai); the cost of each is in tools/art/ledger.csv"
 	],
 	"font": [
-		"Silkscreen by Jason Kottke, SIL Open Font Licence 1.1"
+		"Silkscreen by Jason Kottke, SIL Open Font Licence 1.1",
+		"Fusion Pixel Font by TakWolf, SIL Open Font Licence 1.1, with glyphs from Ark Pixel Font, Misaki, Galmuri, Boutique Bitmap and Miseki Bitmap",
+		"The translations were made with Azure AI Translator"
 	]
 }

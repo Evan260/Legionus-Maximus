@@ -3,7 +3,6 @@ extends RefCounted
 ## The settings: volumes, full screen, screen shake, damage numbers, text size, language, and the key and button bindings.
 ## Changes apply at once; they are saved when the screen is left.
 
-const LANGUAGES := [["en", "English"]]
 const VOLUMES := ["master", "music", "effects"]
 const VOLUME_NAMES := {"master": "Master volume", "music": "Music volume", "effects": "Effects volume"}
 const BUSES := {"master": "Master", "music": "Music", "effects": "Effects"}
@@ -55,9 +54,9 @@ func back() -> bool:
 	if not waiting.is_empty():
 		waiting = {}
 		return true
-	if page == "controls":
+	if page != "main":
+		main.ui.focus = page
 		page = "main"
-		main.ui.focus = ""
 		return true
 	return false
 
@@ -69,11 +68,11 @@ func activate(id: String) -> void:
 	elif id == "text_size":
 		_put("text_size", 2 if int(Profile.setting("text_size")) == 1 else 1)
 	elif id == "language":
-		var at := 0
-		for i in LANGUAGES.size():
-			if LANGUAGES[i][0] == Profile.setting("language"):
-				at = i
-		_put("language", LANGUAGES[(at + 1) % LANGUAGES.size()][0])
+		page = "language"
+		main.ui.focus = ""
+	elif id.begins_with("lang:"):
+		_put("language", id.trim_prefix("lang:"))
+		Lang.apply(id.trim_prefix("lang:"))
 	elif id == "controls":
 		page = "controls"
 		main.ui.focus = ""
@@ -122,12 +121,14 @@ func _bind(code: int) -> void:
 func draw(c: CanvasItem, ui: Ui) -> void:
 	if page == "controls":
 		_draw_controls(c, ui)
+	elif page == "language":
+		_draw_language(c, ui)
 	else:
 		_draw_main(c, ui)
 
 
 func _draw_main(c: CanvasItem, ui: Ui) -> void:
-	var r := ui.frame(c, "SETTINGS", "Arrows or WASD move     Left and right change a volume     Esc back")
+	var r := ui.frame(c, tr("Settings").to_upper(), tr("Arrows or WASD move     Left and right change a volume     Esc back"))
 	var h := 26.0 if Ui.scale > 1 else 21.0
 	var step := h + 1.0 if Ui.scale > 1 else h + 3.0
 	var w := 440.0
@@ -137,7 +138,7 @@ func _draw_main(c: CanvasItem, ui: Ui) -> void:
 		var rect := Rect2(x, y, w, h)
 		var v := float(Profile.setting(key))
 		var pct := "%d%%" % roundi(v * 100.0)
-		ui.button(c, rect, key, VOLUME_NAMES[key], pct)
+		ui.button(c, rect, key, tr(VOLUME_NAMES[key]), pct)
 		var bar_w := 80.0
 		var bx := rect.end.x - 12.0 - ui.width_of("100%") - bar_w
 		c.draw_rect(Rect2(bx - 1, rect.position.y + h / 2 - 3, bar_w + 2, 7), Ui.INK)
@@ -145,24 +146,24 @@ func _draw_main(c: CanvasItem, ui: Ui) -> void:
 		c.draw_rect(Rect2(bx, rect.position.y + h / 2 - 2, bar_w * v, 5), Ui.GOLD)
 		y += step
 	for t in TOGGLES:
-		ui.button(c, Rect2(x, y, w, h), t[0], t[1], "On" if bool(Profile.setting(t[0])) else "Off")
+		ui.button(c, Rect2(x, y, w, h), t[0], tr(t[1]), tr("On") if bool(Profile.setting(t[0])) else tr("Off"))
 		y += step
-	ui.button(c, Rect2(x, y, w, h), "text_size", "Text size", "Large" if int(Profile.setting("text_size")) == 2 else "Normal")
+	ui.button(c, Rect2(x, y, w, h), "text_size", tr("Text size"), tr("Large") if int(Profile.setting("text_size")) == 2 else tr("Normal"))
 	y += step
-	var lang := "English"
-	for l in LANGUAGES:
-		if l[0] == Profile.setting("language"):
-			lang = l[1]
-	ui.button(c, Rect2(x, y, w, h), "language", "Language", lang)
+	var lang := tr("Automatic") if Profile.setting("language") == "" else str(Lang.NATIVE_NAMES.get(Profile.setting("language"), ""))
+	Ui.draw_in("" if Profile.setting("language") == "" else str(Profile.setting("language")))
+	ui.button(c, Rect2(x, y, w, h), "language", "", lang)
+	Ui.draw_in("")
+	ui.text(c, tr("Language"), Vector2(x + 6.0, y + h / 2.0 + Ui.px * 3 / 8), Ui.INK)
 	y += step
-	ui.button(c, Rect2(x, y, w, h), "controls", "Keys and buttons", "")
+	ui.button(c, Rect2(x, y, w, h), "controls", tr("Keys and buttons"), "")
 	y += step
-	ui.button(c, Rect2(x, y, w, h), "back", "BACK", "", true, null, true)
+	ui.button(c, Rect2(x, y, w, h), "back", tr("Back").to_upper(), "", true, null, true)
 
 
 func _draw_controls(c: CanvasItem, ui: Ui) -> void:
-	var hint := "Press the new key or button     Esc cancel" if not waiting.is_empty() else "Space change a key or button     Esc back"
-	var r := ui.frame(c, "KEYS AND BUTTONS", hint)
+	var hint := tr("Press the new key or button     Esc cancel") if not waiting.is_empty() else tr("Space change a key or button     Esc back")
+	var r := ui.frame(c, tr("Keys and buttons").to_upper(), hint)
 	var saved: Dictionary = Profile.data.settings.get("bindings", {})
 	var h := 24.0 if Ui.scale > 1 else 18.0
 	var step := h + 3.0
@@ -171,14 +172,36 @@ func _draw_controls(c: CanvasItem, ui: Ui) -> void:
 	var y := r.position.y + 28.0
 	var slots := [["keys", 0], ["keys", 1], ["pads", 0]]
 	for a in Controls.ACTIONS:
-		ui.text(c, a[1], Vector2(r.position.x + 12, y + h / 2 + Ui.px * 3 / 8), Ui.INK)
+		ui.text(c, tr(a[1]), Vector2(r.position.x + 12, y + h / 2 + Ui.px * 3 / 8), Ui.INK)
 		for k in slots.size():
 			var is_waiting: bool = waiting.get("action", "") == a[0] and waiting.kind == slots[k][0] and waiting.slot == slots[k][1]
-			var label := "Press..." if is_waiting else Controls.slot_text(saved, a[0], slots[k][0], slots[k][1])
+			var label := tr("Press...") if is_waiting else Controls.slot_text(saved, a[0], slots[k][0], slots[k][1])
 			var rect := Rect2(r.position.x + 12 + name_w + k * (bw + 4.0), y, bw, h)
 			ui.button(c, rect, "bind:%s:%s:%d" % [a[0], slots[k][0], slots[k][1]], label, "", true, null, true)
 		y += step
 	y += 4.0
 	var half := (r.size.x - 24.0 - 8.0) / 2.0
-	ui.button(c, Rect2(r.position.x + 12, y, half, h), "reset", "USE DEFAULTS", "", true, null, true)
-	ui.button(c, Rect2(r.position.x + 20 + half, y, half, h), "back", "BACK", "", true, null, true)
+	ui.button(c, Rect2(r.position.x + 12, y, half, h), "reset", tr("Use defaults").to_upper(), "", true, null, true)
+	ui.button(c, Rect2(r.position.x + 20 + half, y, half, h), "back", tr("Back").to_upper(), "", true, null, true)
+
+
+## Every language named in its own words and letters, with the computer's own language first.
+func _draw_language(c: CanvasItem, ui: Ui) -> void:
+	var r := ui.frame(c, tr("Language").to_upper(), tr("Arrows or WASD move     Space choose     Esc back"))
+	var choices: Array = [""]
+	choices.append_array(Lang.languages())
+	var h := 24.0 if Ui.scale > 1 else 21.0
+	var step := h + 3.0
+	var w := (r.size.x - 24.0 - 8.0) / 2.0
+	var rows := int(ceil(choices.size() / 2.0))
+	var current: String = Profile.setting("language")
+	for i in choices.size():
+		var loc: String = choices[i]
+		var rect := Rect2(r.position.x + 12.0 + (i / rows) * (w + 8.0), r.position.y + 28.0 + (i % rows) * step, w, h)
+		var mark := "[x] " if loc == current else "[ ] "
+		if loc == "":
+			ui.button(c, rect, "lang:", mark + tr("Automatic"))
+		else:
+			Ui.draw_in(loc)
+			ui.button(c, rect, "lang:" + loc, mark + str(Lang.NATIVE_NAMES[loc]))
+			Ui.draw_in("")

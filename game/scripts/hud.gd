@@ -15,13 +15,8 @@ const BROWN_TEXT := Color(0.5, 0.36, 0.22)
 
 var main: Node
 var ui: Ui
-var font: Font
 var icons := {}
 var choice_rects: Array = []
-
-
-func _ready() -> void:
-	font = load("res://assets/fonts/Silkscreen-Regular.ttf")
 
 
 ## The level-up icon of an id, loaded the first time it is drawn.
@@ -38,24 +33,15 @@ func _process(_dt: float) -> void:
 
 func text(s: String, pos: Vector2, col: Color = CREAM, align := HORIZONTAL_ALIGNMENT_LEFT, width := -1.0, shade := true) -> void:
 	if shade:
-		draw_string(font, pos + Vector2(Ui.scale, Ui.scale), s, align, width, Ui.px, INK)
-	draw_string(font, pos, s, align, width, Ui.px, col)
+		draw_string(Ui.font(), pos + Vector2(Ui.scale, Ui.scale), s, align, width, Ui.px, INK)
+	draw_string(Ui.font(), pos, s, align, width, Ui.px, col)
 
 
 func wrap_text(s: String, pos: Vector2, width: float, col: Color) -> void:
-	var words := s.split(" ")
-	var line := ""
 	var y := pos.y
-	for w in words:
-		var trial := w if line == "" else line + " " + w
-		if font.get_string_size(trial, HORIZONTAL_ALIGNMENT_LEFT, -1, Ui.px).x > width and line != "":
-			text(line, Vector2(pos.x, y), col, HORIZONTAL_ALIGNMENT_LEFT, -1, false)
-			line = w
-			y += Ui.leading()
-		else:
-			line = trial
-	if line != "":
+	for line in Ui.lines_of(s, width):
 		text(line, Vector2(pos.x, y), col, HORIZONTAL_ALIGNMENT_LEFT, -1, false)
+		y += Ui.leading()
 
 
 func panel(r: Rect2, fill: Color = PARCH) -> void:
@@ -85,7 +71,7 @@ func _card() -> void:
 	_laurel(r.position + Vector2(18.0, h / 2.0))
 	var tx := r.position.x + 34.0
 	var room := w - 40.0
-	text(ui.clip("ACHIEVEMENT", room), Vector2(tx, r.position.y + 6.0 + Ui.px * 3 / 4), BROWN_TEXT, HORIZONTAL_ALIGNMENT_LEFT, -1, false)
+	text(ui.clip(tr("Achievement").to_upper(), room), Vector2(tx, r.position.y + 6.0 + Ui.px * 3 / 4), BROWN_TEXT, HORIZONTAL_ALIGNMENT_LEFT, -1, false)
 	text(ui.clip(str(card.name).to_upper(), room), Vector2(tx, r.position.y + 6.0 + Ui.px * 3 / 4 + Ui.leading()), INK, HORIZONTAL_ALIGNMENT_LEFT, -1, false)
 
 
@@ -123,10 +109,10 @@ func _top_bar(sim: Sim) -> void:
 	var secs := int(sim.time)
 	var y1 := 16.0 + 8.0 * Ui.scale
 	var y2 := y1 + (11.0 if not big else 20.0)
-	text("LEVEL %d" % sim.level, Vector2(10, y1))
+	text((tr("Level %d") % sim.level).to_upper(), Vector2(10, y1))
 	text("%02d:%02d" % [secs / 60, secs % 60], Vector2(0, y1), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W)
-	text("LEGION %d" % (sim.soldiers.size() + 1), Vector2(0, y1), CREAM, HORIZONTAL_ALIGNMENT_RIGHT, W - 10)
-	text("KILLS %d" % sim.kills, Vector2(0, y2), CREAM, HORIZONTAL_ALIGNMENT_RIGHT, W - 10)
+	text((tr("Legion %d") % (sim.soldiers.size() + 1)).to_upper(), Vector2(0, y1), CREAM, HORIZONTAL_ALIGNMENT_RIGHT, W - 10)
+	text((tr("Kills %d") % sim.kills).to_upper(), Vector2(0, y2), CREAM, HORIZONTAL_ALIGNMENT_RIGHT, W - 10)
 	# The testudo charge sits bottom left, gold when it is ready.
 	var ready := sim.testudo_charge >= 1.0 and sim.testudo_left <= 0.0
 	var shield := icon_of("testudo")
@@ -135,18 +121,18 @@ func _top_bar(sim: Sim) -> void:
 	draw_rect(Rect2(8, H - 9, 34, 4), INK)
 	var charge := 1.0 if sim.testudo_left > 0.0 else sim.testudo_charge
 	draw_rect(Rect2(9, H - 8, 32 * charge, 2), GOLD if ready or sim.testudo_left > 0.0 else PARCH_DARK)
-	text("TESTUDO" if sim.testudo_left <= 0.0 else "HOLD!", Vector2(46, H - 6), GOLD_LIGHT if ready or sim.testudo_left > 0.0 else Color(0.7, 0.66, 0.6))
+	text((tr("Testudo") if sim.testudo_left <= 0.0 else tr("Hold!")).to_upper(), Vector2(46, H - 6), GOLD_LIGHT if ready or sim.testudo_left > 0.0 else Color(0.7, 0.66, 0.6))
 	var ci := sim.horde.chieftain_index()
 	var y3 := y1 + (11.0 if not big else 22.0)
 	if ci >= 0:
-		text("THE CHIEFTAIN", Vector2(0, y3), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
+		text(tr("The chieftain").to_upper(), Vector2(0, y3), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
 		draw_rect(Rect2(W / 2 - 101, y3 + 4, 202, 6), INK)
 		draw_rect(Rect2(W / 2 - 100, y3 + 5, 200 * clampf(sim.horde.e_hp[ci] / sim.horde.e_max[ci], 0, 1), 4), RED)
 	elif sim.endless and sim.endless_since >= 0.0:
 		var extra := int(sim.endless_seconds())
-		text("ENDLESS  +%d:%02d" % [extra / 60, extra % 60], Vector2(0, y3), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
+		text((tr("Endless  +%d:%02d") % [extra / 60, extra % 60]).to_upper(), Vector2(0, y3), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
 	elif sim.time > float(sim.b.chieftain_at) - 30.0 and sim.horde.chieftain_id == -1:
-		text("The chieftain is coming", Vector2(0, y3), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
+		text(tr("The chieftain is coming"), Vector2(0, y3), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
 
 
 func _choices(sim: Sim) -> void:
@@ -157,9 +143,9 @@ func _choices(sim: Sim) -> void:
 	var head_y := 38.0 if big else 74.0
 	# With large text the top bar already says the level, so only the supplies heading is added.
 	if not big or sim.pending_levels == 0:
-		text("LEVEL %d" % sim.level if sim.pending_levels > 0 else "SUPPLIES", Vector2(0, head_y), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
+		text((tr("Level %d") % sim.level if sim.pending_levels > 0 else tr("Supplies")).to_upper(), Vector2(0, head_y), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
 	if not big:
-		text("Choose one", Vector2(0, 86), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W)
+		text(tr("Choose one"), Vector2(0, 86), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W)
 	choice_rects.clear()
 	var n: int = main.choices.size()
 	var gap := 8.0 if n > 3 else 12.0
@@ -182,17 +168,24 @@ func _choices(sim: Sim) -> void:
 		if icon != null:
 			draw_texture_rect(icon, Rect2(r.position.x + bw / 2 - icon_px / 2, r.position.y + 8, icon_px, icon_px), false)
 		var y := r.position.y + (icon_px + 22.0 if big else 86.0)
-		text(ui.clip(sim.content.group_of(id).to_upper(), bw - 8), Vector2(r.position.x, y), Color(0.5, 0.36, 0.22), HORIZONTAL_ALIGNMENT_CENTER, bw, false)
-		text(ui.clip(info.name.to_upper(), bw - 8), Vector2(r.position.x, y + step + 1), INK, HORIZONTAL_ALIGNMENT_CENTER, bw, false)
-		text(Upgrades.level_text(sim, id), Vector2(r.position.x, y + 2 * step + 2), RED, HORIZONTAL_ALIGNMENT_CENTER, bw, false)
-		wrap_text(Upgrades.describe(sim, id), Vector2(r.position.x + 9, y + 3 * step + 6), bw - 18, INK)
+		text(ui.clip(tr(sim.content.group_of(id)).to_upper(), bw - 8), Vector2(r.position.x, y), Color(0.5, 0.36, 0.22), HORIZONTAL_ALIGNMENT_CENTER, bw, false)
+		# A long name takes two lines, and the level and description move down by the extra one.
+		var name_lines := Ui.lines_of(info.name.to_upper(), bw - 8)
+		var shown := mini(name_lines.size(), 2)
+		if name_lines.size() > 2:
+			name_lines[1] = " ".join(name_lines.slice(1))
+		for k in shown:
+			text(ui.clip(name_lines[k], bw - 8), Vector2(r.position.x, y + step + 1 + k * step), INK, HORIZONTAL_ALIGNMENT_CENTER, bw, false)
+		var extra_y := (shown - 1) * step
+		text(Upgrades.level_text(sim, id), Vector2(r.position.x, y + 2 * step + 2 + extra_y), RED, HORIZONTAL_ALIGNMENT_CENTER, bw, false)
+		wrap_text(Upgrades.describe(sim, id), Vector2(r.position.x + 9, y + 3 * step + 6 + extra_y), bw - 18, INK)
 	var hint_y := top + card_h + (22.0 if big else 16.0)
-	text("A / D to choose     Space to take it" if not big else "Take one", Vector2(0, hint_y), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W)
+	text(tr("A / D to choose     Space to take it") if not big else tr("Take one"), Vector2(0, hint_y), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W)
 	var extras: Array = []
 	if sim.rerolls > 0:
-		extras.append("R / Y  reroll (%d)" % sim.rerolls)
+		extras.append(tr("R / Y  reroll (%d)") % sim.rerolls)
 	if sim.banishes > 0:
-		extras.append("B / X  banish (%d)" % sim.banishes)
+		extras.append(tr("B / X  banish (%d)") % sim.banishes)
 	if not extras.is_empty():
 		text("     ".join(extras), Vector2(0, hint_y + (20.0 if big else 13.0)), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
 

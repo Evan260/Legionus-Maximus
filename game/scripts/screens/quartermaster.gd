@@ -18,8 +18,8 @@ func activate(id: String) -> void:
 
 func draw(c: CanvasItem, ui: Ui) -> void:
 	var content: Content = main.content
-	var r := ui.frame(c, "QUARTERMASTER", "Arrows or WASD move     Space buy a rank     Esc back")
-	ui.text(c, "%d DENARII" % int(Profile.data.denarii), Vector2(0, r.position.y + 16), Ui.INK, HORIZONTAL_ALIGNMENT_RIGHT, r.end.x - 12)
+	var r := ui.frame(c, tr("Quartermaster").to_upper(), tr("Arrows or WASD move     Space buy a rank     Esc back"))
+	ui.text(c, (tr("%d denarii") % int(Profile.data.denarii)).to_upper(), Vector2(0, r.position.y + 16), Ui.INK, HORIZONTAL_ALIGNMENT_RIGHT, r.end.x - 12)
 	var i := 0
 	for id in content.quartermaster:
 		var info: Dictionary = content.quartermaster[id]
@@ -27,7 +27,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 		var cost := Profile.next_cost(id, content)
 		var can := cost >= 0 and cost <= int(Profile.data.denarii)
 		var tone := Ui.BROWN if cost < 0 else (Color(0.2, 0.45, 0.15) if can else Ui.RED)
-		ui.button(c, rect, "buy:" + id, _label(info, id), "MAX" if cost < 0 else str(cost), true, _icon_of(info), false, tone)
+		ui.button(c, rect, "buy:" + id, _label(info, id), tr("Max").to_upper() if cost < 0 else str(cost), true, _icon_of(info), false, tone)
 		i += 1
 	var focus_id := ui.focus.trim_prefix("buy:")
 	if content.quartermaster.has(focus_id):
@@ -36,7 +36,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 		ui.panel(c, box, Ui.CREAM)
 		ui.text(c, info.name.to_upper(), Vector2(box.position.x + 8, box.position.y + 15), Ui.INK)
 		var cost := Profile.next_cost(focus_id, content)
-		var note := "Fully upgraded." if cost < 0 else "Next rank costs %d denarii." % cost
+		var note := tr("Fully upgraded.") if cost < 0 else tr("Next rank costs %d denarii.") % cost
 		ui.text(c, note, Vector2(0, box.position.y + 15), Ui.BROWN, HORIZONTAL_ALIGNMENT_RIGHT, box.end.x - 8)
 		ui.text(c, ui.clip(info.text, box.size.x - 16), Vector2(box.position.x + 8, box.position.y + 30), Ui.INK)
 

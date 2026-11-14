@@ -35,8 +35,8 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	for e in list:
 		if Profile.data.seen.has(e[0]):
 			found += 1
-	var r := ui.frame(c, "TABLINUM", "Arrows or WASD move     Esc back")
-	ui.text(c, "%d of %d found" % [found, list.size()], Vector2(0, r.position.y + 16), Ui.INK, HORIZONTAL_ALIGNMENT_RIGHT, r.end.x - 12)
+	var r := ui.frame(c, tr("Tablinum").to_upper(), tr("Arrows or WASD move     Esc back"))
+	ui.text(c, tr("%d of %d found") % [found, list.size()], Vector2(0, r.position.y + 16), Ui.INK, HORIZONTAL_ALIGNMENT_RIGHT, r.end.x - 12)
 	var origin := r.position + Vector2(12, 28)
 	for i in list.size():
 		var e: Array = list[i]
@@ -50,13 +50,13 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 			var known: bool = Profile.data.seen.has(e[0])
 			var x := box.position.x + 8
 			var y := box.position.y + 8.0 + 8.0 * Ui.scale
-			y = ui.wrap(c, (e[2].name if known else "Not found yet").to_upper(), Vector2(x, y), box.size.x - 16, Ui.INK if known else Ui.MUTED)
-			ui.text(c, e[1], Vector2(x, y), Ui.BROWN)
+			y = ui.wrap(c, (e[2].name if known else tr("Not found yet")).to_upper(), Vector2(x, y), box.size.x - 16, Ui.INK if known else Ui.MUTED)
+			ui.text(c, tr(e[1]), Vector2(x, y), Ui.BROWN)
 			y += Ui.leading() + 6.0
 			if known:
 				ui.wrap(c, e[2].history, Vector2(x, y), box.size.x - 16, Ui.INK)
 			else:
-				ui.wrap(c, "Meet it in a run to learn its history.", Vector2(x, y), box.size.x - 16, Ui.MUTED)
+				ui.wrap(c, tr("Meet it in a run to learn its history."), Vector2(x, y), box.size.x - 16, Ui.MUTED)
 
 
 ## The icon of an entry, or its idle sprite; unseen ones are drawn as a dark shape.

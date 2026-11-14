@@ -94,7 +94,7 @@ static func key_name(code: int) -> String:
 
 
 static func pad_name(button: int) -> String:
-	return PAD_NAMES.get(button, "Button %d" % button)
+	return TranslationServer.translate(PAD_NAMES[button]) if PAD_NAMES.has(button) else TranslationServer.translate("Button %d") % button
 
 
 ## The names of one slot's key or button, "-" when it has none.

@@ -1713,3 +1713,78 @@ func test_no_card_draws_over_the_choice_or_the_summary(b: Dictionary) -> void:
 	check(not Steamworks.card_visible("choose") and not Steamworks.card_visible("over"), "no card over the level-up choice or the summary")
 	Steamworks.card = {}
 
+
+
+const LANGUAGES := ["en", "fr", "de", "es", "it", "pt_BR", "pl", "tr", "ru", "uk", "ja", "ko", "zh_CN", "zh_TW"]
+
+
+func _sheet() -> Dictionary:
+	var f := FileAccess.open("res://translations/strings.csv", FileAccess.READ)
+	var header := f.get_csv_line()
+	var rows := {}
+	while not f.eof_reached():
+		var line := f.get_csv_line()
+		if line.size() > 1:
+			rows[line[0]] = line
+	return {"header": header, "rows": rows}
+
+
+func test_every_string_has_all_languages(_b: Dictionary) -> void:
+	var sheet := _sheet()
+	check(Array(sheet.header).slice(1) == LANGUAGES, "the sheet has the 14 languages")
+	var placeholder := RegEx.create_from_string("%[-0-9.]*[sdifxXcv%]| {2,}")
+	var empty := 0
+	var changed := 0
+	for key in sheet.rows:
+		var row: PackedStringArray = sheet.rows[key]
+		for i in range(1, row.size()):
+			if row[i].strip_edges() == "":
+				empty += 1
+				print("  empty ", LANGUAGES[i - 1], ": ", key)
+			elif placeholder.search_all(row[i]).size() != placeholder.search_all(row[1]).size():
+				changed += 1
+				print("  placeholders differ ", LANGUAGES[i - 1], ": ", key)
+	check(empty == 0, "no cell of the sheet is empty")
+	check(changed == 0, "every translation keeps its placeholders")
+	for kind in Content.KINDS:
+		for id in content.get(kind):
+			for field in Content.WORDS:
+				if content.get(kind)[id].has(field):
+					check(sheet.rows.has(Content.key_of(kind, id, field)), "%s.%s.%s is in the sheet" % [kind, id, field])
+
+
+func test_every_tr_call_is_in_the_sheet(_b: Dictionary) -> void:
+	var rows: Dictionary = _sheet().rows
+	var call := RegEx.create_from_string("\\b(?:tr|TranslationServer\\.translate)\\(\\s*\"((?:[^\"\\\\]|\\\\.)*)\"")
+	var dirs := ["res://scripts/", "res://scripts/screens/"]
+	var missing := 0
+	for dir in dirs:
+		for file in DirAccess.get_files_at(dir):
+			if file.get_extension() != "gd":
+				continue
+			for m in call.search_all(FileAccess.get_file_as_string(dir + file)):
+				var key: String = m.get_string(1).c_unescape()
+				if not rows.has(key):
+					missing += 1
+					print("  not in the sheet: ", key)
+	check(missing == 0, "every tr() string is in the sheet")
+
+
+func test_every_language_shows_its_own_words(_b: Dictionary) -> void:
+	var before := TranslationServer.get_locale()
+	for loc in LANGUAGES:
+		TranslationServer.set_locale(loc)
+		check(TranslationServer.get_locale() == loc, "%s is loaded" % loc)
+		if loc != "en":
+			check(TranslationServer.translate("Settings") != "Settings", "%s translates Settings" % loc)
+			check(TranslationServer.translate(Content.key_of("recruits", "legionary", "name")) != "Legionaries", "%s has the legionaries' name" % loc)
+	TranslationServer.set_locale(before)
+
+
+func test_each_language_has_a_font_that_draws_it(_b: Dictionary) -> void:
+	var samples := {"pl": "ąćęłńśźż", "tr": "ğışİ", "ru": "Русский", "uk": "їієґ", "ja": "日本語", "ko": "한국어", "zh_CN": "简体中文", "zh_TW": "繁體中文", "de": "ÄÖÜß", "fr": "éèêç"}
+	for loc in samples:
+		var f: Font = Lang.font(loc)
+		check(f.has_char(samples[loc].unicode_at(0)) or f.get_string_size(samples[loc]).x > 0.0, "%s has a font" % loc)
+		for ch in samples[loc]:
+			check(f.has_char(ch.unicode_at(0)), "the %s font draws %s" % [loc, ch])

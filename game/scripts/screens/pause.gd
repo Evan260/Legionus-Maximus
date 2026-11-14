@@ -26,7 +26,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	var h := 32.0 if Ui.scale > 1 else 22.0
 	var w := 260.0 if Ui.scale > 1 else 180.0
 	var top := Ui.H / 2 - (3 * h + 2 * 8) / 2 - 8
-	ui.text(c, "PAUSED", Vector2(0, top - 8), Ui.CREAM, HORIZONTAL_ALIGNMENT_CENTER, Ui.W, true)
-	ui.button(c, Rect2(Ui.W / 2 - w / 2, top, w, h), "resume", "RESUME", "", true, null, true)
-	ui.button(c, Rect2(Ui.W / 2 - w / 2, top + h + 8, w, h), "settings", "SETTINGS", "", true, null, true)
-	ui.button(c, Rect2(Ui.W / 2 - w / 2, top + 2 * (h + 8), w, h), "giveup", "GIVE UP THE RUN", "", true, null, true)
+	ui.text(c, tr("Paused").to_upper(), Vector2(0, top - 8), Ui.CREAM, HORIZONTAL_ALIGNMENT_CENTER, Ui.W, true)
+	ui.button(c, Rect2(Ui.W / 2 - w / 2, top, w, h), "resume", tr("Resume").to_upper(), "", true, null, true)
+	ui.button(c, Rect2(Ui.W / 2 - w / 2, top + h + 8, w, h), "settings", tr("Settings").to_upper(), "", true, null, true)
+	ui.button(c, Rect2(Ui.W / 2 - w / 2, top + 2 * (h + 8), w, h), "giveup", tr("Give up the run").to_upper(), "", true, null, true)

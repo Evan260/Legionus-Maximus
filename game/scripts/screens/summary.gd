@@ -50,19 +50,19 @@ static func chart_points(sim: Sim) -> Array:
 func draw(c: CanvasItem, ui: Ui) -> void:
 	var sim: Sim = main.sim
 	var s := Ui.scale
-	var title := "VICTORY" if sim.victory else "THE COMMANDER HAS FALLEN"
+	var title := tr("Victory").to_upper() if sim.victory else tr("The commander has fallen").to_upper()
 	var modes: Array = []
 	for mode in ["hard", "endless", "decimatio"]:
 		if sim.get(mode):
-			modes.append(mode.capitalize())
+			modes.append(tr(mode.capitalize()))
 	var held := ""
 	if sim.endless and sim.endless_since >= 0.0:
-		held = "Held out %s after the chieftain" % clock(sim.endless_seconds())
-	var hint := held if held != "" else "Space camp     Esc title"
+		held = tr("Held out %s after the chieftain") % clock(sim.endless_seconds())
+	var hint := held if held != "" else tr("Space camp     Esc title")
 	if sim.demo_over:
-		hint = "The full game continues past %d minutes" % (int(main.balance.demo.seconds) / 60)
+		hint = tr("The full game continues past %d minutes") % (int(main.balance.demo.seconds) / 60)
 	if sim.demo_over:
-		title = "THE DEMO ENDS HERE"
+		title = tr("The demo ends here").to_upper()
 	var r := ui.frame(c, title, hint)
 	if not modes.is_empty():
 		var room := r.size.x - 36.0 - ui.width_of(title)
@@ -72,8 +72,8 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	var brow := 12.0 if s == 1 else 18.0
 	var lx := r.position.x + 12.0
 	var left_w := 212.0
-	var stats := [["Time", clock(sim.time)], ["Kills", str(sim.kills)], ["Level", str(sim.level)], ["Legion", str(sim.soldiers.size() + 1)],
-		["Denarii", str(sim.denarii)], ["Banked", str(int(Profile.data.denarii))]]
+	var stats := [[tr("Time"), clock(sim.time)], [tr("Kills"), str(sim.kills)], [tr("Level"), str(sim.level)], [tr("Legion"), str(sim.soldiers.size() + 1)],
+		[tr("Denarii"), str(sim.denarii)], [tr("Banked"), str(int(Profile.data.denarii))]]
 	for i in stats.size():
 		ui.text(c, stats[i][0], Vector2(lx, top + i * srow), Ui.INK)
 		ui.text(c, stats[i][1], Vector2(0, top + i * srow), Ui.RED, HORIZONTAL_ALIGNMENT_RIGHT, lx + left_w)
@@ -83,18 +83,18 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	var chart := Rect2(lx, cap_y + 6.0, r.size.x - 24.0, r.end.y - h - 14.0 - (cap_y + 6.0))
 	_chart(c, ui, sim, chart, cap_y)
 	var bw := 100.0 if s > 1 else 80.0
-	ui.button(c, Rect2(r.end.x - 12.0 - 2.0 * bw - 8.0, r.end.y - h - 6.0, bw, h), "camp", "CAMP", "", true, null, true)
-	ui.button(c, Rect2(r.end.x - 12.0 - bw, r.end.y - h - 6.0, bw, h), "title", "TITLE", "", true, null, true)
+	ui.button(c, Rect2(r.end.x - 12.0 - 2.0 * bw - 8.0, r.end.y - h - 6.0, bw, h), "camp", tr("Camp").to_upper(), "", true, null, true)
+	ui.button(c, Rect2(r.end.x - 12.0 - bw, r.end.y - h - 6.0, bw, h), "title", tr("Title").to_upper(), "", true, null, true)
 	if sim.demo_over and int(main.balance.demo.store_app_id) > 0:
 		var wide := 150.0 if s > 1 else 120.0
-		ui.button(c, Rect2(r.end.x - 12.0 - 2.0 * bw - 16.0 - wide, r.end.y - h - 6.0, wide, h), "wishlist", "WISHLIST", "", true, null, true)
+		ui.button(c, Rect2(r.end.x - 12.0 - 2.0 * bw - 16.0 - wide, r.end.y - h - 6.0, wide, h), "wishlist", tr("Wishlist").to_upper(), "", true, null, true)
 
 
 func _bars(c: CanvasItem, ui: Ui, sim: Sim, area: Rect2, row: float) -> void:
-	ui.text(c, "DAMAGE BY SOURCE", Vector2(area.position.x, area.position.y), Ui.BROWN)
+	ui.text(c, tr("Damage by source").to_upper(), Vector2(area.position.x, area.position.y), Ui.BROWN)
 	var rows := top_sources(sim)
 	if rows.is_empty():
-		ui.text(c, "None recorded", Vector2(area.position.x, area.position.y + row), Ui.MUTED)
+		ui.text(c, tr("None recorded"), Vector2(area.position.x, area.position.y + row), Ui.MUTED)
 		return
 	var name_w := 110.0 if Ui.scale == 1 else 150.0
 	var val_w := 38.0 if Ui.scale == 1 else 66.0
@@ -114,16 +114,16 @@ func _bars(c: CanvasItem, ui: Ui, sim: Sim, area: Rect2, row: float) -> void:
 
 
 func _chart(c: CanvasItem, ui: Ui, sim: Sim, area: Rect2, cap_y: float) -> void:
-	ui.text(c, "LEGION SIZE OVER TIME", Vector2(area.position.x, cap_y), Ui.BROWN)
+	ui.text(c, tr("Legion size over time").to_upper(), Vector2(area.position.x, cap_y), Ui.BROWN)
 	var pts := chart_points(sim)
 	if pts.size() < 2:
 		c.draw_rect(area, Ui.PARCH_DARK, false, 1.0)
-		ui.text(c, "The run was too short to chart", Vector2(area.position.x + 8, area.get_center().y + 3), Ui.MUTED)
+		ui.text(c, tr("The run was too short to chart"), Vector2(area.position.x + 8, area.get_center().y + 3), Ui.MUTED)
 		return
 	var most := 1
 	for p in pts:
 		most = maxi(most, int(p.legion))
-	ui.text(c, "Largest %d" % most, Vector2(0, cap_y), Ui.INK, HORIZONTAL_ALIGNMENT_RIGHT, area.end.x)
+	ui.text(c, tr("Largest %d") % most, Vector2(0, cap_y), Ui.INK, HORIZONTAL_ALIGNMENT_RIGHT, area.end.x)
 	c.draw_rect(Rect2(area.position - Vector2(1, 1), area.size + Vector2(2, 2)), Ui.INK)
 	c.draw_rect(area, Ui.CREAM)
 	for g in 3:

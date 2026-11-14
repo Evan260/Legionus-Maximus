@@ -11,6 +11,7 @@ extends Node
 ##   --screen=NAME      open a screen (camp, quartermaster, tablinum, map, commanders, settings) with a sample profile, for screenshots;
 ##                      summary runs a skipped autoplay to its end and shows the run summary
 ##   --page=controls    with --screen=settings, open the key and button page
+##   --lang=CODE        show the game in that language (fr, de, es, it, pt_BR, pl, tr, ru, uk, ja, ko, zh_CN, zh_TW) without saving it
 ##   --text-size=N      use text size 1 or 2 without saving it
 ##   --commander=ID     start with that commander (the tribune when his art is not drawn)
 ##   --as-demo          play as the demo: Germania, three commanders and 15 minutes
@@ -45,6 +46,7 @@ func _ready() -> void:
 	balance = JSON.parse_string(FileAccess.get_file_as_string("res://data/balance.json"))
 	content = Content.load_all(Content.available_art())
 	Steamworks.content = content
+	Lang.changed.connect(_language_changed)
 	if args.has("chieftain-at"):
 		balance.chieftain_at = float(args["chieftain-at"])
 	if args.has("run-tests") or args.has("bench"):
@@ -121,6 +123,12 @@ func apply_settings() -> void:
 	for s in [sim, camp_sim]:
 		if s != null:
 			s.show_numbers = cfg.numbers
+
+
+## The words and fonts change with the language, and the text size is drawn again in the new font.
+func _language_changed() -> void:
+	content.localize()
+	apply_settings()
 
 
 func open_settings(from: String) -> void:

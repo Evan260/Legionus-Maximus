@@ -109,11 +109,11 @@ static func banish(sim: Sim, id: String, current: Array) -> Array:
 static func level_text(sim: Sim, id: String) -> String:
 	var group := sim.content.group_of(id)
 	if group == "Recruit":
-		return "%d in the legion" % sim.count(id)
+		return TranslationServer.translate("%d in the legion") % sim.count(id)
 	if group == "Forged":
-		return "Forged"
+		return TranslationServer.translate("Forged")
 	var r := sim.rank(id)
-	return "New" if r == 0 else "Level %d" % (r + 1)
+	return TranslationServer.translate("New") if r == 0 else TranslationServer.translate("Level %d") % (r + 1)
 
 
 static func describe(sim: Sim, id: String) -> String:

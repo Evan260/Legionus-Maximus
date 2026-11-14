@@ -11,7 +11,6 @@ var atlas: Atlas
 var ground: Texture2D
 var shadow: Texture2D
 var props_cache := {}
-var font: Font
 var shake_on := true
 var digits: Texture2D
 var _shake_rng := RandomNumberGenerator.new()
@@ -23,7 +22,6 @@ var _mods := PackedColorArray()
 
 
 func _ready() -> void:
-	font = load("res://assets/fonts/Silkscreen-Regular.ttf")
 	ground = load("res://assets/ground.png")
 	var img := Image.create(16, 6, false, Image.FORMAT_RGBA8)
 	for y in 6:
@@ -308,8 +306,8 @@ func _draw_elite_names(view: Rect2) -> void:
 			continue
 		var label: String = sim.content.enemies[h.kind_ids[h.e_kind[i]]].name
 		var at: Vector2 = (h.e_pos[i] + Vector2(-60, -34)).round()
-		draw_string(font, at + Vector2(1, 1), label, HORIZONTAL_ALIGNMENT_CENTER, 120, 8, Color(0.16, 0.1, 0.08))
-		draw_string(font, at, label, HORIZONTAL_ALIGNMENT_CENTER, 120, 8, Color(1.0, 0.89, 0.59))
+		draw_string(Ui.font(), at + Vector2(1, 1), label, HORIZONTAL_ALIGNMENT_CENTER, 120, Lang.base_px(), Color(0.16, 0.1, 0.08))
+		draw_string(Ui.font(), at, label, HORIZONTAL_ALIGNMENT_CENTER, 120, Lang.base_px(), Color(1.0, 0.89, 0.59))
 
 
 func _draw_shots(tex: Texture2D) -> void:
