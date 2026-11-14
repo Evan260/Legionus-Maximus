@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
-# Installs what the Mac and Linux uploads need inside WSL (Ubuntu): Valve's Linux steamcmd and rcodesign, the tool
-# that signs and notarizes the Mac app without a Mac. Run once from Windows:
-#   wsl -u root -- bash tools/steam/wsl_setup.sh
-# Everything lands in the default WSL user's home, in ~/legionus-steam.
+# Installs steamcmd and rcodesign inside WSL, once: wsl -u root -- bash tools/steam/wsl_setup.sh
 set -euo pipefail
 
 RCODESIGN_VERSION=0.29.0

@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-# Uploads the release builds in artifacts/ to Steam with steamcmd, live on the testing branch, using the depots in
-# tools/steam/steam.json and tools/steam/publish.py's build script layout:
-#   bash .github/scripts/steam_upload.sh <playtest|game|demo>
+# Uploads the builds in artifacts/ to Steam with steamcmd: bash .github/scripts/steam_upload.sh <playtest|game|demo>
 set -euo pipefail
 
 TARGET="$1"

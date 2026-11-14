@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
-# The half of tools/steam/publish.py that runs inside WSL: lays out the exported builds with their Mac and Linux file
-# permissions intact, signs and notarizes the Mac app, and uploads everything with Valve's Linux steamcmd. A Mac app
-# copied through Windows loses those permissions and fails to open, which is why this runs here.
-#   bash wsl_build.sh <stage folder> <work folder> <account> [--dry-run]
+# Runs inside WSL so Mac and Linux builds keep their file permissions: bash wsl_build.sh <stage> <work> <account> [--dry-run]
 set -euo pipefail
 
 STAGE="$1"
