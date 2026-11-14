@@ -6,6 +6,9 @@ extends RefCounted
 ## Set by the tests to play as the demo without a command-line flag.
 static var demo_forced := false
 
+## The commanders the demo lists, which the demo hands out as unlocked; filled by commanders().
+static var demo_open: Array = []
+
 
 ## Whether this is the demo: the project exported with the "demo" feature, or started with --as-demo.
 static func is_demo() -> bool:
@@ -16,10 +19,13 @@ static func is_demo() -> bool:
 static func commanders(content: Content, balance: Dictionary) -> Array:
 	var ids: Array = []
 	for id in content.commanders:
-		if content.ready("commanders", id):
+		var province := str(content.commanders[id].get("unlock", {}).get("province", ""))
+		# A commander unlocked by winning in a province that is not playable yet is left out.
+		if content.ready("commanders", id) and (province == "" or content.ready("provinces", province)):
 			ids.append(id)
 	if is_demo():
 		ids = ids.slice(0, int(balance.demo.commanders))
+		demo_open = ids
 	return ids
 
 

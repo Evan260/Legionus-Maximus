@@ -206,7 +206,7 @@ func record_of(province: String) -> Dictionary:
 
 
 func commander_unlocked(id: String) -> bool:
-	return data.unlocked.commanders.has(id)
+	return data.unlocked.commanders.has(id) or (Game.is_demo() and Game.demo_open.has(id))
 
 
 func province_unlocked(id: String) -> bool:

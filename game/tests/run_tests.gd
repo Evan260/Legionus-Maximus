@@ -1694,16 +1694,27 @@ func test_demo_caps_the_run_at_fifteen_minutes(b: Dictionary) -> void:
 func test_demo_offers_three_commanders(b: Dictionary) -> void:
 	var ready: Array = []
 	for id in content.commanders:
-		if content.ready("commanders", id):
+		var rule: Dictionary = content.commanders[id].get("unlock", {})
+		var province := str(rule.get("province", ""))
+		if content.ready("commanders", id) and (province == "" or content.ready("provinces", province)):
 			ready.append(id)
-	check(Game.commanders(content, b) == ready, "the full game lists every drawn commander")
+	check(Game.commanders(content, b) == ready, "the full game lists every drawn commander whose unlock province is playable")
+	check(not "engineer" in Game.commanders(content, b), "the engineer waits for Gaul")
 	check(Game.province_allowed("gaul", b), "the full game opens every province")
 	check(Game.run_cap(b) == 0.0, "the full game has no cap")
 	Game.demo_forced = true
 	check(Game.commanders(content, b) == ready.slice(0, 3), "the demo lists the first three drawn commanders")
 	check(Game.province_allowed("germania", b) and not Game.province_allowed("gaul", b), "the demo opens Germania only")
 	check(Game.run_cap(b) == 900.0, "the demo caps the run at 900 seconds")
+	var saved: Dictionary = Profile.data
+	Profile.data = Profile.defaults()
+	for id in Game.commanders(content, b):
+		check(Profile.commander_unlocked(id), "the demo's %s is unlocked" % id)
+	Profile.data = saved
 	Game.demo_forced = false
+	Profile.data = Profile.defaults()
+	check(not Profile.commander_unlocked("archer_captain"), "the full game still makes the player earn the archer captain")
+	Profile.data = saved
 
 
 func test_winning_as_a_commander_is_earned(b: Dictionary) -> void:
