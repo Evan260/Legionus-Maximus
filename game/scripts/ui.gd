@@ -21,6 +21,9 @@ static var px := 8
 # A language whose text is drawn in its own font, for the picker that names every language in its own letters.
 static var _own: Font
 static var _balance_px := 8
+# The window shows at least 640 by 360 and more on whichever side it is longer; menus stay in a centred 640 by 360 box.
+static var view := Vector2(W, H)
+static var offset := Vector2.ZERO
 
 var items: Array = []
 var focus := ""
@@ -217,9 +220,19 @@ func panel(c: CanvasItem, r: Rect2, fill: Color = PARCH) -> void:
 	c.draw_rect(Rect2(r.position + Vector2(2, 2), r.size - Vector2(4, 4)), PARCH_DARK, false, 1.0)
 
 
+static func fit_view(size: Vector2) -> void:
+	view = size
+	offset = ((size - Vector2(W, H)) / 2.0).floor()
+
+
+## A dimming veil over the whole window, drawn from inside the centred box.
+static func veil(c: CanvasItem, alpha: float) -> void:
+	c.draw_rect(Rect2(-offset, view), Color(0, 0, 0, alpha))
+
+
 ## A dimmed backdrop, a big panel, a title and a footer of key hints.
 func frame(c: CanvasItem, title: String, hint: String) -> Rect2:
-	c.draw_rect(Rect2(0, 0, W, H), Color(0, 0, 0, 0.5))
+	veil(c, 0.5)
 	var r := Rect2(16, 12, W - 32, H - 40)
 	panel(c, r)
 	text(c, title, Vector2(r.position.x + 12, r.position.y + 8 + 8 * scale), BROWN)

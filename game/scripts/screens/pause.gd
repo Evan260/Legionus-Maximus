@@ -28,7 +28,7 @@ func activate(id: String) -> void:
 
 
 func draw(c: CanvasItem, ui: Ui) -> void:
-	c.draw_rect(Rect2(0, 0, Ui.W, Ui.H), Color(0, 0, 0, 0.45))
+	Ui.veil(c, 0.45)
 	var h := 32.0 if Ui.scale > 1 else 22.0
 	var w := 260.0 if Ui.scale > 1 else 180.0
 	var top := Ui.H / 2 - (3 * h + 2 * 8) / 2 - 8

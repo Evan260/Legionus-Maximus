@@ -387,9 +387,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if screens.has(state):
 		if event is InputEventMouseMotion:
-			ui.hover(hud.get_global_mouse_position())
+			ui.hover(hud.get_global_mouse_position() - Ui.offset)
 		elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-			var id := ui.at(hud.get_global_mouse_position())
+			var id := ui.at(hud.get_global_mouse_position() - Ui.offset)
 			if id != "":
 				ui.focus = id
 				_activate(id)
@@ -397,11 +397,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if state != "choose":
 		return
 	if event is InputEventMouseMotion:
-		var i: int = hud.choice_at(hud.get_global_mouse_position())
+		var i: int = hud.choice_at(hud.get_global_mouse_position() - Ui.offset)
 		if i >= 0:
 			selected = i
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		var i: int = hud.choice_at(hud.get_global_mouse_position())
+		var i: int = hud.choice_at(hud.get_global_mouse_position() - Ui.offset)
 		if i >= 0:
 			_take(i)
 

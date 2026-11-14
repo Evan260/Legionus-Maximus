@@ -53,7 +53,9 @@ func panel(r: Rect2, fill: Color = PARCH) -> void:
 func _draw() -> void:
 	if main == null:
 		return
+	Ui.fit_view(get_viewport_rect().size)
 	_scene()
+	draw_set_transform(Vector2.ZERO)
 	_card()
 
 
@@ -63,6 +65,7 @@ func _card() -> void:
 	if not Steamworks.card_visible(main.state):
 		return
 	var big := Ui.scale > 1
+	var W := Ui.view.x
 	var w := 190.0 if not big else 280.0
 	var room := w - 40.0
 	# A long name takes a second line, and the card grows to hold it.
@@ -94,6 +97,7 @@ func _scene() -> void:
 		if main.state == "pause" or main.state == "over":
 			_top_bar(sim)
 		ui.begin()
+		draw_set_transform(Ui.offset)
 		main.screens[main.state].draw(self, ui)
 		ui.end()
 		return
@@ -103,6 +107,8 @@ func _scene() -> void:
 
 
 func _top_bar(sim: Sim) -> void:
+	var W := Ui.view.x
+	var H := Ui.view.y
 	var big := Ui.scale > 1
 	draw_rect(Rect2(8, 6, W - 16, 7), INK)
 	var fill := (W - 18) * clampf(float(sim.xp) / sim.xp_next, 0.0, 1.0)
@@ -141,7 +147,8 @@ func _choices(sim: Sim) -> void:
 	if main.choices.is_empty():
 		return
 	var big := Ui.scale > 1
-	draw_rect(Rect2(0, 0, W, H), Color(0, 0, 0, 0.5))
+	draw_set_transform(Ui.offset)
+	Ui.veil(self, 0.5)
 	var head_y := 38.0 if big else 74.0
 	# With large text the top bar already says the level, so only the supplies heading is added.
 	if not big or sim.pending_levels == 0:

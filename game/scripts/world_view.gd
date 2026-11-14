@@ -2,7 +2,6 @@ extends Node2D
 ## Draws the field around the commander: ground, scattered props, coins, the legion and the horde in depth order,
 ## then missiles and effects.
 
-const VIEW := Vector2(640, 360)
 const CHUNK := 160.0
 const PROP_KINDS := ["oak", "fir", "rock", "log", "bush", "stones", "bush", "stones", "fir", "rock"]
 
@@ -55,7 +54,7 @@ func _process(dt: float) -> void:
 			jolt = Vector2(_shake_rng.randi_range(-reach, reach), _shake_rng.randi_range(-reach, reach))
 		# The shake dies away here, not in the sim, so it still ends while the run is paused or over.
 		sim.shake = maxf(0.0, sim.shake - dt)
-		position = (VIEW / 2.0 - sim.commander.pos).round() + jolt
+		position = (get_viewport_rect().size / 2.0 - sim.commander.pos).round() + jolt
 		queue_redraw()
 
 
@@ -86,7 +85,8 @@ func _draw() -> void:
 	if not sim:
 		return
 	var cam: Vector2 = sim.commander.pos
-	var top_left := cam - VIEW / 2.0
+	var screen := get_viewport_rect().size
+	var top_left := cam - screen / 2.0
 	if sim.province != _ground_of:
 		_ground_of = sim.province
 		ground = load(Content.ground_path(_ground_of))
@@ -94,8 +94,8 @@ func _draw() -> void:
 	var gh := ground.get_height()
 	var gx0 := floori(top_left.x / gw)
 	var gy0 := floori(top_left.y / gh)
-	for gx in range(gx0, gx0 + ceili(VIEW.x / gw) + 2):
-		for gy in range(gy0, gy0 + ceili(VIEW.y / gh) + 2):
+	for gx in range(gx0, gx0 + ceili(screen.x / gw) + 2):
+		for gy in range(gy0, gy0 + ceili(screen.y / gh) + 2):
 			draw_texture(ground, Vector2(gx * gw, gy * gh))
 
 	_draw_ground_zones(view_for(top_left))
@@ -105,7 +105,7 @@ func _draw() -> void:
 	_mods.clear()
 	var white := Color.WHITE
 	var margin := 80.0
-	var view := Rect2(top_left - Vector2(margin, margin), VIEW + Vector2(margin, margin) * 2.0)
+	var view := Rect2(top_left - Vector2(margin, margin), screen + Vector2(margin, margin) * 2.0)
 
 	for cx in range(floori(view.position.x / CHUNK), floori(view.end.x / CHUNK) + 1):
 		for cy in range(floori(view.position.y / CHUNK), floori(view.end.y / CHUNK) + 1):
@@ -167,7 +167,7 @@ func _draw() -> void:
 
 
 func view_for(top_left: Vector2) -> Rect2:
-	return Rect2(top_left - Vector2(80, 80), VIEW + Vector2(160, 160))
+	return Rect2(top_left - Vector2(80, 80), get_viewport_rect().size + Vector2(160, 160))
 
 
 ## Burning ground, oil and the ditch of the stake ring, drawn on the ground under everything that stands on it.
