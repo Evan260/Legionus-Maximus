@@ -31,3 +31,8 @@ static func province_allowed(id: String, balance: Dictionary) -> bool:
 ## The run's length limit in seconds, or 0 for none.
 static func run_cap(balance: Dictionary) -> float:
 	return float(balance.demo.seconds) if is_demo() else 0.0
+
+
+## Whether a confirm press counts. Space is also the testudo key, so a tap just as a choice or the summary opens must not take it.
+static func confirm_allowed(state: String, opened_at: float, now: float, balance: Dictionary) -> bool:
+	return not (state == "choose" or state == "over") or now - opened_at >= float(balance.confirm_delay)

@@ -1981,3 +1981,18 @@ func _cuts_in(loc: String, scale: int, c: Content, sim: Sim, cuts: Array) -> voi
 	_fit(cuts, loc, scale, "card heading", tr_.call("Achievement").to_upper(), room)
 	for id in c.achievements:
 		_lines(cuts, loc, scale, "achievement name", str(c.achievements[id].name).to_upper(), room, 2)
+
+
+func test_selection_stays_on_a_choice_after_a_shorter_list(b: Dictionary) -> void:
+	check(Upgrades.keep_in(2, ["a", "b"]) == 1, "a selection past the end moves to the last choice")
+	check(Upgrades.keep_in(0, ["a", "b"]) == 0, "a selection inside the list stays")
+	check(Upgrades.keep_in(3, []) == 0, "an empty list gives 0")
+
+
+func test_confirm_waits_after_a_choice_or_the_summary_opens(b: Dictionary) -> void:
+	var delay := float(b.confirm_delay)
+	check(delay > 0.0, "the delay is set in balance.json")
+	for st in ["choose", "over"]:
+		check(not Game.confirm_allowed(st, 10.0, 10.0 + delay * 0.5, b), "%s ignores a press right after it opens" % st)
+		check(Game.confirm_allowed(st, 10.0, 10.0 + delay + 0.01, b), "%s takes a press after the delay" % st)
+	check(Game.confirm_allowed("camp", 10.0, 10.0, b), "other screens take confirm at once")

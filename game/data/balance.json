@@ -7,6 +7,8 @@
   "surge_size_start": 20,
   "surge_size_growth": 0.06,
   "max_enemies": 1100,
+  "confirm_delay": 0.3,
+  "max_coins": 300,
   "spawn_radius": 390,
   "recycle_radius": 620,
   "legion_cap": 100,

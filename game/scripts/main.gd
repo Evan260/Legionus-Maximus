@@ -33,6 +33,7 @@ var camp_sim: Sim
 var settings_from := "title"
 var swallow_input := false
 var check_clock := 0.0
+var opened_at := 0.0
 var run_setup := {"province": "germania", "commander": "tribune", "hard": false, "endless": false, "decimatio": false}
 
 @onready var world: Node2D = $World
@@ -207,6 +208,7 @@ func _enter_camp(focus_id := "march") -> void:
 
 func _finish_run() -> void:
 	state = "over"
+	opened_at = clock
 	ui.focus = "camp"
 	Profile.record_run(sim)
 	Steamworks.check(sim, true)
@@ -265,12 +267,14 @@ func _process(dt: float) -> void:
 			elif Input.is_action_just_pressed("right"):
 				selected = posmod(selected + 1, choices.size())
 			elif Input.is_action_just_pressed("confirm"):
-				_take(selected)
+				if Game.confirm_allowed(state, opened_at, clock, balance):
+					_take(selected)
 			elif Input.is_action_just_pressed("reroll") and sim.rerolls > 0:
 				choices = Upgrades.reroll(sim, choices)
+				selected = Upgrades.keep_in(selected, choices)
 			elif Input.is_action_just_pressed("banish") and sim.banishes > 0:
 				choices = Upgrades.banish(sim, choices[selected], choices)
-				selected = mini(selected, choices.size() - 1)
+				selected = Upgrades.keep_in(selected, choices)
 				if choices.is_empty():
 					sim.pending_levels = 0
 					sim.free_choices = 0
@@ -310,7 +314,7 @@ func _screen_input(dt: float) -> void:
 			if state == "settings" and dir[1].y == 0.0 and screens.settings.adjust(ui.focus, int(dir[1].x)):
 				continue
 			ui.move(dir[1])
-	if Input.is_action_just_pressed("confirm"):
+	if Input.is_action_just_pressed("confirm") and Game.confirm_allowed(state, opened_at, clock, balance):
 		_activate(ui.focus)
 
 
@@ -351,6 +355,7 @@ func _open_choices() -> void:
 	if choices.is_empty():
 		return
 	selected = 0
+	opened_at = clock
 	state = "choose"
 
 

@@ -106,6 +106,11 @@ static func banish(sim: Sim, id: String, current: Array) -> Array:
 	return out
 
 
+## The selected choice, moved onto the last one when a reroll or banish left the list shorter.
+static func keep_in(selected: int, choices: Array) -> int:
+	return clampi(selected, 0, maxi(choices.size() - 1, 0))
+
+
 static func level_text(sim: Sim, id: String) -> String:
 	var group := sim.content.group_of(id)
 	if group == "Recruit":
