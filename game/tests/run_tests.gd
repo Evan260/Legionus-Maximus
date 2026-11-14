@@ -1190,6 +1190,175 @@ func test_chieftain_cleave_hurts_an_arc_in_front(b: Dictionary) -> void:
 	check(not s.horde.cleave(i, s), "nothing behind him is struck")
 
 
+func _chief_sim(b: Dictionary, seed_value: int) -> Sim:
+	var s := _quiet_sim(b, seed_value, Content.with_all_art())
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	for k in 8:
+		s.add_soldier("legionary")
+	s.legion.place_all(s.facing_angle)
+	s.horde.cleave_cd = 1e9
+	s.horde.cry_cd = 1e9
+	s.horde.charge_cd = 1e9
+	s.horde.slam_cd = 1e9
+	s.horde.horn_cd = 1e9
+	return s
+
+
+func _guard_ids(s: Sim) -> Array:
+	var ids: Array = []
+	for i in s.horde.e_pos.size():
+		if s.horde.e_guard[i] != Vector2.ZERO:
+			ids.append(s.horde.e_id[i])
+	return ids
+
+
+func test_the_chieftain_comes_with_a_bodyguard_who_stay_round_him(b: Dictionary) -> void:
+	var s := _chief_sim(b, 140)
+	s.time = float(b.chieftain_at) - 0.01
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	var ci := s.chieftain_index()
+	var ids := _guard_ids(s)
+	check(ci >= 0 and ids.size() == int(b.chieftain_guard.count), "the chieftain arrives with a bodyguard of %d (%d)" % [int(b.chieftain_guard.count), ids.size()])
+	var spears := true
+	for id in ids:
+		spears = spears and s.horde.kind_ids[s.horde.e_kind[s.horde.e_id.find(id)]] == "barbarian_spear"
+	check(spears, "his bodyguard are spearmen")
+	var start: Vector2 = s.horde.e_pos[ci]
+	_step_dt(s, 4.0)
+	ci = s.chieftain_index()
+	var close := true
+	for id in ids:
+		var j := s.horde.e_id.find(id)
+		close = close and j >= 0 and s.horde.e_pos[j].distance_to(s.horde.e_pos[ci]) < float(b.chieftain_guard.radius) * 1.6
+	check(s.horde.e_pos[ci].distance_to(start) > 50.0 and close, "after marching four seconds his guards still stand round him")
+	s.hit(ci, 1e9)
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(_guard_ids(s).is_empty(), "when he falls his guards join the horde")
+
+
+func test_the_chieftains_guards_fight_romans_they_touch(b: Dictionary) -> void:
+	var s := _chief_sim(b, 145)
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	s.horde.spawn_chieftain(Vector2(70, 0))
+	var fighting := false
+	for f in 60:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+		for i in s.horde.e_pos.size():
+			fighting = fighting or (s.horde.e_guard[i] != Vector2.ZERO and s.horde.e_fighting[i] == 1)
+	check(fighting, "a guard beside the legion fights the Romans he touches")
+
+
+func test_the_chieftain_shows_his_charge_then_throws_aside_those_in_its_path(b: Dictionary) -> void:
+	var s := _chief_sim(b, 141)
+	var atk: Dictionary = s.content.enemies.chieftain.attacks.charge
+	s.horde.spawn("chieftain", Vector2(90, 0))
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	s.horde.charge_cd = 0.0
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	var ci := s.chieftain_index()
+	var start: Vector2 = s.horde.e_pos[ci]
+	check(s.horde.charge_warn > 0.0 and s.horde.e_dash[ci] == 0.0, "a red line shows his charge before he starts it")
+	check(s.horde.charge_dir.dot(Vector2.LEFT) > 0.95, "the line points at the legion")
+	_step_dt(s, float(atk.warn) * 0.8)
+	check(s.horde.e_pos[ci].distance_to(start) < 1.0, "he stands still while the line shows")
+	for f in 60:
+		if s.horde.e_dash[ci] > 0.0:
+			break
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.horde.e_dash[ci] > 0.0, "then he charges")
+	var dir: Vector2 = s.horde.charge_dir
+	var side := dir.orthogonal()
+	var from: Vector2 = s.horde.e_pos[ci]
+	var victim: Dictionary = s.soldiers[0]
+	victim.pos = from + dir * 20.0 + side * 2.0
+	var hp0: float = victim.hp
+	var thrown := 0.0
+	var hurt := false
+	for f in 120:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+		thrown = maxf(thrown, absf((victim.pos - from).dot(side)))
+		hurt = hurt or victim.hp < hp0
+		if s.horde.e_dash[ci] <= 0.0:
+			break
+	check(thrown >= float(atk.throw) * 0.7, "a soldier in his path is thrown aside (%.0f px)" % thrown)
+	check(hurt, "and hurt")
+	var length: float = float(s.content.enemies.chieftain.speed) * float(atk.speed_mult) * float(atk.seconds)
+	check(s.horde.e_pos[ci].distance_to(from) > length * 0.8, "he charges on through the soldier (%.0f of %.0f px)" % [s.horde.e_pos[ci].distance_to(from), length])
+
+
+func test_the_chieftains_slam_warns_then_hurts_everyone_in_the_ring(b: Dictionary) -> void:
+	var s := _chief_sim(b, 142)
+	var atk: Dictionary = s.content.enemies.chieftain.attacks.slam
+	s.horde.spawn("chieftain", Vector2(40, 0))
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	s.horde.slam_cd = 0.0
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	var ci := s.chieftain_index()
+	var rings := 0
+	for l in s.horde.foe_lobs:
+		if l.get("slam", false) and l.to.distance_to(s.horde.e_pos[ci]) < 2.0 and is_equal_approx(float(l.dur), float(atk.windup)):
+			rings += 1
+	check(rings == 1, "a red ring round the chieftain fills in before his slam")
+	var start: Vector2 = s.horde.e_pos[ci]
+	_step_dt(s, float(atk.windup) * 0.8)
+	check(s.horde.e_pos[ci].distance_to(start) < 1.0, "he stands still while it fills")
+	for testudo in [false, true]:
+		var t := _chief_sim(b, 146)
+		var i := t.horde.spawn("chieftain", Vector2(300, 300))
+		var victim: Dictionary = t.soldiers[0]
+		var other: Dictionary = t.soldiers[1]
+		victim.pos = Vector2(300 + float(atk.radius) * 0.5, 300)
+		other.pos = Vector2(300 + float(atk.radius) + 40.0, 300)
+		t._rebuild_grids()
+		if testudo:
+			t.testudo_left = 3.0
+		var hp0: float = victim.hp
+		check(t.horde.slam(i, t), "he slams when a soldier is inside the ring")
+		t.horde._foe_lobs(float(atk.windup) + 0.01, t)
+		var want: float = float(t.content.enemies.chieftain.dps) * float(atk.damage_mult) * (float(b.testudo_damage_taken) if testudo else 1.0)
+		check(is_equal_approx(hp0 - victim.hp, want), "the slam takes %.0f from a soldier in the ring (testudo %s)" % [want, testudo])
+		check(other.hp == other.max_hp, "a soldier outside the ring is untouched by the slam")
+
+
+func test_the_chieftains_horn_brings_a_war_band_behind_the_legion(b: Dictionary) -> void:
+	var s := _chief_sim(b, 143)
+	s.facing_angle = 0.0
+	s.horde.spawn("chieftain", Vector2(300, 0))
+	var before := s.horde.e_pos.size()
+	s.horde.horn_cd = 0.0
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	var n := s.horde.e_pos.size() - before
+	check(n == int(b.war_band.size_start), "his horn brings a war band (%d)" % n)
+	var centre := Vector2.ZERO
+	for k in range(before, s.horde.e_pos.size()):
+		centre += s.horde.e_pos[k]
+	centre /= maxf(1.0, n)
+	check((centre - s.commander.pos).dot(Vector2.RIGHT) < -float(b.spawn_radius) * 0.5, "the horn's war band arrives behind the legion")
+
+
+func test_the_berserker_goes_round_to_the_rear(b: Dictionary) -> void:
+	var s := _chief_sim(b, 144)
+	s.facing_angle = 0.0
+	var id: int = s.horde.e_id[s.horde.spawn("berserker", Vector2(300, 0), true)]
+	var cut_through := false
+	var reached := false
+	for f in 60 * 15:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+		var j := s.horde.e_id.find(id)
+		if j < 0:
+			break
+		var rel: Vector2 = s.horde.e_pos[j] - s.commander.pos
+		if rel.x > 0.0 and rel.length() < s.legion_reach - 4.0:
+			cut_through = true
+		if rel.x < -10.0 and s.horde.e_fighting[j] == 1:
+			reached = true
+			break
+	check(not cut_through, "the berserker never walks into the front of the legion")
+	check(s.horde.e_id.has(id), "the berserker is still alive to fight")
+	check(reached, "he comes round and fights the rear")
+
+
 func test_chargers_dash_in_a_line(b: Dictionary) -> void:
 	var s := Sim.new(b, Content.with_all_art(), {"seed": 99})
 	var i: int = s.horde.spawn("chariot", Vector2(200, 0))

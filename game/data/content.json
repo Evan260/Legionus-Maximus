@@ -632,7 +632,7 @@
    "name": "Berserker",
    "text": "He fights in a rage and feels no wounds.",
    "history": "Germanic warriors who fought in a frenzy, in wolf and bear skins, were said to feel no pain.",
-   "behaviour": "melee",
+   "behaviour": "flanker",
    "hp": 420,
    "speed": 50,
    "dps": 14,
@@ -649,6 +649,10 @@
      "seconds": 0.6,
      "burst_mult": 2.0
     }
+   },
+   "flank": {
+    "gap": 36,
+    "arrive": 0.5
    }
   },
   "war_band_leader": {
@@ -720,15 +724,29 @@
      "every": 11.0,
      "speed_mult": 4.0,
      "seconds": 0.7,
-     "burst_mult": 1.5
+     "burst_mult": 1.5,
+     "warn": 1.0,
+     "range": 40,
+     "throw": 26
     },
     "war_cry": {
      "every": 18.0,
      "radius": 240,
      "seconds": 4.0,
      "speed_mult": 1.5
+    },
+    "slam": {
+     "every": 9.0,
+     "windup": 1.2,
+     "radius": 56,
+     "damage_mult": 1.2,
+     "retry": 0.5
+    },
+    "horn": {
+     "every": 30.0
     }
-   }
+   },
+   "guard": "barbarian_spear"
   },
   "painted_warrior": {
    "name": "Painted warrior",
@@ -845,13 +863,26 @@
      "every": 11.0,
      "speed_mult": 4.0,
      "seconds": 0.7,
-     "burst_mult": 1.5
+     "burst_mult": 1.5,
+     "warn": 1.0,
+     "range": 40,
+     "throw": 26
     },
     "war_cry": {
      "every": 18.0,
      "radius": 240,
      "seconds": 4.0,
      "speed_mult": 1.5
+    },
+    "slam": {
+     "every": 9.0,
+     "windup": 1.2,
+     "radius": 56,
+     "damage_mult": 1.2,
+     "retry": 0.5
+    },
+    "horn": {
+     "every": 30.0
     }
    }
   },
@@ -969,13 +1000,26 @@
      "every": 11.0,
      "speed_mult": 4.0,
      "seconds": 0.7,
-     "burst_mult": 1.5
+     "burst_mult": 1.5,
+     "warn": 1.0,
+     "range": 40,
+     "throw": 26
     },
     "war_cry": {
      "every": 18.0,
      "radius": 240,
      "seconds": 4.0,
      "speed_mult": 1.5
+    },
+    "slam": {
+     "every": 9.0,
+     "windup": 1.2,
+     "radius": 56,
+     "damage_mult": 1.2,
+     "retry": 0.5
+    },
+    "horn": {
+     "every": 30.0
     }
    }
   },
@@ -1093,13 +1137,26 @@
      "every": 11.0,
      "speed_mult": 4.0,
      "seconds": 0.7,
-     "burst_mult": 1.5
+     "burst_mult": 1.5,
+     "warn": 1.0,
+     "range": 40,
+     "throw": 26
     },
     "war_cry": {
      "every": 18.0,
      "radius": 240,
      "seconds": 4.0,
      "speed_mult": 1.5
+    },
+    "slam": {
+     "every": 9.0,
+     "windup": 1.2,
+     "radius": 56,
+     "damage_mult": 1.2,
+     "retry": 0.5
+    },
+    "horn": {
+     "every": 30.0
     }
    }
   },
@@ -1217,13 +1274,26 @@
      "every": 11.0,
      "speed_mult": 4.0,
      "seconds": 0.7,
-     "burst_mult": 1.5
+     "burst_mult": 1.5,
+     "warn": 1.0,
+     "range": 40,
+     "throw": 26
     },
     "war_cry": {
      "every": 18.0,
      "radius": 240,
      "seconds": 4.0,
      "speed_mult": 1.5
+    },
+    "slam": {
+     "every": 9.0,
+     "windup": 1.2,
+     "radius": 56,
+     "damage_mult": 1.2,
+     "retry": 0.5
+    },
+    "horn": {
+     "every": 30.0
     }
    }
   }

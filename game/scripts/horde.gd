@@ -9,7 +9,8 @@ const RANGED := 1
 const CHARGER := 2
 const BEAST := 3
 const LOBBER := 4
-const BEHAVIOURS := {"melee": MELEE, "ranged": RANGED, "charger": CHARGER, "beast": BEAST, "lobber": LOBBER}
+const FLANKER := 5
+const BEHAVIOURS := {"melee": MELEE, "ranged": RANGED, "charger": CHARGER, "beast": BEAST, "lobber": LOBBER, "flanker": FLANKER}
 const ORDINARY := 0
 const ELITE := 1
 const CHIEF := 2
@@ -33,6 +34,8 @@ var k_dash_every := PackedFloat32Array()
 var k_dash_mult := PackedFloat32Array()
 var k_dash_secs := PackedFloat32Array()
 var k_burst := PackedFloat32Array()
+var k_flank_cos := PackedFloat32Array()
+var k_flank_gap := PackedFloat32Array()
 
 # Per enemy.
 var e_id := PackedInt32Array()
@@ -61,6 +64,8 @@ var e_side := PackedInt32Array()
 var e_way := PackedVector2Array()
 var e_dir := PackedVector2Array()
 var e_haste := PackedFloat32Array()
+# A bodyguard's place beside the chieftain, or zero for everyone else.
+var e_guard := PackedVector2Array()
 var next_id := 1
 var chieftain_id := -1
 
@@ -80,6 +85,19 @@ var frame := 0
 var haste_mult := 1.0
 var cleave_cd := 0.0
 var cry_cd := 0.0
+var charge_cd := 0.0
+var slam_cd := 0.0
+var horn_cd := 0.0
+var charge_warn := 0.0
+var charge_total := 0.0
+var charge_from := Vector2.ZERO
+var charge_dir := Vector2.ZERO
+var charge_len := 0.0
+var charge_width := 0.0
+var charging := false
+var charge_n := 0
+var chief_hold := 0.0
+var hold_pos := Vector2.ZERO
 var sp_pos := PackedVector2Array()
 var sp_vel := PackedVector2Array()
 var sp_dmg := PackedFloat32Array()
@@ -136,6 +154,9 @@ func _init(balance: Dictionary, game_content: Content, random: RandomNumberGener
 		k_dash_mult.append(mult)
 		k_dash_secs.append(secs)
 		k_burst.append(burst)
+		var flank: Dictionary = info.get("flank", {})
+		k_flank_cos.append(cos(float(flank.get("arrive", 0.0))))
+		k_flank_gap.append(float(flank.get("gap", 1.0)))
 	ordinary = content.province_enemies(province)
 	for id in content.provinces[province].elites:
 		if content.ready("enemies", id):
@@ -148,6 +169,9 @@ func _init(balance: Dictionary, game_content: Content, random: RandomNumberGener
 	var attacks: Dictionary = content.enemies[chief].get("attacks", {})
 	cleave_cd = float(attacks.get("cleave", {}).get("every", 5.0)) * 0.5
 	cry_cd = float(attacks.get("war_cry", {}).get("every", 18.0)) * 0.5
+	charge_cd = float(attacks.get("charge", {}).get("every", 11.0)) * 0.5
+	slam_cd = float(attacks.get("slam", {}).get("every", 9.0)) * 0.5
+	horn_cd = float(attacks.get("horn", {}).get("every", 30.0)) * 0.5
 
 
 ## Adds an enemy and returns its index. Elites, and the chieftain, keep their listed health for the whole run.
@@ -189,7 +213,10 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 	e_tag.append(tag)
 	var beh := k_beh[kind]
 	var wait := 0.0
-	if k_dash_every[kind] > 0.0:
+	if tag == CHIEF:
+		# The chieftain charges only after showing his path, which _chieftain starts.
+		wait = INF
+	elif k_dash_every[kind] > 0.0:
 		wait = k_dash_every[kind] * rng.randf()
 	elif beh == RANGED:
 		wait = float(b.ranged.every) * (0.5 + 0.5 * rng.randf())
@@ -201,7 +228,25 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 	e_way.append(Vector2.ZERO)
 	e_dir.append(Vector2.ZERO)
 	e_haste.append(0.0)
+	e_guard.append(Vector2.ZERO)
 	return e_id.size() - 1
+
+
+## The chieftain with his bodyguard in a ring round him; returns his index.
+func spawn_chieftain(pos: Vector2) -> int:
+	var ci := spawn(chief_kind, pos)
+	var kind: String = content.enemies[chief_kind].get("guard", "")
+	if kind == "" or not content.ready("enemies", kind):
+		if ordinary.is_empty():
+			return ci
+		kind = ordinary[0]
+	var cfg: Dictionary = b.chieftain_guard
+	var n := int(cfg.count)
+	for k in n:
+		var off := Vector2.from_angle(TAU * k / n) * float(cfg.radius)
+		var j := spawn(kind, pos + off)
+		e_guard[j] = off
+	return ci
 
 
 func ring_point() -> Vector2:
@@ -265,6 +310,7 @@ func update(dt: float, sim: Sim) -> void:
 	_chieftain(dt, sim)
 	_rally(dt, sim)
 	_move(dt, sim)
+	_chieftain_after(sim)
 	_foe_lobs(dt, sim)
 	_spears(dt, sim)
 	_carts(dt, sim)
@@ -297,7 +343,7 @@ func _spawn(dt: float, sim: Sim) -> void:
 				var a := side + rng.randf_range(-0.3, 0.3)
 				spawn(elites[rng.randi_range(0, elites.size() - 1)], commander.pos + Vector2(cos(a) * 1.15, sin(a) * 0.75) * b.spawn_radius, true)
 	if chieftain_id == -1 and chief_kind != "" and time >= b.chieftain_at:
-		spawn(chief_kind, ring_point())
+		spawn_chieftain(ring_point())
 	if time >= next_cart:
 		next_cart += float(b.cart.every)
 		if content.available.has("prop:supply_cart"):
@@ -305,12 +351,12 @@ func _spawn(dt: float, sim: Sim) -> void:
 
 
 ## A tight band gathers in the legion's path or closes in from behind, so marching straight on is never safe for long.
-func _war_band(sim: Sim) -> void:
+func _war_band(sim: Sim, behind := false) -> void:
 	if ordinary.is_empty():
 		return
 	var wb: Dictionary = b.war_band
 	var ahead := Vector2.from_angle(sim.facing_angle)
-	var dir := ahead if rng.randf() < 0.5 else -ahead
+	var dir := -ahead if behind else (ahead if rng.randf() < 0.5 else -ahead)
 	var centre: Vector2 = commander.pos + dir.rotated(rng.randf_range(-0.4, 0.4)) * Vector2(1.15, 0.75) * float(b.spawn_radius)
 	var n := int(float(wb.size_start) + float(wb.size_growth) * time)
 	for i in n:
@@ -324,7 +370,7 @@ func chieftain_index() -> int:
 	return e_id.find(chieftain_id) if chieftain_id != -1 and not chief_dead else -1
 
 
-## The chieftain's cleave and war cry, each on its own timer; his charge is the dash every enemy of that kind has.
+## The chieftain's cleave, war cry, charge, slam and war horn, each on its own timer.
 func _chieftain(dt: float, sim: Sim) -> void:
 	var ci := chieftain_index()
 	if ci < 0:
@@ -334,11 +380,96 @@ func _chieftain(dt: float, sim: Sim) -> void:
 		return
 	cleave_cd -= dt
 	cry_cd -= dt
+	charge_cd -= dt
+	slam_cd -= dt
+	horn_cd -= dt
+	chief_hold = maxf(0.0, chief_hold - dt)
 	if cleave_cd <= 0.0:
 		cleave_cd = float(atk.cleave.every) if cleave(ci, sim) else float(atk.cleave.retry)
 	if cry_cd <= 0.0:
 		war_cry(ci, sim)
 		cry_cd = float(atk.war_cry.every)
+	if charge_warn > 0.0:
+		charge_warn -= dt
+		if charge_warn <= 0.0:
+			e_dir[ci] = charge_dir
+			e_dash[ci] = k_dash_secs[e_kind[ci]]
+			charging = true
+			charge_n += 1
+			chief_hold = 0.0
+	elif charge_cd <= 0.0 and chief_hold <= 0.0 and not charging and (commander.pos - e_pos[ci]).length() < sim.legion_reach + float(atk.charge.range):
+		_warn_charge(ci, atk.charge)
+	if slam_cd <= 0.0 and chief_hold <= 0.0 and not charging:
+		slam_cd = float(atk.slam.every) if slam(ci, sim) else float(atk.slam.retry)
+	if horn_cd <= 0.0:
+		horn_cd = float(atk.horn.every)
+		_war_band(sim, true)
+
+
+## Marks the chieftain's charge on the ground and holds him still until it starts.
+func _warn_charge(ci: int, cfg: Dictionary) -> void:
+	var kind := e_kind[ci]
+	charge_cd = float(cfg.every)
+	charge_warn = float(cfg.warn)
+	charge_total = charge_warn
+	charge_from = e_pos[ci]
+	charge_dir = (commander.pos - e_pos[ci]).normalized()
+	charge_len = k_speed[kind] * k_dash_mult[kind] * k_dash_secs[kind]
+	charge_width = k_radius[kind] * 2.0
+	_hold(ci, charge_warn)
+
+
+func _hold(ci: int, seconds: float) -> void:
+	chief_hold = maxf(chief_hold, seconds)
+	hold_pos = e_pos[ci]
+
+
+## A red ring round the chieftain that strikes everyone inside when it has filled; false when nobody is in it.
+func slam(ci: int, sim: Sim) -> bool:
+	var kind := e_kind[ci]
+	var atk: Dictionary = content.enemies[kind_ids[kind]].attacks.slam
+	var p := e_pos[ci]
+	var r := float(atk.radius)
+	var reach := (r + Sim.UNIT_RADIUS) * (r + Sim.UNIT_RADIUS)
+	for u in sim.units:
+		if (u.pos - p).length_squared() < reach:
+			foe_lobs.append({"from": p, "to": p, "t": 0.0, "dur": float(atk.windup), "radius": r, "dmg": k_dps[kind] * float(atk.damage_mult), "slam": true})
+			_hold(ci, float(atk.windup))
+			return true
+	return false
+
+
+## Keeps the chieftain where he stands while he winds up, and throws aside the soldiers his charge runs into.
+func _chieftain_after(sim: Sim) -> void:
+	var ci := chieftain_index()
+	if ci < 0:
+		return
+	if chief_hold > 0.0:
+		e_pos[ci] = hold_pos
+	if not charging:
+		return
+	if e_dash[ci] <= 0.0:
+		charging = false
+		return
+	var kind := e_kind[ci]
+	var throw := float(content.enemies[kind_ids[kind]].attacks.charge.throw)
+	var reach := k_radius[kind] + Sim.UNIT_RADIUS + 2.0
+	var side := charge_dir.orthogonal()
+	var p := e_pos[ci]
+	var hit_any := false
+	for u in sim.units:
+		var off: Vector2 = u.pos - p
+		if off.length_squared() > reach * reach or u.get("thrown", -1) == charge_n:
+			continue
+		u.thrown = charge_n
+		u.hp -= k_burst[kind]
+		u.flash = 0.12
+		hit_any = true
+		if not is_same(u, sim.commander):
+			u.pos += side * (throw if off.dot(side) >= 0.0 else -throw)
+	if hit_any:
+		sim.shake = maxf(sim.shake, float(sim.b.shake.chieftain))
+		sim.legion.remove_fallen(sim)
 
 
 ## Hurts every soldier in an arc in front of the chieftain; false when nobody is in it.
@@ -468,12 +599,16 @@ func _move(dt: float, sim: Sim) -> void:
 	var held := 0
 	var solid_range: float = b.get("solid_range", 400.0)
 	var detour_seconds: float = b.detour.seconds
+	var rear := -Vector2.from_angle(sim.facing_angle)
+	var ci := chieftain_index()
+	var chief_pos := e_pos[ci] if ci >= 0 else Vector2.ZERO
+	var through := ci if charging else -1
 	for i in e_pos.size():
 		var kind := e_kind[i]
 		var p := e_pos[i]
 		var to := cpos - p
 		var d := to.length()
-		if d > recycle and e_tag[i] != CHIEF:
+		if d > recycle and e_tag[i] != CHIEF and e_guard[i] == Vector2.ZERO:
 			# Barbarians left far behind come round again from ahead, so the field never empties.
 			e_pos[i] = cpos - to * (b.spawn_radius / d)
 			continue
@@ -492,9 +627,25 @@ func _move(dt: float, sim: Sim) -> void:
 			e_haste[i] -= dt
 			spd *= haste_mult
 		var v := to / maxf(d, 0.001) * spd
+		var beh := k_beh[kind]
+		var circling := false
+		if beh == FLANKER:
+			var n := -to / maxf(d, 0.001)
+			if n.dot(rear) < k_flank_cos[kind]:
+				# A flanker walks round the legion just outside its reach, turning the shorter way towards its rear.
+				circling = true
+				var gap := k_flank_gap[kind]
+				var turn := 1.0 if n.x * rear.y - n.y * rear.x > 0.0 else -1.0
+				var radial := clampf((legion_reach + gap - d) / gap, -2.0, 1.0)
+				v = (Vector2(-n.y, n.x) * turn + n * radial).normalized() * spd
+		var g := e_guard[i]
+		if g != Vector2.ZERO:
+			var gto := chief_pos + g - p
+			var gl := gto.length()
+			v = gto * (minf(spd, gl / dt) / gl) if gl > 0.5 else Vector2.ZERO
 		var dashing := false
-		var lobber := k_beh[kind] == LOBBER
-		var throwing := (k_beh[kind] == RANGED and e_ammo[i] > 0) or lobber
+		var lobber := beh == LOBBER
+		var throwing := (beh == RANGED and e_ammo[i] > 0) or lobber
 		if throwing:
 			if d <= k_range[kind] + legion_reach:
 				v = Vector2.ZERO
@@ -520,7 +671,7 @@ func _move(dt: float, sim: Sim) -> void:
 				v = e_dir[i] * spd * k_dash_mult[kind]
 			else:
 				e_cd[i] -= dt
-				if e_cd[i] <= 0.0 and d > dash_min and d < dash_max:
+				if e_cd[i] <= 0.0 and d > dash_min and d < dash_max and not circling:
 					e_cd[i] = k_dash_every[kind]
 					e_dir[i] = to / maxf(d, 0.001)
 					e_dash[i] = k_dash_secs[kind]
@@ -556,7 +707,7 @@ func _move(dt: float, sim: Sim) -> void:
 			e_push[i] = Vector2.ZERO
 			push = Vector2.ZERO
 		e_fighting[i] = 0
-		if not throwing and d < legion_reach + r and (to.length_squared() < reach2 or e_tag[i] == CHIEF):
+		if not throwing and i != through and d < legion_reach + r and (to.length_squared() < reach2 or e_tag[i] == CHIEF):
 			var k := Vector2i(floori(p.x / CELL), floori(p.y / CELL))
 			var target_unit := -1
 			var best := INF
@@ -618,7 +769,7 @@ func _move(dt: float, sim: Sim) -> void:
 						e_detour[i] = detour_seconds
 		e_pos[i] = np
 		if v != Vector2.ZERO:
-			e_face[i] = to / maxf(d, 0.001) if not dashing else e_dir[i]
+			e_face[i] = e_dir[i] if dashing else (v.normalized() if circling else to / maxf(d, 0.001))
 		if e_flash[i] > 0.0:
 			e_flash[i] -= dt
 	sim.pressing = held
@@ -800,6 +951,7 @@ func near(p: Vector2, r: float) -> Array:
 func remove_at(i: int) -> void:
 	if e_id[i] == chieftain_id:
 		chief_dead = true
+		e_guard.fill(Vector2.ZERO)
 	if e_tag[i] == ELITE:
 		elite_ids.erase(e_id[i])
 	var last := e_pos.size() - 1
@@ -828,3 +980,4 @@ func remove_at(i: int) -> void:
 	e_way[i] = e_way[last]; e_way.resize(last)
 	e_dir[i] = e_dir[last]; e_dir.resize(last)
 	e_haste[i] = e_haste[last]; e_haste.resize(last)
+	e_guard[i] = e_guard[last]; e_guard.resize(last)

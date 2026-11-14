@@ -1,6 +1,7 @@
 {
   "run_seconds": 1200,
   "chieftain_at": 1200,
+  "chieftain_guard": {"count": 10, "radius": 34},
   "surge_every": 120,
   "war_band": {"first": 50, "every": 35, "size_start": 8, "size_growth": 0.015, "spread": 30},
   "spawn_per_second_start": 1.0,

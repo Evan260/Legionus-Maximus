@@ -219,13 +219,25 @@ func _draw_lobs(tex: Texture2D) -> void:
 				draw_rect(Rect2(q + Vector2(-1, -4), Vector2(2, 1)), Color(0.5, 0.3, 0.16))
 				draw_rect(Rect2(q + Vector2(-1, -2), Vector2(1, 3)), Color(0.55, 0.36, 0.2))
 	for l in sim.horde.foe_lobs:
+		if l.get("slam", false):
+			continue
 		var k: float = l.t / l.dur
 		var ground: Vector2 = l.from.lerp(l.to, k)
 		_lob_sprite(tex, "fire_pot", ground + Vector2(0, -sin(k * PI) * 40.0))
 
 
-## Red rings on the ground where the war priests' pots will land, filling in as each pot falls.
+## Red rings on the ground where the war priests' pots will land and round the chieftain's slam, and the line of his coming charge, each filling in as it nears.
 func _draw_warnings() -> void:
+	var h := sim.horde
+	if h.charge_warn > 0.0 and h.chieftain_index() >= 0:
+		var k := clampf(1.0 - h.charge_warn / h.charge_total, 0.0, 1.0)
+		var end := h.charge_from + h.charge_dir * h.charge_len
+		var edge := h.charge_dir.orthogonal() * h.charge_width / 2.0
+		draw_line(h.charge_from, end, Color(0.75, 0.12, 0.08, 0.12 + 0.18 * k), h.charge_width)
+		draw_line(h.charge_from + edge, end + edge, Color(0.95, 0.25, 0.15, 0.85), 1.0)
+		draw_line(h.charge_from - edge, end - edge, Color(0.95, 0.25, 0.15, 0.85), 1.0)
+		draw_line(end + edge, end - edge, Color(0.95, 0.25, 0.15, 0.85), 1.0)
+		draw_line(h.charge_from, h.charge_from.lerp(end, k), Color(0.95, 0.35, 0.15, 0.25), h.charge_width)
 	for l in sim.horde.foe_lobs:
 		var k: float = clampf(l.t / l.dur, 0.0, 1.0)
 		draw_circle(l.to, l.radius, Color(0.75, 0.12, 0.08, 0.12 + 0.18 * k))
