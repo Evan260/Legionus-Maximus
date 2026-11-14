@@ -76,12 +76,18 @@ var decimate_next := 0.0
 var endless_since := -1.0
 var peak_soldiers := 0
 var killed_kinds := {}
-var damage_by_source := {}
+var damage_by_source: Dictionary:
+	get:
+		return _fold_damage()
 var history: Array = []
 var numbers: Array = []
 var show_numbers := false
 var shake := 0.0
 var _next_sample := 0.0
+var _damage_named := {}
+var _damage := PackedFloat64Array()
+var _src_ids := {}
+var _src_names: Array = []
 var _last_hp := 0.0
 
 
@@ -113,6 +119,7 @@ func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
 	xp_next = int(b.xp_first)
 	decimate_next = float(b.decimatio.every)
 	_next_sample = float(b.history_every)
+	_build_sources()
 	var kit_types: Array = []
 	for key in kit.starts:
 		if key.begins_with("arm:"):
@@ -217,6 +224,25 @@ func update(dt: float, move: Vector2, testudo_pressed: bool) -> void:
 		victory = false
 
 
+## Gives every weapon and soldier type an int id once, so a harm is a plain array add.
+func _build_sources() -> void:
+	var names: Array = ["commander"]
+	for kind in ["recruits", "arms", "forged"]:
+		names.append_array(content.get(kind).keys())
+	for n in names:
+		_src_ids[n] = _src_names.size()
+		_src_names.append(n)
+	_damage.resize(_src_names.size())
+
+
+## The damage per source id, named; read when the summary or a test asks for it.
+func _fold_damage() -> Dictionary:
+	for i in _src_names.size():
+		if _damage[i] > 0.0:
+			_damage_named[_src_names[i]] = _damage[i]
+	return _damage_named
+
+
 ## The run's history sample, and the screen shake that follows the commander being hurt.
 func _track(dt: float) -> void:
 	if time >= _next_sample:
@@ -225,7 +251,6 @@ func _track(dt: float) -> void:
 	if commander.hp < _last_hp:
 		shake = maxf(shake, float(b.shake.hurt))
 	_last_hp = commander.hp
-	shake = maxf(0.0, shake - dt)
 
 
 func _move_legion(dt: float, move: Vector2) -> void:
@@ -275,13 +300,18 @@ func enemies_near(p: Vector2, r: float) -> Array:
 
 ## Every harm to an enemy goes through here so the quartermaster's damage bonus counts for hits, burns and scorching alike.
 ## The health it took is added to `src`, the id of the weapon or soldier type that did it, and returned.
-func _harm(i: int, dmg: float, src: String) -> float:
+func _harm(i: int, dmg: float, src: int) -> float:
 	var full := dmg * (1.0 + _bonus_amount("damage"))
 	var taken := minf(full, maxf(horde.e_hp[i], 0.0))
 	horde.e_hp[i] -= full
-	if src != "":
-		damage_by_source[src] = float(damage_by_source.get(src, 0.0)) + taken
+	if src >= 0:
+		_damage[src] += taken
 	return taken
+
+
+## The id of a source name, or -1 when it has none.
+func src_id(src: String) -> int:
+	return _src_ids.get(src, -1)
 
 
 ## A small number rises from the enemy; the count alive is capped so a big fight stays readable.
@@ -292,7 +322,7 @@ func _number(i: int, taken: float) -> void:
 
 
 func hit(i: int, dmg: float, burn_dps: float = 0.0, src := "") -> void:
-	_number(i, _harm(i, dmg, src))
+	_number(i, _harm(i, dmg, src_id(src)))
 	horde.e_flash[i] = 0.1
 	if burn_dps > 0.0:
 		var greek: float = float(b.greek_fire.burn_mult) if rank("greek_fire") > 0 else 1.0
@@ -303,12 +333,12 @@ func hit(i: int, dmg: float, burn_dps: float = 0.0, src := "") -> void:
 func ignite(i: int, dps: float, seconds: float, src := "") -> void:
 	horde.e_burn[i] = maxf(horde.e_burn[i], seconds)
 	horde.e_burn_dps[i] = maxf(horde.e_burn_dps[i], dps)
-	horde.e_burn_src[i] = src
+	horde.e_burn_src[i] = src_id(src)
 
 
 ## Harm from standing in fire: it takes health and shows the flames without lighting a new burn.
 func scorch(i: int, dmg: float, src := "") -> void:
-	_number(i, _harm(i, dmg, src))
+	_number(i, _harm(i, dmg, src_id(src)))
 	horde.e_burn[i] = maxf(horde.e_burn[i], 0.4)
 
 

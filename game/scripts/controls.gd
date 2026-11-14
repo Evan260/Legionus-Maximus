@@ -19,11 +19,15 @@ const PAD_NAMES := {JOY_BUTTON_A: "A", JOY_BUTTON_B: "B", JOY_BUTTON_X: "X", JOY
 	JOY_BUTTON_DPAD_LEFT: "Dpad left", JOY_BUTTON_DPAD_RIGHT: "Dpad right", JOY_BUTTON_LEFT_STICK: "L stick", JOY_BUTTON_RIGHT_STICK: "R stick"}
 
 
-## The keys and pad buttons an action has: the saved ones, or the defaults.
+## The keys and pad buttons an action has: the saved ones, or the defaults when none are saved or the saved list is empty.
 static func effective(saved: Dictionary, action: String) -> Dictionary:
 	var mine: Dictionary = saved.get(action, {})
-	var keys: Array = mine.get("keys", KEYS.get(action, [])).duplicate()
-	var pads: Array = mine.get("pads", [PADS[action]] if PADS.has(action) else []).duplicate()
+	var keys: Array = mine.get("keys", []).duplicate()
+	var pads: Array = mine.get("pads", []).duplicate()
+	if keys.is_empty():
+		keys = KEYS.get(action, []).duplicate()
+	if pads.is_empty():
+		pads = [PADS[action]] if PADS.has(action) else []
 	return {"keys": keys, "pads": pads}
 
 
@@ -61,21 +65,19 @@ static func install(saved: Dictionary) -> void:
 
 
 ## Replaces one slot of an action, "keys" or "pads", with a new code, in `saved` and in the input map.
-## The code is taken out of the action's other slots first, so one key is never listed twice for one action.
+## The code is taken out of the action's other slots, so one key is never listed twice for one action and a list is never left empty.
 static func rebind(saved: Dictionary, action: String, kind: String, slot: int, code: int) -> void:
 	var mine := effective(saved, action)
 	var list: Array = mine[kind]
-	var old: Variant = list[slot] if slot < list.size() else null
-	if old != null:
+	var at := slot
+	if slot < list.size():
 		list[slot] = code
 	else:
 		list.append(code)
-	var seen := false
+		at = list.size() - 1
 	for i in range(list.size() - 1, -1, -1):
-		if list[i] == code:
-			if seen or (old != null and i != slot):
-				list.remove_at(i)
-			seen = true
+		if i != at and list[i] == code:
+			list.remove_at(i)
 	saved[action] = mine
 	install(saved)
 

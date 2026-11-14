@@ -1461,6 +1461,27 @@ func test_rebinding_replaces_the_key(b: Dictionary) -> void:
 	check(_has_key("testudo", KEY_SPACE) and not _has_key("testudo", KEY_T), "no saved bindings gives the defaults back")
 
 
+func test_rebinding_to_a_key_held_in_another_slot_keeps_it(b: Dictionary) -> void:
+	var saved := {}
+	Controls.install(saved)
+	Controls.rebind(saved, "up", "keys", 0, KEY_UP)
+	check(_has_key("up", KEY_UP) and not _has_key("up", KEY_W), "up keeps the arrow key it was moved to")
+	check(saved.up.keys == [KEY_UP], "and lists it once")
+	Controls.rebind(saved, "up", "keys", 0, KEY_UP)
+	check(saved.up.keys == [KEY_UP], "rebinding the only key to itself leaves it")
+	Controls.install({})
+
+
+func test_empty_saved_bindings_fall_back_to_the_defaults(b: Dictionary) -> void:
+	var merged: Dictionary = ProfileScript.merge_saved({"settings": {"bindings": {"up": {"keys": [], "pads": []}, "down": {"keys": [0, -3, "x"]}, "left": {"keys": [KEY_J]}}}})
+	var cfg: Dictionary = ProfileScript.settings_of(merged)
+	check(not cfg.bindings.has("up") and not cfg.bindings.has("down"), "empty or unusable lists are dropped when loaded")
+	check(cfg.bindings.left.keys == [KEY_J], "a good list is kept")
+	check(Controls.effective({"up": {"keys": [], "pads": []}}, "up").keys == [KEY_W, KEY_UP], "an empty saved list gives the defaults")
+	var pad: Dictionary = ProfileScript.settings_of(ProfileScript.merge_saved({"settings": {"bindings": {"testudo": {"pads": [0]}}}}))
+	check(pad.bindings.testudo.pads == [0], "pad button 0 is a real button")
+
+
 func test_saved_settings_are_checked(b: Dictionary) -> void:
 	var merged: Dictionary = ProfileScript.merge_saved({"settings": {"master": 4, "music": "loud", "text_size": 7, "shake": "yes", "numbers": false,
 		"bindings": {"testudo": {"keys": [KEY_T, "x"], "pads": [2.0]}, "bad": 3}}})
@@ -1498,9 +1519,10 @@ func test_shake_comes_from_hurt_chieftain_and_testudo(b: Dictionary) -> void:
 	h.commander.hp -= 5.0
 	h.update(1.0 / 60.0, Vector2.ZERO, false)
 	check(h.shake > 0.0, "the commander being hurt shakes the view")
+	var before := h.shake
 	for f in 60:
 		h.update(1.0 / 60.0, Vector2.ZERO, false)
-	check(h.shake <= 0.0, "the shake dies away")
+	check(h.shake == before, "the sim leaves decaying the shake to the view")
 
 
 func test_settings_make_the_audio_buses(b: Dictionary) -> void:

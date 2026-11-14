@@ -113,8 +113,11 @@ static func _checked_setting(key: String, v: Variant) -> Variant:
 				var entry := {}
 				for kind in ["keys", "pads"]:
 					if v[action].get(kind) is Array:
-						entry[kind] = v[action][kind].filter(func(n): return _is_number(n) and n == floorf(n)).map(func(n): return int(n))
-				out[str(action)] = entry
+						var codes: Array = v[action][kind].filter(func(n): return _is_number(n) and n == floorf(n) and n >= (1 if kind == "keys" else 0)).map(func(n): return int(n))
+						if not codes.is_empty():
+							entry[kind] = codes
+				if not entry.is_empty():
+					out[str(action)] = entry
 			return out
 	return v
 

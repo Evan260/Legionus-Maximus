@@ -48,12 +48,14 @@ func _digit_texture() -> Texture2D:
 	return ImageTexture.create_from_image(strip)
 
 
-func _process(_dt: float) -> void:
+func _process(dt: float) -> void:
 	if sim:
 		var jolt := Vector2.ZERO
 		if shake_on and sim.shake > 0.0:
 			var reach := int(sim.b.shake.pixels)
 			jolt = Vector2(_shake_rng.randi_range(-reach, reach), _shake_rng.randi_range(-reach, reach))
+		# The shake dies away here, not in the sim, so it still ends while the run is paused or over.
+		sim.shake = maxf(0.0, sim.shake - dt)
 		position = (VIEW / 2.0 - sim.commander.pos).round() + jolt
 		queue_redraw()
 
@@ -396,7 +398,8 @@ func _draw_numbers() -> void:
 		var at: Vector2 = (n.pos + Vector2(-(text.length() * 4 - 1) / 2.0, -rise * k)).round()
 		var a := clampf((1.0 - k) * 3.0, 0.0, 1.0)
 		for pass_index in 2:
-			var tint := Color(0.16, 0.1, 0.08, a) if pass_index == 0 else Color(1.0, 0.95, 0.82, a)
+			var tint := Ui.INK if pass_index == 0 else Ui.CREAM
+			tint.a = a
 			var o := Vector2(1, 1) if pass_index == 0 else Vector2.ZERO
 			for i in text.length():
 				var d := text.unicode_at(i) - 48
