@@ -269,17 +269,19 @@ func _add_chests_and_carts(view: Rect2) -> void:
 
 ## Spears thrown by the horde are drawn as short pixel lines.
 func _draw_spears() -> void:
-	for s in sim.horde.spears:
-		var dir: Vector2 = s.vel.normalized()
-		draw_line(s.pos - dir * 7.0, s.pos, Color(0.45, 0.3, 0.16), 1.0)
-		draw_rect(Rect2(s.pos.round(), Vector2(1, 1)), Color(0.85, 0.85, 0.8))
+	var h: Horde = sim.horde
+	for i in h.sp_pos.size():
+		var dir: Vector2 = h.sp_vel[i].normalized()
+		draw_line(h.sp_pos[i] - dir * 7.0, h.sp_pos[i], Color(0.45, 0.3, 0.16), 1.0)
+		draw_rect(Rect2(h.sp_pos[i].round(), Vector2(1, 1)), Color(0.85, 0.85, 0.8))
 
 
 ## An elite's name stands over its head in small text.
 func _draw_elite_names(view: Rect2) -> void:
 	var h: Horde = sim.horde
-	for i in h.e_pos.size():
-		if h.e_tag[i] != Horde.ELITE or not view.has_point(h.e_pos[i]):
+	for id in h.elite_ids:
+		var i := h.e_id.find(id)
+		if i < 0 or not view.has_point(h.e_pos[i]):
 			continue
 		var label: String = sim.content.enemies[h.kind_ids[h.e_kind[i]]].name
 		var at: Vector2 = (h.e_pos[i] + Vector2(-60, -34)).round()

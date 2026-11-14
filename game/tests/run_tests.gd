@@ -869,8 +869,8 @@ func test_ranged_enemy_keeps_its_distance(b: Dictionary) -> void:
 	s.horde.spawn("axe_thrower", Vector2(300, 0))
 	_step_dt(s, 12.0)
 	var d: float = s.horde.e_pos[0].distance_to(s.commander.pos)
-	check(d > 100.0 and d < 114.0, "the thrower stops near 110 px (%.1f)" % d)
-	check(not s.horde.spears.is_empty() or s.commander.hp < float(content.base_commander.hp) or s.soldiers[0].hp < 50.0, "and throws spears")
+	check(d > 110.0 and d <= 110.0 + s.legion_reach + 4.0, "the thrower stops at its range from the legion (%.1f)" % d)
+	check(not s.horde.sp_pos.is_empty() or s.commander.hp < float(content.base_commander.hp) or s.soldiers[0].hp < 50.0, "and throws spears")
 
 
 func test_testudo_blocks_thrown_spears(b: Dictionary) -> void:
@@ -1006,3 +1006,24 @@ func test_province_only_spawns_its_ready_enemies(b: Dictionary) -> void:
 	check(elite, "a ready elite arrives with the surge")
 	var wrong := Sim.new(b, Content.with_all_art(), 102, "britannia")
 	check(wrong.horde.ordinary == content.provinces.britannia.ordinary, "another province brings its own")
+
+
+func test_thrower_stays_outside_a_big_legion(b: Dictionary) -> void:
+	var s := Sim.new(b, Content.with_all_art(), 103)
+	s.b = b.duplicate()
+	s.b.spawn_per_second_start = 0.0
+	s.b.spawn_per_second_growth = 0.0
+	for i in 38:
+		s.add_soldier("legionary")
+	s.legion.place_all(0.0)
+	s.horde.spawn("axe_thrower", Vector2(400, 0))
+	var hp0 := 0.0
+	for u in [s.commander] + s.soldiers:
+		hp0 += u.hp
+	var nearest := INF
+	for i in 900:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+		for u in s.soldiers:
+			nearest = minf(nearest, u.pos.distance_to(s.horde.e_pos[0]))
+	check(nearest > 110.0, "the thrower stays outside every soldier (%.1f)" % nearest)
+	check(s.horde.e_fighting[0] == 0, "and never fights in melee")

@@ -71,8 +71,13 @@ var frame := 0
 var haste_mult := 1.0
 var cleave_cd := 0.0
 var cry_cd := 0.0
-var spears: Array = []
+var sp_pos := PackedVector2Array()
+var sp_vel := PackedVector2Array()
+var sp_dmg := PackedFloat32Array()
+var sp_life := PackedFloat32Array()
 var chests: Array = []
+var elite_ids: Array = []
+var chief_dead := false
 var carts: Array = []
 
 
@@ -135,6 +140,7 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 		chieftain_id = next_id
 	elif elite or info.get("elite", false):
 		tag = ELITE
+		elite_ids.append(next_id)
 	var hp := float(info.hp)
 	if tag == ORDINARY:
 		hp *= 1.0 + float(b.enemy_health_growth) * time
@@ -257,7 +263,7 @@ func _spawn(dt: float, sim: Sim) -> void:
 
 
 func chieftain_index() -> int:
-	return e_id.find(chieftain_id) if chieftain_id != -1 else -1
+	return e_id.find(chieftain_id) if chieftain_id != -1 and not chief_dead else -1
 
 
 ## The chieftain's cleave and war cry, each on its own timer; his charge is the dash every enemy of that kind has.
@@ -270,8 +276,8 @@ func _chieftain(dt: float, sim: Sim) -> void:
 		return
 	cleave_cd -= dt
 	cry_cd -= dt
-	if cleave_cd <= 0.0 and cleave(ci, sim):
-		cleave_cd = float(atk.cleave.every)
+	if cleave_cd <= 0.0:
+		cleave_cd = float(atk.cleave.every) if cleave(ci, sim) else float(atk.cleave.retry)
 	if cry_cd <= 0.0:
 		war_cry(ci, sim)
 		cry_cd = float(atk.war_cry.every)
@@ -324,6 +330,7 @@ func _move(dt: float, sim: Sim) -> void:
 	var throw_every: float = b.ranged.every
 	var dash_min: float = b.charger.min_distance
 	var dash_max: float = b.charger.max_distance
+	var sep_range: float = b.separation_range
 	var u_grid := sim.u_grid
 	var units := sim.units
 	for i in e_pos.size():
@@ -352,7 +359,7 @@ func _move(dt: float, sim: Sim) -> void:
 		var v := to / maxf(d, 0.001) * spd
 		var dashing := false
 		if k_beh[kind] == RANGED:
-			if d <= k_range[kind]:
+			if d <= k_range[kind] + legion_reach:
 				v = Vector2.ZERO
 				e_cd[i] -= dt
 				if e_cd[i] <= 0.0:
@@ -371,7 +378,8 @@ func _move(dt: float, sim: Sim) -> void:
 					e_dash[i] = k_dash_secs[kind]
 		var push := e_push[i]
 		# Spacing from neighbours is worked out for a third of the horde each update, in turn.
-		if i % 3 == phase:
+		# Enemies beyond the screen are not spaced apart, since nobody can see them bunch up.
+		if i % 3 == phase and d < sep_range:
 			push = Vector2.ZERO
 			var c := cidx(p)
 			if c >= 0:
@@ -396,7 +404,7 @@ func _move(dt: float, sim: Sim) -> void:
 									break
 			e_push[i] = push
 		e_fighting[i] = 0
-		if d < legion_reach + r and (to.length_squared() < reach2 or e_tag[i] == CHIEF):
+		if k_beh[kind] != RANGED and d < legion_reach + r and (to.length_squared() < reach2 or e_tag[i] == CHIEF):
 			var k := Vector2i(floori(p.x / CELL), floori(p.y / CELL))
 			var target_unit := -1
 			var best := INF
@@ -433,46 +441,60 @@ func _move(dt: float, sim: Sim) -> void:
 
 func _throw(from: Vector2, dir: Vector2, dmg: float) -> void:
 	var cfg: Dictionary = b.ranged
-	spears.append({"pos": from + dir * 6.0, "vel": dir * float(cfg.spear_speed), "dmg": dmg, "life": float(cfg.spear_life)})
+	sp_pos.append(from + dir * 6.0)
+	sp_vel.append(dir * float(cfg.spear_speed))
+	sp_dmg.append(dmg)
+	sp_life.append(float(cfg.spear_life))
 
 
 ## Thrown spears fly straight; the raised testudo stops them at the edge of the legion, and otherwise the first soldier they touch is hurt.
 func _spears(dt: float, sim: Sim) -> void:
-	if spears.is_empty():
+	var n := sp_pos.size()
+	if n == 0:
 		return
-	var keep: Array = []
 	var blocked := sim.testudo_left > 0.0
 	var reach: float = sim.legion_reach
 	var cpos: Vector2 = commander.pos
 	var hit_radius := Sim.UNIT_RADIUS + float(b.ranged.spear_radius)
+	var scan := reach + hit_radius
+	var scan2 := scan * scan
+	var reach2 := reach * reach
 	var struck := false
-	for s in spears:
-		s.pos += s.vel * dt
-		s.life -= dt
-		if s.life <= 0.0:
-			continue
-		if blocked and (s.pos - cpos).length() < reach:
-			sim.effects.append({"kind": "spark", "pos": s.pos, "t": 0.0})
-			continue
-		var home := false
-		var k := Vector2i(floori(s.pos.x / CELL), floori(s.pos.y / CELL))
-		for cx in range(k.x - 1, k.x + 2):
-			for cy in range(k.y - 1, k.y + 2):
-				var ucell: Variant = sim.u_grid.get(Vector2i(cx, cy))
-				if ucell == null or home:
-					continue
-				for ui in ucell:
-					var u: Dictionary = sim.units[ui]
-					if (u.pos - s.pos).length() < hit_radius:
-						var target: Dictionary = sim.legion.shield(u)
-						target.hp -= s.dmg
-						u.flash = 0.08
-						home = true
-						struck = true
-						break
-		if not home:
-			keep.append(s)
-	spears = keep
+	var i := n - 1
+	while i >= 0:
+		var p := sp_pos[i] + sp_vel[i] * dt
+		sp_pos[i] = p
+		var life := sp_life[i] - dt
+		sp_life[i] = life
+		var gone := life <= 0.0
+		var gap2 := (p - cpos).length_squared()
+		if not gone and gap2 <= scan2:
+			if blocked and gap2 < reach2:
+				sim.effects.append({"kind": "spark", "pos": p, "t": 0.0})
+				gone = true
+			else:
+				var k := Vector2i(floori(p.x / CELL), floori(p.y / CELL))
+				for cx in range(k.x - 1, k.x + 2):
+					for cy in range(k.y - 1, k.y + 2):
+						var ucell: Variant = sim.u_grid.get(Vector2i(cx, cy))
+						if ucell == null or gone:
+							continue
+						for ui in ucell:
+							var u: Dictionary = sim.units[ui]
+							if (u.pos - p).length() < hit_radius:
+								var target: Dictionary = sim.legion.shield(u)
+								target.hp -= sp_dmg[i]
+								u.flash = 0.08
+								gone = true
+								struck = true
+								break
+		if gone:
+			var last := sp_pos.size() - 1
+			sp_pos[i] = sp_pos[last]; sp_pos.resize(last)
+			sp_vel[i] = sp_vel[last]; sp_vel.resize(last)
+			sp_dmg[i] = sp_dmg[last]; sp_dmg.resize(last)
+			sp_life[i] = sp_life[last]; sp_life.resize(last)
+		i -= 1
 	if struck:
 		sim.legion.remove_fallen(sim)
 
@@ -515,11 +537,15 @@ func open_cart(sim: Sim, reward := "") -> void:
 		"free_choice":
 			sim.free_choices += 1
 		"heal":
-			for u in [sim.commander] + sim.soldiers:
-				u.hp = u.max_hp
-			sim.effects.append({"kind": "heal", "pos": commander.pos, "t": 0.0})
+			heal_legion(sim)
 		"magnet":
 			sim.c_pull.fill(1)
+
+
+func heal_legion(sim: Sim) -> void:
+	for u in [sim.commander] + sim.soldiers:
+		u.hp = u.max_hp
+	sim.effects.append({"kind": "heal", "pos": commander.pos, "t": 0.0})
 
 
 ## An elite leaves a chest when the chest is drawn.
@@ -584,6 +610,10 @@ func near(p: Vector2, r: float) -> Array:
 
 ## Takes enemy i out by moving the last one into its place, array by array.
 func remove_at(i: int) -> void:
+	if e_id[i] == chieftain_id:
+		chief_dead = true
+	if e_tag[i] == ELITE:
+		elite_ids.erase(e_id[i])
 	var last := e_pos.size() - 1
 	e_id[i] = e_id[last]; e_id.resize(last)
 	e_pos[i] = e_pos[last]; e_pos.resize(last)

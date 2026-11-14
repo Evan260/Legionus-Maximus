@@ -76,6 +76,9 @@ static func next_choices(sim: Sim) -> Array:
 	var picks := offers(sim)
 	if picks.is_empty():
 		sim.pending_levels = 0
+		# A free choice with nothing to offer heals the legion instead of being lost.
+		if sim.free_choices > 0:
+			sim.horde.heal_legion(sim)
 		sim.free_choices = 0
 	return picks
 
