@@ -10,6 +10,7 @@
   "legionary": {
    "name": "Legionaries",
    "text": "Two legionaries join the front ranks.",
+   "history": "Citizen soldiers who signed up for 25 years, then received land or a pension.",
    "place": "front",
    "attack": "melee",
    "hp": 50,
@@ -32,6 +33,7 @@
   "archer": {
    "name": "Archers",
    "text": "Two archers join the rear and shoot the nearest enemy.",
+   "history": "Auxiliary archers, often from Syria, used composite bows that outranged most tribal weapons.",
    "place": "rear",
    "attack": "missile",
    "hp": 30,
@@ -54,6 +56,7 @@
   "slinger": {
    "name": "Slingers",
    "text": "Two slingers join the rear and throw stones that knock enemies back.",
+   "history": "Slingers from the Balearic Islands hurled lead bullets that could break a shield.",
    "place": "rear",
    "attack": "missile",
    "hp": 28,
@@ -78,6 +81,7 @@
   "cavalry": {
    "name": "Cavalrymen",
    "text": "Two horsemen ride out at enemies near the flanks.",
+   "history": "Auxiliary horsemen from Gaul and Spain scouted ahead and chased down broken enemies.",
    "place": "flank",
    "attack": "sortie",
    "hp": 70,
@@ -101,6 +105,7 @@
   "standard_bearer": {
    "name": "Standard bearer",
    "text": "A standard bearer raises the attack speed of every soldier near him.",
+   "history": "The signifer carried the unit standard, and losing it in battle was a deep disgrace.",
    "place": "middle",
    "attack": "aura",
    "hp": 60,
@@ -123,6 +128,7 @@
   "medicus": {
    "name": "Medicus",
    "text": "A medicus heals the most wounded soldier near him.",
+   "history": "Army doctors set bones and stitched wounds, and had a permanent place in the legion.",
    "place": "middle",
    "attack": "heal",
    "hp": 35,
@@ -145,6 +151,7 @@
   "ballista": {
    "name": "Ballista crew",
    "text": "A ballista crew fires a heavy bolt down a line every few seconds.",
+   "history": "Crews of the bolt throwers marched with a legion and shot from behind the front ranks.",
    "place": "rear",
    "attack": "bolt",
    "hp": 45,
@@ -168,6 +175,7 @@
   "centurion": {
    "name": "Centurion",
    "text": "A centurion joins the front. His shout stuns enemies around him.",
+   "history": "A centurion led about 80 men and carried a vine stick to beat order into them.",
    "place": "front",
    "attack": "shout",
    "hp": 110,
@@ -194,6 +202,7 @@
   "pilum": {
    "name": "Pilum volley",
    "text": "Legionaries throw pila at the nearest enemies every few seconds.",
+   "history": "The pilum's soft iron shank bent on impact, so the enemy could not throw it back.",
    "more": "More pila, thrown more often, that hit harder and pass through.",
    "max": 5,
    "implemented": true,
@@ -205,6 +214,7 @@
   "fire_arrows": {
    "name": "Burning arrows",
    "text": "Arrows set enemies alight for three seconds.",
+   "history": "Arrows wrapped in burning tow were used to set fire to wooden palisades and siege works.",
    "more": "The fire burns hotter.",
    "max": 5,
    "implemented": true,
@@ -215,6 +225,7 @@
   "scorpio": {
    "name": "Scorpio",
    "text": "A bolt thrower shoots the strongest enemy in range, through everyone in its way.",
+   "history": "The scorpio was a small, precise bolt thrower that could pierce armour at long range.",
    "more": "Heavier bolts, loosed more often.",
    "max": 5,
    "implemented": true,
@@ -225,6 +236,7 @@
   "onager": {
    "name": "Onager",
    "text": "Stones land in the thickest crowd and scatter it.",
+   "history": "Named after the wild ass for its kick, the onager hurled stones from a twisted-rope arm.",
    "more": "Bigger stones, thrown more often.",
    "max": 5,
    "implemented": true,
@@ -236,6 +248,7 @@
   "caltrops": {
    "name": "Caltrops",
    "text": "Spikes are left behind as the legion marches.",
+   "history": "Iron caltrops always land with a spike pointing up, and were scattered to cripple horses.",
    "more": "More spikes that cut deeper.",
    "max": 5,
    "implemented": true,
@@ -247,6 +260,7 @@
   "stakes": {
    "name": "Ditch and stakes",
    "text": "A ring of stakes around the legion hurts enemies who cross it.",
+   "history": "Roman camps were ringed with a ditch and sharpened stakes, dug fresh every night.",
    "more": "A wider ring that hurts more.",
    "max": 5,
    "implemented": true,
@@ -258,6 +272,7 @@
   "fire_pots": {
    "name": "Fire pots",
    "text": "Jars thrown ahead leave burning ground.",
+   "history": "Clay pots of pitch and oil were thrown to burst into flames among packed enemy ranks.",
    "more": "Larger fires that burn longer.",
    "max": 5,
    "implemented": true,
@@ -269,6 +284,7 @@
   "war_dogs": {
    "name": "War dogs",
    "text": "Hounds run down enemies who break away.",
+   "history": "Both sides in the northern wars used big dogs to harry stragglers and guard the camps.",
    "more": "More hounds that bite harder.",
    "max": 5,
    "implemented": true,
@@ -280,6 +296,7 @@
   "trumpets": {
    "name": "Trumpets",
    "text": "A blast every few seconds pushes enemies back.",
+   "history": "Brass tubae and curved cornua sounded every order, from the march to the charge.",
    "more": "A louder blast, sounded more often.",
    "max": 5,
    "implemented": true,
@@ -290,6 +307,7 @@
   "eagle": {
    "name": "Eagle",
    "text": "The aquila flashes and strikes every enemy around the commander.",
+   "history": "The legion's golden eagle was its soul, and legions fought hard to win a lost one back.",
    "more": "A wider flash that strikes harder.",
    "max": 5,
    "implemented": true,
@@ -300,6 +318,7 @@
   "oil_jars": {
    "name": "Oil jars",
    "text": "Slick ground slows the enemies who cross it.",
+   "history": "Olive oil was easy to find in any Roman supply train, and a spill made footing treacherous.",
    "more": "Wider slicks that slow more.",
    "max": 5,
    "implemented": true,
@@ -310,6 +329,7 @@
   "torches": {
    "name": "Torches",
    "text": "Fire circles the formation.",
+   "history": "Marching columns carried torches for night work, and they also set tents and huts alight.",
    "more": "More torches that burn hotter.",
    "max": 5,
    "implemented": true,
@@ -322,6 +342,7 @@
   "hooked_pila": {
    "name": "Hooked pila",
    "text": "Pila that hook in and pin enemies in place.",
+   "history": "Barbed pila snagged in shields and flesh, so a foe had to drop his shield to be free.",
    "from": [
     "pilum",
     "caltrops"
@@ -335,6 +356,7 @@
   "greek_fire": {
    "name": "Greek fire",
    "text": "Burning arrows and fire pots become a fire water cannot put out.",
+   "history": "Byzantine Greek fire burned on water, and its recipe was a closely guarded state secret.",
    "from": [
     "fire_arrows",
     "fire_pots"
@@ -348,6 +370,7 @@
   "siege_train": {
    "name": "Siege train",
    "text": "Scorpii and onagers fire together as one siege train.",
+   "history": "Roman armies built siege engines on the spot, from timber cut and joined by the soldiers.",
    "from": [
     "scorpio",
     "onager"
@@ -361,6 +384,7 @@
   "hunting_horn": {
    "name": "Hunting horn",
    "text": "The trumpets call the dogs, who hunt as a pack.",
+   "history": "Horns calling the pack to the chase were just as useful for driving a hunted enemy.",
    "from": [
     "war_dogs",
     "trumpets"
@@ -374,6 +398,7 @@
   "burning_eagle": {
    "name": "Burning eagle",
    "text": "The eagle blazes, and the torches burn with it.",
+   "history": "A standard set alight would be a terrible omen, and a rallying cry for those who saw it.",
    "from": [
     "eagle",
     "torches"
@@ -387,6 +412,7 @@
   "fortified_camp": {
    "name": "Fortified camp",
    "text": "Stakes and oil turn the legion's ground into a fortified camp.",
+   "history": "Every night a legion built a walled camp, and the plan was the same from Britain to Syria.",
    "from": [
     "stakes",
     "oil_jars"
@@ -540,6 +566,7 @@
   "barbarian_club": {
    "name": "Club warrior",
    "text": "A warrior of the forest tribes, armed with a heavy club.",
+   "history": "Many Germanic warriors owned no armour at all and fought with whatever weapon they could make.",
    "behaviour": "melee",
    "hp": 20,
    "speed": 36,
@@ -553,6 +580,7 @@
   "barbarian_spear": {
    "name": "Spearman",
    "text": "He keeps just out of a sword's reach, and does not tire.",
+   "history": "The framea, a short spear, was the Germanic warrior's main weapon, used in a thrust or a throw.",
    "behaviour": "melee",
    "hp": 30,
    "speed": 31,
@@ -566,6 +594,7 @@
   "axe_thrower": {
    "name": "Axe thrower",
    "text": "He stops at a distance and throws hand axes at the legion.",
+   "history": "Throwing axes were common in Germanic war bands, and were thrown just before closing in.",
    "behaviour": "ranged",
    "hp": 24,
    "speed": 30,
@@ -580,6 +609,7 @@
   "wolf": {
    "name": "Wolf",
    "text": "The tribes' wolves run fast and bite hard.",
+   "history": "Wolves were sacred to many Germanic tribes, and warriors wore wolf pelts into battle.",
    "behaviour": "beast",
    "hp": 14,
    "speed": 58,
@@ -593,6 +623,7 @@
   "berserker": {
    "name": "Berserker",
    "text": "He fights in a rage and feels no wounds.",
+   "history": "Berserkers were said to fight in a trance and to feel no pain, wearing bear or wolf skins.",
    "behaviour": "melee",
    "hp": 420,
    "speed": 40,
@@ -607,6 +638,7 @@
   "war_band_leader": {
    "name": "War band leader",
    "text": "The leader of a raiding band, who never walks alone.",
+   "history": "Germanic warriors fought in family groups behind a chosen leader, who shared the spoils.",
    "behaviour": "melee",
    "hp": 520,
    "speed": 34,
@@ -621,6 +653,7 @@
   "chieftain": {
    "name": "Arminius-style war chief",
    "text": "The war chief who united the tribes against Rome, swinging a great axe.",
+   "history": "In 9 AD Arminius led three Roman legions into a forest ambush at Teutoburg and destroyed them.",
    "behaviour": "melee",
    "hp": 2600,
    "speed": 27,
@@ -656,6 +689,7 @@
   "painted_warrior": {
    "name": "Painted warrior",
    "text": "A warrior painted blue for battle.",
+   "history": "Britons were said to dye their bodies blue with woad, to look fearsome in battle.",
    "behaviour": "melee",
    "hp": 22,
    "speed": 36,
@@ -669,6 +703,7 @@
   "briton_slinger": {
    "name": "Slinger",
    "text": "He slings stones from a distance.",
+   "history": "Slingers fought across Iron Age Britain, and hillforts kept stockpiles of sling stones.",
    "behaviour": "ranged",
    "hp": 18,
    "speed": 30,
@@ -683,6 +718,7 @@
   "chariot": {
    "name": "Chariot",
    "text": "A light chariot that drives straight at the legion.",
+   "history": "Britons fought from chariots long after the rest of Europe had given them up.",
    "behaviour": "charger",
    "hp": 40,
    "speed": 55,
@@ -696,6 +732,7 @@
   "druid_acolyte": {
    "name": "Druid acolyte",
    "text": "A druid in training, who curses the legion from afar.",
+   "history": "Druid trainees spent up to twenty years memorising law and lore, since nothing was written down.",
    "behaviour": "ranged",
    "hp": 26,
    "speed": 28,
@@ -710,6 +747,7 @@
   "chariot_charge": {
    "name": "Chariot charge",
    "text": "Several chariots drive in together.",
+   "history": "British charioteers raced along the front line, throwing spears before dropping to fight on foot.",
    "behaviour": "charger",
    "hp": 520,
    "speed": 60,
@@ -724,6 +762,7 @@
   "druid": {
    "name": "Druid",
    "text": "An old priest of the oak groves, said to call down fire.",
+   "history": "The druids were priests, judges and teachers, and Rome attacked their island stronghold at Mona.",
    "behaviour": "ranged",
    "hp": 460,
    "speed": 30,
@@ -739,6 +778,7 @@
   "warrior_queen": {
    "name": "Warrior queen",
    "text": "A queen who rides a war chariot against Rome.",
+   "history": "In 60 AD Boudica led the Iceni in a revolt that burned Londinium to the ground.",
    "behaviour": "charger",
    "hp": 3000,
    "speed": 40,
@@ -774,6 +814,7 @@
   "gaul_swordsman": {
    "name": "Swordsman",
    "text": "A Gaulish warrior with a long iron sword.",
+   "history": "Gaulish long swords were made for slashing, and bent so easily that warriors straightened them.",
    "behaviour": "melee",
    "hp": 28,
    "speed": 34,
@@ -787,6 +828,7 @@
   "gaul_horseman": {
    "name": "Horseman",
    "text": "A rider who charges the legion's flank.",
+   "history": "Gaulish cavalry were among the best in Europe, and Caesar hired many into his own army.",
    "behaviour": "charger",
    "hp": 38,
    "speed": 56,
@@ -800,6 +842,7 @@
   "gaul_archer": {
    "name": "Archer",
    "text": "He shoots from behind his own lines.",
+   "history": "Archers were rarer among the Gauls, who preferred to fight with sword and spear.",
    "behaviour": "ranged",
    "hp": 20,
    "speed": 30,
@@ -814,6 +857,7 @@
   "boar": {
    "name": "Boar",
    "text": "A wild boar, driven at the legion.",
+   "history": "The boar was a Gaulish sacred animal, and its image topped many a helmet and war standard.",
    "behaviour": "beast",
    "hp": 26,
    "speed": 50,
@@ -827,6 +871,7 @@
   "champion": {
    "name": "Champion",
    "text": "The best swordsman of his clan.",
+   "history": "Celtic champions fought in front of the line, and challenged enemy heroes to single combat.",
    "behaviour": "melee",
    "hp": 560,
    "speed": 38,
@@ -841,6 +886,7 @@
   "horn_blower": {
    "name": "Horn blower",
    "text": "His horn brings the whole host on faster.",
+   "history": "The carnyx, a tall bronze horn with an animal head, was meant to terrify the foe.",
    "behaviour": "ranged",
    "hp": 440,
    "speed": 30,
@@ -856,6 +902,7 @@
   "gaul_king": {
    "name": "Gaulish king",
    "text": "A king with a long sword and a bodyguard sworn to die for him.",
+   "history": "Vercingetorix united the Gauls in 52 BC and held out against Caesar at the siege of Alesia.",
    "behaviour": "melee",
    "hp": 3400,
    "speed": 28,
@@ -891,6 +938,7 @@
   "falx_warrior": {
    "name": "Falx warrior",
    "text": "He fights with the falx, a curved blade that cuts through shields.",
+   "history": "The falx was a curved two-handed blade that could cut through a Roman helmet.",
    "behaviour": "melee",
    "hp": 30,
    "speed": 34,
@@ -904,6 +952,7 @@
   "dacian_archer": {
    "name": "Archer",
    "text": "A mountain archer with a strong bow.",
+   "history": "Dacian archers shot from the high ground of mountain fortresses.",
    "behaviour": "ranged",
    "hp": 22,
    "speed": 30,
@@ -918,6 +967,7 @@
   "wolf_standard_bearer": {
    "name": "Wolf-standard bearer",
    "text": "He carries the wolf-headed dragon standard that howls in the wind.",
+   "history": "The Dacian draco, a wolf-headed dragon standard, howled as the wind passed through it.",
    "behaviour": "melee",
    "hp": 36,
    "speed": 33,
@@ -931,6 +981,7 @@
   "mountain_bear": {
    "name": "Mountain bear",
    "text": "A bear from the high passes.",
+   "history": "Brown bears lived in the Carpathian forests, and the Dacians hunted them.",
    "behaviour": "beast",
    "hp": 60,
    "speed": 40,
@@ -944,6 +995,7 @@
   "falx_band": {
    "name": "Falx band",
    "text": "A band of falx warriors fighting as one.",
+   "history": "After meeting the falx, Roman soldiers added extra armour to their arms and helmets.",
    "behaviour": "melee",
    "hp": 620,
    "speed": 36,
@@ -958,6 +1010,7 @@
   "priest": {
    "name": "Priest",
    "text": "He speaks for Zalmoxis and heartens the host.",
+   "history": "Dacian priests had great power at the court, and the king took their advice on war.",
    "behaviour": "ranged",
    "hp": 480,
    "speed": 28,
@@ -973,6 +1026,7 @@
   "dacian_king": {
    "name": "Dacian king",
    "text": "A king who advances behind a moving shield wall.",
+   "history": "Decebalus held off Rome for years, until Trajan conquered Dacia in 106 AD.",
    "behaviour": "melee",
    "hp": 3800,
    "speed": 24,
@@ -1008,6 +1062,7 @@
   "horse_archer": {
    "name": "Horse archer",
    "text": "He rides circles round the legion, firing as he goes.",
+   "history": "Parthian horsemen would shoot backwards as they rode away, the famous Parthian shot.",
    "behaviour": "ranged",
    "hp": 24,
    "speed": 52,
@@ -1022,6 +1077,7 @@
   "cataphract": {
    "name": "Cataphract",
    "text": "A rider in full scale armour on an armoured horse.",
+   "history": "Cataphracts were riders in full scale armour, and so were their horses.",
    "behaviour": "charger",
    "hp": 70,
    "speed": 44,
@@ -1035,6 +1091,7 @@
   "camel_rider": {
    "name": "Camel rider",
    "text": "A rider whose camel frightens the legion's horses.",
+   "history": "Camels carried desert armies over ground that stopped most other horses and mules.",
    "behaviour": "charger",
    "hp": 50,
    "speed": 42,
@@ -1048,6 +1105,7 @@
   "parthian_slinger": {
    "name": "Slinger",
    "text": "He slings lead shot from the dunes.",
+   "history": "Slingers in the Parthian armies fought alongside the archers to thin out an advancing force.",
    "behaviour": "ranged",
    "hp": 20,
    "speed": 30,
@@ -1062,6 +1120,7 @@
   "cataphract_charge": {
    "name": "Cataphract charge",
    "text": "A wall of armoured horsemen at full gallop.",
+   "history": "A cataphract charge could break an infantry line, as it did at Carrhae.",
    "behaviour": "charger",
    "hp": 700,
    "speed": 50,
@@ -1076,6 +1135,7 @@
   "war_elephant": {
    "name": "War elephant",
    "text": "It tramples whatever stands before it.",
+   "history": "Eastern kings used war elephants to scare horses and to break the ranks of foot soldiers.",
    "behaviour": "beast",
    "hp": 1100,
    "speed": 30,
@@ -1090,6 +1150,7 @@
   "shah": {
    "name": "Shah",
    "text": "The shah of Parthia, riding into battle on an elephant.",
+   "history": "In 53 BC at Carrhae, the Parthian army crushed seven Roman legions led by Crassus.",
    "behaviour": "beast",
    "hp": 4400,
    "speed": 26,
@@ -1259,6 +1320,7 @@
   "tribune": {
    "name": "Tribune",
    "text": "A young officer with two legionaries at his side.",
+   "history": "Young men of good family served as tribunes to learn command, and wore a purple stripe.",
    "starts": {
     "legionary": 2
    },
@@ -1272,6 +1334,7 @@
   "archer_captain": {
    "name": "Archer captain",
    "text": "He starts with three archers.",
+   "history": "Auxiliary archer units were led by a Roman prefect who knew the bow and the ground.",
    "starts": {
     "archer": 3
    },
@@ -1287,6 +1350,7 @@
   "cavalry_prefect": {
    "name": "Cavalry prefect",
    "text": "He starts with two cavalrymen and marches faster.",
+   "history": "A prefect of cavalry commanded an ala, a wing of about 500 horsemen on the flank.",
    "starts": {
     "cavalry": 2
    },
@@ -1303,6 +1367,7 @@
   "engineer": {
    "name": "Engineer",
    "text": "He starts with the scorpio.",
+   "history": "Legions carried their own engineers, and Roman roads and bridges were built by soldiers.",
    "starts": {
     "arm:scorpio": 1
    },
@@ -1318,6 +1383,7 @@
   "old_centurion": {
    "name": "Old centurion",
    "text": "He starts with a centurion, has more health and marches slower.",
+   "history": "A senior centurion could serve for decades, and the best earned the rank of primus pilus.",
    "starts": {
     "centurion": 1
    },
@@ -1336,6 +1402,7 @@
   "legate": {
    "name": "Legate",
    "text": "He starts with a standard bearer and a free reroll.",
+   "history": "A legate commanded a full legion of about 5,000 men, and was often a senator.",
    "starts": {
     "standard_bearer": 1
    },

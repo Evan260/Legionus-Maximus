@@ -1329,3 +1329,52 @@ func test_disabled_profile_never_writes(b: Dictionary) -> void:
 	_cleanup_profile_files()
 	check(Profile.disabled, "the real profile is disabled while the tests run")
 	check(Profile.path == "user://profile.json" and Profile.data == ProfileScript.defaults(), "and holds only defaults")
+
+
+func _won(b: Dictionary, p: Node, province: String, time := 900.0, peak := 99) -> void:
+	var s := Sim.new(b, Content.with_all_art(), {"seed": 140, "province": province})
+	s.time = time
+	s.peak_soldiers = peak
+	s.over = true
+	s.victory = true
+	p.record_run(s)
+
+
+func test_survive_unlock_needs_a_small_legion(b: Dictionary) -> void:
+	var rule: Dictionary = content.commanders.old_centurion.unlock
+	var few := _fresh_profile()
+	_won(b, few, "germania", float(rule.seconds), int(rule.max_soldiers))
+	check(few.commander_unlocked("old_centurion"), "a full-length win with 10 soldiers unlocks the old centurion")
+	var many := _fresh_profile()
+	_won(b, many, "germania", float(rule.seconds), int(rule.max_soldiers) + 1)
+	check(not many.commander_unlocked("old_centurion"), "11 soldiers do not")
+	var quick := _fresh_profile()
+	_won(b, quick, "germania", float(rule.seconds) - 1.0, 3)
+	check(not quick.commander_unlocked("old_centurion"), "a shorter run does not")
+	for p in [few, many, quick]:
+		p.free()
+
+
+func test_the_engineer_and_legate_unlocks(b: Dictionary) -> void:
+	var p := _fresh_profile()
+	_won(b, p, "germania")
+	check(not p.commander_unlocked("engineer"), "Germania does not unlock the engineer")
+	_won(b, p, "gaul")
+	check(p.commander_unlocked("engineer"), "winning in Gaul unlocks the engineer")
+	check(not p.commander_unlocked("legate"), "two provinces are not enough for the legate")
+	for id in ["britannia", "dacia", "parthia"]:
+		_won(b, p, id)
+	check(p.commander_unlocked("legate"), "a win in every province unlocks the legate")
+	p.free()
+
+
+func test_every_entry_has_a_history_line(b: Dictionary) -> void:
+	for kind in ["recruits", "arms", "forged", "enemies", "commanders"]:
+		for id in content.get(kind):
+			var line: String = str(content.get(kind)[id].get("history", ""))
+			check(line.length() > 0 and line.length() <= 110, "%s has a history line that fits" % id)
+
+
+func test_saved_settings_keep_only_text_for_province_and_commander(b: Dictionary) -> void:
+	var merged: Dictionary = ProfileScript.merge_saved({"settings": {"province": 5, "commander": "legate", "other": 1}})
+	check(not merged.settings.has("province") and merged.settings.commander == "legate", "only string choices are kept")

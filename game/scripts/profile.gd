@@ -77,7 +77,11 @@ static func merge_saved(saved: Dictionary) -> Dictionary:
 			if _is_number(saved.totals.get(key)):
 				out.totals[key] = maxi(0, int(saved.totals[key]))
 	if saved.get("settings") is Dictionary:
-		out.settings = saved.settings
+		for key in saved.settings:
+			var v: Variant = saved.settings[key]
+			if key in ["province", "commander"] and not v is String:
+				continue
+			out.settings[str(key)] = v
 	return out
 
 
@@ -101,9 +105,14 @@ func save() -> void:
 	if f == null:
 		push_warning("Could not save the profile")
 		return
-	f.store_string(JSON.stringify(data, "\t"))
+	var wrote := f.store_string(JSON.stringify(data, "\t"))
 	f.close()
-	DirAccess.rename_absolute(ProjectSettings.globalize_path(tmp), ProjectSettings.globalize_path(path))
+	var moved := ERR_FILE_CANT_WRITE
+	if wrote:
+		moved = DirAccess.rename_absolute(ProjectSettings.globalize_path(tmp), ProjectSettings.globalize_path(path))
+	if moved != OK:
+		push_warning("Could not save the profile")
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(tmp))
 
 
 ## The quartermaster ranks as the run options expect them.

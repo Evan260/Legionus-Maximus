@@ -52,7 +52,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 			ui.text(c, (e[2].name if known else "Not found yet").to_upper(), Vector2(x, box.position.y + 16), Ui.INK if known else Ui.MUTED)
 			ui.text(c, e[1], Vector2(x, box.position.y + 28), Ui.BROWN)
 			if known:
-				ui.wrap(c, e[2].text, Vector2(x, box.position.y + 46), box.size.x - 16, Ui.INK)
+				ui.wrap(c, e[2].history, Vector2(x, box.position.y + 46), box.size.x - 16, Ui.INK)
 			else:
 				ui.wrap(c, "Meet it in a run to learn its history.", Vector2(x, box.position.y + 46), box.size.x - 16, Ui.MUTED)
 

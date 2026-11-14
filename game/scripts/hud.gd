@@ -191,7 +191,13 @@ func _summary(sim: Sim) -> void:
 	for i in rows.size():
 		text(rows[i][0], Vector2(W / 2 - 100, 140 + i * 14), INK, HORIZONTAL_ALIGNMENT_LEFT, -1, false)
 		text(rows[i][1], Vector2(0, 140 + i * 14), INK, HORIZONTAL_ALIGNMENT_RIGHT, W / 2 + 100, false)
-	text("Space  back to the camp", Vector2(0, 228), INK, HORIZONTAL_ALIGNMENT_CENTER, W, false)
+	var modes: Array = []
+	for mode in ["hard", "endless", "decimatio"]:
+		if sim.get(mode):
+			modes.append(mode.capitalize())
+	if not modes.is_empty():
+		text(" + ".join(modes), Vector2(0, 124), Color(0.45, 0.32, 0.1), HORIZONTAL_ALIGNMENT_CENTER, W, false)
+	text("Space  back to the camp",Vector2(0, 228), INK, HORIZONTAL_ALIGNMENT_CENTER, W, false)
 	text("Esc  title", Vector2(0, 242), INK, HORIZONTAL_ALIGNMENT_CENTER, W, false)
 
 
