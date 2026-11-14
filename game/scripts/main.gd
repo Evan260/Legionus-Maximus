@@ -189,10 +189,15 @@ func _bench() -> void:
 		s.add_soldier(mix[i % mix.size()])
 	for i in 1000:
 		s.spawn_enemy(i % 2, s._ring_point() * randf_range(0.3, 1.0))
-	var start := Time.get_ticks_usec()
 	var frames := 300
+	var spent := 0
 	for f in frames:
+		# The horde is topped back up so every measured update meets the full 1,000.
+		while s.e_pos.size() < 1000:
+			s.spawn_enemy(randi() % 2, s._ring_point() * randf_range(0.3, 1.0))
+		var start := Time.get_ticks_usec()
 		s.update(1.0 / 60.0, Vector2(1, 0.3), false)
-	var ms := (Time.get_ticks_usec() - start) / 1000.0 / frames
+		spent += Time.get_ticks_usec() - start
+	var ms := spent / 1000.0 / frames
 	print("BENCH %d enemies, %d soldiers: %.2f ms per update" % [s.e_pos.size(), s.soldiers.size(), ms])
 	get_tree().quit()

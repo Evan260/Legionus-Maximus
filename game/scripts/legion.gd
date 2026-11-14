@@ -2,12 +2,6 @@ class_name Legion
 extends RefCounted
 ## The commander and his soldiers: who is in the legion, where each stands in the formation and what each type does.
 
-const FRONT_START := 22.0
-const REAR_START := -20.0
-const GUARD_REACH := 20.0
-const AURA_EVERYWHERE := 9000.0
-const FALLEN_KEPT := 100
-
 var commander := {}
 var soldiers: Array = []
 var picks := {}
@@ -19,6 +13,7 @@ var _content: Content
 var _rng: RandomNumberGenerator
 var _ranks: Dictionary
 var _cap := 100
+var _l: Dictionary
 
 
 func _init(balance: Dictionary, game_content: Content, random: RandomNumberGenerator, ranks: Dictionary) -> void:
@@ -27,6 +22,7 @@ func _init(balance: Dictionary, game_content: Content, random: RandomNumberGener
 	_rng = random
 	_ranks = ranks
 	_cap = int(balance.legion_cap)
+	_l = balance.legion
 	var cu: Dictionary = _content.base_commander
 	commander = {"type": "commander", "pos": Vector2.ZERO, "hp": float(cu.hp), "max_hp": float(cu.hp), "cd": 0.0,
 		"anim": 0.0, "facing": Vector2.RIGHT, "moving": false, "flash": 0.0, "haste": 1.0}
@@ -53,7 +49,7 @@ func stat(type: String, key: String, fallback: float = 0.0) -> float:
 
 
 func max_hp_of(type: String) -> float:
-	var hp := float(_content.unit(type).hp) * (1.0 + 0.2 * float(_ranks.get("lorica", 0)))
+	var hp := float(_content.unit(type).hp) * (1.0 + float(_l.lorica_hp) * float(_ranks.get("lorica", 0)))
 	if type != "commander" and promoted(type):
 		hp *= float(_content.recruits[type].promotion.get("hp_mult", 1.0))
 	return hp
@@ -96,35 +92,40 @@ func formation() -> Array:
 		groups[soldiers[i].place].append(i)
 	var out: Array = []
 	out.resize(soldiers.size())
-	var front_half := 24.0
-	var front_places := _block(groups.front.size(), FRONT_START, 1.0)
+	var front_half := float(_l.flank_min_front)
+	var front_places := _block(groups.front.size(), float(_l.front_start), 1.0)
 	for k in front_places.size():
 		out[groups.front[k]] = front_places[k]
 		front_half = maxf(front_half, absf(front_places[k].y))
-	var rear_places := _block(groups.rear.size(), REAR_START, -1.0)
+	var rear_places := _block(groups.rear.size(), float(_l.rear_start), -1.0)
 	for k in rear_places.size():
 		out[groups.rear[k]] = rear_places[k]
+	# Flanks stand beyond both the front ranks and the middle men, so no place is shared.
+	if not groups.middle.is_empty():
+		front_half = maxf(front_half, float(_l.middle_across) + float(_l.middle_step) * ((groups.middle.size() - 1) / 2))
 	for k in groups.flank.size():
 		var side := 1.0 if k % 2 == 0 else -1.0
 		var pair: int = k / 2
-		out[groups.flank[k]] = Vector2(12.0 - 16.0 * (pair % 4), side * (front_half + 22.0 + 18.0 * (pair / 4)))
+		var rows := int(_l.flank_rows)
+		out[groups.flank[k]] = Vector2(float(_l.flank_x) - float(_l.flank_row_gap) * (pair % rows),
+			side * (front_half + float(_l.flank_gap) + float(_l.flank_col_gap) * (pair / rows)))
 	for k in groups.middle.size():
 		var side := 1.0 if k % 2 == 0 else -1.0
-		out[groups.middle[k]] = Vector2(-4.0, side * (13.0 + 14.0 * (k / 2)))
+		out[groups.middle[k]] = Vector2(float(_l.middle_x), side * (float(_l.middle_across) + float(_l.middle_step) * (k / 2)))
 	return out
 
 
-static func _block(n: int, start: float, way: float) -> Array:
+func _block(n: int, start: float, way: float) -> Array:
 	var out: Array = []
-	var cols := clampi(ceili(sqrt(n * 1.6)), 3, 9)
+	var cols := clampi(ceili(sqrt(n * float(_l.cols_factor))), int(_l.cols_min), int(_l.cols_max))
 	var placed := 0
 	var row := 0
 	while placed < n:
 		var in_row := mini(cols, n - placed)
 		for c in in_row:
 			# Alternate ranks sit half a place across, so the men behind see past the men in front.
-			var across := (c - (in_row - 1) / 2.0) * 16.0 + (8.0 if row % 2 == 1 and in_row < cols else 0.0)
-			out.append(Vector2(start + way * row * 15.0, across))
+			var across := (c - (in_row - 1) / 2.0) * float(_l.col_gap) + (float(_l.stagger) if row % 2 == 1 and in_row < cols else 0.0)
+			out.append(Vector2(start + way * row * float(_l.row_gap), across))
 		placed += in_row
 		row += 1
 	return out
@@ -148,7 +149,7 @@ func place_all(angle: float) -> void:
 ## Every soldier walks to his place in the formation; riders out on a sortie are moved by update.
 func follow(dt: float, sim: Sim) -> void:
 	var places := formation()
-	var step := sim.speed() * 1.5 * dt
+	var step := sim.speed() * float(_l.follow_speed) * dt
 	for i in soldiers.size():
 		var s: Dictionary = soldiers[i]
 		var target: Vector2 = commander.pos + places[i].rotated(sim.facing_angle)
@@ -175,7 +176,7 @@ func assign_guards() -> void:
 		s.guard = null
 		if s.place != "rear" and s.place != "middle":
 			continue
-		var best := GUARD_REACH
+		var best := float(_l.guard_reach)
 		for f in fronts:
 			var d: float = (f.pos - s.pos).length()
 			if d < best:
@@ -196,7 +197,7 @@ func remove_fallen(sim: Sim) -> void:
 		if s.hp > 0.0:
 			alive.append(s)
 		else:
-			if fallen.size() < FALLEN_KEPT:
+			if fallen.size() < int(_l.fallen_kept):
 				fallen.append(s.type)
 			sim.effects.append({"kind": "fallen", "pos": s.pos, "t": 0.0, "type": s.type, "facing": s.facing})
 	soldiers = alive
@@ -242,12 +243,11 @@ func _auras() -> void:
 		if reach <= 0.0:
 			reach = stat(s.type, "radius")
 		var boost := 1.0 + stat(s.type, "speed_bonus")
-		var everywhere := reach >= AURA_EVERYWHERE
 		var r2 := reach * reach
-		if everywhere or (commander.pos - s.pos).length_squared() <= r2:
+		if (commander.pos - s.pos).length_squared() <= r2:
 			commander.haste = maxf(commander.haste, boost)
 		for o in soldiers:
-			if everywhere or (o.pos - s.pos).length_squared() <= r2:
+			if (o.pos - s.pos).length_squared() <= r2:
 				o.haste = maxf(o.haste, boost)
 
 
@@ -260,6 +260,7 @@ func _missile(s: Dictionary, dt: float, sim: Sim) -> void:
 	if t < 0:
 		return
 	s.cd = float(info.cooldown)
+	# Missiles get half the gladius bonus because the drill trains sword work.
 	var dmg := float(info.damage) * (1.0 + 0.2 * sim.rank("gladius") * 0.5)
 	if s.type == "archer":
 		var fire := sim.rank("fire_arrows")
@@ -317,7 +318,7 @@ func _revive(medici: Array, dt: float, sim: Sim) -> void:
 	if medici.is_empty() or fallen.is_empty() or not promoted("medicus"):
 		return
 	revive_timer += dt
-	if revive_timer < 60.0 / stat("medicus", "revives_per_minute", 1.0):
+	if revive_timer < float(_l.revive_interval) / stat("medicus", "revives_per_minute", 1.0):
 		return
 	revive_timer = 0.0
 	var m: Dictionary = medici[0]

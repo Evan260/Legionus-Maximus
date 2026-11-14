@@ -3,6 +3,8 @@ extends RefCounted
 
 var failures := 0
 var passes := 0
+const WAITING_FOR_ART := ["slinger", "cavalry", "standard_bearer", "medicus", "ballista", "centurion"]
+
 var content: Content
 
 
@@ -213,8 +215,8 @@ func test_every_implemented_entry_is_ready_and_complete(b: Dictionary) -> void:
 			var e: Dictionary = entries[id]
 			if not e.get("implemented", false):
 				continue
-			# Recruits are implemented before their sprites are drawn, and the art gate keeps them hidden.
-			if kind != "recruits":
+			# These recruits are implemented before their sprites are drawn; the art gate keeps them hidden.
+			if not (kind == "recruits" and WAITING_FOR_ART.has(id)):
 				check(content.ready(kind, id), "%s %s has all its art" % [kind, id])
 			check(str(e.get("name", "")) != "" and str(e.get("text", "")) != "", "%s %s has a name and text" % [kind, id])
 			if kind != "recruits":
@@ -400,3 +402,26 @@ func test_centurion_shout_stuns(b: Dictionary) -> void:
 	s._rebuild_grids()
 	s.legion.update(1.0 / 60.0, s)
 	check(s.e_stun[0] > 0.0 and s.e_stun[1] == 0.0, "only the enemy in the shout is stunned")
+
+
+func test_recruit_without_art_is_not_offered(b: Dictionary) -> void:
+	var s := _legion_sim(b, 11, [])
+	check(content.recruits.slinger.implemented and not content.ready("recruits", "slinger"), "the slinger is implemented but has no art")
+	for i in 30:
+		check(not Upgrades.offers(s, 10).has("slinger"), "the slinger is never offered")
+	check(not Upgrades.available(s).has("slinger"), "and is not available")
+
+
+func test_a_full_legion_of_every_kind_has_no_overlapping_places(b: Dictionary) -> void:
+	var kinds: Array = content.recruits.keys()
+	var types: Array = []
+	for i in 100:
+		types.append(kinds[i % kinds.size()])
+	var s := _legion_sim(b, 12, types)
+	check(s.soldiers.size() == 100, "a full legion")
+	var places: Array = s.legion.formation()
+	var worst := INF
+	for i in places.size():
+		for j in range(i + 1, places.size()):
+			worst = minf(worst, places[i].distance_to(places[j]))
+	check(worst >= 8.0, "no two places closer than 8 px (%.1f)" % worst)
