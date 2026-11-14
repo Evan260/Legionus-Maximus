@@ -136,6 +136,7 @@ func _top_bar(sim: Sim) -> void:
 	var charge := 1.0 if sim.testudo_left > 0.0 else sim.testudo_charge
 	draw_rect(Rect2(9, H - 8, 32 * charge, 2), GOLD if ready or sim.testudo_left > 0.0 else PARCH_DARK)
 	text((tr("Testudo") if sim.testudo_left <= 0.0 else tr("Hold!")).to_upper(), Vector2(46, H - 6), GOLD_LIGHT if ready or sim.testudo_left > 0.0 else Color(0.7, 0.66, 0.6))
+	_timber(sim, H)
 	var ci := sim.horde.chieftain_index()
 	var y3 := y1 + (11.0 if not big else 22.0)
 	if ci >= 0:
@@ -147,6 +148,22 @@ func _top_bar(sim: Sim) -> void:
 		text((tr("Endless  +%d:%02d") % [extra / 60, extra % 60]).to_upper(), Vector2(0, y3), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
 	elif sim.time > float(sim.b.chieftain_at) - 30.0 and sim.horde.chieftain_id == -1:
 		text(tr("The chieftain is coming"), Vector2(0, y3), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
+
+
+## The logs of timber the legion carries, above the testudo's name, gold once there are enough for a palisade, and the notice when there are not.
+func _timber(sim: Sim, H: float) -> void:
+	var atlas: Atlas = main.world.atlas
+	var cost := int(sim.b.palisade.cost)
+	var enough := sim.timber >= cost
+	var y := H - 8.0 - Ui.leading() - 4.0
+	if atlas != null and atlas.props.has("timber"):
+		var f := atlas.prop_frame("timber")
+		var r: Rect2 = f[0]
+		draw_texture_rect_region(atlas.texture, Rect2(Vector2(46, y - r.size.y + 2.0), r.size), r, Color.WHITE if enough else Color(0.75, 0.72, 0.68))
+	text(str(sim.timber), Vector2(66, y), GOLD_LIGHT if enough else CREAM)
+	if sim.palisade_refused_at >= 0.0 and sim.time - sim.palisade_refused_at < float(sim.b.palisade.notice_seconds):
+		var line := (tr("Not enough timber: %d needed") % cost).to_upper()
+		text(line, Vector2(0, Ui.view.y * 0.7), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x)
 
 
 ## The name of an objective or the fort, as the arrows and notices show it.

@@ -1,12 +1,13 @@
 class_name Terrain
 extends RefCounted
-## The props on the field as plain data. Trees, rocks and logs are solid, so thickets and stone lines block the march
-## and the legion has to steer round them; bushes and small stones are only drawn.
+## The props on the field as plain data. Trees, rocks and logs are solid, so forest ridges and stone lines block the march
+## and the legion has to steer round them or fell its way through; stumps and small stones are only drawn.
 
 const CHUNK := 160.0
 const REGION := 480.0
 const SCATTER := ["oak", "fir", "rock", "log", "stones", "stones", "fir", "rock"]
 const SOLID := {"oak": 9.0, "fir": 8.0, "rock": 10.0, "log": 9.0}
+const TREES := {"oak": true, "fir": true}
 
 const CELL := 64.0
 const GN := 28
@@ -16,6 +17,8 @@ var seed_value := 0
 var _anchor := Vector2i(1 << 30, 0)
 var origin := Vector2.ZERO
 var solid := PackedVector3Array()
+## 1 for each entry of `solid` that is a tree the legion can fell.
+var solid_tree := PackedByteArray()
 var start := PackedInt32Array()
 var items := PackedInt32Array()
 var clear_radius := 200.0
@@ -23,6 +26,17 @@ var clear_radius := 200.0
 var clearings: Array = []
 ## Props the run places itself (objective huts, the grove's oaks, the fort's walls), as [kind, position, radius].
 var extras: Array = []
+## The palisade's stakes, as [kind, position, radius, time they rot], oldest first.
+var posts: Array = []
+## Trees cut down, by position; their stumps stand there whenever the chunk is built again.
+var felled := {}
+## Chopping done on each tree being cut, by position, as [seconds, clock of the last blow].
+var chops := {}
+## The run's time, set by the sim, so the drawing knows which trees are being cut right now.
+var clock := 0.0
+var fell_seconds := 3.0
+## The ridge numbers from balance.json.
+var forest: Dictionary
 # The way round obstacles towards the commander: one step direction per FLOW_CELL square, or none where no way exists.
 const FLOW_CELL := 32.0
 const FN := 56
@@ -34,18 +48,68 @@ var _flow_goal := Vector2i(1 << 30, 0)
 var empty := false
 var _chunks := {}
 var _regions := {}
+var _buckets := {}
+var _extra_at := {}
+var _ready_to_fall: Array = []
 
 
-func _init(run_seed: int) -> void:
+func _init(run_seed: int, forest_cfg: Dictionary) -> void:
 	seed_value = run_seed
+	forest = forest_cfg
 
 
 ## Empties the field, for tests that need open ground.
 func clear() -> void:
 	empty = true
 	extras.clear()
+	_extra_at.clear()
+	posts.clear()
 	_chunks.clear()
 	_anchor = Vector2i(1 << 30, 0)
+
+
+## How many seconds of chopping the tree at p has taken.
+func chop_of(p: Vector2) -> float:
+	return chops[p][0] if chops.has(p) else 0.0
+
+
+## Cuts down the tree at p, leaving its stump; the solid grid drops it on the next refresh.
+func fell(p: Vector2) -> void:
+	felled[p] = true
+	chops.erase(p)
+	var props: Array = _chunks.get(Vector2i(floori(p.x / CHUNK), floori(p.y / CHUNK)), [])
+	for i in props.size():
+		if props[i][1] == p and TREES.has(props[i][0]):
+			props[i] = ["stump", p, 0.0]
+	_anchor = Vector2i(1 << 30, 0)
+
+
+## Fells every tree chopped long enough since the last call and returns how many fell.
+func fell_ready() -> int:
+	var n := 0
+	for p in _ready_to_fall:
+		if not felled.has(p):
+			fell(p)
+			n += 1
+	_ready_to_fall.clear()
+	return n
+
+
+## Drives a stake that rots at `until`; it is solid from the next refresh.
+func add_post(p: Vector2, radius: float, until: float) -> void:
+	posts.append(["stake", p, radius, until])
+	_anchor = Vector2i(1 << 30, 0)
+
+
+## Takes out the stakes whose time has come and returns whether any went.
+func rot_posts(now: float) -> bool:
+	var gone := false
+	while not posts.is_empty() and posts[0][3] <= now:
+		posts.pop_front()
+		gone = true
+	if gone:
+		_anchor = Vector2i(1 << 30, 0)
+	return gone
 
 
 ## Every prop whose chunk overlaps the rectangle, as [kind, position, radius] with radius 0 for the ones that do not block.
@@ -57,7 +121,7 @@ func props_in(rect: Rect2) -> Array:
 	return out
 
 
-## The props of one chunk: its own scatter and its share of the thickets and stone lines of the region it lies in.
+## The props of one chunk: its own scatter and its share of the ridges and stone lines of the regions round it.
 func chunk(cx: int, cy: int) -> Array:
 	var key := Vector2i(cx, cy)
 	if _chunks.has(key):
@@ -76,20 +140,44 @@ func chunk(cx: int, cy: int) -> Array:
 		if p.length() > 90.0:
 			var kind: String = SCATTER[r.randi_range(0, SCATTER.size() - 1)]
 			if not _in_clearing(p):
-				out.append([kind, p, SOLID.get(kind, 0.0)])
+				out.append(_standing(kind, p))
 	var rx := floori(box.position.x / REGION)
 	var ry := floori(box.position.y / REGION)
-	# A feature can reach past the edge of its own region, so the neighbouring regions are looked at too.
-	for x in range(rx - 1, rx + 2):
-		for y in range(ry - 1, ry + 2):
-			for p in _region(x, y):
-				if box.has_point(p[1]):
-					out.append(p)
+	# A ridge reaches up to two regions past its own; where two ridges cover one lattice square they grow the same tree, kept once.
+	var seen := {}
+	for x in range(rx - 2, rx + 3):
+		for y in range(ry - 2, ry + 3):
+			for p in _bucket(x, y).get(key, []):
+				if not seen.has(p[1]):
+					seen[p[1]] = true
+					out.append(_standing(p[0], p[1]))
 	_chunks[key] = out
 	return out
 
 
-## A region holds at most one big feature: a thicket of trees packed too close to pass between, or a line of rocks and logs.
+## The prop that stands at p: the one that grew there, or its stump once it has been felled.
+func _standing(kind: String, p: Vector2) -> Array:
+	if felled.has(p):
+		return ["stump", p, 0.0]
+	return [kind, p, SOLID.get(kind, 0.0)]
+
+
+## A region's features sorted by the chunk each prop stands in.
+func _bucket(rx: int, ry: int) -> Dictionary:
+	var key := Vector2i(rx, ry)
+	if _buckets.has(key):
+		return _buckets[key]
+	var by_chunk := {}
+	for p in _region(rx, ry):
+		var c := Vector2i(floori(p[1].x / CHUNK), floori(p[1].y / CHUNK))
+		if not by_chunk.has(c):
+			by_chunk[c] = []
+		by_chunk[c].append(p)
+	_buckets[key] = by_chunk
+	return by_chunk
+
+
+## A region holds at most one big feature: a winding ridge of trees packed too close to pass between, or a line of rocks and logs.
 func _region(rx: int, ry: int) -> Array:
 	var key := Vector2i(rx, ry)
 	if _regions.has(key):
@@ -99,21 +187,9 @@ func _region(rx: int, ry: int) -> Array:
 	var out: Array = []
 	var roll := r.randf()
 	var centre := (Vector2(rx, ry) + Vector2(r.randf_range(0.25, 0.75), r.randf_range(0.25, 0.75))) * REGION
-	if roll < 0.45:
-		var size := r.randf_range(60.0, 130.0)
-		var lobe := centre + Vector2.from_angle(r.randf() * TAU) * size * 0.6
-		var step := 22.0
-		var y := -size * 1.6
-		while y <= size * 1.6:
-			var x := -size * 1.6
-			while x <= size * 1.6:
-				var p := centre + Vector2(x + r.randf_range(-3.0, 3.0) + (step / 2.0 if int(y / step) % 2 == 0 else 0.0), y + r.randf_range(-3.0, 3.0))
-				if p.distance_to(centre) < size or p.distance_to(lobe) < size * 0.7:
-					var kind := "fir" if r.randf() < 0.55 else "oak"
-					out.append([kind, p, SOLID[kind]])
-				x += step
-			y += step
-	elif roll < 0.75:
+	if roll < float(forest.ridge_chance):
+		out = _ridge(r, centre)
+	elif roll < float(forest.ridge_chance) + float(forest.line_chance):
 		var dir := Vector2.from_angle(r.randf() * PI)
 		var length := r.randf_range(160.0, 320.0)
 		var t := -length / 2.0
@@ -130,12 +206,70 @@ func _region(rx: int, ry: int) -> Array:
 	return kept
 
 
+## A ridge: a centre line that bends as it goes, swept with a changing width over a lattice of trees shared by the whole field.
+func _ridge(r: RandomNumberGenerator, centre: Vector2) -> Array:
+	var length := r.randf_range(float(forest.length[0]), float(forest.length[1]))
+	var w_lo := float(forest.width[0]) / 2.0
+	var w_hi := float(forest.width[1]) / 2.0
+	var max_turn := float(forest.turn)
+	var ds := 10.0
+	var heading := r.randf() * TAU
+	var turn := r.randf_range(-1.0, 1.0) * max_turn
+	var line := PackedVector2Array([Vector2.ZERO])
+	var p := Vector2.ZERO
+	for i in int(length / ds):
+		turn = clampf(turn + r.randf_range(-1.0, 1.0) * float(forest.wander) * ds, -max_turn, max_turn)
+		heading += turn * ds
+		p += Vector2.from_angle(heading) * ds
+		line.append(p)
+	var shift := centre - (line[0] + line[line.size() - 1]) / 2.0
+	var gap_from := INF
+	var gap_to := -INF
+	if r.randf() < float(forest.pass_chance):
+		var mid := r.randf_range(0.3, 0.7) * length
+		# The swept circles reach a half width into the gap from each side, so the gap in the line is that much wider.
+		var half := float(forest.pass_width) / 2.0 + w_hi
+		gap_from = mid - half
+		gap_to = mid + half
+	var width := r.randf_range(w_lo, w_hi)
+	var step := float(forest.tree_step)
+	var row := step * 0.866
+	var taper := float(forest.end_taper)
+	var cells := {}
+	for i in line.size():
+		width = clampf(width + r.randf_range(-2.0, 2.0), w_lo, w_hi)
+		var along := i * ds
+		if along > gap_from and along < gap_to:
+			continue
+		var w := width * clampf(minf(along, length - along) / taper * 0.6 + 0.4, 0.4, 1.0)
+		var c := line[i] + shift
+		for gy in range(floori((c.y - w) / row), ceili((c.y + w) / row) + 1):
+			var odd := step / 2.0 if posmod(gy, 2) == 1 else 0.0
+			for gx in range(floori((c.x - w - odd) / step), ceili((c.x + w - odd) / step) + 1):
+				if Vector2(gx * step + odd, gy * row).distance_to(c) < w:
+					cells[Vector2i(gx, gy)] = true
+	var out: Array = []
+	var jitter := float(forest.jitter)
+	var firs := float(forest.fir_share)
+	for cell in cells:
+		# Jitter and kind come from the lattice square, not the ridge, so two ridges over one square grow the same tree.
+		var h := hash([seed_value, cell])
+		var odd := step / 2.0 if posmod(cell.y, 2) == 1 else 0.0
+		var at := Vector2(cell.x * step + odd + ((h & 255) / 255.0 * 2.0 - 1.0) * jitter, cell.y * row + (((h >> 8) & 255) / 255.0 * 2.0 - 1.0) * jitter)
+		var kind := "fir" if ((h >> 16) & 255) / 255.0 < firs else "oak"
+		out.append([kind, at, SOLID[kind]])
+	return out
+
+
 ## Clears a circle of ground that may already be built and stands the run's own pieces in it.
 func add_clearing(centre: Vector2, radius: float, pieces: Array) -> void:
 	clearings.append([centre, radius])
 	extras.append_array(pieces)
+	for pr in pieces:
+		_extra_at[pr[1]] = true
 	for key in _regions:
 		_regions[key] = _regions[key].filter(func(p: Array) -> bool: return p[1].distance_to(centre) >= radius)
+	_buckets.clear()
 	var reach := radius
 	for pr in pieces:
 		reach = maxf(reach, pr[1].distance_to(centre) + 1.0)
@@ -160,16 +294,23 @@ func refresh(p: Vector2) -> void:
 	_anchor = c
 	origin = (Vector2(c) + Vector2(0.5, 0.5)) * CHUNK - Vector2(GN, GN) * CELL / 2.0
 	solid.clear()
+	solid_tree.clear()
 	var cells: Array = []
 	cells.resize(GN * GN)
 	for i in cells.size():
 		cells[i] = PackedInt32Array()
-	for pr in props_in(Rect2(origin, Vector2(GN, GN) * CELL)):
+	var area := Rect2(origin, Vector2(GN, GN) * CELL)
+	var all := props_in(area)
+	for post in posts:
+		if area.has_point(post[1]):
+			all.append(post)
+	for pr in all:
 		var r: float = pr[2]
 		if r <= 0.0:
 			continue
 		var idx := solid.size()
 		solid.append(Vector3(pr[1].x, pr[1].y, r))
+		solid_tree.append(1 if TREES.has(pr[0]) and not _extra_at.has(pr[1]) else 0)
 		# Each prop is listed in every cell it could touch a unit from, so a lookup reads one cell only.
 		var reach := r + MAX_UNIT
 		var x0 := clampi(floori((pr[1].x - reach - origin.x) / CELL), 0, GN - 1)
@@ -252,8 +393,8 @@ func flow_at(p: Vector2) -> Vector2:
 	return flow_dir[gx + gy * FN]
 
 
-## Moves a circle at p with radius r out of every solid prop it overlaps and returns where it ends up.
-func push_out(p: Vector2, r: float) -> Vector2:
+## Moves a circle at p with radius r out of every solid prop it overlaps and returns where it ends up; a legion unit passes its time step as `chop` to cut the trees it presses.
+func push_out(p: Vector2, r: float, chop := 0.0) -> Vector2:
 	var gx := floori((p.x - origin.x) / CELL)
 	var gy := floori((p.y - origin.y) / CELL)
 	if gx < 0 or gy < 0 or gx >= GN or gy >= GN:
@@ -266,5 +407,18 @@ func push_out(p: Vector2, r: float) -> Vector2:
 		var d2 := away.length_squared()
 		if d2 < reach * reach:
 			var d := sqrt(d2)
+			if chop > 0.0 and solid_tree[items[t]] == 1 and reach - d > 0.05:
+				_chop(Vector2(s.x, s.y), chop)
 			p = Vector2(s.x, s.y) + (away / d if d > 0.001 else Vector2.RIGHT) * reach
 	return p
+
+
+func _chop(at: Vector2, dt: float) -> void:
+	var c: Array = chops.get(at, [])
+	if c.is_empty():
+		c = [0.0, 0.0]
+		chops[at] = c
+	c[0] += dt
+	c[1] = clock
+	if c[0] >= fell_seconds and not _ready_to_fall.has(at):
+		_ready_to_fall.append(at)

@@ -271,9 +271,13 @@ func _process(dt: float) -> void:
 				return
 			var move := Input.get_vector("left", "right", "up", "down")
 			var testudo := Input.is_action_just_pressed("testudo")
+			var build := Input.is_action_just_pressed("build")
 			if args.has("autoplay"):
 				move = Vector2(cos(sim.time * 0.4), sin(sim.time * 0.4))
 				testudo = int(sim.time) % 20 == 5
+				build = sim.timber >= int(balance.palisade.cost)
+			if build:
+				sim.build_palisade()
 			sim.update(minf(dt, 1.0 / 30.0), move, testudo)
 			Audio.drain(sim)
 			if sim.over:

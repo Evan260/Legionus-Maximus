@@ -16,6 +16,8 @@ var _keys := PackedInt64Array()
 var _rects: Array = []
 var _dests := PackedVector2Array()
 var _mods := PackedColorArray()
+# The trees being chopped this frame, as [position, seconds of chopping], for their progress bars.
+var _felling: Array = []
 
 
 func _ready() -> void:
@@ -89,12 +91,31 @@ func _draw() -> void:
 	var margin := 80.0
 	var view := Rect2(top_left - Vector2(margin, margin), screen + Vector2(margin, margin) * 2.0)
 
+	var see_through := Color(1, 1, 1, 0.15)
+	var him := Rect2(cam - Vector2(12, 40), Vector2(24, 40))
+	var chops: Dictionary = sim.terrain.chops
+	var shaking := float(sim.b.felling.shake_seconds)
+	_felling.clear()
 	for pr in sim.terrain.props_in(view):
 		# A piece with no kind is an unseen blocker, such as the inside of the fort's gate towers.
 		if pr[0] == "":
 			continue
 		var f := atlas.prop_frame(pr[0])
-		_add(pr[1].y, f[0], pr[1] - f[1], white)
+		var at: Vector2 = pr[1]
+		if not chops.is_empty() and chops.has(at) and sim.time - float(chops[at][1]) < shaking:
+			_felling.append([at, float(chops[at][0])])
+			at += Vector2(roundf(sin(sim.time * 45.0 + at.x) * 1.2), 0)
+		var mod := white
+		# A tree standing in front of the commander is seen through, so he is not lost once the legion cuts into a ridge.
+		if pr[2] > 0.0 and at.y > cam.y and Rect2(at - f[1], f[0].size).intersects(him):
+			mod = see_through
+		_add(pr[1].y, f[0], at - f[1], mod)
+	if not sim.terrain.posts.is_empty():
+		var sf := atlas.prop_frame("stake")
+		var fade := float(sim.b.palisade.fade)
+		for post in sim.terrain.posts:
+			if view.has_point(post[1]):
+				_add(post[1].y, sf[0], post[1] - sf[1], Color(1, 1, 1, clampf((post[3] - sim.time) / fade, 0.0, 1.0)))
 
 
 	var gold := Color(1.0, 0.92, 0.7)
@@ -149,6 +170,7 @@ func _draw() -> void:
 	_draw_numbers()
 	_draw_torches()
 	_draw_bars()
+	_draw_felling()
 
 
 func view_for(top_left: Vector2) -> Rect2:
@@ -483,3 +505,12 @@ func _draw_bars() -> void:
 	var p: Vector2 = (c.pos + Vector2(-w / 2.0, 5)).round()
 	draw_rect(Rect2(p - Vector2(1, 1), Vector2(w + 2, 4)), Color(0.16, 0.1, 0.08))
 	draw_rect(Rect2(p, Vector2(w * clampf(c.hp / c.max_hp, 0.0, 1.0), 2)), Color(0.85, 0.22, 0.18))
+
+
+## A small bar over each tree being cut, filling as it nears its fall.
+func _draw_felling() -> void:
+	var secs := float(sim.b.felling.seconds)
+	for f in _felling:
+		var p: Vector2 = (f[0] + Vector2(-8, -30)).round()
+		draw_rect(Rect2(p - Vector2(1, 1), Vector2(18, 4)), Color(0.16, 0.1, 0.08))
+		draw_rect(Rect2(p, Vector2(16.0 * clampf(f[1] / secs, 0.0, 1.0), 2)), Color(0.91, 0.69, 0.25))

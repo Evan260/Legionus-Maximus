@@ -43,10 +43,11 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 		ui.text(c, tr("Your soldiers fight on their own."), Vector2(0, 134), Ui.INK, HORIZONTAL_ALIGNMENT_CENTER, Ui.W)
 		ui.text(c, tr("Reach the fort or kill the chieftain.") if not Game.is_demo() else Game.goal_text(main.balance), Vector2(0, 158), Ui.INK, HORIZONTAL_ALIGNMENT_CENTER, Ui.W)
 	else:
-		ui.panel(c, Rect2(Ui.W / 2 - 130, 140, 260, 92))
+		ui.panel(c, Rect2(Ui.W / 2 - 130, 140, 260, 103))
 		var lines := [
 			tr("%s  march") % _march_keys(),
 			tr("%s  testudo: shields up, 80%% less harm") % Controls.slot_text(saved, "testudo", "keys", 0),
+			tr("%s  palisade: %d timber from felled trees") % [Controls.slot_text(saved, "build", "keys", 0), int(main.balance.palisade.cost)],
 			tr("%s  pause") % Controls.slot_text(saved, "pause", "keys", 0),
 			"",
 			tr("Your soldiers fight on their own."),

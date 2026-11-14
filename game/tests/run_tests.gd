@@ -170,9 +170,11 @@ func test_solid_props_block_the_march(b: Dictionary) -> void:
 	check(rock_side or s.commander.pos.x > 60.0, "he stops at it or slides round it")
 
 
-func test_a_thicket_is_too_tight_to_walk_through(b: Dictionary) -> void:
-	var t := Terrain.new(7)
+func test_a_ridge_is_long_and_too_tight_to_walk_through(b: Dictionary) -> void:
+	var t := Terrain.new(7, b.forest)
 	var found := false
+	var longest := 0.0
+	var crosses := false
 	for rx in 6:
 		for ry in 6:
 			var trees: Array = []
@@ -182,15 +184,77 @@ func test_a_thicket_is_too_tight_to_walk_through(b: Dictionary) -> void:
 			if trees.size() < 20:
 				continue
 			found = true
+			var box := Rect2(trees[0], Vector2.ZERO)
 			var widest := 0.0
 			for a in trees:
+				box = box.expand(a)
 				var nearest := INF
 				for c in trees:
 					if a != c:
 						nearest = minf(nearest, a.distance_to(c))
 				widest = maxf(widest, nearest)
-			check(widest - 2.0 * 8.0 < 2.0 * Sim.UNIT_RADIUS, "no gap in a thicket lets a soldier through (%.1f)" % widest)
-	check(found, "a thicket appears within a few regions")
+			check(widest - 2.0 * 8.0 < 2.0 * Sim.UNIT_RADIUS, "no gap in a ridge lets a soldier through (%.1f)" % widest)
+			longest = maxf(longest, box.size.length())
+			crosses = crosses or not Rect2(Vector2(rx, ry) * Terrain.REGION, Vector2.ONE * Terrain.REGION).encloses(box)
+	check(found, "a ridge appears within a few regions")
+	check(longest >= float(b.forest.length[0]), "a ridge runs a long way (%.0f px)" % longest)
+	check(crosses, "ridges reach over the edges of their regions")
+
+
+## The squares of `cell` px round the start that a soldier can stand in, out to `reach`, and how far out the legion can walk from the start.
+func _escape(t: Terrain, reach: float) -> Dictionary:
+	var cell := 16.0
+	var n := int(reach * 2.0 / cell)
+	var corner := Vector2(-reach, -reach)
+	var blocked := PackedByteArray()
+	blocked.resize(n * n)
+	for pr in t.props_in(Rect2(corner, Vector2.ONE * reach * 2.0)):
+		if pr[2] <= 0.0:
+			continue
+		var r: float = pr[2] + Sim.UNIT_RADIUS
+		for gx in range(maxi(0, floori((pr[1].x - r - corner.x) / cell)), mini(n, ceili((pr[1].x + r - corner.x) / cell))):
+			for gy in range(maxi(0, floori((pr[1].y - r - corner.y) / cell)), mini(n, ceili((pr[1].y + r - corner.y) / cell))):
+				if (corner + (Vector2(gx, gy) + Vector2(0.5, 0.5)) * cell).distance_to(pr[1]) < r:
+					blocked[gx + gy * n] = 1
+	var seen := PackedByteArray()
+	seen.resize(n * n)
+	var queue := PackedInt32Array([n / 2 + (n / 2) * n])
+	seen[queue[0]] = 1
+	var head := 0
+	var octants := {}
+	while head < queue.size():
+		var c := queue[head]
+		head += 1
+		var p := corner + (Vector2(c % n, c / n) + Vector2(0.5, 0.5)) * cell
+		if p.length() > reach - 2.0 * cell:
+			octants[posmod(int(floor(p.angle() / (TAU / 8.0))), 8)] = true
+		for st in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var x: int = c % n + st.x
+			var y: int = c / n + st.y
+			if x < 0 or y < 0 or x >= n or y >= n or seen[x + y * n] == 1 or blocked[x + y * n] == 1:
+				continue
+			seen[x + y * n] = 1
+			queue.append(x + y * n)
+	return {"octants": octants.size()}
+
+
+func test_the_legion_can_always_march_out_of_the_start(b: Dictionary) -> void:
+	var fewest := 8
+	for k in 24:
+		var t := Terrain.new(1000 + k * 37, b.forest)
+		fewest = mini(fewest, _escape(t, 900.0).octants)
+	check(fewest >= 3, "from every start the open ground reaches the far ring in several directions (fewest %d of 8)" % fewest)
+
+
+func test_the_forest_is_neither_maze_nor_open_field(b: Dictionary) -> void:
+	var t := Terrain.new(55, b.forest)
+	var trees := 0
+	for pr in t.props_in(Rect2(-2400, -2400, 4800, 4800)):
+		if pr[0] == "oak" or pr[0] == "fir":
+			trees += 1
+	# Ridges cover roughly a tenth to a third of the ground, one tree to every 420 square px inside them.
+	var share := trees * 420.0 / (4800.0 * 4800.0)
+	check(share > 0.08 and share < 0.35, "ridges cover %.0f%% of the ground" % (share * 100.0))
 
 
 func test_a_war_band_arrives_together(b: Dictionary) -> void:
@@ -354,6 +418,7 @@ func test_fallen_soldiers_leave_the_formation(b: Dictionary) -> void:
 
 func test_the_horde_grows_over_time(b: Dictionary) -> void:
 	var s := Sim.new(b, content, {"seed": 16})
+	s.terrain.clear()
 	s.soldiers.clear()
 	s.commander.hp = 1e9
 	for i in 60 * 30:
@@ -2486,14 +2551,14 @@ func test_credits_carry_the_licence_texts_in_full(_b: Dictionary) -> void:
 
 
 func test_a_clearing_keeps_its_ground_free_of_props(b: Dictionary) -> void:
-	var t := Terrain.new(77)
+	var t := Terrain.new(77, b.forest)
 	t.clearings.append([Vector2(900, 300), 200.0])
 	var inside := 0
 	for pr in t.props_in(Rect2(Vector2(600, 0), Vector2(600, 600))):
 		if pr[1].distance_to(Vector2(900, 300)) < 200.0:
 			inside += 1
 	check(inside == 0, "nothing grows in a clearing set before the field is built (%d)" % inside)
-	var built := Terrain.new(78)
+	var built := Terrain.new(78, b.forest)
 	built.refresh(Vector2(1000, 0))
 	var near := 0
 	for pr in built.props_in(Rect2(Vector2(700, -300), Vector2(600, 600))):
@@ -2719,3 +2784,169 @@ func test_the_hud_points_to_objectives_off_screen(b: Dictionary) -> void:
 	at = Hud.edge_point(view, Vector2(-300, -3000), top)
 	check(at.y >= top and at.y < top + 30.0, "a target far north is marked below the top bar (%s)" % at)
 	check(Hud.edge_point(view, Vector2(100, 50), top) == Vector2.INF, "a target on screen needs no arrow")
+
+
+## Lays the given props on otherwise bare ground round the start and rebuilds the solid grid.
+func _field(s: Sim, props: Array) -> void:
+	s.terrain.empty = false
+	for cx in range(-8, 9):
+		for cy in range(-8, 9):
+			s.terrain._chunks[Vector2i(cx, cy)] = []
+	for pr in props:
+		s.terrain._chunks[Vector2i(floori(pr[1].x / Terrain.CHUNK), floori(pr[1].y / Terrain.CHUNK))].append(pr)
+	s.terrain._anchor = Vector2i(1 << 30, 0)
+	s.terrain.refresh(s.commander.pos)
+
+
+func _solid_at(s: Sim, p: Vector2) -> bool:
+	for sv in s.terrain.solid:
+		if Vector2(sv.x, sv.y) == p:
+			return true
+	return false
+
+
+func _kinds_at(s: Sim, p: Vector2) -> Array:
+	var out: Array = []
+	for pr in s.terrain.props_in(Rect2(p - Vector2.ONE, Vector2.ONE * 2.0)):
+		if pr[1] == p:
+			out.append(pr[0])
+	return out
+
+
+func test_pressing_a_tree_fells_it_for_timber(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 300)
+	s.legion.soldiers.clear()
+	var at := Vector2(40, 0)
+	_field(s, [["oak", at, Terrain.SOLID.oak]])
+	var secs := float(b.felling.seconds)
+	_step_dt(s, secs * 0.7, Vector2.RIGHT)
+	check(_solid_at(s, at) and s.timber == 0, "the oak still stands before its time")
+	check(s.terrain.chop_of(at) > 0.0, "but the chopping has begun")
+	_step_dt(s, secs * 0.5, Vector2.RIGHT)
+	check(not _solid_at(s, at), "pressed long enough, the oak falls")
+	check(_kinds_at(s, at) == ["stump"], "and leaves a stump (%s)" % [_kinds_at(s, at)])
+	check(s.timber == 1, "the run gains a log of timber (%d)" % s.timber)
+	_step_dt(s, 1.0, Vector2.RIGHT)
+	check(s.commander.pos.x > at.x, "the commander walks on over the stump")
+
+
+func test_rocks_and_logs_do_not_fall(b: Dictionary) -> void:
+	for kind in ["rock", "log"]:
+		var s := _quiet_sim(b, 301)
+		s.legion.soldiers.clear()
+		var at := Vector2(40, 0)
+		_field(s, [[kind, at, Terrain.SOLID[kind]]])
+		_step_dt(s, float(b.felling.seconds) * 2.0, Vector2.RIGHT)
+		check(_solid_at(s, at) and s.timber == 0, "a %s stays however long it is pushed" % kind)
+
+
+func test_several_soldiers_fell_a_tree_faster(b: Dictionary) -> void:
+	var secs := float(b.felling.seconds)
+	var felled := []
+	for pushers in [1, 3]:
+		var s := _quiet_sim(b, 302)
+		var at := Vector2(40, 0)
+		_field(s, [["fir", at, Terrain.SOLID.fir]])
+		for f in int(secs * 0.45 * 60.0):
+			for k in pushers:
+				s.terrain.push_out(at + Vector2.from_angle(PI + (k - 1) * 0.6) * 12.0, Sim.UNIT_RADIUS, 1.0 / 60.0)
+		felled.append(s.terrain.fell_ready())
+	check(felled == [0, 1], "three men fell in under half the time what one man cannot (%s)" % [felled])
+
+
+func test_a_felled_tree_stays_felled_when_its_ground_is_built_again(b: Dictionary) -> void:
+	var t := Terrain.new(9, b.forest)
+	var tree := Vector2.INF
+	for pr in t.props_in(Rect2(-1200, -1200, 2400, 2400)):
+		if pr[0] == "oak" or pr[0] == "fir":
+			tree = pr[1]
+			break
+	check(tree != Vector2.INF, "a tree grows near the start")
+	t.fell(tree)
+	t._chunks.clear()
+	t._buckets.clear()
+	var kinds: Array = []
+	for pr in t.props_in(Rect2(tree - Vector2.ONE, Vector2.ONE * 2.0)):
+		if pr[1] == tree:
+			kinds.append(pr[0])
+	check(not kinds.is_empty() and kinds.all(func(k: String) -> bool: return k == "stump"), "only its stump is there (%s)" % [kinds])
+
+
+func test_the_runs_own_pieces_are_not_felled(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 303)
+	s.legion.soldiers.clear()
+	_field(s, [])
+	var at := Vector2(40, 0)
+	s.terrain.add_clearing(Vector2(40, 0), 30.0, [["oak", at, Terrain.SOLID.oak]])
+	s.terrain.refresh(s.commander.pos)
+	_step_dt(s, float(b.felling.seconds) * 2.0, Vector2.RIGHT)
+	check(_solid_at(s, at) and s.timber == 0, "a grove's oak is not cut down")
+
+
+func test_a_palisade_costs_timber_and_stands_ahead_of_the_front(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 304)
+	_field(s, [])
+	for i in 10:
+		s.add_soldier("legionary")
+	s.legion.place_all(s.facing_angle)
+	var cfg: Dictionary = b.palisade
+	s.timber = int(cfg.cost) - 1
+	s.events.clear()
+	check(not s.build_palisade(), "too little timber builds nothing")
+	check(s.terrain.posts.is_empty() and s.timber == int(cfg.cost) - 1, "and spends nothing")
+	check(s.events.any(func(e: Dictionary) -> bool: return e.kind == "back"), "the refusal is heard")
+	check(s.palisade_refused_at == s.time, "and a notice shows")
+	s.timber = int(cfg.cost) + 1
+	check(s.build_palisade(), "with enough timber the palisade goes up")
+	check(s.timber == 1, "it spends its cost")
+	check(s.terrain.posts.size() == int(cfg.stakes), "%d stakes are driven (%d)" % [int(cfg.stakes), s.terrain.posts.size()])
+	var dir := Vector2.from_angle(s.facing_angle)
+	var front := 0.0
+	for u in s.units_in_formation():
+		front = maxf(front, (u.pos - s.commander.pos).dot(dir))
+	var ahead := true
+	var clear := true
+	var across := PackedFloat32Array()
+	for post in s.terrain.posts:
+		var off: Vector2 = post[1] - s.commander.pos
+		ahead = ahead and off.dot(dir) >= front + float(cfg.ahead) - float(cfg.bow) - 0.5
+		across.append(off.dot(dir.orthogonal()))
+		for u in [s.commander] + s.soldiers:
+			clear = clear and u.pos.distance_to(post[1]) >= float(cfg.radius) + Sim.UNIT_RADIUS
+	check(ahead, "every stake stands beyond the front rank")
+	check(clear, "no stake stands on a man")
+	across.sort()
+	check(across[across.size() - 1] - across[0] >= float(cfg.gap) * (int(cfg.stakes) - 1) * 0.9, "the line runs across the legion's facing")
+	var post_at: Vector2 = s.terrain.posts[3][1]
+	check(s.terrain.push_out(post_at + Vector2(1, 0), 6.0) != post_at + Vector2(1, 0), "the stakes are solid")
+	check(_solid_at(s, post_at), "and in the grid the horde reads")
+
+
+func test_a_palisade_skips_a_place_where_a_man_stands(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 305)
+	_field(s, [])
+	s.timber = int(b.palisade.cost)
+	var planned: Array = s.palisade_points()
+	var rider: Dictionary = s.soldiers[0]
+	rider.sortie = 1
+	rider.pos = planned[3]
+	s.build_palisade()
+	check(s.terrain.posts.size() == int(b.palisade.stakes) - 1, "the stake on the man is left out (%d)" % s.terrain.posts.size())
+
+
+func test_a_palisade_rots_away(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 306)
+	_field(s, [])
+	s.timber = int(b.palisade.cost)
+	s.build_palisade()
+	var post_at: Vector2 = s.terrain.posts[0][1]
+	_step_dt(s, float(b.palisade.seconds) - 1.0)
+	check(not s.terrain.posts.is_empty() and _solid_at(s, post_at), "the stakes still stand before they rot")
+	_step_dt(s, 1.5)
+	check(s.terrain.posts.is_empty() and not _solid_at(s, post_at), "after %d seconds they are gone" % int(b.palisade.seconds))
+
+
+func test_the_palisade_has_its_own_key(b: Dictionary) -> void:
+	Controls.install({})
+	check(_has_key("build", KEY_E) and _has_button("build", JOY_BUTTON_X), "E and the west face button build")
+	check(Controls.ACTIONS.any(func(a: Array) -> bool: return a[0] == "build"), "the settings let it be rebound")

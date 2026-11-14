@@ -105,6 +105,10 @@ var _last_hp := 0.0
 var _tally_n := PackedInt32Array([0, 0, 0, 0, 0, 0])
 var _tally_pos := PackedVector2Array([Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO])
 var _chieftain_heard := false
+## Logs from felled trees, spent on palisades.
+var timber := 0
+## When a palisade was last asked for without the timber for it, for the notice.
+var palisade_refused_at := -1.0
 
 
 func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
@@ -129,8 +133,9 @@ func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
 	legion.commander.max_hp = legion.max_hp_of("commander")
 	legion.commander.hp = legion.commander.max_hp
 	horde = Horde.new(b, content, rng, legion.commander, province)
-	terrain = Terrain.new(rng.seed)
+	terrain = Terrain.new(rng.seed, b.forest)
 	terrain.clear_radius = float(b.get("terrain_clear_radius", 200.0))
+	terrain.fell_seconds = float(b.felling.seconds)
 	objectives.place_start(self, options.get("objectives_near", false))
 	terrain.refresh(legion.commander.pos)
 	horde.hard = hard
@@ -220,6 +225,7 @@ func update(dt: float, move: Vector2, testudo_pressed: bool) -> void:
 	if over:
 		return
 	time += dt
+	terrain.clock = time
 	if testudo_pressed and testudo_charge >= 1.0 and testudo_left <= 0.0:
 		event("testudo", commander.pos)
 		testudo_left = b.testudo_hold + 1.0 * rank("testudo")
@@ -316,14 +322,64 @@ func _move_legion(dt: float, move: Vector2) -> void:
 		commander.pos += dir * speed() * dt
 		facing_angle = lerp_angle(facing_angle, move.angle(), minf(1.0, dt * 5.0))
 		commander.facing = move.normalized()
-	commander.pos = terrain.push_out(commander.pos, UNIT_RADIUS)
+	commander.pos = terrain.push_out(commander.pos, UNIT_RADIUS, dt)
+	terrain.rot_posts(time)
 	terrain.refresh(commander.pos)
 	terrain.update_flow(commander.pos)
 	commander.moving = moving
 	commander.anim += dt * 10.0
 	legion.follow(dt, self)
 	for so in soldiers:
-		so.pos = terrain.push_out(so.pos, UNIT_RADIUS)
+		so.pos = terrain.push_out(so.pos, UNIT_RADIUS, dt)
+	var fallen := terrain.fell_ready()
+	if fallen > 0:
+		timber += fallen * int(b.felling.timber)
+		event("fell", commander.pos)
+		terrain.refresh(commander.pos)
+
+
+## The commander and the soldiers standing in the formation, not those out on a sortie.
+func units_in_formation() -> Array:
+	var out: Array = [commander]
+	for so in soldiers:
+		if so.sortie == 0:
+			out.append(so)
+	return out
+
+
+## Where the palisade's stakes go: a shallow arc across the legion's facing, `ahead` px beyond its front rank, its ends bowed back.
+func palisade_points() -> Array:
+	var cfg: Dictionary = b.palisade
+	var dir := Vector2.from_angle(facing_angle)
+	var front := 0.0
+	for u in units_in_formation():
+		front = maxf(front, (u.pos - commander.pos).dot(dir))
+	var n := int(cfg.stakes)
+	var out: Array = []
+	for k in n:
+		var t := (k - (n - 1) / 2.0) / maxf(1.0, (n - 1) / 2.0)
+		out.append(commander.pos + dir * (front + float(cfg.ahead) - float(cfg.bow) * t * t) + dir.orthogonal() * t * (n - 1) / 2.0 * float(cfg.gap))
+	return out
+
+
+## Spends timber on a line of stakes ahead of the legion, leaving out any place a man stands; without the timber it is refused.
+func build_palisade() -> bool:
+	var cfg: Dictionary = b.palisade
+	if timber < int(cfg.cost):
+		event("back", commander.pos)
+		palisade_refused_at = time
+		return false
+	timber -= int(cfg.cost)
+	var radius := float(cfg.radius)
+	for p in palisade_points():
+		var free := true
+		for u in [commander] + soldiers:
+			free = free and u.pos.distance_to(p) >= radius + UNIT_RADIUS
+		if free:
+			terrain.add_post(p, radius, time + float(cfg.seconds))
+	terrain.refresh(commander.pos)
+	event("palisade", commander.pos)
+	return true
 
 
 func _cell(p: Vector2) -> Vector2i:
