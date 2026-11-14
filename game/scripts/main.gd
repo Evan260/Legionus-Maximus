@@ -6,6 +6,8 @@ extends Node
 ##   --skip=SECONDS     start the run this far in, simulated in fast steps
 ##   --shot=PATH        save a screenshot after --at seconds (default 3) and quit
 ##   --chieftain-at=S   bring the chieftain at this many seconds instead
+##   --objectives-near  place the objectives close to the start, for looking at them
+##   --go-to=KIND       with --autoplay, start beside the camp, column or grove, or beside a fort raised at once
 ##   --hold-choice      with --autoplay, give a level at once and leave its choices open
 ##   --hard, --endless, --decimatio   start the run in that mode
 ##   --screen=NAME      open a screen (camp, quartermaster, tablinum, map, commanders, settings) with a sample profile, for screenshots;
@@ -94,12 +96,31 @@ func _ready() -> void:
 				sim.update(1.0 / 30.0, Vector2(cos(sim.time * 0.3), sin(sim.time * 0.3)), false)
 				while sim.pending_levels > 0:
 					Upgrades.apply(sim, Upgrades.offers(sim)[0])
+	if args.has("go-to") and state == "play":
+		_go_to(str(args["go-to"]))
 	if args.has("card") and content.achievements.has(args.card):
 		Steamworks.show_card(args.card)
 	if args.has("hold-choice"):
 		sim.gain(sim.xp_next - sim.xp)
 	if args.has("shot"):
 		shot_at = float(args.get("at", "3"))
+
+
+## Puts the legion just below an objective or a freshly raised fort, for a screenshot.
+func _go_to(kind: String) -> void:
+	var at := Vector2.INF
+	if kind == "fort":
+		sim.objectives.raise_fort(sim)
+		at = sim.objectives.fort.pos
+	for o in sim.objectives.list:
+		if o.kind == kind:
+			at = o.pos
+	if at == Vector2.INF and kind in Objectives.KINDS:
+		at = sim.objectives.add(sim, kind, Vector2(0, -700)).pos
+	if at == Vector2.INF:
+		return
+	sim.commander.pos = at + Vector2(0, 110)
+	sim.legion.place_all(sim.facing_angle)
 
 
 ## Runs an autoplay to its end and shows the summary, for a screenshot.
@@ -186,6 +207,7 @@ func _run_options() -> Dictionary:
 	var options: Dictionary = run_setup.duplicate()
 	options.profile_bonuses = Profile.bonuses()
 	options.demo_seconds = Game.run_cap(balance)
+	options.objectives_near = args.has("objectives-near")
 	return options
 
 

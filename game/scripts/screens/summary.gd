@@ -98,7 +98,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	var brow := 12.0 if s == 1 else 18.0
 	var lx := r.position.x + 12.0
 	var stats := [[tr("Time"), clock(sim.time)], [tr("Kills"), str(sim.kills)], [tr("Level"), str(sim.level)], [tr("Legion"), str(sim.soldiers.size() + 1)],
-		[tr("Denarii"), str(sim.denarii)], [tr("Banked"), str(int(Profile.data.denarii))]]
+		[tr("Denarii"), str(sim.banked_denarii())], [tr("Banked"), str(int(Profile.data.denarii))]]
 	var left_w := stats_width([tr("Time"), tr("Kills"), tr("Level"), tr("Legion"), tr("Denarii"), tr("Banked")])
 	for i in stats.size():
 		ui.fit_text(c, stats[i][0], left_w - ui.width_of("99999") - 8.0, Vector2(lx, top + i * srow), Ui.INK)

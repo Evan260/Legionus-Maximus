@@ -1,3 +1,4 @@
+class_name Hud
 extends Node2D
 ## Everything drawn over the field: the top bar, the testudo charge, the chieftain's health and the level-up choices.
 ## The title, pause, summary, settings and camp are screens drawn through the shared Ui.
@@ -12,6 +13,10 @@ const GOLD := Color(0.91, 0.69, 0.25)
 const GOLD_LIGHT := Color(1.0, 0.89, 0.59)
 const RED := Color(0.72, 0.18, 0.14)
 const BROWN_TEXT := Color(0.5, 0.36, 0.22)
+
+const EDGE := 14.0
+## How far above its foot an objective's name is written when it is on screen, clear of its sprite.
+const LABEL_RISE := {"camp": 56.0, "column": 50.0, "grove": 40.0, "fort": 76.0}
 
 var main: Node
 var ui: Ui
@@ -102,6 +107,7 @@ func _scene() -> void:
 		ui.end()
 		return
 	_top_bar(sim)
+	_objective_arrows(sim)
 	if main.state == "choose":
 		_choices(sim)
 
@@ -141,6 +147,92 @@ func _top_bar(sim: Sim) -> void:
 		text((tr("Endless  +%d:%02d") % [extra / 60, extra % 60]).to_upper(), Vector2(0, y3), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
 	elif sim.time > float(sim.b.chieftain_at) - 30.0 and sim.horde.chieftain_id == -1:
 		text(tr("The chieftain is coming"), Vector2(0, y3), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
+
+
+## The name of an objective or the fort, as the arrows and notices show it.
+func objective_name(kind: String) -> String:
+	match kind:
+		"camp":
+			return tr("Barbarian camp")
+		"column":
+			return tr("Stranded column")
+		"grove":
+			return tr("Sacred grove")
+	return tr("Roman fort")
+
+
+func _notice_text(kind: String) -> String:
+	match kind:
+		"camp":
+			return tr("The eagle is ours again")
+		"column":
+			return tr("The column joins the legion")
+		"grove":
+			return tr("The sacred grove burns")
+	return tr("A Roman fort is in sight")
+
+
+## Arrows at the edge of the screen to each objective not yet done and to the fort, with name and distance, and a notice when one is done.
+func _objective_arrows(sim: Sim) -> void:
+	var view := Ui.view
+	var big := Ui.scale > 1
+	var top := 16.0 + 8.0 * Ui.scale + (22.0 if big else 11.0) + 14.0
+	var metre := float(sim.b.objectives.metre_px)
+	var placed: Array = []
+	var labels: Array = []
+	# The arrows go down first, so the labels written after them step round every arrow.
+	for t in sim.objectives.targets():
+		var off: Vector2 = t[1] - sim.commander.pos
+		if Rect2(Vector2.ZERO, view).grow(-EDGE).has_point(view / 2.0 + off):
+			labels.append([t[0], view / 2.0 + off - Vector2(0, LABEL_RISE.get(t[0], 50.0)), ""])
+			continue
+		var at := edge_point(view, off, top)
+		var dir := off.normalized()
+		var side := dir.orthogonal() * (5.0 + 2.0 * Ui.scale)
+		var back := at - dir * (10.0 + 4.0 * Ui.scale)
+		var tip := PackedVector2Array([at + dir * 2.0, back + side * 1.4 - dir * 2.0, back - side * 1.4 - dir * 2.0])
+		draw_colored_polygon(tip, INK)
+		draw_colored_polygon(PackedVector2Array([at, back + side, back - side]), RED if t[0] == "fort" else GOLD)
+		var box := Rect2(tip[0], Vector2.ZERO)
+		for q in tip:
+			box = box.expand(q)
+		placed.append(box)
+		labels.append([t[0], back - dir * 6.0, tr("%d m") % int(off.length() / metre), dir])
+	var note: Dictionary = sim.objectives.notice
+	if not note.is_empty() and sim.time - float(note.at) < float(sim.b.objectives.notice_seconds):
+		var line := _notice_text(note.kind).to_upper()
+		var nw := Ui.width_at(line, Ui.px)
+		var r := _free_spot(Rect2((view.x - nw) / 2.0, view.y * 0.7 - Ui.px, nw, Ui.leading()), placed, view, top)
+		text(line, Vector2(r.position.x, r.position.y + Ui.px), GOLD_LIGHT)
+	for l in labels:
+		var name := objective_name(l[0]).to_upper()
+		var w := maxf(Ui.width_at(name, Ui.px), Ui.width_at(l[2], Ui.px))
+		if l[2] == "":
+			var r := _free_spot(Rect2(l[1].x - w / 2.0, l[1].y - Ui.px, w, Ui.leading()), placed, view, top)
+			text(name, Vector2(r.position.x, r.position.y + Ui.px), GOLD_LIGHT)
+			continue
+		var h := Ui.leading() * 2.0
+		var dir: Vector2 = l[3]
+		var centre: Vector2 = l[1] - dir * (w / 2.0 * absf(dir.x) + h / 2.0 * absf(dir.y))
+		var r := _free_spot(Rect2(centre - Vector2(w, h) / 2.0, Vector2(w, h)), placed, view, top)
+		text(name, Vector2(r.position.x, r.position.y + Ui.px), GOLD_LIGHT if l[0] != "fort" else CREAM, HORIZONTAL_ALIGNMENT_CENTER, w)
+		text(l[2], Vector2(r.position.x, r.position.y + Ui.px + Ui.leading()), CREAM, HORIZONTAL_ALIGNMENT_CENTER, w)
+
+
+## Keeps a label on screen and moves it off any label already written, towards the middle of the screen.
+static func _free_spot(r: Rect2, placed: Array, view: Vector2, top: float) -> Rect2:
+	r.position.x = clampf(r.position.x, 4.0, view.x - r.size.x - 4.0)
+	r.position.y = clampf(r.position.y, top, view.y - r.size.y - 4.0)
+	var step := (r.size.y + 2.0) * (1.0 if r.get_center().y < view.y / 2.0 else -1.0)
+	for i in placed.size() + 1:
+		var clash := false
+		for p in placed:
+			clash = clash or p.intersects(r)
+		if not clash:
+			break
+		r.position.y += step
+	placed.append(r)
+	return r
 
 
 func _choices(sim: Sim) -> void:
@@ -200,3 +292,21 @@ func choice_at(p: Vector2) -> int:
 		if choice_rects[i].has_point(p):
 			return i
 	return -1
+
+
+## Where the arrow to a target `off` from the screen centre stands, on the edge of the room below `top`, or INF when it is on screen.
+static func edge_point(view: Vector2, off: Vector2, top: float) -> Vector2:
+	var room := Rect2(EDGE, top, view.x - 2.0 * EDGE, view.y - top - EDGE)
+	var centre := view / 2.0
+	if room.has_point(centre + off):
+		return Vector2.INF
+	var t := INF
+	if off.x > 0.0:
+		t = (room.end.x - centre.x) / off.x
+	elif off.x < 0.0:
+		t = (room.position.x - centre.x) / off.x
+	if off.y > 0.0:
+		t = minf(t, (room.end.y - centre.y) / off.y)
+	elif off.y < 0.0:
+		t = minf(t, (room.position.y - centre.y) / off.y)
+	return centre + off * t

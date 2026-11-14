@@ -41,7 +41,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	if big:
 		ui.panel(c, Rect2(Ui.W / 2 - 210, 108, 420, 64))
 		ui.text(c, tr("Your soldiers fight on their own."), Vector2(0, 134), Ui.INK, HORIZONTAL_ALIGNMENT_CENTER, Ui.W)
-		ui.text(c, tr("Kill the chieftain to win.") if not Game.is_demo() else Game.goal_text(main.balance), Vector2(0, 158), Ui.INK, HORIZONTAL_ALIGNMENT_CENTER, Ui.W)
+		ui.text(c, tr("Reach the fort or kill the chieftain.") if not Game.is_demo() else Game.goal_text(main.balance), Vector2(0, 158), Ui.INK, HORIZONTAL_ALIGNMENT_CENTER, Ui.W)
 	else:
 		ui.panel(c, Rect2(Ui.W / 2 - 130, 140, 260, 92))
 		var lines := [

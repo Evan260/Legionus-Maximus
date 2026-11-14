@@ -236,7 +236,7 @@ static func unlock_text(info: Dictionary, content: Content) -> String:
 
 ## Banks a finished run: its denarii (win or lose), the records, the totals, the codex, and every unlock it earned.
 func record_run(sim: Sim) -> void:
-	data.denarii = int(data.denarii) + sim.denarii
+	data.denarii = int(data.denarii) + sim.banked_denarii()
 	data.totals.runs = int(data.totals.runs) + 1
 	data.totals.kills = int(data.totals.kills) + sim.kills
 	var rec: Dictionary = record_of(sim.province)

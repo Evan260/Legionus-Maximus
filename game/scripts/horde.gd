@@ -318,7 +318,7 @@ func update(dt: float, sim: Sim) -> void:
 
 
 func _spawn(dt: float, sim: Sim) -> void:
-	spawn_acc += (b.spawn_per_second_start + b.spawn_per_second_growth * time) * (float(b.hard.spawn_mult) if hard else 1.0) * dt
+	spawn_acc += (b.spawn_per_second_start + b.spawn_per_second_growth * time) * (float(b.hard.spawn_mult) if hard else 1.0) * sim.objectives.spawn_mult(time) * dt
 	while spawn_acc >= 1.0:
 		spawn_acc -= 1.0
 		if e_pos.size() < int(b.max_enemies) and not ordinary.is_empty():
@@ -343,7 +343,7 @@ func _spawn(dt: float, sim: Sim) -> void:
 				var a := side + rng.randf_range(-0.3, 0.3)
 				spawn(elites[rng.randi_range(0, elites.size() - 1)], commander.pos + Vector2(cos(a) * 1.15, sin(a) * 0.75) * b.spawn_radius, true)
 	if chieftain_id == -1 and chief_kind != "" and time >= b.chieftain_at:
-		spawn_chieftain(ring_point())
+		spawn_chieftain(sim.objectives.chieftain_point(sim))
 	if time >= next_cart:
 		next_cart += float(b.cart.every)
 		if content.available.has("prop:supply_cart"):
@@ -352,12 +352,16 @@ func _spawn(dt: float, sim: Sim) -> void:
 
 ## A tight band gathers in the legion's path or closes in from behind, so marching straight on is never safe for long.
 func _war_band(sim: Sim, behind := false) -> void:
+	var ahead := Vector2.from_angle(sim.facing_angle)
+	var dir := -ahead if behind else (ahead if rng.randf() < 0.5 else -ahead)
+	war_band_at(sim, commander.pos + dir.rotated(rng.randf_range(-0.4, 0.4)) * Vector2(1.15, 0.75) * float(b.spawn_radius))
+
+
+## A war band gathered round a given point, such as the defenders of an objective.
+func war_band_at(sim: Sim, centre: Vector2) -> void:
 	if ordinary.is_empty():
 		return
 	var wb: Dictionary = b.war_band
-	var ahead := Vector2.from_angle(sim.facing_angle)
-	var dir := -ahead if behind else (ahead if rng.randf() < 0.5 else -ahead)
-	var centre: Vector2 = commander.pos + dir.rotated(rng.randf_range(-0.4, 0.4)) * Vector2(1.15, 0.75) * float(b.spawn_radius)
 	var n := int(float(wb.size_start) + float(wb.size_growth) * time)
 	for i in n:
 		if e_pos.size() >= int(b.max_enemies):

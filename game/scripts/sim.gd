@@ -43,6 +43,7 @@ var pressing := 0
 
 var horde: Horde
 var terrain: Terrain
+var objectives := Objectives.new()
 var province := "germania"
 var free_choices := 0
 var g_origin: Vector2i:
@@ -130,6 +131,7 @@ func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
 	horde = Horde.new(b, content, rng, legion.commander, province)
 	terrain = Terrain.new(rng.seed)
 	terrain.clear_radius = float(b.get("terrain_clear_radius", 200.0))
+	objectives.place_start(self, options.get("objectives_near", false))
 	terrain.refresh(legion.commander.pos)
 	horde.hard = hard
 	horde.sim_ref = weakref(self)
@@ -229,7 +231,9 @@ func update(dt: float, move: Vector2, testudo_pressed: bool) -> void:
 		testudo_charge = minf(1.0, testudo_charge + dt / maxf(5.0, b.testudo_recharge - 2.0 * rank("testudo") - _bonus_amount("testudo_charge")))
 	_move_legion(dt, move)
 	_rebuild_grids()
+	objectives.before_horde(self)
 	horde.update(dt, self)
+	objectives.update(dt, self)
 	_legion_attacks(dt)
 	arms.update(dt, self)
 	_move_shots(dt)
@@ -527,15 +531,23 @@ func _kill(i: int) -> void:
 	if horde.e_tag[i] == Horde.ELITE:
 		horde.drop_chest(horde.e_pos[i])
 	if horde.e_id[i] == horde.chieftain_id:
-		if endless:
-			endless_since = time
-			victory = true
-			event("victory", horde.e_pos[i])
-		else:
-			over = true
-			victory = true
-			event("victory", horde.e_pos[i])
+		win(horde.e_pos[i])
 	horde.remove_at(i)
+
+
+## The chieftain's death or the fort's gate wins the run; an endless run keeps going and counts the win once.
+func win(pos: Vector2) -> void:
+	victory = true
+	event("victory", pos)
+	if not endless:
+		over = true
+	elif endless_since < 0.0:
+		endless_since = time
+
+
+## The denarii the run banks: those carried and the purses of the objectives done.
+func banked_denarii() -> int:
+	return denarii + objectives.purse
 
 
 ## Leaves a coin on the field. Past the cap, the oldest coins still lying there are merged into one of their total value.

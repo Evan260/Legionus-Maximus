@@ -2413,7 +2413,7 @@ func test_hints_name_the_players_own_keys(_b: Dictionary) -> void:
 
 
 func test_title_goal_comes_from_the_balance(b: Dictionary) -> void:
-	check("20" in Game.goal_text(b) and "chieftain" in Game.goal_text(b), "the full game names 20 minutes and the chieftain")
+	check("16" in Game.goal_text(b) and "fort" in Game.goal_text(b), "the full game names 16 minutes and the fort")
 	Game.demo_forced = true
 	check("15" in Game.goal_text(b) and not "chieftain" in Game.goal_text(b), "the demo names 15 minutes and no chieftain")
 	Game.demo_forced = false
@@ -2483,3 +2483,239 @@ func test_credits_carry_the_licence_texts_in_full(_b: Dictionary) -> void:
 			"res://assets/fonts/fusion-pixel-LICENSES/misaki/misaki.txt", "res://assets/fonts/fusion-pixel-LICENSES/galmuri/LICENSE.txt",
 			"res://assets/fonts/fusion-pixel-LICENSES/ark-pixel/OFL.txt"]:
 		check(text.contains(FileAccess.get_file_as_string(path).strip_edges()), "the credits hold %s in full" % path)
+
+
+func test_a_clearing_keeps_its_ground_free_of_props(b: Dictionary) -> void:
+	var t := Terrain.new(77)
+	t.clearings.append([Vector2(900, 300), 200.0])
+	var inside := 0
+	for pr in t.props_in(Rect2(Vector2(600, 0), Vector2(600, 600))):
+		if pr[1].distance_to(Vector2(900, 300)) < 200.0:
+			inside += 1
+	check(inside == 0, "nothing grows in a clearing set before the field is built (%d)" % inside)
+	var built := Terrain.new(78)
+	built.refresh(Vector2(1000, 0))
+	var near := 0
+	for pr in built.props_in(Rect2(Vector2(700, -300), Vector2(600, 600))):
+		if pr[1].distance_to(Vector2(1000, 0)) < 180.0:
+			near += 1
+	built.add_clearing(Vector2(1000, 0), 180.0, [["stake", Vector2(1000, 0), 5.0]])
+	var left: Array = []
+	for pr in built.props_in(Rect2(Vector2(700, -300), Vector2(600, 600))):
+		if pr[1].distance_to(Vector2(1000, 0)) < 180.0:
+			left.append(pr[0])
+	check(near > 0 and left == ["stake"], "a clearing made later takes out what grew there and keeps its own pieces (%d before, %s after)" % [near, left])
+	built.refresh(Vector2(1000, 0))
+	var blocked := false
+	for sv in built.solid:
+		blocked = blocked or (Vector2(sv.x, sv.y) == Vector2(1000, 0))
+	check(blocked, "and the solid pieces block at once")
+
+
+func test_a_run_places_two_or_three_objectives_in_clearings(b: Dictionary) -> void:
+	var cfg: Dictionary = b.objectives
+	var sizes := {}
+	for seed_value in range(1, 21):
+		var s := Sim.new(b, Content.with_all_art(), {"seed": seed_value})
+		var list: Array = s.objectives.list
+		sizes[list.size()] = true
+		var kinds := {}
+		for o in list:
+			kinds[o.kind] = true
+			var d: float = o.pos.length()
+			check(d >= float(cfg.near) - 1.0 and d <= float(cfg.far) + 1.0, "seed %d: the %s lies %.0f from the start" % [seed_value, o.kind, d])
+			var stray := 0
+			for pr in s.terrain.props_in(Rect2(o.pos - Vector2.ONE * 200.0, Vector2.ONE * 400.0)):
+				if pr[1].distance_to(o.pos) < float(cfg.clearing) and not s.terrain.extras.has(pr):
+					stray += 1
+			check(stray == 0, "seed %d: the %s stands in a clearing (%d strays)" % [seed_value, o.kind, stray])
+		check(kinds.size() == list.size(), "seed %d: no kind twice" % seed_value)
+		for i in list.size():
+			for j in range(i + 1, list.size()):
+				var gap := absf(list[i].pos.angle_to(list[j].pos))
+				check(gap > deg_to_rad(60.0), "seed %d: objectives lie in different directions (%.0f degrees)" % [seed_value, rad_to_deg(gap)])
+	check(sizes.has(2) and sizes.has(3) and sizes.size() == 2, "runs have two or three objectives (%s)" % [sizes.keys()])
+
+
+func _objective_sim(b: Dictionary, seed_value: int) -> Sim:
+	var s := _quiet_sim(b, seed_value, Content.with_all_art())
+	s.objectives.list.clear()
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	return s
+
+
+func _kinds_alive(s: Sim) -> Array:
+	var out: Array = []
+	for k in s.horde.e_kind:
+		out.append(s.horde.kind_ids[k])
+	return out
+
+
+func _empty_horde(s: Sim) -> void:
+	while not s.horde.e_pos.is_empty():
+		s.horde.remove_at(0)
+
+
+func test_the_camp_pours_out_defenders_and_gives_back_the_eagle(b: Dictionary) -> void:
+	var cfg: Dictionary = b.objectives.camp
+	var s := _objective_sim(b, 150)
+	var camp: Dictionary = s.objectives.add(s, "camp", Vector2(600, 0))
+	_step_dt(s, 0.2)
+	check(s.horde.e_pos.is_empty(), "nobody comes out while the legion is far off")
+	s.commander.pos = Vector2(600.0 - float(cfg.wake) + 10.0, 0)
+	_step_dt(s, 0.1)
+	var kinds := _kinds_alive(s)
+	check(kinds.size() > 5 and kinds.has("war_band_leader"), "a war band and its leader pour out when the legion comes near (%d)" % kinds.size())
+	var n := kinds.size()
+	_step_dt(s, 1.0)
+	check(s.horde.e_pos.size() <= n, "and only once")
+	var choices := s.free_choices
+	s.soldiers[0].pos = camp.pos
+	s._rebuild_grids()
+	s.objectives.update(0.01, s)
+	check(camp.done and s.free_choices == choices + 1, "a soldier touching the eagle takes it back for a free choice")
+	check(s.objectives.purse == int(b.objectives.purse.camp), "and a purse of %d denarii (%d)" % [int(b.objectives.purse.camp), s.objectives.purse])
+	s.objectives.update(0.01, s)
+	check(s.free_choices == choices + 1, "the eagle is taken only once")
+
+
+func test_the_stranded_column_holds_and_joins_the_legion(b: Dictionary) -> void:
+	var cfg: Dictionary = b.objectives.column
+	var s := _objective_sim(b, 151)
+	var col: Dictionary = s.objectives.add(s, "column", Vector2(500, 0))
+	check(col.guards.size() == int(cfg.guards), "%d legionaries guard the cart" % int(cfg.guards))
+	var g: Dictionary = col.guards[0]
+	var foe := s.horde.spawn("barbarian_club", g.pos + Vector2(12, 0))
+	var id := s.horde.e_id[foe]
+	var hp0: float = s.horde.e_hp[foe]
+	s.commander.pos = col.pos - Vector2(float(cfg.wake) + 60.0, 0)
+	_step_dt(s, 1.0)
+	var j := s.horde.e_id.find(id)
+	check(j < 0 or s.horde.e_hp[j] < hp0, "the guards strike a barbarian beside them")
+	check(g.hp < g.max_hp, "and he strikes back")
+	check(j < 0 or s.horde.e_pos[j].distance_to(g.pos) < 30.0, "he is held at the guard and does not walk on to the legion")
+	_empty_horde(s)
+	s.commander.pos = col.pos - Vector2(float(cfg.wake) - 10.0, 0)
+	_step_dt(s, 0.1)
+	check(s.horde.e_pos.size() > 5, "a war band falls on the column when the legion comes near")
+	_empty_horde(s)
+	s.commander.hp = 10.0
+	g.hp = 0.0
+	var size := s.soldiers.size()
+	s.commander.pos = col.pos + Vector2(float(cfg.reach) - 5.0, 0)
+	_step_dt(s, 0.1)
+	check(col.done and s.soldiers.size() == size + int(cfg.guards) - 1, "reaching the cart adds the survivors to the legion (%d)" % (s.soldiers.size() - size))
+	check(s.commander.hp == s.commander.max_hp, "and heals the legion")
+	var full := _objective_sim(b, 152)
+	while full.soldiers.size() < int(b.legion_cap) - 1:
+		full.add_soldier("legionary")
+	var c2: Dictionary = full.objectives.add(full, "column", Vector2(300, 0))
+	full.commander.pos = c2.pos
+	_step_dt(full, 0.1)
+	check(full.soldiers.size() == int(b.legion_cap), "a full legion takes only the men it has room for (%d)" % full.soldiers.size())
+
+
+func test_burning_the_grove_thins_the_stream(b: Dictionary) -> void:
+	var cfg: Dictionary = b.objectives.grove
+	var s := _objective_sim(b, 153)
+	var grove: Dictionary = s.objectives.add(s, "grove", Vector2(500, 0))
+	var oaks := 0
+	for pr in s.terrain.extras:
+		if pr[0] == "oak" and pr[2] > 0.0 and absf(pr[1].distance_to(grove.pos) - float(cfg.ring)) < 1.0:
+			oaks += 1
+	var slots := int(TAU * float(cfg.ring) / float(cfg.oak_step))
+	check(oaks > slots / 2 and oaks < slots, "solid oaks ring the altar with gaps to enter (%d of %d)" % [oaks, slots])
+	s.commander.pos = grove.pos + Vector2(10, 0)
+	_step_dt(s, float(cfg.hold) * 0.5)
+	check(not grove.done and grove.hold > 0.0, "half the time in the grove is not enough")
+	check(s.horde.e_pos.size() > 5, "war bands come to defend it")
+	_empty_horde(s)
+	var choices := s.free_choices
+	_step_dt(s, float(cfg.hold) * 0.5 + 0.2)
+	check(grove.done and s.free_choices == choices + 1, "holding the grove burns it for a free choice")
+	check(s.objectives.purse == int(b.objectives.purse.grove), "and adds its denarii")
+	check(is_equal_approx(s.objectives.spawn_mult(s.time), float(cfg.calm_mult)), "the stream is thinned")
+	check(is_equal_approx(s.objectives.spawn_mult(s.time + float(cfg.calm_seconds) + 1.0), 1.0), "for %d seconds" % int(cfg.calm_seconds))
+	s.b.spawn_per_second_start = 2.0
+	s.horde.spawn_acc = 0.0
+	s.horde._spawn(0.25, s)
+	var want := (2.0 + float(s.b.spawn_per_second_growth) * s.time) * 0.25 * float(cfg.calm_mult)
+	check(is_equal_approx(s.horde.spawn_acc, want), "the horde's stream reads the thinning (%.3f of %.3f)" % [s.horde.spawn_acc, want])
+
+
+func test_leaving_the_grove_loses_the_hold(b: Dictionary) -> void:
+	var cfg: Dictionary = b.objectives.grove
+	var s := _objective_sim(b, 154)
+	var grove: Dictionary = s.objectives.add(s, "grove", Vector2(500, 0))
+	s.commander.pos = grove.pos
+	_step_dt(s, float(cfg.hold) * 0.8)
+	s.commander.pos = grove.pos + Vector2(400, 0)
+	_step_dt(s, float(cfg.hold))
+	s.commander.pos = grove.pos
+	_step_dt(s, float(cfg.hold) * 0.5)
+	check(not grove.done, "time spent in the grove drains away when the legion leaves")
+
+
+func test_objectives_raise_the_denarii_banked(b: Dictionary) -> void:
+	var p := _fresh_profile()
+	var s := Sim.new(b, Content.with_all_art(), {"seed": 155})
+	s.denarii = 40
+	s.objectives.purse = 150
+	s.over = true
+	p.record_run(s)
+	check(p.data.denarii == 190, "the purse is banked with the denarii carried (%d)" % p.data.denarii)
+	p.free()
+	_cleanup_profile_files()
+
+
+func test_the_fort_appears_with_the_chieftain_and_its_gate_wins(b: Dictionary) -> void:
+	var cfg: Dictionary = b.fort
+	var s := _mode_sim(b, {"seed": 156})
+	s.objectives.list.clear()
+	s.commander.pos = Vector2(300, -200)
+	s.time = float(b.chieftain_at) - 0.5
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.objectives.fort.is_empty(), "no fort before %d seconds" % int(b.chieftain_at))
+	s.time = float(b.chieftain_at) - 0.01
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	var fort: Dictionary = s.objectives.fort
+	check(not fort.is_empty(), "the fort appears")
+	var d: float = fort.pos.distance_to(s.commander.pos)
+	check(d >= float(cfg.near) - 1.0 and d <= float(cfg.far) + 1.0, "%.0f from the commander" % d)
+	var stray := 0
+	for pr in s.terrain.props_in(Rect2(fort.pos - Vector2.ONE * 250.0, Vector2.ONE * 500.0)):
+		if pr[1].distance_to(fort.gate) < float(cfg.clearing) and not s.terrain.extras.has(pr):
+			stray += 1
+	check(stray == 0, "in open ground (%d strays)" % stray)
+	var ci := s.chieftain_index()
+	check(ci >= 0, "the chieftain comes out at the same moment")
+	var cp: Vector2 = s.horde.e_pos[ci]
+	check(cp.distance_to(fort.pos) < d and (cp - s.commander.pos).dot(fort.pos - s.commander.pos) > 0.0, "between the legion and the fort")
+	s.horde.e_pos[ci] = s.commander.pos + Vector2(0, 2000)
+	s.commander.pos = fort.gate
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.over and s.victory, "marching into the gate wins the run")
+	var e := _mode_sim(b, {"seed": 157, "endless": true})
+	e.objectives.list.clear()
+	e.time = float(b.chieftain_at) - 0.01
+	e.update(1.0 / 60.0, Vector2.ZERO, false)
+	e.commander.pos = e.objectives.fort.gate
+	e.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(not e.over and e.victory and e.endless_since >= 0.0, "in an endless run the fort wins and the march goes on")
+	var since := e.endless_since
+	e.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(e.endless_since == since, "and the win is counted once")
+	e.hit(e.chieftain_index(), 1e9)
+	e.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(e.endless_since == since and not e.over, "the chieftain's death later keeps the endless clock")
+
+
+func test_the_hud_points_to_objectives_off_screen(b: Dictionary) -> void:
+	var view := Vector2(640, 360)
+	var top := 40.0
+	var at: Vector2 = Hud.edge_point(view, Vector2(2000, 0), top)
+	check(at.x < view.x and at.x > view.x - 40.0 and absf(at.y - view.y / 2.0) < 1.0, "a target far east is marked at the right edge (%s)" % at)
+	at = Hud.edge_point(view, Vector2(-300, -3000), top)
+	check(at.y >= top and at.y < top + 30.0, "a target far north is marked below the top bar (%s)" % at)
+	check(Hud.edge_point(view, Vector2(100, 50), top) == Vector2.INF, "a target on screen needs no arrow")

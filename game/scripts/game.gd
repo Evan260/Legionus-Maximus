@@ -44,11 +44,11 @@ static func confirm_allowed(state: String, opened_at: float, now: float, balance
 	return not (state == "choose" or state == "over") or now - opened_at >= float(balance.confirm_delay)
 
 
-## The title's goal line: the minutes to survive, and the chieftain's death in the full game; the demo ends at its time limit and has no chieftain.
+## The title's goal line: the minutes to survive, and the fort in the full game; the demo ends at its time limit and has no chieftain.
 static func goal_text(balance: Dictionary) -> String:
 	if is_demo():
 		return TranslationServer.translate("Survive %d minutes.") % int(float(balance.demo.seconds) / 60.0)
-	return TranslationServer.translate("Survive %d minutes and kill the chieftain.") % int(float(balance.chieftain_at) / 60.0)
+	return TranslationServer.translate("Survive %d minutes, then reach the fort.") % int(float(balance.chieftain_at) / 60.0)
 
 
 ## Whether the run counts as under way: on the field, at a choice, paused, or in the settings opened from the pause.

@@ -90,6 +90,9 @@ func _draw() -> void:
 	var view := Rect2(top_left - Vector2(margin, margin), screen + Vector2(margin, margin) * 2.0)
 
 	for pr in sim.terrain.props_in(view):
+		# A piece with no kind is an unseen blocker, such as the inside of the fort's gate towers.
+		if pr[0] == "":
+			continue
 		var f := atlas.prop_frame(pr[0])
 		_add(pr[1].y, f[0], pr[1] - f[1], white)
 
@@ -129,6 +132,7 @@ func _draw() -> void:
 
 	_add_arm_sprites(view)
 	_add_chests_and_carts(view)
+	_add_objectives(view)
 	_draw_coins(view)
 	_keys.sort()
 	var tex := atlas.texture
@@ -141,6 +145,7 @@ func _draw() -> void:
 	_draw_elite_names(view)
 	_draw_lobs(tex)
 	_draw_effects()
+	_draw_objective_marks(view)
 	_draw_numbers()
 	_draw_torches()
 	_draw_bars()
@@ -303,6 +308,57 @@ func _add_chests_and_carts(view: Rect2) -> void:
 		for cart in sim.horde.carts:
 			if view.has_point(cart.pos):
 				_add(cart.pos.y, f[0], cart.pos - f[1], Color.WHITE)
+
+
+## The eagle in the camp, the stranded column's cart and guards, and the grove's altar; huts, oaks and the fort are terrain.
+func _add_objectives(view: Rect2) -> void:
+	for o in sim.objectives.list:
+		if not view.grow(60.0).has_point(o.pos):
+			continue
+		match o.kind:
+			"camp":
+				if not o.done:
+					_add_prop("eagle_standard", o.pos, Color.WHITE)
+			"column":
+				_add_prop("supply_cart", o.pos, Color.WHITE)
+				for g in o.guards:
+					var f := atlas.unit_frame("legionary", "idle", Sim.dir_name(g.facing), g.anim)
+					draw_texture(shadow, (g.pos - Vector2(8, 3)).round())
+					_add(g.pos.y, f[0], g.pos - f[1], Color(1.0, 0.55, 0.55) if g.flash > 0.0 else Color.WHITE)
+			"grove":
+				_add_prop("altar", o.pos, Color(0.45, 0.4, 0.38) if o.done else Color.WHITE)
+
+
+func _add_prop(key: String, pos: Vector2, mod: Color) -> void:
+	if atlas.props.has(key):
+		var f := atlas.prop_frame(key)
+		_add(pos.y, f[0], pos - f[1], mod)
+
+
+## The grove's ring filling while the commander holds it, and its oaks burning once it falls.
+func _draw_objective_marks(view: Rect2) -> void:
+	var cfg: Dictionary = sim.b.objectives.grove
+	for o in sim.objectives.list:
+		if o.kind != "grove" or not view.grow(120.0).has_point(o.pos):
+			continue
+		var inside := float(cfg.inside)
+		if not o.done:
+			draw_arc(o.pos, inside, 0.0, TAU, 48, Color(1.0, 0.89, 0.59, 0.35), 1.0)
+			if o.hold > 0.0:
+				var k: float = clampf(o.hold / float(cfg.hold), 0.0, 1.0)
+				draw_arc(o.pos, inside, -PI / 2.0, -PI / 2.0 + TAU * k, 48, Color(0.16, 0.1, 0.08, 0.8), 4.0)
+				draw_arc(o.pos, inside, -PI / 2.0, -PI / 2.0 + TAU * k, 48, Color(1.0, 0.6, 0.18), 2.0)
+		elif sim.time - o.burnt_at < float(cfg.burn_seconds):
+			var fade := clampf((float(cfg.burn_seconds) - (sim.time - o.burnt_at)) / 2.0, 0.0, 1.0)
+			var beat := int(sim.time * 12.0)
+			var spots: Array = o.oaks + [o.pos]
+			for i in spots.size():
+				var base: Vector2 = spots[i] + Vector2(0, -30 if i < o.oaks.size() else -8)
+				for f in 3:
+					var p: Vector2 = (base + Vector2((f - 1) * 7 + (beat + i) % 3 - 1, -(f % 2) * 10)).round()
+					var h := 5 + (beat + i * 3 + f) % 5
+					draw_rect(Rect2(p + Vector2(-2, -h), Vector2(5, h)), Color(1.0, 0.45, 0.1, 0.9 * fade))
+					draw_rect(Rect2(p + Vector2(-1, -h + 2), Vector2(3, maxi(1, h - 3))), Color(1.0, 0.85, 0.35, 0.9 * fade))
 
 
 ## Spears thrown by the horde are drawn as short pixel lines.

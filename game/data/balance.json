@@ -1,6 +1,21 @@
 {
   "run_seconds": 1200,
-  "chieftain_at": 1200,
+  "chieftain_at": 960,
+  "objectives": {
+    "count": [2, 3],
+    "near": 700,
+    "far": 1300,
+    "near_flag": [300, 420],
+    "spread": 0.35,
+    "clearing": 150,
+    "metre_px": 16,
+    "purse": {"camp": 150, "column": 60, "grove": 80},
+    "notice_seconds": 3.5,
+    "camp": {"wake": 250, "huts": 6, "hut_ring": 72, "hut_radius": 14, "touch": 16, "leader": "war_band_leader"},
+    "column": {"wake": 300, "guards": 4, "guard_ring": 24, "reach": 40, "band_from": 160},
+    "grove": {"ring": 96, "oak_step": 22, "gaps": 3, "gap_width": 0.6, "inside": 80, "hold": 5.0, "band_every": 2.5, "band_from": 230, "calm_seconds": 60, "calm_mult": 0.5, "burn_seconds": 10}
+  },
+  "fort": {"near": 900, "far": 1200, "clearing": 190, "gate_radius": 18, "tries": 16, "tower_x": 34, "tower_radius": 12, "stakes": 8, "stake_gap": 12, "stake_radius": 6},
   "chieftain_guard": {"count": 10, "radius": 34},
   "surge_every": 120,
   "war_band": {"first": 50, "every": 35, "size_start": 8, "size_growth": 0.015, "spread": 30},

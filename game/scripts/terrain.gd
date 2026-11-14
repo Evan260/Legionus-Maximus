@@ -19,6 +19,10 @@ var solid := PackedVector3Array()
 var start := PackedInt32Array()
 var items := PackedInt32Array()
 var clear_radius := 200.0
+## Circles kept free of scatter and features, as [centre, radius]; set before the chunks they touch are built.
+var clearings: Array = []
+## Props the run places itself (objective huts, the grove's oaks, the fort's walls), as [kind, position, radius].
+var extras: Array = []
 # The way round obstacles towards the commander: one step direction per FLOW_CELL square, or none where no way exists.
 const FLOW_CELL := 32.0
 const FN := 56
@@ -39,6 +43,7 @@ func _init(run_seed: int) -> void:
 ## Empties the field, for tests that need open ground.
 func clear() -> void:
 	empty = true
+	extras.clear()
 	_chunks.clear()
 	_anchor = Vector2i(1 << 30, 0)
 
@@ -57,17 +62,21 @@ func chunk(cx: int, cy: int) -> Array:
 	var key := Vector2i(cx, cy)
 	if _chunks.has(key):
 		return _chunks[key]
+	var box := Rect2(Vector2(cx, cy) * CHUNK, Vector2(CHUNK, CHUNK))
+	var out: Array = []
+	for p in extras:
+		if box.has_point(p[1]):
+			out.append(p)
 	if empty:
-		return []
+		return out
 	var r := RandomNumberGenerator.new()
 	r.seed = hash([seed_value, key])
-	var out: Array = []
 	for i in r.randi_range(0, 2):
 		var p := Vector2((cx + r.randf()) * CHUNK, (cy + r.randf()) * CHUNK)
 		if p.length() > 90.0:
 			var kind: String = SCATTER[r.randi_range(0, SCATTER.size() - 1)]
-			out.append([kind, p, SOLID.get(kind, 0.0)])
-	var box := Rect2(Vector2(cx, cy) * CHUNK, Vector2(CHUNK, CHUNK))
+			if not _in_clearing(p):
+				out.append([kind, p, SOLID.get(kind, 0.0)])
 	var rx := floori(box.position.x / REGION)
 	var ry := floori(box.position.y / REGION)
 	# A feature can reach past the edge of its own region, so the neighbouring regions are looked at too.
@@ -115,10 +124,32 @@ func _region(rx: int, ry: int) -> Array:
 			t += 20.0
 	var kept: Array = []
 	for p in out:
-		if p[1].length() > clear_radius:
+		if p[1].length() > clear_radius and not _in_clearing(p[1]):
 			kept.append(p)
 	_regions[key] = kept
 	return kept
+
+
+## Clears a circle of ground that may already be built and stands the run's own pieces in it.
+func add_clearing(centre: Vector2, radius: float, pieces: Array) -> void:
+	clearings.append([centre, radius])
+	extras.append_array(pieces)
+	for key in _regions:
+		_regions[key] = _regions[key].filter(func(p: Array) -> bool: return p[1].distance_to(centre) >= radius)
+	var reach := radius
+	for pr in pieces:
+		reach = maxf(reach, pr[1].distance_to(centre) + 1.0)
+	for cx in range(floori((centre.x - reach) / CHUNK), floori((centre.x + reach) / CHUNK) + 1):
+		for cy in range(floori((centre.y - reach) / CHUNK), floori((centre.y + reach) / CHUNK) + 1):
+			_chunks.erase(Vector2i(cx, cy))
+	_anchor = Vector2i(1 << 30, 0)
+
+
+func _in_clearing(p: Vector2) -> bool:
+	for c in clearings:
+		if p.distance_to(c[0]) < c[1]:
+			return true
+	return false
 
 
 ## Rebuilds the grid of solid props around p when p has moved into another chunk; push_out only sees props in this grid.
