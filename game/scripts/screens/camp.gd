@@ -38,7 +38,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	var line: String = "%s, %s" % [main.content.provinces[setup.province].name, main.content.commanders[setup.commander].name]
 	if not modes.is_empty():
 		line += ", " + " + ".join(modes)
-	ui.text(c, ui.clip(line, Ui.W - 16.0), Vector2(0, 198 if big else 252), Ui.CREAM, HORIZONTAL_ALIGNMENT_CENTER, Ui.W, true)
+	ui.fit_text(c, line, Ui.W - 16.0, Vector2(0, 198 if big else 252), Ui.CREAM, HORIZONTAL_ALIGNMENT_CENTER, Ui.W, true)
 	ui.button(c, Rect2(Ui.W / 2 - 80, 204 if big else 258, 160, 28 if big else 24), "march", tr("March").to_upper(), "", true, null, true)
 	if big:
 		_boards_large(c, ui)
@@ -51,7 +51,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 		var id: String = BOARDS[i][0]
 		ui.button(c, r, id, "", "", true, null, true)
 		ui.text(c, tr(BOARDS[i][1]).to_upper(), Vector2(r.position.x, r.position.y + 16), Ui.INK, HORIZONTAL_ALIGNMENT_CENTER, bw)
-		ui.text(c, ui.clip(sub_line(id), bw - 12), Vector2(r.position.x, r.position.y + 30), Ui.BROWN, HORIZONTAL_ALIGNMENT_CENTER, bw)
+		ui.fit_text(c, sub_line(id), bw - 12, Vector2(r.position.x, r.position.y + 30), Ui.BROWN, HORIZONTAL_ALIGNMENT_CENTER, bw)
 	ui.text(c, tr("Esc  title"), Vector2(10, Ui.H - 8), Ui.CREAM, HORIZONTAL_ALIGNMENT_LEFT, -1, true)
 
 
@@ -63,5 +63,5 @@ func _boards_large(c: CanvasItem, ui: Ui) -> void:
 		var id: String = BOARDS[i][0]
 		ui.button(c, r, id, "", "", true, null, true)
 		ui.text(c, tr(BOARDS[i][1]).to_upper(), Vector2(r.position.x, r.position.y + 18), Ui.INK, HORIZONTAL_ALIGNMENT_CENTER, bw)
-		ui.text(c, ui.clip(sub_line(id), bw - 12), Vector2(r.position.x, r.position.y + 38), Ui.BROWN, HORIZONTAL_ALIGNMENT_CENTER, bw)
+		ui.fit_text(c, sub_line(id), bw - 12, Vector2(r.position.x, r.position.y + 38), Ui.BROWN, HORIZONTAL_ALIGNMENT_CENTER, bw)
 	ui.text(c, tr("Esc  title"), Vector2(10, Ui.H - 4), Ui.CREAM, HORIZONTAL_ALIGNMENT_LEFT, -1, true)

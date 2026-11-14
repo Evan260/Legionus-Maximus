@@ -64,15 +64,17 @@ func _card() -> void:
 		return
 	var big := Ui.scale > 1
 	var w := 190.0 if not big else 280.0
-	var h := 16.0 + 2.0 * Ui.leading() + (4.0 if big else 0.0)
+	var room := w - 40.0
+	# A long name takes a second line, and the card grows to hold it.
+	var name_lines := mini(Ui.block(str(card.name).to_upper(), room, 2).lines, 2)
+	var h := 16.0 + (1.0 + name_lines) * Ui.leading() + (4.0 if big else 0.0)
 	var slide := Steamworks.card_slide()
 	var r := Rect2(lerpf(W + 2.0, W - 6.0 - w, slide), 44.0 if not big else 68.0, w, h)
 	panel(r)
 	_laurel(r.position + Vector2(18.0, h / 2.0))
 	var tx := r.position.x + 34.0
-	var room := w - 40.0
-	text(ui.clip(tr("Achievement").to_upper(), room), Vector2(tx, r.position.y + 6.0 + Ui.px * 3 / 4), BROWN_TEXT, HORIZONTAL_ALIGNMENT_LEFT, -1, false)
-	text(ui.clip(str(card.name).to_upper(), room), Vector2(tx, r.position.y + 6.0 + Ui.px * 3 / 4 + Ui.leading()), INK, HORIZONTAL_ALIGNMENT_LEFT, -1, false)
+	ui.fit_text(self, tr("Achievement").to_upper(), room, Vector2(tx, r.position.y + 6.0 + Ui.px * 3 / 4), BROWN_TEXT)
+	ui.wrap_fit(self, str(card.name).to_upper(), Vector2(tx, r.position.y + 6.0 + Ui.px * 3 / 4 + Ui.leading()), room, INK, 2)
 
 
 ## A small wreath of gold leaves around a dot.
@@ -168,26 +170,22 @@ func _choices(sim: Sim) -> void:
 		if icon != null:
 			draw_texture_rect(icon, Rect2(r.position.x + bw / 2 - icon_px / 2, r.position.y + 8, icon_px, icon_px), false)
 		var y := r.position.y + (icon_px + 22.0 if big else 86.0)
-		text(ui.clip(tr(sim.content.group_of(id)).to_upper(), bw - 8), Vector2(r.position.x, y), Color(0.5, 0.36, 0.22), HORIZONTAL_ALIGNMENT_CENTER, bw, false)
+		ui.fit_text(self, tr(sim.content.group_of(id)).to_upper(), bw - 8, Vector2(r.position.x, y), Color(0.5, 0.36, 0.22), HORIZONTAL_ALIGNMENT_CENTER, bw)
 		# A long name takes two lines, and the level and description move down by the extra one.
-		var name_lines := Ui.lines_of(info.name.to_upper(), bw - 8)
-		var shown := mini(name_lines.size(), 2)
-		if name_lines.size() > 2:
-			name_lines[1] = " ".join(name_lines.slice(1))
-		for k in shown:
-			text(ui.clip(name_lines[k], bw - 8), Vector2(r.position.x, y + step + 1 + k * step), INK, HORIZONTAL_ALIGNMENT_CENTER, bw, false)
+		var shown := mini(Ui.block(info.name.to_upper(), bw - 8, 2).lines, 2)
+		ui.wrap_fit(self, info.name.to_upper(), Vector2(r.position.x, y + step + 1), bw - 8, INK, 2, HORIZONTAL_ALIGNMENT_CENTER, bw)
 		var extra_y := (shown - 1) * step
 		text(Upgrades.level_text(sim, id), Vector2(r.position.x, y + 2 * step + 2 + extra_y), RED, HORIZONTAL_ALIGNMENT_CENTER, bw, false)
 		wrap_text(Upgrades.describe(sim, id), Vector2(r.position.x + 9, y + 3 * step + 6 + extra_y), bw - 18, INK)
 	var hint_y := top + card_h + (22.0 if big else 16.0)
-	text(tr("A / D to choose     Space to take it") if not big else tr("Take one"), Vector2(0, hint_y), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W)
+	ui.fit_text(self, tr("A / D to choose     Space to take it") if not big else tr("Take one"), W - 16.0, Vector2(0, hint_y), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W, true)
 	var extras: Array = []
 	if sim.rerolls > 0:
 		extras.append(tr("R / Y  reroll (%d)") % sim.rerolls)
 	if sim.banishes > 0:
 		extras.append(tr("B / X  banish (%d)") % sim.banishes)
 	if not extras.is_empty():
-		text("     ".join(extras), Vector2(0, hint_y + (20.0 if big else 13.0)), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
+		ui.fit_text(self, "     ".join(extras), W - 16.0, Vector2(0, hint_y + (20.0 if big else 13.0)), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W, true)
 
 
 func choice_at(p: Vector2) -> int:

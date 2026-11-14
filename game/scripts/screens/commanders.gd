@@ -21,7 +21,13 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	var content: Content = main.content
 	var r := ui.frame(c, tr("Commanders").to_upper(), tr("Arrows or WASD move     Space choose     Esc back"))
 	var ids := Game.commanders(content, main.balance)
-	var h := 40.0 if Ui.scale == 1 else 58.0
+	var text_w: float = r.size.x - 40.0
+	# Every row is as tall as the longest description needs, so the list stays even.
+	var extra := 0.0
+	for id in ids:
+		var b: Dictionary = Ui.block(content.commanders[id].text, text_w, 2)
+		extra = maxf(extra, (mini(b.lines, 2) - 1) * Ui.lead_for(b.size))
+	var h := (40.0 if Ui.scale == 1 else 58.0) + extra
 	var step := h + 4.0
 	var visible := int((r.size.y - 36.0) / step)
 	var focused := ids.find(ui.focus.get_slice(":", 1))
@@ -38,9 +44,10 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 		ui.button(c, rect, button_id, "", "", open)
 		var tone := Ui.INK if open else Ui.MUTED
 		ui.text(c, info.name.to_upper(), Vector2(rect.position.x + 8, rect.position.y + 8 + 8 * Ui.scale), tone)
-		ui.text(c, ui.clip(info.text, rect.size.x - 16), Vector2(rect.position.x + 8, rect.end.y - 8), tone)
+		var b: Dictionary = Ui.block(info.text, text_w, 2)
+		ui.wrap_fit(c, info.text, Vector2(rect.position.x + 8, rect.end.y - 8 - (mini(b.lines, 2) - 1) * Ui.lead_for(b.size)), text_w, tone, 2)
 		var tag := (tr("Locked: %s") % Profile.unlock_text(info, content)).to_upper()
 		if open:
 			tag = tr("Chosen").to_upper() if main.run_setup.commander == id else ""
 		if tag != "":
-			ui.text(c, ui.clip(tag, rect.size.x - 150), Vector2(0, rect.position.y + 8 + 8 * Ui.scale), Ui.RED if not open else Ui.BROWN, HORIZONTAL_ALIGNMENT_RIGHT, rect.end.x - 8)
+			ui.fit_text(c, tag, rect.size.x - 150, Vector2(0, rect.position.y + 8 + 8 * Ui.scale), Ui.RED if not open else Ui.BROWN, HORIZONTAL_ALIGNMENT_RIGHT, rect.end.x - 8)

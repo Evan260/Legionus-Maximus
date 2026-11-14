@@ -1788,3 +1788,157 @@ func test_each_language_has_a_font_that_draws_it(_b: Dictionary) -> void:
 		check(f.has_char(samples[loc].unicode_at(0)) or f.get_string_size(samples[loc]).x > 0.0, "%s has a font" % loc)
 		for ch in samples[loc]:
 			check(f.has_char(ch.unicode_at(0)), "the %s font draws %s" % [loc, ch])
+
+
+# Every label the screens draw, at the width its caller gives it, in every language and at both text sizes. A label that
+# does not fit at the text size steps down to the smallest size of the language; one that does not fit even then would
+# be cut with "..", and this test fails for it, so a long translation is fixed by layout and never by cutting.
+func test_no_label_is_cut_in_any_language(b: Dictionary) -> void:
+	var before: String = Lang.code
+	var before_scale := Ui.scale
+	var cuts := []
+	var words := Content.load_all(Content.available_art())
+	var sim := Sim.new(b, words, {"seed": 1})
+	for loc in LANGUAGES:
+		Lang.apply(loc, false)
+		words.localize()
+		for scale in [1, 2]:
+			Ui.set_text_size(scale, b)
+			_cuts_in(loc, scale, words, sim, cuts)
+	Lang.apply(before, false)
+	Ui.set_text_size(before_scale, b)
+	for c in cuts:
+		print("  cut: ", c)
+	check(cuts.is_empty(), "no label is cut in any language at either text size (%d cut)" % cuts.size())
+
+
+func _fit(cuts: Array, loc: String, scale: int, what: String, s: String, width: float) -> void:
+	if not Ui.fits(s, width):
+		cuts.append("%s x%d %s: '%s' needs %d of %d" % [loc, scale, what, s, Ui.width_at(s, Ui.small_px()), width])
+
+
+func _lines(cuts: Array, loc: String, scale: int, what: String, s: String, width: float, most: int) -> void:
+	var n: int = Ui.block(s, width, most).lines
+	if n > most:
+		cuts.append("%s x%d %s: '%s' takes %d lines, room for %d" % [loc, scale, what, s, n, most])
+
+
+func _longest(list: Array) -> String:
+	var best := ""
+	for s in list:
+		if Ui.width_at(s, Ui.px) > Ui.width_at(best, Ui.px):
+			best = s
+	return best
+
+
+func _cuts_in(loc: String, scale: int, c: Content, sim: Sim, cuts: Array) -> void:
+	var big := scale > 1
+	var all_names: Array = []
+	for kind in ["recruits", "arms", "forged", "drills"]:
+		all_names.append_array(c.get(kind).values().map(func(e): return str(e.name)))
+	var provinces: Array = c.provinces.values().map(func(e): return str(e.name))
+	var commanders: Array = c.commanders.values().map(func(e): return str(e.name))
+	var tr_ := func(s: String) -> String: return TranslationServer.translate(s)
+	# The key hints at the foot of a screen, which lose their first parts when they do not fit.
+	for s in ["Arrows or WASD move     Space choose     Esc back", "Arrows or WASD move     Space buy a rank     Esc back", "Arrows or WASD move     Esc back",
+			"Arrows or WASD move     Left and right change a volume     Esc back", "Press the new key or button     Esc cancel",
+			"Space change a key or button     Esc back", "Space camp     Esc title"]:
+		_fit(cuts, loc, scale, "key hint", tr_.call(s), 624.0)
+	_fit(cuts, loc, scale, "level-up hint", tr_.call("A / D to choose     Space to take it"), 624.0)
+	_fit(cuts, loc, scale, "level-up extras", tr_.call("R / Y  reroll (%d)") % 9 + "     " + tr_.call("B / X  banish (%d)") % 9, 624.0)
+	_fit(cuts, loc, scale, "demo hint", tr_.call("The full game continues past %d minutes") % 15, 624.0)
+	_fit(cuts, loc, scale, "endless hint", tr_.call("Held out %s after the chieftain") % "99:59", 624.0)
+	# Pause and title buttons.
+	var pause_w := (260.0 if big else 180.0) - 12.0
+	for s in ["Resume", "Settings", "Give up the run"]:
+		_fit(cuts, loc, scale, "pause button", tr_.call(s).to_upper(), pause_w)
+	for s in ["March", "Settings", "Wishlist on Steam"]:
+		_fit(cuts, loc, scale, "title button", tr_.call(s).to_upper(), 188.0)
+	_fit(cuts, loc, scale, "march button", tr_.call("March").to_upper(), 148.0)
+	# Camp boards and the line over the march button.
+	var board_w := (296.0 if big else 140.0) - 12.0
+	for s in CampScreen.BOARDS:
+		_fit(cuts, loc, scale, "board name", tr_.call(s[1]).to_upper(), board_w)
+	for s in [tr_.call("%d denarii") % 99999, tr_.call("%d found") % 999] + provinces + commanders:
+		_fit(cuts, loc, scale, "board line", s, board_w)
+	var modes: Array = [tr_.call("Hard"), tr_.call("Endless"), tr_.call("Decimatio")]
+	_fit(cuts, loc, scale, "camp line", "%s, %s, %s" % [_longest(provinces), _longest(commanders), " + ".join(modes)], 624.0)
+	# Summary buttons, stat labels, mode list, bars and chart captions.
+	for s in ["Camp", "Title"]:
+		_fit(cuts, loc, scale, "summary button", tr_.call(s).to_upper(), SummaryScreen.button_width() - 12.0)
+	_fit(cuts, loc, scale, "wishlist button", tr_.call("Wishlist").to_upper(), SummaryScreen.wide_button_width() - 12.0)
+	var labels: Array = ["Time", "Kills", "Level", "Legion", "Denarii", "Banked"].map(func(s): return tr_.call(s))
+	var left_w := SummaryScreen.stats_width(labels)
+	for s in labels:
+		_fit(cuts, loc, scale, "stat label", s, left_w - Ui.width_at("99999", Ui.px) - 8.0)
+	var sources: Array = all_names + [str(c.base_commander.name)]
+	var bar_w := SummaryScreen.names_width(sources)
+	for s in sources:
+		_fit(cuts, loc, scale, "damage source", s, bar_w)
+	for s in ["Victory", "The commander has fallen", "The demo ends here"]:
+		_fit(cuts, loc, scale, "summary mode list", " + ".join(modes), 608.0 - 36.0 - Ui.width_at(tr_.call(s).to_upper(), Ui.px))
+	_fit(cuts, loc, scale, "damage heading", tr_.call("Damage by source").to_upper(), 356.0)
+	_fit(cuts, loc, scale, "none recorded", tr_.call("None recorded"), 356.0)
+	_fit(cuts, loc, scale, "chart heading", tr_.call("Legion size over time").to_upper(), 584.0 - Ui.width_at(tr_.call("Largest %d") % 999, Ui.px) - 12.0)
+	_fit(cuts, loc, scale, "chart empty", tr_.call("The run was too short to chart"), 584.0)
+	# Settings.
+	var pct := Ui.width_at("100%", Ui.px)
+	for s in ["Master volume", "Music volume", "Effects volume"]:
+		_fit(cuts, loc, scale, "volume name", tr_.call(s), 440.0 - 12.0 - pct - 80.0 - 6.0)
+	for s in ["Full screen", "Screen shake", "Damage numbers"]:
+		_fit(cuts, loc, scale, "toggle name", tr_.call(s), 440.0 - 12.0 - maxf(Ui.width_at(tr_.call("On"), Ui.px), Ui.width_at(tr_.call("Off"), Ui.px)) - 6.0)
+	_fit(cuts, loc, scale, "text size", tr_.call("Text size"), 440.0 - 12.0 - maxf(Ui.width_at(tr_.call("Large"), Ui.px), Ui.width_at(tr_.call("Normal"), Ui.px)) - 6.0)
+	_fit(cuts, loc, scale, "language label", tr_.call("Language"), 440.0 - 12.0 - 120.0)
+	_fit(cuts, loc, scale, "controls button", tr_.call("Keys and buttons"), 428.0)
+	_fit(cuts, loc, scale, "back button", tr_.call("Back").to_upper(), 428.0)
+	var m := SettingsScreen.controls_metrics(608.0)
+	for a in Controls.ACTIONS:
+		_fit(cuts, loc, scale, "action name", tr_.call(a[1]), m.name_w - 6.0)
+	var key_names: Array = [tr_.call("Press...")]
+	for k in Controls.KEYS.values():
+		for code in k:
+			key_names.append(Controls.key_name(code))
+	for button in Controls.PAD_NAMES:
+		key_names.append(Controls.pad_name(button))
+	for s in key_names:
+		_fit(cuts, loc, scale, "key button", s, m.bw - 12.0)
+	for s in ["Use defaults", "Back"]:
+		_fit(cuts, loc, scale, "controls footer button", tr_.call(s).to_upper(), 288.0 - 12.0)
+	# Quartermaster rows and the description box.
+	var right_w := maxf(Ui.width_at(tr_.call("Max").to_upper(), Ui.px), Ui.width_at("1600", Ui.px)) + 6.0
+	for id in c.quartermaster:
+		var info: Dictionary = c.quartermaster[id]
+		var label := "%d/%d %s" % [3, int(info.ranks), info.name] if big else "%s  %d/%d" % [info.name, 3, int(info.ranks)]
+		_fit(cuts, loc, scale, "quartermaster row", label, 280.0 - 23.0 - right_w - 6.0)
+		_lines(cuts, loc, scale, "quartermaster text", info.text, 568.0, 2)
+	# Map and commanders.
+	var map_text := 568.0
+	var results: Array = [tr_.call("Best time %s") % "99:59", tr_.call("Not won yet"), tr_.call("Hard not won"), tr_.call("Endless %s") % "99:59"]
+	if Ui.pack(results, "  " if big else "     ", map_text).size() > 2:
+		cuts.append("%s x%d map results take more than two lines" % [loc, scale])
+	for id in c.provinces:
+		_lines(cuts, loc, scale, "province text", c.provinces[id].text, map_text, 2)
+	for id in c.commanders:
+		_lines(cuts, loc, scale, "commander text", c.commanders[id].text, map_text, 2)
+		var tag: String = (tr_.call("Locked: %s") % Profile.unlock_text(c.commanders[id], c)).to_upper()
+		_fit(cuts, loc, scale, "commander tag", tag, 434.0)
+	_fit(cuts, loc, scale, "chosen tag", tr_.call("Chosen").to_upper(), 434.0)
+	var mode_w := (map_text - 12.0) / 3.0
+	for s in modes:
+		_fit(cuts, loc, scale, "mode button", "[x] " + s, mode_w - 12.0)
+	_fit(cuts, loc, scale, "map note", tr_.call("Win here to open these"), map_text)
+	_fit(cuts, loc, scale, "marching here", tr_.call("Marching here").to_upper(), 300.0)
+	# Level-up cards: three or four across.
+	for n in [3, 4]:
+		var gap := 8.0 if n > 3 else 12.0
+		var bw := minf(200.0 if big else 176.0, (616.0 - (n - 1) * gap) / n)
+		for id in c.recruits.keys() + c.arms.keys() + c.forged.keys() + c.drills.keys():
+			_lines(cuts, loc, scale, "card name (%d across)" % n, str(c.upgrade(id).name).to_upper(), bw - 8.0, 2)
+			_fit(cuts, loc, scale, "card level (%d across)" % n, Upgrades.level_text(sim, id), bw - 8.0)
+		for g in ["Recruit", "Arms", "Forged", "Drill"]:
+			_fit(cuts, loc, scale, "card group (%d across)" % n, tr_.call(g).to_upper(), bw - 8.0)
+	# Achievement cards.
+	var room := 240.0 if big else 150.0
+	_fit(cuts, loc, scale, "card heading", tr_.call("Achievement").to_upper(), room)
+	for id in c.achievements:
+		_lines(cuts, loc, scale, "achievement name", str(c.achievements[id].name).to_upper(), room, 2)

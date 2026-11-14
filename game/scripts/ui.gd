@@ -51,19 +51,43 @@ static func draw_in(loc: String) -> void:
 	px = _px_for(loc if loc != "" else Lang.code)
 
 
-## The distance between two lines of text; the 10 px font needs two more pixels than the 8 px ones.
+## The distance between two lines of text of a size: a quarter more than the size, so 8 gives 10, 10 gives 12 and 16 gives 20.
+static func lead_for(size: int) -> float:
+	return float(size * 5 / 4)
+
+
 static func leading() -> float:
-	return 10.0 * scale if Lang.base_px() == 8 or scale > 1 else 12.0
+	return lead_for(px)
 
 
-## Text cut into lines no wider than the width, breaking at spaces, or between any two letters in languages written without them.
-static func lines_of(s: String, width: float) -> Array:
+## The smallest size the language's font is drawn at, which a label steps down to when it does not fit at the text size.
+static func small_px() -> int:
+	return mini(px, Lang.base_px(Lang.code))
+
+
+static func width_at(s: String, size: int) -> float:
+	return font().get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+
+
+## The size a label is drawn at to fit the width: the text size, or the smallest one when it does not fit.
+static func fit_size(s: String, width: float) -> int:
+	return px if width_at(s, px) <= width else small_px()
+
+
+## True when the label fits the width at the text size or the smallest size, so nothing is cut.
+static func fits(s: String, width: float) -> bool:
+	return width_at(s, fit_size(s, width)) <= width
+
+
+## Text cut into lines no wider than the width at a size (the text size when 0), breaking at spaces, or between any two letters in languages written without them.
+static func lines_of(s: String, width: float, size := 0) -> Array:
+	var sz := size if size > 0 else px
 	var out: Array = []
 	var line := ""
 	var f := font()
 	if Lang.is_han():
 		for ch in s:
-			if line != "" and f.get_string_size(line + ch, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x > width:
+			if line != "" and f.get_string_size(line + ch, HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x > width:
 				out.append(line)
 				line = ""
 			if not (line == "" and ch == " "):
@@ -71,7 +95,7 @@ static func lines_of(s: String, width: float) -> Array:
 	else:
 		for w in s.split(" "):
 			var trial: String = w if line == "" else line + " " + w
-			if f.get_string_size(trial, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x > width and line != "":
+			if f.get_string_size(trial, HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x > width and line != "":
 				out.append(line)
 				line = w
 			else:
@@ -79,6 +103,33 @@ static func lines_of(s: String, width: float) -> Array:
 	if line != "":
 		out.append(line)
 	return out
+
+
+## Items joined by a separator into lines no wider than the width at the text size.
+static func pack(items: Array, sep: String, width: float) -> Array:
+	var out: Array = []
+	var line := ""
+	for item in items:
+		var trial: String = str(item) if line == "" else line + sep + str(item)
+		if line != "" and width_at(trial, px) > width:
+			out.append(line)
+			line = str(item)
+		else:
+			line = trial
+	if line != "":
+		out.append(line)
+	return out
+
+
+## How a paragraph is laid out in at most `max_lines` lines: the size it is drawn at (the smallest when the text size
+## needs more lines) and the lines it takes at that size.
+static func block(s: String, width: float, max_lines: int) -> Dictionary:
+	var size := px
+	var lines := lines_of(s, width, size).size()
+	if lines > max_lines and small_px() < px:
+		size = small_px()
+		lines = lines_of(s, width, size).size()
+	return {"size": size, "lines": lines}
 
 
 ## The first row of a list of `visible` rows to show so the row at `index` is on screen, moving as little as it can.
@@ -109,18 +160,40 @@ func width_of(s: String) -> float:
 
 
 ## The text cut with dots so it fits the width.
-func clip(s: String, width: float) -> String:
-	if width_of(s) <= width:
+func clip(s: String, width: float, size := 0) -> String:
+	var sz := size if size > 0 else px
+	if width_at(s, sz) <= width:
 		return s
-	while s.length() > 1 and width_of(s + "..") > width:
+	while s.length() > 1 and width_at(s + "..", sz) > width:
 		s = s.left(s.length() - 1)
 	return s + ".."
 
 
-func text(c: CanvasItem, s: String, pos: Vector2, col: Color = INK, align := HORIZONTAL_ALIGNMENT_LEFT, width := -1.0, shade := false) -> void:
+func text(c: CanvasItem, s: String, pos: Vector2, col: Color = INK, align := HORIZONTAL_ALIGNMENT_LEFT, width := -1.0, shade := false, size := 0) -> void:
+	var sz := size if size > 0 else px
 	if shade:
-		c.draw_string(font(), pos + Vector2(scale, scale), s, align, width, px, INK)
-	c.draw_string(font(), pos, s, align, width, px, col)
+		c.draw_string(font(), pos + Vector2(scale, scale), s, align, width, sz, INK)
+	c.draw_string(font(), pos, s, align, width, sz, col)
+
+
+## A label that stays inside `avail` pixels: drawn at the smallest size when it does not fit at the text size, and only then cut with dots.
+func fit_text(c: CanvasItem, s: String, avail: float, pos: Vector2, col: Color = INK, align := HORIZONTAL_ALIGNMENT_LEFT, width := -1.0, shade := false) -> void:
+	var size := fit_size(s, avail)
+	text(c, clip(s, avail, size), pos, col, align, width, shade, size)
+
+
+## A paragraph of at most `max_lines` lines, centred in `box` when given; returns the y of the line after the last one.
+func wrap_fit(c: CanvasItem, s: String, pos: Vector2, width: float, col: Color, max_lines: int, align := HORIZONTAL_ALIGNMENT_LEFT, box := -1.0) -> float:
+	var size: int = block(s, width, max_lines).size
+	var lines := lines_of(s, width, size)
+	var y := pos.y
+	for i in mini(lines.size(), max_lines):
+		var line: String = lines[i]
+		if i == max_lines - 1 and lines.size() > max_lines:
+			line = clip(" ".join(lines.slice(i)), width, size)
+		text(c, line, Vector2(pos.x, y), col, align, box, false, size)
+		y += lead_for(size)
+	return y
 
 
 ## Words wrapped to the width; returns the y of the line after the last one.
@@ -150,11 +223,12 @@ func frame(c: CanvasItem, title: String, hint: String) -> Rect2:
 	var r := Rect2(16, 12, W - 32, H - 40)
 	panel(c, r)
 	text(c, title, Vector2(r.position.x + 12, r.position.y + 8 + 8 * scale), BROWN)
-	# Long hints lose their first parts until the rest fits the screen.
+	# A long hint steps down to the smallest size, and only then loses its first parts until the rest fits the screen.
 	var parts: Array = hint.split("     ")
-	while parts.size() > 1 and width_of("     ".join(parts)) > W - 16.0:
+	var size := fit_size("     ".join(parts), W - 16.0)
+	while parts.size() > 1 and width_at("     ".join(parts), size) > W - 16.0:
 		parts.remove_at(0)
-	text(c, "     ".join(parts), Vector2(0, H - 10), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W, true)
+	text(c, "     ".join(parts), Vector2(0, H - 10), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W, true, size)
 	return r
 
 
@@ -180,9 +254,9 @@ func button(c: CanvasItem, r: Rect2, id: String, label: String, right := "", ena
 	if right != "":
 		text(c, right, Vector2(r.end.x - 6.0 - right_w + 6.0, y), right_col if enabled else MUTED)
 	if centered:
-		text(c, clip(label, r.size.x - 12.0), Vector2(r.position.x, y), ink, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
+		fit_text(c, label, r.size.x - 12.0, Vector2(r.position.x, y), ink, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
 	else:
-		text(c, clip(label, r.end.x - x - right_w - 6.0), Vector2(x, y), ink)
+		fit_text(c, label, r.end.x - x - right_w - 6.0, Vector2(x, y), ink)
 
 
 ## The icon image of a level-up id or an icon key, or null when it is not drawn.

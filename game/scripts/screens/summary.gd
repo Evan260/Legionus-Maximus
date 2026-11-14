@@ -47,6 +47,32 @@ static func chart_points(sim: Sim) -> Array:
 	return pts
 
 
+## The width of the stats column: the usual one, or wider when the longest label and a five digit number need it.
+static func stats_width(labels: Array) -> float:
+	var widest := 0.0
+	for s in labels:
+		widest = maxf(widest, Ui.width_at(s, Ui.px))
+	return clampf(widest + Ui.width_at("99999", Ui.px) + 12.0, 212.0, 260.0)
+
+
+## The width of the names column of the damage bars, wide enough for the longest source name up to a limit.
+static func names_width(names: Array) -> float:
+	var widest := 0.0
+	for s in names:
+		widest = maxf(widest, Ui.width_at(s, Ui.px))
+	return clampf(widest + 6.0, 110.0 if Ui.scale == 1 else 150.0, 170.0 if Ui.scale == 1 else 200.0)
+
+
+## The width of the camp and title buttons: the usual one, or wider when the longer of the two words needs it.
+static func button_width() -> float:
+	var widest := maxf(Ui.width_at(TranslationServer.translate("Camp").to_upper(), Ui.px), Ui.width_at(TranslationServer.translate("Title").to_upper(), Ui.px))
+	return maxf(100.0 if Ui.scale > 1 else 80.0, widest + 14.0)
+
+
+static func wide_button_width() -> float:
+	return maxf(150.0 if Ui.scale > 1 else 120.0, Ui.width_at(TranslationServer.translate("Wishlist").to_upper(), Ui.px) + 14.0)
+
+
 func draw(c: CanvasItem, ui: Ui) -> void:
 	var sim: Sim = main.sim
 	var s := Ui.scale
@@ -66,27 +92,27 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	var r := ui.frame(c, title, hint)
 	if not modes.is_empty():
 		var room := r.size.x - 36.0 - ui.width_of(title)
-		ui.text(c, ui.clip(" + ".join(modes), room), Vector2(0, r.position.y + 8 + 8 * s), Ui.INK, HORIZONTAL_ALIGNMENT_RIGHT, r.end.x - 12)
+		ui.fit_text(c, " + ".join(modes), room, Vector2(0, r.position.y + 8 + 8 * s), Ui.INK, HORIZONTAL_ALIGNMENT_RIGHT, r.end.x - 12)
 	var top := r.position.y + 24.0 + 8.0 * s
 	var srow := 13.0 if s == 1 else 20.0
 	var brow := 12.0 if s == 1 else 18.0
 	var lx := r.position.x + 12.0
-	var left_w := 212.0
 	var stats := [[tr("Time"), clock(sim.time)], [tr("Kills"), str(sim.kills)], [tr("Level"), str(sim.level)], [tr("Legion"), str(sim.soldiers.size() + 1)],
 		[tr("Denarii"), str(sim.denarii)], [tr("Banked"), str(int(Profile.data.denarii))]]
+	var left_w := stats_width([tr("Time"), tr("Kills"), tr("Level"), tr("Legion"), tr("Denarii"), tr("Banked")])
 	for i in stats.size():
-		ui.text(c, stats[i][0], Vector2(lx, top + i * srow), Ui.INK)
+		ui.fit_text(c, stats[i][0], left_w - ui.width_of("99999") - 8.0, Vector2(lx, top + i * srow), Ui.INK)
 		ui.text(c, stats[i][1], Vector2(0, top + i * srow), Ui.RED, HORIZONTAL_ALIGNMENT_RIGHT, lx + left_w)
 	_bars(c, ui, sim, Rect2(lx + left_w + 16.0, top, r.end.x - 12.0 - (lx + left_w + 16.0), brow * (BARS + 1)), brow)
 	var cap_y := top + brow * (BARS + 1) + 8.0
 	var h := 30.0 if s > 1 else 22.0
 	var chart := Rect2(lx, cap_y + 6.0, r.size.x - 24.0, r.end.y - h - 14.0 - (cap_y + 6.0))
 	_chart(c, ui, sim, chart, cap_y)
-	var bw := 100.0 if s > 1 else 80.0
+	var bw := button_width()
 	ui.button(c, Rect2(r.end.x - 12.0 - 2.0 * bw - 8.0, r.end.y - h - 6.0, bw, h), "camp", tr("Camp").to_upper(), "", true, null, true)
 	ui.button(c, Rect2(r.end.x - 12.0 - bw, r.end.y - h - 6.0, bw, h), "title", tr("Title").to_upper(), "", true, null, true)
 	if sim.demo_over and int(main.balance.demo.store_app_id) > 0:
-		var wide := 150.0 if s > 1 else 120.0
+		var wide := wide_button_width()
 		ui.button(c, Rect2(r.end.x - 12.0 - 2.0 * bw - 16.0 - wide, r.end.y - h - 6.0, wide, h), "wishlist", tr("Wishlist").to_upper(), "", true, null, true)
 
 
@@ -96,7 +122,7 @@ func _bars(c: CanvasItem, ui: Ui, sim: Sim, area: Rect2, row: float) -> void:
 	if rows.is_empty():
 		ui.text(c, tr("None recorded"), Vector2(area.position.x, area.position.y + row), Ui.MUTED)
 		return
-	var name_w := 110.0 if Ui.scale == 1 else 150.0
+	var name_w := names_width(rows.map(func(row): return str(row[0])))
 	var val_w := 38.0 if Ui.scale == 1 else 66.0
 	var bar_x := area.position.x + name_w + 8.0
 	var bar_w := area.end.x - val_w - bar_x
@@ -104,7 +130,7 @@ func _bars(c: CanvasItem, ui: Ui, sim: Sim, area: Rect2, row: float) -> void:
 	for i in rows.size():
 		var y := area.position.y + row * (i + 1)
 		var top := y - Ui.px * 3 / 4
-		ui.text(c, ui.clip(rows[i][0], name_w), Vector2(area.position.x, y), Ui.INK)
+		ui.fit_text(c, rows[i][0], name_w, Vector2(area.position.x, y), Ui.INK)
 		var fill := maxf(1.0, floorf(bar_w * rows[i][1] / most))
 		c.draw_rect(Rect2(bar_x - 1, top - 1, bar_w + 2, Ui.px * 3 / 4 + 3), Ui.INK)
 		c.draw_rect(Rect2(bar_x, top, bar_w, Ui.px * 3 / 4 + 1), Ui.PARCH_DARK)

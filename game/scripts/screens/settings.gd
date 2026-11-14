@@ -161,14 +161,24 @@ func _draw_main(c: CanvasItem, ui: Ui) -> void:
 	ui.button(c, Rect2(x, y, w, h), "back", tr("Back").to_upper(), "", true, null, true)
 
 
+## The width of the action names column, wide enough for the longest name in the language, and of each of the three buttons beside it.
+static func controls_metrics(frame_w: float) -> Dictionary:
+	var widest := 0.0
+	for a in Controls.ACTIONS:
+		widest = maxf(widest, Ui.width_at(TranslationServer.translate(a[1]), Ui.px))
+	var name_w := maxf(150.0 if Ui.scale > 1 else 110.0, widest + 12.0)
+	return {"name_w": name_w, "bw": (frame_w - 24.0 - name_w - 3 * 4.0) / 3.0}
+
+
 func _draw_controls(c: CanvasItem, ui: Ui) -> void:
 	var hint := tr("Press the new key or button     Esc cancel") if not waiting.is_empty() else tr("Space change a key or button     Esc back")
 	var r := ui.frame(c, tr("Keys and buttons").to_upper(), hint)
 	var saved: Dictionary = Profile.data.settings.get("bindings", {})
 	var h := 24.0 if Ui.scale > 1 else 18.0
 	var step := h + 3.0
-	var name_w := 150.0 if Ui.scale > 1 else 110.0
-	var bw := (r.size.x - 24.0 - name_w - 3 * 4.0) / 3.0
+	var metrics := controls_metrics(r.size.x)
+	var name_w: float = metrics.name_w
+	var bw: float = metrics.bw
 	var y := r.position.y + 28.0
 	var slots := [["keys", 0], ["keys", 1], ["pads", 0]]
 	for a in Controls.ACTIONS:

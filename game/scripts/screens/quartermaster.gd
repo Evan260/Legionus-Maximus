@@ -37,8 +37,8 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 		ui.text(c, info.name.to_upper(), Vector2(box.position.x + 8, box.position.y + 15), Ui.INK)
 		var cost := Profile.next_cost(focus_id, content)
 		var note := tr("Fully upgraded.") if cost < 0 else tr("Next rank costs %d denarii.") % cost
-		ui.text(c, note, Vector2(0, box.position.y + 15), Ui.BROWN, HORIZONTAL_ALIGNMENT_RIGHT, box.end.x - 8)
-		ui.text(c, ui.clip(info.text, box.size.x - 16), Vector2(box.position.x + 8, box.position.y + 30), Ui.INK)
+		ui.fit_text(c, note, box.size.x - 24.0 - ui.width_of(info.name.to_upper()), Vector2(0, box.position.y + 15), Ui.BROWN, HORIZONTAL_ALIGNMENT_RIGHT, box.end.x - 8)
+		ui.wrap_fit(c, info.text, Vector2(box.position.x + 8, box.position.y + 30), box.size.x - 16, Ui.INK, 2)
 
 
 ## The name and rank; with large text the rank leads so a long name is the part that is cut.
