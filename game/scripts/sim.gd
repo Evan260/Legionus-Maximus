@@ -5,6 +5,9 @@ extends RefCounted
 const CELL := 32.0
 const GW := 48
 const UNIT_RADIUS := 7.0
+## Kinds that happen many times an update are counted and reported once per update; the rest are reported as they happen.
+const COUNTED := ["hit", "kill", "coin", "arrow", "pilum", "bolt"]
+const EVENT_CAP := 64
 const DIRS := ["east", "south-east", "south", "south-west", "west", "north-west", "north", "north-east"]
 
 var b: Dictionary
@@ -49,6 +52,8 @@ var chieftain_id: int:
 	get:
 		return horde.chieftain_id
 
+## What the sound reads: {kind, pos} and, for counted kinds, how many (n). The reader clears the list.
+var events: Array = []
 var shots: Array = []
 var c_pos := PackedVector2Array()
 var c_val := PackedInt32Array()
@@ -89,6 +94,9 @@ var _damage := PackedFloat64Array()
 var _src_ids := {}
 var _src_names: Array = []
 var _last_hp := 0.0
+var _tally_n := PackedInt32Array([0, 0, 0, 0, 0, 0])
+var _tally_pos := PackedVector2Array([Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO])
+var _chieftain_heard := false
 
 
 func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
@@ -198,6 +206,7 @@ func update(dt: float, move: Vector2, testudo_pressed: bool) -> void:
 		return
 	time += dt
 	if testudo_pressed and testudo_charge >= 1.0 and testudo_left <= 0.0:
+		event("testudo", commander.pos)
 		testudo_left = b.testudo_hold + 1.0 * rank("testudo")
 		testudo_charge = 0.0
 		shake = maxf(shake, float(b.shake.testudo))
@@ -219,9 +228,33 @@ func update(dt: float, move: Vector2, testudo_pressed: bool) -> void:
 	_decimate()
 	peak_soldiers = maxi(peak_soldiers, soldiers.size())
 	_track(dt)
+	if not _chieftain_heard and horde.chieftain_id != -1:
+		_chieftain_heard = true
+		event("chieftain", commander.pos)
+	_flush_events()
 	if commander.hp <= 0.0:
 		over = true
 		victory = false
+
+
+## Reports something rare at once. The list is capped so a reader that never clears it cannot grow it.
+func event(kind: String, pos: Vector2) -> void:
+	if events.size() < EVENT_CAP:
+		events.append({"kind": kind, "pos": pos})
+
+
+## Counts something frequent; `flush` turns each count into one event at the end of the update.
+func tally(kind_index: int, pos: Vector2) -> void:
+	_tally_n[kind_index] += 1
+	_tally_pos[kind_index] = pos
+
+
+func _flush_events() -> void:
+	for i in COUNTED.size():
+		if _tally_n[i] > 0:
+			if events.size() < EVENT_CAP:
+				events.append({"kind": COUNTED[i], "pos": _tally_pos[i], "n": _tally_n[i]})
+			_tally_n[i] = 0
 
 
 ## Gives every weapon and soldier type an int id once, so a harm is a plain array add.
@@ -250,6 +283,7 @@ func _track(dt: float) -> void:
 		history.append({"t": time, "legion": soldiers.size() + 1, "kills": kills})
 	if commander.hp < _last_hp:
 		shake = maxf(shake, float(b.shake.hurt))
+		event("hurt", commander.pos)
 	_last_hp = commander.hp
 
 
@@ -323,6 +357,7 @@ func _number(i: int, taken: float) -> void:
 
 func hit(i: int, dmg: float, burn_dps: float = 0.0, src := "") -> void:
 	_number(i, _harm(i, dmg, src_id(src)))
+	tally(0, horde.e_pos[i])
 	horde.e_flash[i] = 0.1
 	if burn_dps > 0.0:
 		var greek: float = float(b.greek_fire.burn_mult) if rank("greek_fire") > 0 else 1.0
@@ -363,6 +398,9 @@ func _legion_attacks(dt: float) -> void:
 ## A missile in flight; extra can set knock, bounces, bounce_reach, explode and life.
 func shoot(kind: String, from: Vector2, to: Vector2, spd: float, dmg: float, pierce: int, burn: float = 0.0, extra: Dictionary = {}) -> void:
 	var dir := (to - from).normalized()
+	var counted := COUNTED.find(kind)
+	if counted >= 0:
+		tally(counted, from)
 	var shot := {"kind": kind, "pos": from + dir * 6.0, "vel": dir * spd, "dmg": dmg, "pierce": pierce,
 		"burn": burn, "life": 1.4, "hit": {}, "knock": 0.0, "bounces": 0, "bounce_reach": 0.0, "explode": 0.0, "pin": 0.0, "src": kind}
 	shot.merge(extra, true)
@@ -455,6 +493,7 @@ func _remove_dead() -> void:
 func _kill(i: int) -> void:
 	var id: String = horde.kind_ids[horde.e_kind[i]]
 	kills += 1
+	tally(1, horde.e_pos[i])
 	killed_kinds[id] = true
 	var pay := float(content.enemies[id].coins) * (1.0 + float(b.drills.plunder) * rank("plunder") + _bonus_amount("denarii")) * (float(b.hard.denarii_mult) if hard else 1.0)
 	# A fraction of a coin is paid as the same chance of one more.
@@ -472,6 +511,7 @@ func _kill(i: int) -> void:
 		else:
 			over = true
 			victory = true
+			event("victory", horde.e_pos[i])
 	horde.remove_at(i)
 
 
@@ -485,6 +525,7 @@ func _coins(dt: float) -> void:
 		if c_pull[i] == 1:
 			var d := to.length()
 			if d < 6.0:
+				tally(2, commander.pos)
 				gain(c_val[i])
 				var last := c_pos.size() - 1
 				c_pos[i] = c_pos[last]
@@ -508,6 +549,7 @@ func gain(value: int) -> void:
 		level += 1
 		xp_next = int(b.xp_first + b.xp_step * (level - 1))
 		pending_levels += 1
+		event("level", commander.pos)
 
 
 func _effects(dt: float) -> void:

@@ -17,6 +17,7 @@ boot_splash/show_image=false
 [autoload]
 
 Profile="*res://scripts/profile.gd"
+Audio="*res://scripts/audio.gd"
 
 [display]
 

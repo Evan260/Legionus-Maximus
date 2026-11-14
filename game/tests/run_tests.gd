@@ -1525,6 +1525,51 @@ func test_shake_comes_from_hurt_chieftain_and_testudo(b: Dictionary) -> void:
 	check(h.shake == before, "the sim leaves decaying the shake to the view")
 
 
+func _event_kinds(s: Sim) -> Array:
+	var out := []
+	for e in s.events:
+		out.append(e.kind)
+	return out
+
+
+func test_events_are_reported_once(b: Dictionary) -> void:
+	var s := Sim.new(b, content, {"seed": 301})
+	s.horde.spawn("barbarian_club", s.commander.pos + Vector2(12, 0))
+	var seen := false
+	for i in 120:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+		var kinds := _event_kinds(s)
+		check(kinds.count("hit") <= 1, "many hits in one update make one event")
+		if "hit" in kinds:
+			seen = true
+			check(s.events[kinds.find("hit")].n >= 1 and s.events[kinds.find("hit")].has("pos"), "a hit event has a count and a place")
+			break
+	check(seen, "fighting reports a hit")
+	s.events.clear()
+	s.horde.e_pos.clear()
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(not ("hit" in _event_kinds(s)), "a hit is not reported again once the reader has cleared it")
+	s.events.clear()
+	s.gain(int(b.xp_first))
+	check(_event_kinds(s) == ["level"], "a new level is one event")
+	s.events.clear()
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(not ("level" in _event_kinds(s)), "the level is not reported twice")
+	s.update(1.0 / 60.0, Vector2.ZERO, true)
+	check("testudo" in _event_kinds(s), "raising the shields is an event")
+	s.events.clear()
+	s.commander.hp -= 5.0
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check("hurt" in _event_kinds(s), "the commander being hurt is an event")
+
+
+func test_events_never_pile_up_unread(b: Dictionary) -> void:
+	var s := Sim.new(b, content, {"seed": 302})
+	for i in 500:
+		s.event("level", Vector2.ZERO)
+	check(s.events.size() <= Sim.EVENT_CAP, "an unread list stops growing")
+
+
 func test_settings_make_the_audio_buses(b: Dictionary) -> void:
 	SettingsScreen.apply_audio({"master": 1.0, "music": 0.5, "effects": 0.0})
 	for name in ["Master", "Music", "Effects"]:

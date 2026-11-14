@@ -206,6 +206,7 @@ func _setup_input() -> void:
 
 func _process(dt: float) -> void:
 	clock += dt
+	Audio.set_run(state in ["play", "choose", "pause"], sim.time if sim != null else 0.0)
 	if shot_at >= 0.0 and clock >= shot_at:
 		shot_at = -1.0
 		await RenderingServer.frame_post_draw
@@ -232,6 +233,7 @@ func _process(dt: float) -> void:
 				move = Vector2(cos(sim.time * 0.4), sin(sim.time * 0.4))
 				testudo = int(sim.time) % 20 == 5
 			sim.update(minf(dt, 1.0 / 30.0), move, testudo)
+			Audio.drain(sim)
 			if sim.over:
 				_finish_run()
 			elif sim.pending_levels > 0 or sim.free_choices > 0:
@@ -282,6 +284,7 @@ func _screen_input(dt: float) -> void:
 
 
 func _back() -> void:
+	Audio.play("back")
 	match state:
 		"title":
 			pass
@@ -300,6 +303,7 @@ func _back() -> void:
 func _activate(id: String) -> void:
 	if not ui.is_enabled(id):
 		return
+	Audio.play("click")
 	if state == "camp":
 		if id == "march":
 			_start()
@@ -320,6 +324,7 @@ func _open_choices() -> void:
 
 
 func _take(i: int) -> void:
+	Audio.play("confirm")
 	Upgrades.apply(sim, choices[i])
 	state = "play"
 	# The confirm key is also the testudo key, so the press that took the choice must not raise the shields.

@@ -251,6 +251,7 @@ func _spawn(dt: float, sim: Sim) -> void:
 			spawn(_pick_ordinary(), ring_point())
 	if time >= next_surge:
 		next_surge += b.surge_every
+		sim.event("surge", commander.pos)
 		# A surge comes from one side as a crowd, so the legion can see it coming and turn.
 		var side := rng.randf() * TAU
 		var n := int(b.surge_size_start + b.surge_size_growth * time)
@@ -327,6 +328,7 @@ func war_cry(ci: int, sim: Sim) -> void:
 		if (e_pos[i] - centre).length_squared() <= r2:
 			e_haste[i] = float(atk.seconds)
 	sim.effects.append({"kind": "cry", "pos": centre, "t": 0.0, "radius": float(atk.radius)})
+	sim.event("chieftain", centre)
 	sim.shake = maxf(sim.shake, float(sim.b.shake.chieftain))
 
 
