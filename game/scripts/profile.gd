@@ -3,7 +3,7 @@ extends Node
 ## It is an autoload named Profile. Tests and screenshots never touch the real file, since `disabled` is set before anything loads.
 
 const DEFAULT_PATH := "user://profile.json"
-const NO_SAVE_FLAGS := ["run-tests", "bench", "autoplay", "skip", "shot", "screen"]
+const NO_SAVE_FLAGS := ["run-tests", "bench", "autoplay", "skip", "shot", "screen", "text-size"]
 
 const SETTING_DEFAULTS := {"master": 0.8, "music": 0.8, "effects": 0.8, "fullscreen": false, "shake": true, "numbers": true,
 	"text_size": 1, "bindings": {}, "language": ""}
@@ -14,12 +14,18 @@ var data := {}
 
 
 func _init() -> void:
-	for a in OS.get_cmdline_user_args():
-		if a.trim_prefix("--").split("=", true, 1)[0] in NO_SAVE_FLAGS:
-			disabled = true
+	disabled = blocks_saving(OS.get_cmdline_user_args())
 	data = defaults()
 	if not disabled:
 		load_file()
+
+
+## Whether these command-line arguments are for looking or testing, so the profile must not be read or written.
+static func blocks_saving(user_args: PackedStringArray) -> bool:
+	for a in user_args:
+		if a.trim_prefix("--").split("=", true, 1)[0] in NO_SAVE_FLAGS:
+			return true
+	return false
 
 
 static func defaults() -> Dictionary:

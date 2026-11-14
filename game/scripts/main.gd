@@ -227,7 +227,7 @@ func _process(dt: float) -> void:
 	clock += dt
 	Steamworks.blocked = state in Steamworks.HIDING_STATES
 	_steam_update(dt)
-	Audio.set_run(state in ["play", "choose", "pause"], sim.time if sim != null else 0.0)
+	Audio.set_run(Game.in_run(state, settings_from), sim.time if sim != null else 0.0)
 	if shot_at >= 0.0 and clock >= shot_at:
 		shot_at = -1.0
 		await RenderingServer.frame_post_draw
@@ -245,9 +245,7 @@ func _process(dt: float) -> void:
 			_screen_input(dt)
 		"play":
 			if Input.is_action_just_pressed("pause"):
-				state = "pause"
-				screens.pause.confirming = false
-				ui.focus = "resume"
+				_pause()
 				return
 			var move := Input.get_vector("left", "right", "up", "down")
 			var testudo := Input.is_action_just_pressed("testudo")
@@ -284,7 +282,7 @@ func _process(dt: float) -> void:
 
 ## Earns achievements the run meets while it is on, and tells Steam where the player is.
 func _steam_update(dt: float) -> void:
-	if sim != null and state in ["play", "choose", "pause"]:
+	if sim != null and Game.in_run(state, settings_from):
 		check_clock += dt
 		if check_clock >= float(balance.steam.check_every):
 			check_clock = 0.0
@@ -317,6 +315,17 @@ func _screen_input(dt: float) -> void:
 			ui.move(dir[1])
 	if Input.is_action_just_pressed("confirm") and Game.confirm_allowed(state, opened_at, clock, balance):
 		_activate(ui.focus)
+
+
+func _pause() -> void:
+	state = "pause"
+	screens.pause.confirming = false
+	ui.focus = "resume"
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and Game.pauses_on_focus_loss(state, args.has("autoplay") or args.has("skip")):
+		_pause()
 
 
 func _back() -> void:

@@ -2050,3 +2050,21 @@ func test_giving_up_asks_twice(b: Dictionary) -> void:
 	pause.activate("giveup")
 	check(m.finished and m.sim.over, "the second press gives up")
 	m.free()
+
+
+func test_look_flags_never_touch_the_saved_profile(_b: Dictionary) -> void:
+	check(Profile.blocks_saving(PackedStringArray(["--text-size=2"])), "--text-size is not saved")
+	check(Profile.blocks_saving(PackedStringArray(["--autoplay"])), "--autoplay is not saved")
+	check(not Profile.blocks_saving(PackedStringArray([])), "an ordinary start saves")
+
+
+func test_settings_opened_from_pause_stay_in_the_run(_b: Dictionary) -> void:
+	check(Game.in_run("settings", "pause"), "settings from the pause is in the run")
+	check(not Game.in_run("settings", "title"), "settings from the title is not")
+	check(Game.in_run("choose", "title") and not Game.in_run("camp", "pause"), "choose is in the run, the camp is not")
+
+
+func test_losing_focus_pauses_only_while_playing(_b: Dictionary) -> void:
+	check(Game.pauses_on_focus_loss("play", false), "focus lost in play pauses")
+	check(not Game.pauses_on_focus_loss("play", true), "not in an autoplay")
+	check(not Game.pauses_on_focus_loss("camp", false) and not Game.pauses_on_focus_loss("choose", false), "other states are left alone")
