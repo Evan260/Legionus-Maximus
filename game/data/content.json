@@ -357,7 +357,7 @@
   "greek_fire": {
    "name": "Greek fire",
    "text": "Burning arrows and fire pots become a fire water cannot put out.",
-   "history": "Byzantine Greek fire burned on water, and its recipe was a closely guarded state secret.",
+   "history": "Roman-era fire weapons of pitch and naphtha kept burning on water, and their recipes were kept secret.",
    "from": [
     "fire_arrows",
     "fire_pots"
@@ -624,7 +624,7 @@
   "berserker": {
    "name": "Berserker",
    "text": "He fights in a rage and feels no wounds.",
-   "history": "Berserkers were said to fight in a trance and to feel no pain, wearing bear or wolf skins.",
+   "history": "Germanic warriors who fought in a frenzy, in wolf and bear skins, were said to feel no pain.",
    "behaviour": "melee",
    "hp": 420,
    "speed": 40,
