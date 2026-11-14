@@ -216,11 +216,26 @@ func test_every_implemented_entry_is_ready_and_complete(b: Dictionary) -> void:
 			if not e.get("implemented", false):
 				continue
 			# These recruits are implemented before their sprites are drawn; the art gate keeps them hidden.
-			if not (kind == "recruits" and WAITING_FOR_ART.has(id)):
+			if not (kind == "recruits" and WAITING_FOR_ART.has(id)) and not _art_waiting(kind, id):
 				check(content.ready(kind, id), "%s %s has all its art" % [kind, id])
 			check(str(e.get("name", "")) != "" and str(e.get("text", "")) != "", "%s %s has a name and text" % [kind, id])
 			if kind != "recruits":
 				check(int(e.get("max", 0)) > 0, "%s %s has a last level" % [kind, id])
+
+
+## Arms, forged forms and drills are built before their icons and small props are drawn; the art gate keeps them hidden.
+func _art_waiting(kind: String, id: String) -> bool:
+	return kind != "recruits" and not content.ready(kind, id) and not content.get(kind)[id].get("art", []).is_empty()
+
+
+## A copy of the content in which every art key exists, so offers can be tested before the art is drawn.
+func _full_content() -> Content:
+	var keys := {}
+	for kind in ["recruits", "arms", "forged", "drills"]:
+		for id in content.get(kind):
+			for k in content.get(kind)[id].get("art", []):
+				keys[k] = true
+	return Content.load_all(keys)
 
 
 ## A run with no soldiers, then one of each listed type added and set on its place.
@@ -425,3 +440,415 @@ func test_a_full_legion_of_every_kind_has_no_overlapping_places(b: Dictionary) -
 		for j in range(i + 1, places.size()):
 			worst = minf(worst, places[i].distance_to(places[j]))
 	check(worst >= 8.0, "no two places closer than 8 px (%.1f)" % worst)
+
+
+## A quiet run: no arrivals, an unkillable commander and no soldiers, with the given ranks.
+func _arms_sim(b: Dictionary, seed_value: int, ranks: Dictionary, game_content: Content = null) -> Sim:
+	var s := Sim.new(b, game_content if game_content != null else content, seed_value)
+	s.soldiers.clear()
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	s.b = b.duplicate()
+	s.b.spawn_per_second_start = 0.0
+	s.b.spawn_per_second_growth = 0.0
+	s.next_surge = 1e9
+	for id in ranks:
+		s.ranks[id] = ranks[id]
+	return s
+
+
+func _run(s: Sim, seconds: float) -> void:
+	for i in int(seconds * 60.0):
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+
+
+func _step(s: Sim, seconds: float, move: Vector2) -> void:
+	for i in int(seconds * 60.0):
+		s.update(1.0 / 60.0, move, false)
+
+
+func _max_everything(s: Sim) -> void:
+	for kind in ["arms", "forged", "drills"]:
+		for id in s.content.get(kind):
+			s.ranks[id] = int(s.content.get(kind)[id].max)
+
+
+func _sum(a: PackedInt32Array) -> int:
+	var t := 0
+	for v in a:
+		t += v
+	return t
+
+
+func test_forged_form_replaces_its_pair(b: Dictionary) -> void:
+	var full := _full_content()
+	var s := _arms_sim(b, 30, {"pilum": 5, "caltrops": 4}, full)
+	check(not Upgrades.available(s).has("hooked_pila"), "no forged form while one of the pair is short")
+	check(Upgrades.available(s).has("caltrops"), "the short weapon is still offered")
+	s.ranks.caltrops = 5
+	var avail := Upgrades.available(s)
+	check(avail.has("hooked_pila"), "the forged form is offered when both are at their last level")
+	check(not avail.has("pilum") and not avail.has("caltrops"), "and neither of the pair is")
+	var seen := false
+	for i in 60:
+		seen = seen or Upgrades.offers(s).has("hooked_pila")
+	check(seen, "it turns up in the choices")
+	Upgrades.apply(s, "hooked_pila")
+	check(s.rank("hooked_pila") == 1 and not Upgrades.available(s).has("hooked_pila"), "taken once, never again")
+
+
+func test_every_forged_form_needs_its_own_pair(b: Dictionary) -> void:
+	var full := _full_content()
+	for id in full.forged:
+		var s := _arms_sim(b, 31, {}, full)
+		for w in full.forged[id].from:
+			s.ranks[w] = 5
+		check(Upgrades.available(s).has(id), "%s is offered when its pair is done" % id)
+
+
+func test_no_choices_left_skips_the_screen(b: Dictionary) -> void:
+	var full := _full_content()
+	var s := _arms_sim(b, 32, {}, full)
+	_max_everything(s)
+	for i in 100:
+		s.legion.add("legionary")
+	s.pending_levels = 2
+	check(Upgrades.offers(s).is_empty(), "nothing to offer")
+	check(Upgrades.next_choices(s).is_empty(), "no choices for the screen")
+	check(s.pending_levels == 0, "the waiting levels are dropped so the screen never opens")
+
+
+func test_fortune_offers_four(b: Dictionary) -> void:
+	var full := _full_content()
+	var s := _arms_sim(b, 33, {}, full)
+	check(Upgrades.offers(s).size() == 3, "three choices by default")
+	Upgrades.apply(s, "fortune")
+	var o := Upgrades.offers(s)
+	check(o.size() == 4, "Fortune makes it four (%d)" % o.size())
+	var seen := {}
+	for id in o:
+		seen[id] = true
+	check(seen.size() == 4, "all different")
+
+
+func test_rerolls_and_banishes_change_the_choices(b: Dictionary) -> void:
+	var full := _full_content()
+	var s := _arms_sim(b, 34, {}, full)
+	check(s.rerolls == 1, "one reroll per run")
+	check(s.banishes == 0 and s.banished.is_empty(), "no banishes to start with")
+	var first := Upgrades.offers(s)
+	var second := Upgrades.reroll(s, first)
+	check(s.rerolls == 0, "a reroll is spent")
+	check(second.size() == 3, "still three choices")
+	for id in second:
+		check(not first.has(id), "a rerolled choice is new (%s)" % id)
+	check(Upgrades.reroll(s, second) == second, "no reroll left means the choices stay")
+	check(s.rerolls == 0, "the count never goes below zero")
+
+
+func test_banished_choice_never_returns(b: Dictionary) -> void:
+	var full := _full_content()
+	var s := _arms_sim(b, 35, {}, full)
+	s.banishes = 1
+	var o := Upgrades.offers(s)
+	var gone: String = o[0]
+	var after := Upgrades.banish(s, gone, o)
+	check(s.banishes == 0 and s.banished.has(gone), "the banish is spent and recorded")
+	check(not after.has(gone) and after.size() == 3, "its place is taken by another")
+	var back := false
+	for i in 80:
+		back = back or Upgrades.offers(s).has(gone)
+	check(not back, "banished %s stays out" % gone)
+	check(not Upgrades.available(s).has(gone), "and it is not available")
+	var again := Upgrades.banish(s, after[0], after)
+	check(again == after and s.banished.size() == 1, "with none left, nothing is banished")
+
+
+func test_burning_ground_hurts_over_time(b: Dictionary) -> void:
+	var s := _arms_sim(b, 36, {})
+	s.spawn_enemy(0, Vector2(60, 0))
+	s.e_hp[0] = 400.0
+	s.e_max[0] = 400.0
+	s.e_stun[0] = 100.0
+	s.arms.add_zone("fire", Vector2(60, 0), 20.0, 5.0, 20.0)
+	_run(s, 0.5)
+	var early: float = s.e_hp[0]
+	_run(s, 1.0)
+	var later: float = s.e_hp[0]
+	check(early < 400.0, "the fire hurt at once (%.1f)" % early)
+	check(later < early - 10.0, "and kept hurting (%.1f then %.1f)" % [early, later])
+	check(s.arms.ground_zones().size() == 1 and s.arms.ground_zones()[0].kind == "fire", "it is drawn as ground")
+	_run(s, 6.0)
+	check(s.arms.ground_zones().is_empty(), "the fire dies out")
+
+
+func test_fire_pots_light_the_ground_ahead(b: Dictionary) -> void:
+	var s := _arms_sim(b, 37, {"fire_pots": 3})
+	s.spawn_enemy(0, Vector2(80, 0))
+	s.e_stun[0] = 100.0
+	s.e_hp[0] = 500.0
+	_run(s, 6.0)
+	check(s.e_hp[0] < 500.0, "an enemy ahead was burned (%.1f)" % s.e_hp[0])
+
+
+func test_trumpets_push_enemies_back(b: Dictionary) -> void:
+	var s := _arms_sim(b, 38, {"trumpets": 1})
+	s.spawn_enemy(0, Vector2(60, 0))
+	s.spawn_enemy(0, Vector2(500, 0))
+	s.e_stun[0] = 100.0
+	s.e_stun[1] = 100.0
+	var far_before: Vector2 = s.e_pos[1]
+	_run(s, 1.5)
+	check(s.e_pos[0].x > 60.0 + 20.0, "the near enemy was pushed away (%.1f)" % s.e_pos[0].x)
+	check(s.e_pos[1].distance_to(far_before) < 40.0, "the far one was not blasted")
+
+
+func test_scorpio_bolt_damages_the_strongest(b: Dictionary) -> void:
+	var s := _arms_sim(b, 39, {"scorpio": 1})
+	s.spawn_enemy(0, Vector2(100, 0))
+	var before: float = s.e_hp[0]
+	s.e_stun[0] = 100.0
+	_run(s, 1.5)
+	check(s.e_hp.size() == 0 or s.e_hp[0] < before, "a projectile weapon hurts")
+
+
+func test_onager_stone_scatters_the_crowd(b: Dictionary) -> void:
+	var s := _arms_sim(b, 40, {"onager": 2})
+	for i in 12:
+		s.spawn_enemy(0, Vector2(120 + (i % 4) * 5, (i / 4) * 5))
+		s.e_stun[i] = 100.0
+		s.e_hp[i] = 500.0
+	var before: PackedVector2Array = s.e_pos.duplicate()
+	_run(s, 3.0)
+	var hurt := 0
+	var moved := 0
+	for i in s.e_pos.size():
+		if s.e_hp[i] < 500.0:
+			hurt += 1
+		if s.e_pos[i].distance_to(before[i]) > 2.0:
+			moved += 1
+	check(hurt >= 8, "the stone struck the crowd (%d hurt)" % hurt)
+	check(moved >= 6, "and scattered it (%d moved)" % moved)
+
+
+func test_stakes_hurt_enemies_in_the_ring(b: Dictionary) -> void:
+	var s := _arms_sim(b, 41, {"stakes": 1})
+	var r: float = float(b.stakes.radius)
+	s.spawn_enemy(0, Vector2(r, 0))
+	s.spawn_enemy(0, Vector2(r * 2.5, 0))
+	s.e_stun[0] = 100.0
+	s.e_stun[1] = 100.0
+	s.e_hp[0] = 300.0
+	s.e_hp[1] = 300.0
+	_run(s, 1.0)
+	check(s.e_hp[0] < 290.0, "the one at the ring is hurt (%.1f)" % s.e_hp[0])
+	check(s.e_hp[1] == 300.0, "the one far outside is not")
+	check(s.arms.ground_zones().any(func(z): return z.kind == "stakes"), "the ring is drawn")
+
+
+func test_torches_burn_what_they_pass(b: Dictionary) -> void:
+	var s := _arms_sim(b, 42, {"torches": 3})
+	for i in 8:
+		s.spawn_enemy(0, Vector2.from_angle(i * TAU / 8.0) * float(b.torches.radius))
+		s.e_stun[i] = 100.0
+		s.e_hp[i] = 300.0
+	_run(s, 4.0)
+	var hurt := 0
+	for i in s.e_hp.size():
+		if s.e_hp[i] < 300.0:
+			hurt += 1
+	check(hurt >= 3, "torches circling the formation hurt those on their path (%d)" % hurt)
+	check(s.arms.torch_points(s).size() == 4, "rank 3 carries four torches")
+
+
+func test_eagle_flash_strikes_everyone_around(b: Dictionary) -> void:
+	var s := _arms_sim(b, 43, {"eagle": 1})
+	for i in 5:
+		s.spawn_enemy(0, Vector2.from_angle(i * 1.2) * 50.0)
+		s.e_stun[i] = 100.0
+		s.e_hp[i] = 300.0
+	s.spawn_enemy(0, Vector2(400, 0))
+	s.e_hp[5] = 300.0
+	_run(s, 1.0)
+	var hurt := 0
+	for i in 5:
+		if s.e_hp[i] < 300.0:
+			hurt += 1
+	check(hurt == 5, "all around were struck (%d)" % hurt)
+	check(s.e_hp[5] == 300.0, "the far one was not")
+
+
+func test_caltrops_are_left_behind_and_cut(b: Dictionary) -> void:
+	var s := _arms_sim(b, 44, {"caltrops": 2})
+	_step(s, 3.0, Vector2.RIGHT)
+	var laid: Array = s.arms.ground_zones().filter(func(z): return z.kind == "caltrops")
+	check(laid.size() >= 4, "spikes lie along the march (%d)" % laid.size())
+	s.spawn_enemy(0, laid[0].pos)
+	s.e_stun[0] = 100.0
+	s.e_hp[0] = 300.0
+	_run(s, 0.6)
+	check(s.e_hp[0] < 300.0, "an enemy on them is cut (%.1f)" % s.e_hp[0])
+
+
+func test_war_dogs_run_down_a_straggler(b: Dictionary) -> void:
+	var s := _arms_sim(b, 45, {"war_dogs": 2})
+	s.spawn_enemy(0, Vector2(120, 0))
+	s.e_stun[0] = 100.0
+	var before: float = s.e_hp[0]
+	_run(s, 4.0)
+	check(s.e_hp.size() == 0 or s.e_hp[0] < before, "the dogs bit him")
+	check(s.arms.dogs.size() == 2, "rank 2 keeps two dogs")
+
+
+func test_oil_slows_enemies_on_it(b: Dictionary) -> void:
+	var s := _arms_sim(b, 46, {})
+	s.arms.add_zone("oil", Vector2(60, 0), 30.0, 5.0, 0.0, {"slow": 0.5})
+	s.spawn_enemy(0, Vector2(80, 0))
+	s.spawn_enemy(0, Vector2(80, 100))
+	var a0: Vector2 = s.e_pos[0]
+	var b0: Vector2 = s.e_pos[1]
+	_run(s, 0.5)
+	var slow: float = a0.distance_to(s.e_pos[0])
+	var free: float = b0.distance_to(s.e_pos[1])
+	check(slow < free * 0.8, "the slick slows (%.1f vs %.1f)" % [slow, free])
+
+
+func test_oil_jars_make_slick_ground(b: Dictionary) -> void:
+	var s := _arms_sim(b, 47, {"oil_jars": 2})
+	s.spawn_enemy(0, Vector2(80, 0))
+	s.e_stun[0] = 100.0
+	_run(s, 3.0)
+	check(s.arms.ground_zones().any(func(z): return z.kind == "oil"), "a jar broke into a slick")
+
+
+func test_each_forged_form_changes_its_pair(b: Dictionary) -> void:
+	var s := _arms_sim(b, 48, {"pilum": 5, "hooked_pila": 1})
+	s.spawn_enemy(0, Vector2(100, 0))
+	s.e_hp[0] = 1000.0
+	_run(s, 1.5)
+	check(s.e_stun[0] > 0.0, "hooked pila pin the enemy")
+	var g := _arms_sim(b, 49, {"fire_arrows": 5, "greek_fire": 1})
+	check(g.burn_seconds() > float(b.fire_arrows.seconds), "Greek fire burns longer")
+	var t := _arms_sim(b, 50, {"scorpio": 5, "onager": 5, "siege_train": 1})
+	check(t.arms.stones_per_throw(t) == int(b.onager.stones) + int(b.siege_train.extra_stones), "the siege train throws more stones")
+	var h := _arms_sim(b, 51, {"war_dogs": 5, "trumpets": 5, "hunting_horn": 1})
+	check(h.arms.dog_count(h) == 5 + int(b.hunting_horn.extra_dogs), "the horn calls more dogs")
+	var e := _arms_sim(b, 52, {"eagle": 5, "torches": 5, "burning_eagle": 1})
+	e.spawn_enemy(0, Vector2(40, 0))
+	e.e_stun[0] = 100.0
+	e.e_hp[0] = 1000.0
+	_run(e, 7.0)
+	check(e.e_burn[0] > 0.0 or e.e_hp[0] < 900.0, "the burning eagle sets enemies alight")
+	var f := _arms_sim(b, 53, {"stakes": 5, "oil_jars": 5, "fortified_camp": 1})
+	check(f.arms.stake_dps(f) > float(b.stakes.dps) + 4.0 * float(b.stakes.dps_per_level), "the camp's stakes hurt more")
+
+
+func test_shield_wall_cuts_front_rank_harm(b: Dictionary) -> void:
+	var lost := []
+	for r in [0, 3]:
+		var s := _legion_sim(b, 60, ["legionary"])
+		s.ranks["shield_wall"] = r
+		s.soldiers[0].hp = 1000.0
+		s.soldiers[0].max_hp = 1000.0
+		s.spawn_enemy(0, s.soldiers[0].pos + Vector2(8, 0))
+		for i in 60:
+			s.update(1.0 / 60.0, Vector2.ZERO, false)
+		lost.append(1000.0 - s.soldiers[0].hp)
+	check(lost[1] < lost[0] * 0.85 and lost[0] > 0.0, "shield wall takes less harm (%.2f vs %.2f)" % [lost[1], lost[0]])
+
+
+func test_better_bows_reach_further(b: Dictionary) -> void:
+	var near := _legion_sim(b, 61, ["archer"])
+	var far := _legion_sim(b, 61, ["archer"])
+	far.ranks["better_bows"] = 3
+	for s in [near, far]:
+		s.spawn_enemy(0, s.soldiers[0].pos + Vector2(-float(content.recruits.archer.range) * 1.2, 0))
+		s.e_stun[0] = 100.0
+	for i in 90:
+		near.update(1.0 / 60.0, Vector2.ZERO, false)
+		far.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(near.shots.is_empty() and near.e_hp[0] == near.e_max[0], "an archer cannot reach")
+	check(not far.shots.is_empty() or far.e_hp[0] < far.e_max[0], "with better bows he can")
+
+
+func test_close_order_keeps_places_faster(b: Dictionary) -> void:
+	var gaps := []
+	for r in [0, 3]:
+		var s := _legion_sim(b, 62, ["legionary", "legionary", "legionary", "archer"])
+		s.ranks["close_order"] = r
+		s.facing_angle = 0.0
+		for so in s.soldiers:
+			so.pos += Vector2(0, 60)
+		s.legion.follow(0.1, s)
+		var total := 0.0
+		for so in s.soldiers:
+			total += so.pos.distance_to(so.target)
+		gaps.append(total)
+	check(gaps[1] < gaps[0] - 1.0, "close order closes the gap faster (%.1f vs %.1f)" % [gaps[1], gaps[0]])
+
+
+func test_plunder_and_glory_pay_more(b: Dictionary) -> void:
+	var s := _arms_sim(b, 63, {"plunder": 5})
+	for i in 400:
+		s.spawn_enemy(0, Vector2(300, 300))
+		s.hit(s.e_hp.size() - 1, 9999.0)
+		s._remove_dead()
+	var total := _sum(s.c_val)
+	check(s.c_val.size() == 400 and total > 400 * 1.5 and total < 400 * 2.0, "plunder gives about 75 percent more (%d)" % total)
+	var g := _arms_sim(b, 64, {"glory": 5})
+	g.xp_next = 100000
+	for i in 100:
+		g.gain(1)
+	check(g.xp >= 145 and g.xp <= 155, "glory gives 50 percent more experience (%d)" % g.xp)
+
+
+func test_veterans_grow_with_kills(b: Dictionary) -> void:
+	var s := _legion_sim(b, 65, ["legionary", "archer"])
+	s.ranks["veterans"] = 2
+	var before: float = s.soldiers[0].max_hp
+	for i in 50:
+		s.spawn_enemy(0, Vector2(300, 300))
+		s.hit(s.e_hp.size() - 1, 9999.0)
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.soldiers[0].max_hp > before and s.soldiers[1].max_hp > float(content.recruits.archer.hp), "every soldier is tougher after kills")
+	var grown: float = s.soldiers[0].max_hp
+	for i in 20000:
+		s.legion.veterans(1, s)
+	check(s.soldiers[0].max_hp < before * 2.0, "growth has a cap (%.1f)" % s.soldiers[0].max_hp)
+	Upgrades.apply(s, "lorica")
+	check(s.soldiers[0].max_hp > grown, "lorica keeps what veterans gave")
+
+
+func test_reserves_replace_the_fallen(b: Dictionary) -> void:
+	var s := _legion_sim(b, 66, ["legionary", "archer"])
+	s.ranks["reserves"] = 1
+	s.soldiers[0].hp = 0.0
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.soldiers.size() == 1, "he fell")
+	for i in 60 * 10:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.soldiers.size() == 1, "not replaced early")
+	for i in 60 * 11:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.soldiers.size() == 2 and s.count("legionary") == 1, "replaced after 20 seconds, of the same type")
+
+
+func test_every_drill_applies(b: Dictionary) -> void:
+	var s := _arms_sim(b, 67, {})
+	for id in content.drills:
+		Upgrades.apply(s, id)
+		check(s.rank(id) == 1, "%s applied" % id)
+		check(content.drills[id].implemented, "%s is implemented" % id)
+
+
+func test_arms_run_together(b: Dictionary) -> void:
+	var s := _arms_sim(b, 68, {})
+	for id in content.arms:
+		s.ranks[id] = 5
+	for id in content.forged:
+		s.ranks[id] = 1
+	s.legion.add("archer")
+	for i in 80:
+		s.spawn_enemy(i % 2, s._ring_point() * 0.4)
+	_step(s, 20.0, Vector2(1, 0.3))
+	check(not s.over, "a legion with every arm and form runs on")

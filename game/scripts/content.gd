@@ -3,7 +3,7 @@ extends RefCounted
 ## Every recruit, weapon, drill, enemy and province, read from content.json. An entry whose art is not drawn yet stays hidden.
 
 const KINDS := ["recruits", "enemies", "arms", "forged", "drills", "provinces", "commanders", "quartermaster", "achievements"]
-const GROUPS := {"recruits": "Recruit", "arms": "Arms", "drills": "Drill"}
+const GROUPS := {"recruits": "Recruit", "arms": "Arms", "forged": "Forged", "drills": "Drill"}
 
 var recruits := {}
 var enemies := {}

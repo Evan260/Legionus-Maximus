@@ -45,6 +45,7 @@ var e_flash := PackedFloat32Array()
 var e_phase := PackedInt32Array()
 var e_fighting := PackedByteArray()
 var e_stun := PackedFloat32Array()
+var e_slow := PackedFloat32Array()
 var next_id := 1
 var chieftain_id := -1
 
@@ -56,8 +57,11 @@ var effects: Array = []
 
 var spawn_acc := 0.0
 var next_surge := 0.0
-var pilum_timer := 0.0
-var scorpio_timer := 0.0
+var arms: Arms
+var rerolls := 0
+var banishes := 0
+var banished: Array = []
+var xp_carry := 0.0
 var testudo_left := 0.0
 var testudo_charge := 1.0
 
@@ -82,6 +86,9 @@ func _init(balance: Dictionary, game_content: Content, seed_value: int = 0) -> v
 	content = game_content
 	rng.seed = seed_value if seed_value != 0 else int(Time.get_unix_time_from_system())
 	legion = Legion.new(b, content, rng, ranks)
+	arms = Arms.new(rng)
+	rerolls = int(b.rerolls)
+	banishes = int(b.banishes)
 	for kind in KINDS:
 		k_radius.append(float(content.enemies[kind].radius))
 		k_speed.append(float(content.enemies[kind].speed))
@@ -120,6 +127,15 @@ func speed() -> float:
 	return v * (b.testudo_speed if testudo_left > 0.0 else 1.0)
 
 
+func range_mult() -> float:
+	return 1.0 + float(b.drills.better_bows) * rank("better_bows")
+
+
+## How long a fire set by an arrow burns.
+func burn_seconds() -> float:
+	return float(b.greek_fire.seconds) if rank("greek_fire") > 0 else float(b.fire_arrows.seconds)
+
+
 func attack_rate() -> float:
 	return 1.0 + 0.12 * rank("discipline")
 
@@ -144,7 +160,7 @@ func update(dt: float, move: Vector2, testudo_pressed: bool) -> void:
 	_spawn(dt)
 	_move_enemies(dt)
 	_legion_attacks(dt)
-	_arms(dt)
+	arms.update(dt, self)
 	_move_shots(dt)
 	_burns(dt)
 	_remove_dead()
@@ -241,6 +257,7 @@ func spawn_enemy(kind: int, pos: Vector2) -> void:
 	e_phase.append(rng.randi_range(0, 7))
 	e_fighting.append(0)
 	e_stun.append(0.0)
+	e_slow.append(1.0)
 	e_push.append(Vector2.ZERO)
 
 
@@ -280,6 +297,7 @@ func _move_enemies(dt: float) -> void:
 	var reach2 := legion_reach * legion_reach
 	var shield: float = b.testudo_damage_taken if testudo_left > 0.0 else 1.0
 	var phase := frame % 3
+	var wall := 1.0 - float(b.drills.shield_wall) * rank("shield_wall")
 	for i in e_pos.size():
 		var kind := e_kind[i]
 		var p := e_pos[i]
@@ -296,7 +314,7 @@ func _move_enemies(dt: float) -> void:
 				e_flash[i] -= dt
 			continue
 		var r := k_radius[kind]
-		var v := to / maxf(d, 0.001) * k_speed[kind]
+		var v := to / maxf(d, 0.001) * (k_speed[kind] * e_slow[i])
 		var push := e_push[i]
 		# Spacing from neighbours is worked out for a third of the horde each update, in turn.
 		if i % 3 == phase:
@@ -340,7 +358,7 @@ func _move_enemies(dt: float) -> void:
 							target_unit = ui
 			if target_unit >= 0:
 				var u: Dictionary = legion.shield(units[target_unit])
-				u.hp -= k_dps[kind] * dt * shield
+				u.hp -= k_dps[kind] * dt * shield * (wall if u.get("place", "") == "front" else 1.0)
 				u.flash = 0.08
 				e_fighting[i] = 1
 				var out: Vector2 = p - u.pos
@@ -349,9 +367,11 @@ func _move_enemies(dt: float) -> void:
 				v = Vector2.ZERO
 		e_pos[i] = p + v * dt + push * 0.6
 		if v != Vector2.ZERO:
-			e_face[i] = v / k_speed[kind]
+			e_face[i] = to / maxf(d, 0.001)
 		if e_flash[i] > 0.0:
 			e_flash[i] -= dt
+	# Slows are set again each update by the zones that cause them.
+	e_slow.fill(1.0)
 	legion.remove_fallen(self)
 
 
@@ -400,8 +420,20 @@ func hit(i: int, dmg: float, burn_dps: float = 0.0) -> void:
 	e_hp[i] -= dmg
 	e_flash[i] = 0.1
 	if burn_dps > 0.0:
-		e_burn[i] = b.fire_arrows.seconds
-		e_burn_dps[i] = maxf(e_burn_dps[i], burn_dps)
+		var greek: float = float(b.greek_fire.burn_mult) if rank("greek_fire") > 0 else 1.0
+		ignite(i, burn_dps * greek, burn_seconds())
+
+
+## Sets an enemy alight; the burn takes its health on the next update.
+func ignite(i: int, dps: float, seconds: float) -> void:
+	e_burn[i] = maxf(e_burn[i], seconds)
+	e_burn_dps[i] = maxf(e_burn_dps[i], dps)
+
+
+## Harm from standing in fire: it takes health and shows the flames without lighting a new burn.
+func scorch(i: int, dmg: float) -> void:
+	e_hp[i] -= dmg
+	e_burn[i] = maxf(e_burn[i], 0.4)
 
 
 func melee(u: Dictionary, dmg: float, reach: float, cooldown: float, dt: float) -> void:
@@ -426,47 +458,9 @@ func _legion_attacks(dt: float) -> void:
 func shoot(kind: String, from: Vector2, to: Vector2, spd: float, dmg: float, pierce: int, burn: float = 0.0, extra: Dictionary = {}) -> void:
 	var dir := (to - from).normalized()
 	var shot := {"kind": kind, "pos": from + dir * 6.0, "vel": dir * spd, "dmg": dmg, "pierce": pierce,
-		"burn": burn, "life": 1.4, "hit": {}, "knock": 0.0, "bounces": 0, "bounce_reach": 0.0, "explode": 0.0}
+		"burn": burn, "life": 1.4, "hit": {}, "knock": 0.0, "bounces": 0, "bounce_reach": 0.0, "explode": 0.0, "pin": 0.0}
 	shot.merge(extra, true)
 	shots.append(shot)
-
-
-func _arms(dt: float) -> void:
-	var pr := rank("pilum")
-	if pr > 0:
-		pilum_timer -= dt
-		if pilum_timer <= 0.0:
-			var p: Dictionary = b.pilum
-			pilum_timer = p.every + p.every_per_level * (pr - 1)
-			var throwers := int(p.throwers + p.throwers_per_level * (pr - 1))
-			var thrown := 0
-			var order := soldiers.duplicate()
-			order.shuffle()
-			order.push_front(commander)
-			for s in order:
-				if thrown >= throwers:
-					break
-				if content.unit(s.type).get("place", "front") != "front":
-					continue
-				var t := nearest_enemy(s.pos, p.range)
-				if t >= 0:
-					shoot("pilum", s.pos, e_pos[t], p.speed, p.damage + p.damage_per_level * (pr - 1), 1 + pr / 2)
-					thrown += 1
-	var sr := rank("scorpio")
-	if sr > 0:
-		scorpio_timer -= dt
-		if scorpio_timer <= 0.0:
-			var sc: Dictionary = b.scorpio
-			scorpio_timer = sc.every + sc.every_per_level * (sr - 1)
-			var best := -1
-			var best_hp := 0.0
-			var reach2: float = sc.range * sc.range
-			for i in e_pos.size():
-				if e_hp[i] > best_hp and (e_pos[i] - commander.pos).length_squared() < reach2:
-					best_hp = e_hp[i]
-					best = i
-			if best >= 0:
-				shoot("bolt", commander.pos, e_pos[best], sc.speed, sc.damage + sc.damage_per_level * (sr - 1), int(sc.pierce))
 
 
 func _move_shots(dt: float) -> void:
@@ -490,6 +484,8 @@ func _move_shots(dt: float) -> void:
 					var r := k_radius[e_kind[j]] + 3.0
 					if (e_pos[j] - s.pos).length_squared() < r * r:
 						hit(j, s.dmg, s.burn)
+						if s.pin > 0.0:
+							e_stun[j] = maxf(e_stun[j], s.pin)
 						if s.knock > 0.0:
 							e_pos[j] += (e_pos[j] - s.pos).normalized() * s.knock
 						s.hit[e_id[j]] = true
@@ -540,17 +536,22 @@ func _burns(dt: float) -> void:
 
 
 func _remove_dead() -> void:
+	var before := kills
 	var i := e_pos.size() - 1
 	while i >= 0:
 		if e_hp[i] <= 0.0:
 			_kill(i)
 		i -= 1
+	if kills > before:
+		legion.veterans(kills - before, self)
 
 
 func _kill(i: int) -> void:
 	var kind := e_kind[i]
 	kills += 1
-	var value := int(content.enemies[KINDS[kind]].coins)
+	var pay := float(content.enemies[KINDS[kind]].coins) * (1.0 + float(b.drills.plunder) * rank("plunder"))
+	# A fraction of a coin is paid as the same chance of one more.
+	var value := int(pay) + (1 if pay > floorf(pay) and rng.randf() < pay - floorf(pay) else 0)
 	if value > 0:
 		c_pos.append(e_pos[i])
 		c_val.append(value)
@@ -573,6 +574,7 @@ func _kill(i: int) -> void:
 	e_phase[i] = e_phase[last]; e_phase.resize(last)
 	e_fighting[i] = e_fighting[last]; e_fighting.resize(last)
 	e_stun[i] = e_stun[last]; e_stun.resize(last)
+	e_slow[i] = e_slow[last]; e_slow.resize(last)
 	e_push[i] = e_push[last]; e_push.resize(last)
 
 
@@ -601,7 +603,9 @@ func _coins(dt: float) -> void:
 
 func gain(value: int) -> void:
 	denarii += value
-	xp += value
+	xp_carry += value * (1.0 + float(b.drills.glory) * rank("glory"))
+	xp += int(xp_carry)
+	xp_carry -= int(xp_carry)
 	while xp >= xp_next:
 		xp -= xp_next
 		level += 1

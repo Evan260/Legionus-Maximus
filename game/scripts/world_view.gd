@@ -72,6 +72,7 @@ func _draw() -> void:
 		for gy in range(gy0, gy0 + ceili(VIEW.y / gh) + 2):
 			draw_texture(ground, Vector2(gx * gw, gy * gh))
 
+	_draw_ground_zones(view_for(top_left))
 	_keys.clear()
 	_rects.clear()
 	_dests.clear()
@@ -120,6 +121,7 @@ func _draw() -> void:
 			var a: float = 1.0 - e.t / 0.45
 			_add(e.pos.y, f[0], e.pos - f[1] + Vector2(0, e.t * 8.0), Color(0.75, 0.35, 0.3, a))
 
+	_add_arm_sprites(view)
 	_draw_coins(view)
 	_keys.sort()
 	var tex := atlas.texture
@@ -128,8 +130,105 @@ func _draw() -> void:
 		draw_texture_rect_region(tex, Rect2(_dests[idx], _rects[idx].size), _rects[idx], _mods[idx])
 
 	_draw_shots(tex)
+	_draw_lobs(tex)
 	_draw_effects()
+	_draw_torches()
 	_draw_bars()
+
+
+func view_for(top_left: Vector2) -> Rect2:
+	return Rect2(top_left - Vector2(80, 80), VIEW + Vector2(160, 160))
+
+
+## Burning ground, oil and the ditch of the stake ring, drawn on the ground under everything that stands on it.
+func _draw_ground_zones(view: Rect2) -> void:
+	var beat := int(sim.time * 10.0)
+	for z in sim.arms.ground_zones():
+		var p: Vector2 = z.pos
+		var r: float = z.radius
+		if z.kind != "stakes" and not view.grow(r).has_point(p):
+			continue
+		var fade := clampf((z.life - z.t) / 0.6, 0.0, 1.0) if z.has("life") else 1.0
+		match z.kind:
+			"fire":
+				draw_circle(p, r, Color(0.2, 0.07, 0.03, 0.42 * fade))
+				var n := int(r / 2.5) + 3
+				for i in n:
+					var a := i * 2.4
+					var d := r * sqrt((i + 0.5) / n) * 0.92
+					var base := p + Vector2(cos(a) * d, sin(a) * d)
+					var h := 2 + (beat + i * 3) % 4
+					draw_rect(Rect2(base.round() + Vector2(0, -h), Vector2(2, h)), Color(1.0, 0.5, 0.12, 0.9 * fade))
+					draw_rect(Rect2(base.round() + Vector2(0, -h + 1), Vector2(1, maxi(1, h - 2))), Color(1.0, 0.86, 0.35, 0.9 * fade))
+			"oil":
+				draw_circle(p, r, Color(0.07, 0.06, 0.05, 0.6 * fade))
+				draw_arc(p, r * 0.6, 3.5 + sin(sim.time * 2.0) * 0.2, 4.7, 10, Color(0.45, 0.5, 0.65, 0.55 * fade), 1.0)
+				draw_arc(p, r * 0.3, 0.2, 1.4, 8, Color(0.45, 0.5, 0.65, 0.4 * fade), 1.0)
+			"stakes":
+				# The ditch is the dark band the stakes stand in.
+				draw_arc(p, r, 0.0, TAU, 72, Color(0.2, 0.13, 0.07, 0.5), 5.0)
+
+
+## Sprites that stand on the field and sort with the legion: caltrops, stakes and war dogs, drawn when their art exists.
+func _add_arm_sprites(view: Rect2) -> void:
+	if atlas.props.has("caltrops"):
+		var f := atlas.prop_frame("caltrops")
+		for z in sim.arms.zones:
+			if z.kind == "caltrops" and view.has_point(z.pos):
+				_add(z.pos.y - 8.0, f[0], z.pos - f[1], Color(1, 1, 1, clampf((z.life - z.t) / 0.6, 0.0, 1.0)))
+	if atlas.props.has("stake") and not sim.arms.stakes.is_empty():
+		var f := atlas.prop_frame("stake")
+		var st: Dictionary = sim.arms.stakes
+		var n := int(st.radius * TAU / 14.0)
+		for i in n:
+			var p: Vector2 = st.pos + Vector2.from_angle(i * TAU / n) * st.radius
+			if view.has_point(p):
+				_add(p.y, f[0], p - f[1], Color.WHITE)
+	if atlas.units.has("war_dog"):
+		var action := "move" if atlas.units.war_dog.has("move") else "idle"
+		for d in sim.arms.dogs:
+			var f := atlas.unit_frame("war_dog", action, Sim.dir_name(d.face), d.run * 12.0)
+			draw_texture(shadow, (d.pos - Vector2(8, 3)).round())
+			_add(d.pos.y, f[0], d.pos - f[1], Color.WHITE)
+
+
+func _draw_lobs(tex: Texture2D) -> void:
+	for l in sim.arms.lobs:
+		var k: float = l.t / l.dur
+		var ground: Vector2 = l.from.lerp(l.to, k)
+		var p: Vector2 = ground + Vector2(0, -sin(k * PI) * 34.0)
+		draw_rect(Rect2((ground + Vector2(-1, 0)).round(), Vector2(3, 1)), Color(0.08, 0.06, 0.03, 0.4))
+		match l.kind:
+			"stone":
+				_lob_sprite(tex, "onager_stone", p)
+			"pot":
+				_lob_sprite(tex, "fire_pot", p)
+			"oil":
+				var q := p.round()
+				draw_rect(Rect2(q + Vector2(-2, -3), Vector2(4, 5)), Color(0.36, 0.2, 0.1))
+				draw_rect(Rect2(q + Vector2(-1, -4), Vector2(2, 1)), Color(0.5, 0.3, 0.16))
+				draw_rect(Rect2(q + Vector2(-1, -2), Vector2(1, 3)), Color(0.55, 0.36, 0.2))
+
+
+func _lob_sprite(tex: Texture2D, key: String, p: Vector2) -> void:
+	if not atlas.props.has(key):
+		return
+	var f := atlas.prop_frame(key)
+	draw_texture_rect_region(tex, Rect2((p - f[1]).round(), f[0].size), f[0])
+
+
+func _draw_torches() -> void:
+	var beat := int(sim.time * 14.0)
+	var big := sim.rank("burning_eagle") > 0
+	var points: Array = sim.arms.torch_points(sim)
+	for i in points.size():
+		var p: Vector2 = points[i].round()
+		var flick := (beat + i * 5) % 3
+		draw_circle(p + Vector2(0, -6), 9.0 + flick, Color(1.0, 0.6, 0.2, 0.22))
+		draw_rect(Rect2(p + Vector2(-1, -5), Vector2(2, 7)), Color(0.3, 0.2, 0.1))
+		var hot := Color(0.45, 0.8, 1.0) if big else Color(1.0, 0.5, 0.12)
+		draw_rect(Rect2(p + Vector2(-2, -10 - flick), Vector2(5, 5 + flick)), hot)
+		draw_rect(Rect2(p + Vector2(-1, -9 - flick), Vector2(2, 4)), Color(1.0, 0.92, 0.55))
 
 
 func _draw_coins(view: Rect2) -> void:
@@ -188,6 +287,17 @@ func _draw_effects() -> void:
 			var k: float = e.t / 0.45
 			var col := Color(1.0, 0.85, 0.4, 1.0 - k) if e.kind == "shout" else Color(1.0, 0.55, 0.2, 1.0 - k)
 			draw_arc(e.pos, e.radius * (0.4 + 0.6 * k), 0.0, TAU, 24, col, 1.0)
+		elif e.kind == "trumpet":
+			var k: float = e.t / 0.45
+			draw_arc(e.pos, e.radius * (0.3 + 0.7 * k), 0.0, TAU, 32, Color(1.0, 0.9, 0.5, 1.0 - k), 2.0)
+			draw_arc(e.pos, e.radius * (0.15 + 0.7 * k), 0.0, TAU, 32, Color(1.0, 1.0, 0.85, (1.0 - k) * 0.7), 1.0)
+		elif e.kind == "flash":
+			var k: float = e.t / 0.45
+			draw_circle(e.pos, e.radius * (0.4 + 0.6 * k), Color(1.0, 0.97, 0.7, 0.34 * (1.0 - k)))
+			draw_arc(e.pos, e.radius * (0.4 + 0.6 * k), 0.0, TAU, 40, Color(1.0, 1.0, 0.9, 1.0 - k), 2.0)
+			for ray in 8:
+				var dir := Vector2.from_angle(ray * TAU / 8.0 + 0.4)
+				draw_line(e.pos + dir * e.radius * 0.2 * (1.0 + k), e.pos + dir * e.radius * (0.35 + 0.65 * k), Color(1.0, 0.95, 0.6, 1.0 - k), 1.0)
 		elif e.kind == "heal":
 			var k: float = e.t / 0.45
 			var h: Vector2 = (e.pos + Vector2(-1, -14.0 - k * 8.0)).round()

@@ -7,6 +7,7 @@ extends Node
 ##   --shot=PATH        save a screenshot after --at seconds (default 3) and quit
 ##   --chieftain-at=S   bring the chieftain at this many seconds instead
 ##   --hold-choice      with --autoplay, give a level at once and leave its choices open
+##   --give=ID,ID:RANK  start the run with these arms or drills at the rank (default 1), for looking at them
 
 var balance: Dictionary
 var content: Content
@@ -63,6 +64,9 @@ func _ready() -> void:
 func _new_sim() -> void:
 	sim = Sim.new(balance, content)
 	world.sim = sim
+	for entry in str(args.get("give", "")).split(",", false):
+		var parts := entry.split(":")
+		sim.ranks[parts[0]] = int(parts[1]) if parts.size() > 1 else 1
 
 
 func _start() -> void:
@@ -73,7 +77,7 @@ func _start() -> void:
 func _setup_input() -> void:
 	var keys := {
 		"left": [KEY_A, KEY_LEFT], "right": [KEY_D, KEY_RIGHT], "up": [KEY_W, KEY_UP], "down": [KEY_S, KEY_DOWN],
-		"testudo": [KEY_SPACE], "confirm": [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER], "pause": [KEY_ESCAPE], "quit": [KEY_Q],
+		"testudo": [KEY_SPACE], "reroll": [KEY_R], "banish": [KEY_B], "confirm": [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER], "pause": [KEY_ESCAPE], "quit": [KEY_Q],
 		"fullscreen": [KEY_F11],
 	}
 	for action in keys:
@@ -83,7 +87,7 @@ func _setup_input() -> void:
 			var e := InputEventKey.new()
 			e.physical_keycode = k
 			InputMap.action_add_event(action, e)
-	var pad := {"testudo": JOY_BUTTON_A, "confirm": JOY_BUTTON_A, "pause": JOY_BUTTON_START,
+	var pad := {"reroll": JOY_BUTTON_Y, "banish": JOY_BUTTON_X, "testudo": JOY_BUTTON_A, "confirm": JOY_BUTTON_A, "pause": JOY_BUTTON_START,
 		"left": JOY_BUTTON_DPAD_LEFT, "right": JOY_BUTTON_DPAD_RIGHT, "up": JOY_BUTTON_DPAD_UP, "down": JOY_BUTTON_DPAD_DOWN}
 	for action in pad:
 		var e := InputEventJoypadButton.new()
@@ -135,6 +139,14 @@ func _process(dt: float) -> void:
 				selected = posmod(selected + 1, choices.size())
 			elif Input.is_action_just_pressed("confirm"):
 				_take(selected)
+			elif Input.is_action_just_pressed("reroll") and sim.rerolls > 0:
+				choices = Upgrades.reroll(sim, choices)
+			elif Input.is_action_just_pressed("banish") and sim.banishes > 0:
+				choices = Upgrades.banish(sim, choices[selected], choices)
+				selected = mini(selected, choices.size() - 1)
+				if choices.is_empty():
+					sim.pending_levels = 0
+					state = "play"
 		"pause":
 			if Input.is_action_just_pressed("pause"):
 				state = "play"
@@ -150,9 +162,8 @@ func _process(dt: float) -> void:
 
 
 func _open_choices() -> void:
-	choices = Upgrades.offers(sim)
+	choices = Upgrades.next_choices(sim)
 	if choices.is_empty():
-		sim.pending_levels = 0
 		return
 	selected = 0
 	state = "choose"
@@ -182,8 +193,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _bench() -> void:
 	var s := Sim.new(balance, content, 7)
-	for id in ["pilum", "pilum", "scorpio", "fire_arrows"]:
-		s.ranks[id] = s.rank(id) + 1
+	for id in content.arms:
+		if content.arms[id].implemented:
+			s.ranks[id] = 3
 	var mix := ["legionary", "archer", "slinger", "cavalry", "standard_bearer", "medicus", "ballista", "centurion", "legionary", "archer"]
 	for i in 100:
 		s.add_soldier(mix[i % mix.size()])

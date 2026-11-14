@@ -14,7 +14,8 @@ Godot is `C:\Users\evand\AppData\Local\Microsoft\WinGet\Packages\GodotEngine.God
 ## Layout
 
 - `game/scripts/sim.gd`: the whole run as plain data (legion, horde, missiles, coins, levels). No nodes, so tests drive it directly.
-- `game/scripts/upgrades.gd`: the level-up choices.
+- `game/scripts/arms.gd`: the twelve weapons and six forged forms, on their timers, with burning ground, oil, caltrops and the stake ring as zones.
+- `game/scripts/upgrades.gd`: the level-up choices, rerolls and banishes.
 - `game/scripts/world_view.gd`, `hud.gd`: drawing. Every sprite is in one atlas so the horde draws in one batch.
 - `game/scripts/main.gd`: input, screens and the command-line modes.
 - `game/data/balance.json`: every number.

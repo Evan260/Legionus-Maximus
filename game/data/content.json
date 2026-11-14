@@ -227,9 +227,10 @@
    "text": "Stones land in the thickest crowd and scatter it.",
    "more": "Bigger stones, thrown more often.",
    "max": 5,
-   "implemented": false,
+   "implemented": true,
    "art": [
-    "icon:onager"
+    "icon:onager",
+    "prop:onager_stone"
    ]
   },
   "caltrops": {
@@ -237,9 +238,10 @@
    "text": "Spikes are left behind as the legion marches.",
    "more": "More spikes that cut deeper.",
    "max": 5,
-   "implemented": false,
+   "implemented": true,
    "art": [
-    "icon:caltrops"
+    "icon:caltrops",
+    "prop:caltrops"
    ]
   },
   "stakes": {
@@ -247,9 +249,10 @@
    "text": "A ring of stakes around the legion hurts enemies who cross it.",
    "more": "A wider ring that hurts more.",
    "max": 5,
-   "implemented": false,
+   "implemented": true,
    "art": [
-    "icon:stakes"
+    "icon:stakes",
+    "prop:stake"
    ]
   },
   "fire_pots": {
@@ -257,9 +260,10 @@
    "text": "Jars thrown ahead leave burning ground.",
    "more": "Larger fires that burn longer.",
    "max": 5,
-   "implemented": false,
+   "implemented": true,
    "art": [
-    "icon:fire_pots"
+    "icon:fire_pots",
+    "prop:fire_pot"
    ]
   },
   "war_dogs": {
@@ -267,9 +271,10 @@
    "text": "Hounds run down enemies who break away.",
    "more": "More hounds that bite harder.",
    "max": 5,
-   "implemented": false,
+   "implemented": true,
    "art": [
-    "icon:war_dogs"
+    "icon:war_dogs",
+    "unit:war_dog"
    ]
   },
   "trumpets": {
@@ -277,7 +282,7 @@
    "text": "A blast every few seconds pushes enemies back.",
    "more": "A louder blast, sounded more often.",
    "max": 5,
-   "implemented": false,
+   "implemented": true,
    "art": [
     "icon:trumpets"
    ]
@@ -287,7 +292,7 @@
    "text": "The aquila flashes and strikes every enemy around the commander.",
    "more": "A wider flash that strikes harder.",
    "max": 5,
-   "implemented": false,
+   "implemented": true,
    "art": [
     "icon:eagle"
    ]
@@ -297,7 +302,7 @@
    "text": "Slick ground slows the enemies who cross it.",
    "more": "Wider slicks that slow more.",
    "max": 5,
-   "implemented": false,
+   "implemented": true,
    "art": [
     "icon:oil_jars"
    ]
@@ -307,7 +312,7 @@
    "text": "Fire circles the formation.",
    "more": "More torches that burn hotter.",
    "max": 5,
-   "implemented": false,
+   "implemented": true,
    "art": [
     "icon:torches"
    ]
@@ -321,10 +326,11 @@
     "pilum",
     "caltrops"
    ],
-   "implemented": false,
+   "implemented": true,
    "art": [
     "icon:hooked_pila"
-   ]
+   ],
+   "max": 1
   },
   "greek_fire": {
    "name": "Greek fire",
@@ -333,10 +339,11 @@
     "fire_arrows",
     "fire_pots"
    ],
-   "implemented": false,
+   "implemented": true,
    "art": [
     "icon:greek_fire"
-   ]
+   ],
+   "max": 1
   },
   "siege_train": {
    "name": "Siege train",
@@ -345,10 +352,11 @@
     "scorpio",
     "onager"
    ],
-   "implemented": false,
+   "implemented": true,
    "art": [
     "icon:siege_train"
-   ]
+   ],
+   "max": 1
   },
   "hunting_horn": {
    "name": "Hunting horn",
@@ -357,10 +365,11 @@
     "war_dogs",
     "trumpets"
    ],
-   "implemented": false,
+   "implemented": true,
    "art": [
     "icon:hunting_horn"
-   ]
+   ],
+   "max": 1
   },
   "burning_eagle": {
    "name": "Burning eagle",
@@ -369,10 +378,11 @@
     "eagle",
     "torches"
    ],
-   "implemented": false,
+   "implemented": true,
    "art": [
     "icon:burning_eagle"
-   ]
+   ],
+   "max": 1
   },
   "fortified_camp": {
    "name": "Fortified camp",
@@ -381,10 +391,11 @@
     "stakes",
     "oil_jars"
    ],
-   "implemented": false,
+   "implemented": true,
    "art": [
     "icon:fortified_camp"
-   ]
+   ],
+   "max": 1
   }
  },
  "drills": {
@@ -410,7 +421,7 @@
    "name": "Shield wall",
    "text": "The front rank takes 10% less damage.",
    "max": 5,
-   "implemented": false,
+   "implemented": true,
    "art": [
     "icon:shield_wall"
    ]
@@ -437,7 +448,7 @@
    "name": "Better bows",
    "text": "Missile troops shoot 10% further.",
    "max": 5,
-   "implemented": false,
+   "implemented": true,
    "art": [
     "icon:better_bows"
    ]
@@ -464,7 +475,7 @@
    "name": "Close order",
    "text": "Soldiers keep their places faster when the formation turns.",
    "max": 3,
-   "implemented": false,
+   "implemented": true,
    "art": [
     "icon:close_order"
    ]
@@ -482,25 +493,26 @@
    "name": "Plunder",
    "text": "Every fallen barbarian drops 15% more denarii.",
    "max": 5,
-   "implemented": false,
+   "implemented": true,
    "art": [
     "icon:plunder"
    ]
   },
   "veterans": {
    "name": "Veterans",
-   "text": "Soldiers gain a little health with every kill.",
+   "text": "Whenever the legion kills, every soldier gains a little health.",
    "max": 3,
-   "implemented": false,
+   "implemented": true,
    "art": [
     "icon:veterans"
-   ]
+   ],
+   "more": "Soldiers grow tougher faster."
   },
   "reserves": {
    "name": "Reserves",
-   "text": "A fallen soldier is replaced after 20 seconds.",
+   "text": "A fallen soldier is replaced after 20 seconds, and sooner with each pick.",
    "max": 3,
-   "implemented": false,
+   "implemented": true,
    "art": [
     "icon:reserves"
    ]
@@ -509,7 +521,7 @@
    "name": "Fortune",
    "text": "A fourth choice at every level-up.",
    "max": 1,
-   "implemented": false,
+   "implemented": true,
    "art": [
     "icon:fortune"
    ]
@@ -518,7 +530,7 @@
    "name": "Glory",
    "text": "Every coin gives 10% more experience.",
    "max": 5,
-   "implemented": false,
+   "implemented": true,
    "art": [
     "icon:glory"
    ]

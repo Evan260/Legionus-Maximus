@@ -121,12 +121,12 @@ func _choices(sim: Sim) -> void:
 	text("Choose one", Vector2(0, 86), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W)
 	choice_rects.clear()
 	var n: int = main.choices.size()
-	var bw := 176.0
-	var gap := 12.0
+	var gap := 8.0 if n > 3 else 12.0
+	var bw := minf(176.0, (W - 24.0 - (n - 1) * gap) / n)
 	var x0 := (W - n * bw - (n - 1) * gap) / 2.0
 	for i in n:
 		var id: String = main.choices[i]
-		var r := Rect2(x0 + i * (bw + gap), 100, bw, 150)
+		var r := Rect2(x0 + i * (bw + gap), 100, bw, 170)
 		choice_rects.append(r)
 		var picked: bool = i == main.selected
 		if picked:
@@ -140,7 +140,14 @@ func _choices(sim: Sim) -> void:
 		text(info.name.to_upper(), Vector2(r.position.x, r.position.y + 98), INK, HORIZONTAL_ALIGNMENT_CENTER, bw, false)
 		text(Upgrades.level_text(sim, id), Vector2(r.position.x, r.position.y + 109), RED, HORIZONTAL_ALIGNMENT_CENTER, bw, false)
 		wrap_text(Upgrades.describe(sim, id), Vector2(r.position.x + 9, r.position.y + 122), bw - 18, INK)
-	text("A / D to choose     Space to take it", Vector2(0, 268), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W)
+	text("A / D to choose     Space to take it", Vector2(0, 286), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W)
+	var extras: Array = []
+	if sim.rerolls > 0:
+		extras.append("R / Y  reroll (%d)" % sim.rerolls)
+	if sim.banishes > 0:
+		extras.append("B / X  banish (%d)" % sim.banishes)
+	if not extras.is_empty():
+		text("     ".join(extras), Vector2(0, 299), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
 
 
 func _title() -> void:

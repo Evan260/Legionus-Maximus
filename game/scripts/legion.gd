@@ -7,6 +7,7 @@ var soldiers: Array = []
 var picks := {}
 var fallen: Array = []
 var revive_timer := 0.0
+var reserves: Array = []
 
 var _b: Dictionary
 var _content: Content
@@ -81,7 +82,7 @@ func refresh_health(type: String) -> void:
 	for s in soldiers:
 		if s.type == type:
 			var old: float = s.max_hp
-			s.max_hp = max_hp_of(type)
+			s.max_hp = max_hp_of(type) + float(s.get("vet", 0.0))
 			s.hp = minf(s.max_hp, s.hp + s.max_hp - old)
 
 
@@ -149,7 +150,7 @@ func place_all(angle: float) -> void:
 ## Every soldier walks to his place in the formation; riders out on a sortie are moved by update.
 func follow(dt: float, sim: Sim) -> void:
 	var places := formation()
-	var step := sim.speed() * float(_l.follow_speed) * dt
+	var step := sim.speed() * float(_l.follow_speed) * (1.0 + float(_b.drills.close_order) * sim.rank("close_order")) * dt
 	for i in soldiers.size():
 		var s: Dictionary = soldiers[i]
 		var target: Vector2 = commander.pos + places[i].rotated(sim.facing_angle)
@@ -199,12 +200,16 @@ func remove_fallen(sim: Sim) -> void:
 		else:
 			if fallen.size() < int(_l.fallen_kept):
 				fallen.append(s.type)
+			if sim.rank("reserves") > 0:
+				var times: Array = _b.drills.reserves_seconds
+				reserves.append({"type": s.type, "t": float(times[mini(sim.rank("reserves"), times.size()) - 1])})
 			sim.effects.append({"kind": "fallen", "pos": s.pos, "t": 0.0, "type": s.type, "facing": s.facing})
 	soldiers = alive
 
 
 func update(dt: float, sim: Sim) -> void:
 	_auras()
+	_reserves(dt)
 	var medici: Array = []
 	for s in soldiers:
 		var info: Dictionary = s.info
@@ -224,6 +229,38 @@ func update(dt: float, sim: Sim) -> void:
 				medici.append(s)
 				_heal(s, dt, sim)
 	_revive(medici, dt, sim)
+
+
+## A fallen soldier's replacement arrives at the commander's side once his time is up.
+func _reserves(dt: float) -> void:
+	if reserves.is_empty():
+		return
+	var waiting: Array = []
+	for r in reserves:
+		r.t -= dt
+		if r.t > 0.0:
+			waiting.append(r)
+		elif add(r.type):
+			fallen.erase(r.type)
+			soldiers[-1].pos = commander.pos
+		else:
+			waiting.append(r)
+	reserves = waiting
+
+
+## Every soldier grows a little tougher when the legion kills, up to a cap.
+func veterans(n: int, sim: Sim) -> void:
+	var rank := sim.rank("veterans")
+	if rank <= 0:
+		return
+	var gain := float(_b.drills.veterans_gain) * rank * n
+	for s in soldiers:
+		var base: float = float(_content.unit(s.type).hp)
+		var room: float = base * float(_b.drills.veterans_cap) * rank - float(s.get("vet", 0.0))
+		var g := minf(gain, maxf(0.0, room))
+		s.vet = float(s.get("vet", 0.0)) + g
+		s.max_hp += g
+		s.hp += g
 
 
 func _melee_damage(type: String) -> float:
@@ -256,7 +293,7 @@ func _missile(s: Dictionary, dt: float, sim: Sim) -> void:
 	s.cd -= dt * sim.attack_rate() * s.haste
 	if s.cd > 0.0:
 		return
-	var t := sim.nearest_enemy(s.pos, float(info.range))
+	var t := sim.nearest_enemy(s.pos, float(info.range) * sim.range_mult())
 	if t < 0:
 		return
 	s.cd = float(info.cooldown)
@@ -276,12 +313,13 @@ func _ballista(s: Dictionary, dt: float, sim: Sim) -> void:
 	s.cd -= dt * sim.attack_rate() * s.haste
 	if s.cd > 0.0:
 		return
-	var t := sim.nearest_enemy(s.pos, float(info.range))
+	var reach := float(info.range) * sim.range_mult()
+	var t := sim.nearest_enemy(s.pos, reach)
 	if t < 0:
 		return
 	s.cd = float(info.cooldown)
 	sim.shoot("bolt", s.pos, sim.e_pos[t], float(info.bolt_speed), float(info.damage), int(info.pierce), 0.0,
-		{"life": float(info.range) / float(info.bolt_speed), "explode": stat(s.type, "explode_radius")})
+		{"life": reach / float(info.bolt_speed), "explode": stat(s.type, "explode_radius")})
 
 
 func _shout(s: Dictionary, dt: float, sim: Sim) -> void:

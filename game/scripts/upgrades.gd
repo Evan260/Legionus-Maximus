@@ -6,7 +6,7 @@ static func available(sim: Sim) -> Array:
 	var out: Array = []
 	for kind in Content.GROUPS:
 		for id in sim.content.get(kind):
-			if _offerable(sim, kind, id):
+			if _offerable(sim, kind, id) and not sim.banished.has(id):
 				out.append(id)
 	return out
 
@@ -17,18 +17,46 @@ static func _offerable(sim: Sim, kind: String, id: String) -> bool:
 		return false
 	if kind == "recruits":
 		return sim.soldiers.size() < int(sim.b.legion_cap)
+	if kind == "forged":
+		return sim.rank(id) < int(info.max) and _pair_done(sim, info)
 	if id == "fire_arrows" and sim.count("archer") == 0:
 		return false
 	return sim.rank(id) < int(info.get("max", 0))
 
 
-static func offers(sim: Sim, n: int = 3) -> Array:
-	var pool := available(sim)
+## A forged form is offered once both weapons it is made from are at their last level.
+static func _pair_done(sim: Sim, info: Dictionary) -> bool:
+	for w in info.from:
+		if sim.rank(w) < int(sim.content.arms[w].max):
+			return false
+	return true
+
+
+static func choice_count(sim: Sim) -> int:
+	return 3 + sim.rank("fortune")
+
+
+## n different choices from what is on offer, or as many as the run's choice count when n is not given.
+static func offers(sim: Sim, n: int = -1, skip: Array = []) -> Array:
+	if n < 0:
+		n = choice_count(sim)
+	var pool: Array = []
+	for id in available(sim):
+		if not skip.has(id):
+			pool.append(id)
 	var picks: Array = []
-	# Recruits come up more often, since a growing legion is the heart of the game.
+	# Recruits come up more often, since a growing legion is the heart of the game, and a forged form is a prize.
 	var weights := {}
 	for id in pool:
-		weights[id] = 3.0 if sim.content.group_of(id) == "Recruit" else (2.0 if sim.content.group_of(id) == "Arms" else 1.0)
+		match sim.content.group_of(id):
+			"Recruit":
+				weights[id] = 3.0
+			"Forged":
+				weights[id] = 6.0
+			"Arms":
+				weights[id] = 2.0
+			_:
+				weights[id] = 1.0
 	while picks.size() < n and not pool.is_empty():
 		var total := 0.0
 		for id in pool:
@@ -43,9 +71,43 @@ static func offers(sim: Sim, n: int = 3) -> Array:
 	return picks
 
 
+## The choices for a level-up screen. With nothing left to offer the waiting levels are dropped, so no screen opens.
+static func next_choices(sim: Sim) -> Array:
+	var picks := offers(sim)
+	if picks.is_empty():
+		sim.pending_levels = 0
+	return picks
+
+
+## A fresh set in place of the current one, which costs a reroll; with none left the choices stay.
+static func reroll(sim: Sim, current: Array) -> Array:
+	if sim.rerolls <= 0:
+		return current
+	var fresh := offers(sim, current.size(), current)
+	if fresh.is_empty():
+		return current
+	sim.rerolls -= 1
+	return fresh
+
+
+## Removes one choice from the run for good and fills its place with another; with no banish left nothing changes.
+static func banish(sim: Sim, id: String, current: Array) -> Array:
+	if sim.banishes <= 0 or not current.has(id):
+		return current
+	sim.banishes -= 1
+	sim.banished.append(id)
+	var out := current.duplicate()
+	out.erase(id)
+	out.append_array(offers(sim, 1, current))
+	return out
+
+
 static func level_text(sim: Sim, id: String) -> String:
-	if sim.content.group_of(id) == "Recruit":
+	var group := sim.content.group_of(id)
+	if group == "Recruit":
 		return "%d in the legion" % sim.count(id)
+	if group == "Forged":
+		return "Forged"
 	var r := sim.rank(id)
 	return "New" if r == 0 else "Level %d" % (r + 1)
 
@@ -65,11 +127,7 @@ static func apply(sim: Sim, id: String) -> void:
 		if id == "lorica":
 			for u in [sim.commander] + sim.soldiers:
 				var base: float = sim.content.unit(u.type).hp
-				u.max_hp = sim.max_hp_of(u.type)
+				u.max_hp = sim.max_hp_of(u.type) + float(u.get("vet", 0.0))
 				u.hp = minf(u.max_hp, u.hp + base * 0.2)
-		elif id == "pilum" and sim.rank("pilum") == 1:
-			sim.pilum_timer = 0.5
-		elif id == "scorpio" and sim.rank("scorpio") == 1:
-			sim.scorpio_timer = 0.5
 	if sim.pending_levels > 0:
 		sim.pending_levels -= 1
