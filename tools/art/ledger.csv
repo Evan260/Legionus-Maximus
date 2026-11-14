@@ -201,3 +201,11 @@ time,kind,name,cost_usd,cost_generations,usd_left
 2026-11-14T15:08:51,animate,art_test/raw/war_priest/t_walking_north,0.0554,0,20.4590
 2026-11-14T15:08:51,animate,art_test/raw/war_priest/t_walking_east,0.0554,0,20.4590
 2026-11-14T15:09:02,animate,art_test/raw/war_priest/t_walking_north-east,0.0773,0,20.4370
+2026-11-14T16:06:11,proflash,art_test/raw/props3/hut.png,0.0237,0,20.4134
+2026-11-14T16:06:20,proflash,art_test/raw/props3/eagle_standard.png,0.0716,0,20.3654
+2026-11-14T16:06:21,proflash,art_test/raw/props3/fort_gate.png,0.0716,0,20.3654
+2026-11-14T16:06:41,proflash,art_test/raw/props3/stump.png,0.0690,0,20.2964
+2026-11-14T16:06:41,proflash,art_test/raw/props3/timber.png,0.0690,0,20.2964
+2026-11-14T16:06:41,proflash,art_test/raw/props3/altar.png,0.0690,0,20.2964
+2026-11-14T16:07:14,proflash,art_test/raw/props3/altar.png,0.0233,0,20.2731
+2026-11-14T16:07:23,proflash,art_test/raw/props3/fort_gate.png,0.0476,0,20.2488

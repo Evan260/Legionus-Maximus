@@ -267,20 +267,28 @@ func _draw_torches() -> void:
 
 
 func _draw_coins(view: Rect2) -> void:
-	# A denarius is a few pixels of gold with a glint that turns, so it reads as a pickup and not as ground.
-	var glint := int(sim.time * 6.0)
+	# A denarius is drawn as a full coin sprite with a dark rim, bobbing and glinting, so it stands out from the grass.
+	if not atlas.props.has("coin"):
+		return
+	var f := atlas.prop_frame("coin")
+	var tex := atlas.texture
+	var size: Vector2 = f[0].size
+	var gold := Color(1.35, 1.12, 0.5)
+	var rim := Color(0.18, 0.1, 0.04, 0.85)
 	for i in sim.c_pos.size():
-		var p: Vector2 = sim.c_pos[i].round()
+		var p: Vector2 = sim.c_pos[i]
 		if not view.has_point(p):
 			continue
-		var big := sim.c_val[i] > 1
-		var r := 2 if big else 1
-		draw_rect(Rect2(p + Vector2(-r - 1, -r), Vector2(2 * r + 3, 2 * r + 1)), Color(0.24, 0.14, 0.06))
-		draw_rect(Rect2(p + Vector2(-r, -r - 1), Vector2(2 * r + 1, 2 * r + 3)), Color(0.24, 0.14, 0.06))
-		draw_rect(Rect2(p + Vector2(-r, -r), Vector2(2 * r + 1, 2 * r + 1)), Color(0.93, 0.7, 0.2))
-		draw_rect(Rect2(p + Vector2(-r, -r), Vector2(r, r)), Color(1.0, 0.92, 0.55))
-		if (glint + i) % 9 == 0:
-			draw_rect(Rect2(p + Vector2(-r - 2, -r - 2), Vector2(1, 1)), Color(1, 1, 0.9))
+		var bob := roundf(sin(sim.time * 4.0 + i * 1.7) * 1.0)
+		var at := (p - size / 2.0 + Vector2(0, bob - 2.0)).round()
+		draw_rect(Rect2(at + Vector2(1, size.y - 1), Vector2(size.x - 2, 2)), Color(0.05, 0.04, 0.02, 0.35))
+		draw_texture_rect_region(tex, Rect2(at + Vector2(-1, 0), size), f[0], rim)
+		draw_texture_rect_region(tex, Rect2(at + Vector2(1, 0), size), f[0], rim)
+		draw_texture_rect_region(tex, Rect2(at + Vector2(0, -1), size), f[0], rim)
+		draw_texture_rect_region(tex, Rect2(at + Vector2(0, 1), size), f[0], rim)
+		draw_texture_rect_region(tex, Rect2(at, size), f[0], gold)
+		if int(sim.time * 5.0 + i * 3) % 11 == 0:
+			draw_rect(Rect2(at + Vector2(3, 2), Vector2(2, 2)), Color(1, 1, 0.92))
 
 
 ## Chests left by elites and supply carts, when their art is drawn.

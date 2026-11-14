@@ -4,24 +4,58 @@ Everything the finished game has. [Plan.md](Plan.md) has why the game exists and
 
 ## The run
 
-- A run is one campaign in one province. It lasts 20 minutes and ends when the province's chieftain falls, or earlier when the commander does.
+- A run is one campaign in one province: a mission with objectives and a way out. It is won by marching the legion into the Roman fort that appears late in the run, or by killing the province's chieftain, and lost when the commander falls.
 - The camera follows the commander over an endless field. Trees, rocks, rivers and ruins are scattered on it.
-- Trees, rocks and logs are solid for the legion and the barbarians alike. Thickets packed too tight to pass and long lines of rocks and logs cut across the field, so a legion that marches straight on runs into them and has to steer round or turn and fight. Barbarians find their way round them too.
+- Trees, rocks and logs are solid for the legion and the barbarians alike. Barbarians find their way round them.
+- The forest grows in long winding ridges, too thick to pass, with clearings and paths between them, so there are only certain ways to go and a legion can be cornered against the trees. Lines of rocks and logs cross the open ground.
 - Barbarians arrive from beyond the edges of the screen in a steady stream that thickens over the 20 minutes, with a surge every 2 minutes.
 - War bands of a dozen or more gather in a tight group every 35 seconds, either in the legion's path or closing in from behind.
 - Barbarians walk slower than the legion, but club warriors sprint in short bursts faster than it and wolves always run faster, so no direction is safe for long.
 - The commander's own blow is weak: the soldiers do the killing, so an enemy at his back is dangerous until the formation turns to meet it. He recovers health slowly on his own.
 - Barbarians locked in melee hold the legion back: the more of them press against it, the slower it marches, down to a fifth of its speed. A small legion cannot walk through a crowd.
-- Every fallen barbarian drops denarii. Any soldier who walks over them collects them for the legion. Collecting them fills the level bar. The amount needed rises with each level.
+- Every fallen barbarian drops denarii: gold coins, large and bright with a dark edge and a glint, so they are easy to see on the grass. Any soldier who walks over them collects them for the legion. Collecting them fills the level bar. The amount needed rises with each level.
 - At each level-up the game pauses and offers three choices, one of them always a recruit while the legion has room. One can be rerolled per run for free, more with a permanent upgrade.
 - Now and then a stranded supply cart stands somewhere on the screen for about 45 seconds. Reaching it gives a free choice, a heal for the whole legion, or a magnet that pulls in every coin on screen.
 - When the run ends, the denarii carried go to the camp for permanent upgrades, whatever the result.
+
+## Objectives and the fort
+
+In 9 AD the Germans destroyed three legions in the Teutoburg Forest and carried off their eagle standards. A Germania run is a mission to win them back.
+
+- Each run places two or three objectives in clearings some way off. Arrows at the edge of the screen point to each one that is not done yet, with its distance.
+- Objectives:
+  - **Barbarian camp:** huts round a captured eagle standard. Defenders pour out when the legion comes near. Reaching the eagle takes it back: a free choice and a large purse of denarii at the end of the run.
+  - **Stranded column:** a supply cart with a few Roman soldiers holding out against a war band. Reaching them adds the survivors to the legion and heals it.
+  - **Sacred grove:** an altar among the oaks. Holding the legion in the grove for a few seconds while war bands come to defend it burns it: a free choice, and the barbarians lose heart, so the stream thins for a minute.
+- Objectives are optional. Each one done raises the denarii the run banks.
+- At 16 minutes a Roman fort appears some distance away, marked like the objectives. Marching the commander through its gate wins the run.
+- When the fort appears the chieftain comes out with his bodyguard to stop the legion reaching it. Killing him also wins.
+
+## Felling trees and the palisade
+
+- Legions cut roads through forests. Soldiers pressed against a tree fell it after a few seconds, leaving a stump, so the legion can cut its own way through a ridge, slowly.
+- Each felled tree gives a log of timber, counted on the screen.
+- A button (E, or the west face button) spends timber to drive a line of stakes across the ground in front of the legion. The stakes are solid, so barbarians must go round them; they rot away after a while.
+
+## Bosses
+
+The chieftain and the elites are meant to be fought with the whole formation: facing them, closing on the ones who stand back and stepping out of their big blows.
+
+- **The chieftain** comes with a bodyguard of spearmen who stay round him, so the front rank cannot reach him until they are broken; pila, the onager and fire reach past them. His attacks:
+  - **Charge:** a red line on the ground shows his path for a second, then he charges along it and throws aside the soldiers in his way, hurting them and breaking the formation.
+  - **Slam:** a red ring round him fills in, then he strikes the ground and hurts everyone inside it.
+  - **War horn:** he blows his horn and a war band arrives behind the legion.
+  - **Cleave:** a sweep of his axe in front of him.
+- **Berserker:** runs round the legion to attack its rear, where the archers are, and charges every few seconds. The legion has to keep turning to keep him in front.
+- **War band leader:** rallies the barbarians round him, who move faster for a few seconds.
+- **War priest:** stands back and throws burning pots at the thickest ranks, each landing in a red ring that shows a second before.
 
 ## Controls
 
 - Move: WASD, arrow keys or the left stick.
 - Testudo: Space or the south face button.
 - Pause: Escape or Start.
+- Build a palisade: E or the west face button.
 - Everything else, including every attack, happens on its own.
 - Mouse is used only in menus and choices, which also work fully from keyboard and pad.
 

@@ -24,7 +24,9 @@ UNITS = {"commander": "walking", "legionary": "walking", "archer": "walking",
 PROPS = {"oak": "props2/oak.png", "fir": "props2/fir.png", "rock": "props2/rock.png", "log": "props2/log.png",
          "bush": "props/bush.png", "stones": "props/stones.png", "coin": "props/coin.png", "pilum": "props2/pilum.png",
          "stake": "props3/stake.png", "caltrops": "props3/caltrops.png", "fire_pot": "props3/fire_pot.png",
-         "onager_stone": "props3/onager_stone.png", "chest": "props3/chest.png", "supply_cart": "props3/supply_cart.png"}
+         "onager_stone": "props3/onager_stone.png", "chest": "props3/chest.png", "supply_cart": "props3/supply_cart.png",
+         "fort_gate": "props3/fort_gate.png", "hut": "props3/hut.png", "eagle_standard": "props3/eagle_standard.png",
+         "altar": "props3/altar.png", "stump": "props3/stump.png", "timber": "props3/timber.png"}
 WIDTH = 2048
 
 
