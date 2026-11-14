@@ -64,9 +64,12 @@ func _ready() -> void:
 func _new_sim() -> void:
 	sim = Sim.new(balance, content)
 	world.sim = sim
-	for entry in str(args.get("give", "")).split(",", false):
-		var parts := entry.split(":")
-		sim.ranks[parts[0]] = int(parts[1]) if parts.size() > 1 else 1
+	if args.has("autoplay") or args.has("skip"):
+		for entry in str(args.get("give", "")).split(",", false):
+			var parts := entry.split(":")
+			var info := content.upgrade(parts[0])
+			if not info.is_empty():
+				sim.ranks[parts[0]] = clampi(int(parts[1]) if parts.size() > 1 else 1, 0, int(info.get("max", 0)))
 
 
 func _start() -> void:

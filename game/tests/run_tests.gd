@@ -5,6 +5,11 @@ var failures := 0
 var passes := 0
 const WAITING_FOR_ART := ["slinger", "cavalry", "standard_bearer", "medicus", "ballista", "centurion"]
 
+# Built before their icons and small props are drawn; every other implemented entry must have all its art.
+const NO_ICON_YET := ["onager", "caltrops", "stakes", "fire_pots", "war_dogs", "trumpets", "eagle", "oil_jars", "torches",
+	"hooked_pila", "greek_fire", "siege_train", "hunting_horn", "burning_eagle", "fortified_camp",
+	"shield_wall", "better_bows", "close_order", "plunder", "veterans", "reserves", "fortune", "glory"]
+
 var content: Content
 
 
@@ -225,7 +230,7 @@ func test_every_implemented_entry_is_ready_and_complete(b: Dictionary) -> void:
 
 ## Arms, forged forms and drills are built before their icons and small props are drawn; the art gate keeps them hidden.
 func _art_waiting(kind: String, id: String) -> bool:
-	return kind != "recruits" and not content.ready(kind, id) and not content.get(kind)[id].get("art", []).is_empty()
+	return kind != "recruits" and NO_ICON_YET.has(id)
 
 
 ## A copy of the content in which every art key exists, so offers can be tested before the art is drawn.

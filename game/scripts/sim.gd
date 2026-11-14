@@ -297,6 +297,7 @@ func _move_enemies(dt: float) -> void:
 	var reach2 := legion_reach * legion_reach
 	var shield: float = b.testudo_damage_taken if testudo_left > 0.0 else 1.0
 	var phase := frame % 3
+	var slow_recover: float = b.slow_recover
 	var wall := 1.0 - float(b.drills.shield_wall) * rank("shield_wall")
 	for i in e_pos.size():
 		var kind := e_kind[i]
@@ -314,7 +315,10 @@ func _move_enemies(dt: float) -> void:
 				e_flash[i] -= dt
 			continue
 		var r := k_radius[kind]
-		var v := to / maxf(d, 0.001) * (k_speed[kind] * e_slow[i])
+		var slow := e_slow[i]
+		if slow < 1.0:
+			e_slow[i] = minf(1.0, slow + dt * slow_recover)
+		var v := to / maxf(d, 0.001) * (k_speed[kind] * slow)
 		var push := e_push[i]
 		# Spacing from neighbours is worked out for a third of the horde each update, in turn.
 		if i % 3 == phase:
@@ -370,8 +374,6 @@ func _move_enemies(dt: float) -> void:
 			e_face[i] = to / maxf(d, 0.001)
 		if e_flash[i] > 0.0:
 			e_flash[i] -= dt
-	# Slows are set again each update by the zones that cause them.
-	e_slow.fill(1.0)
 	legion.remove_fallen(self)
 
 

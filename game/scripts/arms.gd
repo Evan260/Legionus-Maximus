@@ -130,10 +130,9 @@ func _scorpio(dt: float, sim: Sim) -> void:
 	timers.scorpio = lv(sc, "every", sr) * (float(sim.b.siege_train.every_mult) if siege else 1.0)
 	var best := -1
 	var best_hp := 0.0
-	var reach2: float = sc.range * sc.range
 	var cpos: Vector2 = sim.commander.pos
-	for i in sim.e_pos.size():
-		if sim.e_hp[i] > best_hp and (sim.e_pos[i] - cpos).length_squared() < reach2:
+	for i in sim.enemies_near(cpos, float(sc.range)):
+		if sim.e_hp[i] > best_hp:
 			best_hp = sim.e_hp[i]
 			best = i
 	if best < 0:
@@ -240,15 +239,14 @@ func _stakes(dt: float, sim: Sim) -> void:
 	var pulse := _stake_tick <= 0.0
 	if pulse:
 		_stake_tick = float(cfg.tick)
-	var camp := sim.rank("fortified_camp") > 0
-	if not pulse and not camp:
+	if not pulse:
 		return
+	var camp := sim.rank("fortified_camp") > 0
 	var dmg := stake_dps(sim) * float(cfg.tick)
 	for j in sim.enemies_near(cpos, ring + band):
 		if absf((sim.e_pos[j] - cpos).length() - ring) > band:
 			continue
-		if pulse:
-			sim.hit(j, dmg)
+		sim.hit(j, dmg)
 		if camp:
 			sim.e_slow[j] = minf(sim.e_slow[j], float(sim.b.fortified_camp.slow))
 

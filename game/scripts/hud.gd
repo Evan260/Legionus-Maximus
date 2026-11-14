@@ -116,6 +116,8 @@ func _top_bar(sim: Sim) -> void:
 
 
 func _choices(sim: Sim) -> void:
+	if main.choices.is_empty():
+		return
 	draw_rect(Rect2(0, 0, W, H), Color(0, 0, 0, 0.5))
 	text("LEVEL %d" % sim.level, Vector2(0, 74), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
 	text("Choose one", Vector2(0, 86), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W)
