@@ -9,6 +9,7 @@ const PROP_KINDS := ["oak", "fir", "rock", "log", "bush", "stones", "bush", "sto
 var sim: Sim
 var atlas: Atlas
 var ground: Texture2D
+var _ground_of := "germania"
 var shadow: Texture2D
 var props_cache := {}
 var shake_on := true
@@ -22,7 +23,7 @@ var _mods := PackedColorArray()
 
 
 func _ready() -> void:
-	ground = load("res://assets/ground.png")
+	ground = load(Content.ground_path("germania"))
 	var img := Image.create(16, 6, false, Image.FORMAT_RGBA8)
 	for y in 6:
 		for x in 16:
@@ -86,6 +87,9 @@ func _draw() -> void:
 		return
 	var cam: Vector2 = sim.commander.pos
 	var top_left := cam - VIEW / 2.0
+	if sim.province != _ground_of:
+		_ground_of = sim.province
+		ground = load(Content.ground_path(_ground_of))
 	var gw := ground.get_width()
 	var gh := ground.get_height()
 	var gx0 := floori(top_left.x / gw)

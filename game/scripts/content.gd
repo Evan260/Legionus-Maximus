@@ -33,6 +33,9 @@ static func available_art() -> Dictionary:
 	for file in ResourceLoader.list_directory("res://assets/icons/"):
 		if file.ends_with(".png"):
 			out["icon:" + file.get_basename()] = true
+	for file in ResourceLoader.list_directory("res://assets/grounds/"):
+		if file.ends_with(".png"):
+			out["ground:" + file.get_basename()] = true
 	return out
 
 
@@ -84,6 +87,12 @@ static func with_all_art() -> Content:
 	c.available["prop:chest"] = true
 	c.available["prop:supply_cart"] = true
 	return c
+
+
+## The ground texture of a province, falling back to Germania's when a province has none.
+static func ground_path(province: String) -> String:
+	var path := "res://assets/grounds/%s.png" % province
+	return path if ResourceLoader.exists(path) else "res://assets/grounds/germania.png"
 
 
 ## True when every art key of the entry exists.

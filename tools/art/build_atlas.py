@@ -5,7 +5,7 @@ Each animation is cropped to the area its frames use and keeps an anchor at the 
 position whatever the canvas PixelLab drew them on.
 
 Usage: python tools/art/build_atlas.py
-Writes game/assets/atlas.png, game/assets/atlas.json and game/assets/ground.png.
+Writes game/assets/atlas.png, game/assets/atlas.json and game/assets/grounds/germania.png.
 """
 import json
 import shutil
@@ -84,7 +84,8 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     atlas.save(OUT / "atlas.png")
     (OUT / "atlas.json").write_text(json.dumps(meta))
-    shutil.copy(RAW / "ground" / "grass_tile_b.png", OUT / "ground.png")
+    (OUT / "grounds").mkdir(exist_ok=True)
+    shutil.copy(RAW / "ground" / "grass_tile_b.png", OUT / "grounds" / "germania.png")
     print(f"atlas {atlas.size[0]}x{atlas.size[1]}, {len(flat)} sprites")
 
 

@@ -24,7 +24,7 @@ Godot is `C:\Users\evand\AppData\Local\Microsoft\WinGet\Packages\GodotEngine.God
 - `game/scripts/sim.gd`: the whole run as plain data (legion, horde, missiles, coins, levels). No nodes, so tests drive it directly. `legion.gd` is the soldiers and their formation, `horde.gd` the barbarians as packed arrays, elites, chieftains, chests and supply carts.
 - `game/scripts/arms.gd`: the twelve weapons and six forged forms, on their timers, with burning ground, oil, caltrops and the stake ring as zones.
 - `game/scripts/upgrades.gd`: the level-up choices, rerolls and banishes.
-- `game/scripts/content.gd`: reads `game/data/content.json` (every recruit, arm, forged form, drill, enemy, province, commander, quartermaster upgrade and achievement, with its name, text, history and art keys). An entry whose art keys are not in the atlas or the icons folder stays hidden, so content can be built before its art.
+- `game/scripts/content.gd`: reads `game/data/content.json` (every recruit, arm, forged form, drill, enemy, province, commander, quartermaster upgrade and achievement, with its name, text, history and art keys). Grounds are `game/assets/grounds/<province>.png`, found by `available_art()` as `ground:<province>`, so a province turns on with no code change once its ground, props and enemies exist. An entry whose art keys are not in the atlas or the icons folder stays hidden, so content can be built before its art.
 - `game/data/balance.json`: every number. `credits.json` feeds the credits.
 - `game/scripts/world_view.gd`, `hud.gd`, `atlas.gd`: drawing. Every sprite is in one atlas so the horde draws in one batch.
 - `game/scripts/main.gd`: input, the state machine and the command-line modes. `game.gd` says whether this is the demo.

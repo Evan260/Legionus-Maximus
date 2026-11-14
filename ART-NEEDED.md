@@ -31,7 +31,7 @@ Estimates come from the averages in `tools/art/ledger.csv`. A 48 px character co
 3. Shrink the test lists in `game/tests/run_tests.gd`: delete each recruit id from `WAITING_FOR_ART` and each arm, forged form or drill id from `NO_ICON_YET` once all its art keys exist, so the test that every implemented entry has all its art covers it from then on.
 4. Run `godot --headless --path game -- --run-tests` and `-- --bench`, then look at it with `--autoplay --give=ID` or `--commander=ID`.
 
-Ground per province needs one code change besides the art: the game draws a single `game/assets/ground.png`, and `Content.available_art()` does not yet list `ground:<province>`. When a ground is made, save it as `game/assets/ground_<province>.png`, make `available_art()` report `ground:<id>` for each file, and have `world_view.gd` load the ground of the province being played. Make each tile seamless with `tools/art/make_seamless.py` and `tools/art/remove_leaves.py` as for the Germania ground.
+Grounds need no code change: save each as `game/assets/grounds/<province>.png` and `Content.available_art()` finds it, the province turns on once its props and enemies are drawn too, and the run and the camp draw that ground. Germania's is `game/assets/grounds/germania.png`.
 
 ## Recruits
 
@@ -546,7 +546,7 @@ Subtotal: \$1.64 (about \$2.28 CAD).
 
 ## Grounds
 
-One seamless 256x256 tile per province, Pro Flash with the style image, then `tools/art/make_seamless.py` (see the code note under After the art lands). Germania's ground exists.
+One seamless 256x256 tile per province, Pro Flash with the style image, then `tools/art/make_seamless.py`, then copy the tile to its place. Germania's ground exists.
 
 ### ground:britannia
 
@@ -555,6 +555,7 @@ Unlocks: province britannia. Estimate \$0.11 (about \$0.15 CAD).
 ```bash
 $PL proflash "seamless top-down ground texture of wet moorland: tussocky grass in dull green and brown, patches of dark peat, a few tiny purple heather sprigs, no leaves, no sticks, even lighting, no objects, fills the whole image" 256x256 --style $R/style_ref.png --style-use "match this art style, palette, shading and pixel density" --out $R/ground/britannia.png
 python tools/art/make_seamless.py $R/ground/britannia.png --out $R/ground/britannia_tile.png
+cp $R/ground/britannia_tile.png game/assets/grounds/britannia.png
 ```
 
 ### ground:gaul
@@ -564,6 +565,7 @@ Unlocks: province gaul. Estimate \$0.11 (about \$0.15 CAD).
 ```bash
 $PL proflash "seamless top-down ground texture of farmland: short green meadow grass with a few bare earth patches and tiny yellow wildflowers, no leaves, no sticks, even lighting, no objects, fills the whole image" 256x256 --style $R/style_ref.png --style-use "match this art style, palette, shading and pixel density" --out $R/ground/gaul.png
 python tools/art/make_seamless.py $R/ground/gaul.png --out $R/ground/gaul_tile.png
+cp $R/ground/gaul_tile.png game/assets/grounds/gaul.png
 ```
 
 ### ground:dacia
@@ -573,6 +575,7 @@ Unlocks: province dacia. Estimate \$0.11 (about \$0.15 CAD).
 ```bash
 $PL proflash "seamless top-down ground texture of snowy mountain ground: white snow with grey rock patches, frozen dirt and a few sparse dead grass tufts, no leaves, no sticks, even lighting, no objects, fills the whole image" 256x256 --style $R/style_ref.png --style-use "match this art style, palette, shading and pixel density" --out $R/ground/dacia.png
 python tools/art/make_seamless.py $R/ground/dacia.png --out $R/ground/dacia_tile.png
+cp $R/ground/dacia_tile.png game/assets/grounds/dacia.png
 ```
 
 ### ground:parthia
@@ -582,6 +585,7 @@ Unlocks: province parthia. Estimate \$0.11 (about \$0.15 CAD).
 ```bash
 $PL proflash "seamless top-down ground texture of desert: warm tan sand with small pebbles and faint wind ripples, a few dry scrub tufts, no leaves, no sticks, even lighting, no objects, fills the whole image" 256x256 --style $R/style_ref.png --style-use "match this art style, palette, shading and pixel density" --out $R/ground/parthia.png
 python tools/art/make_seamless.py $R/ground/parthia.png --out $R/ground/parthia_tile.png
+cp $R/ground/parthia_tile.png game/assets/grounds/parthia.png
 ```
 
 Subtotal: \$0.44 (about \$0.62 CAD).

@@ -997,6 +997,23 @@ func test_beasts_are_fast_and_frail(b: Dictionary) -> void:
 	check(float(content.enemies.wolf.speed) > float(content.enemies.barbarian_club.speed) and float(content.enemies.wolf.hp) < float(content.enemies.barbarian_club.hp), "fast with low health")
 
 
+func test_a_province_turns_on_with_its_ground_and_draws_it(b: Dictionary) -> void:
+	var keys := Content.available_art()
+	check(keys.has("ground:germania"), "Germania's ground is found in the grounds folder")
+	var art := {}
+	for k in content.provinces.gaul.art:
+		art[k] = true
+	for id in content.provinces.gaul.ordinary + content.provinces.gaul.elites + [content.provinces.gaul.chieftain]:
+		for k in content.enemies[id].art:
+			art[k] = true
+	var c := Content.load_all(art)
+	check(c.ready("provinces", "gaul"), "a province with its ground, props and enemies is ready")
+	art.erase("ground:gaul")
+	check(not Content.load_all(art).ready("provinces", "gaul"), "without its ground it stays hidden")
+	var s := Sim.new(b, c, {"seed": 5, "province": "gaul"})
+	check(s.province == "gaul" and Content.ground_path("gaul") == "res://assets/grounds/germania.png", "a province without a file falls back to Germania's ground")
+
+
 func test_province_only_spawns_its_ready_enemies(b: Dictionary) -> void:
 	var s := Sim.new(b, content, {"seed": 100})
 	var ready_ids: Array = content.province_enemies("germania")

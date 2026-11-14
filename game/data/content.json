@@ -1209,7 +1209,8 @@
    "chieftain": "chieftain",
    "art": [
     "prop:oak",
-    "prop:fir"
+    "prop:fir",
+    "ground:germania"
    ]
   },
   "britannia": {
