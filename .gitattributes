@@ -1,0 +1,17 @@
+# Normalize text line endings
+* text=auto eol=lf
+
+# Art and audio go through Git LFS so the repo stays fast
+*.png filter=lfs diff=lfs merge=lfs -text
+*.wav filter=lfs diff=lfs merge=lfs -text
+*.ogg filter=lfs diff=lfs merge=lfs -text
+*.mp3 filter=lfs diff=lfs merge=lfs -text
+*.woff2 filter=lfs diff=lfs merge=lfs -text
+*.ttf filter=lfs diff=lfs merge=lfs -text
+*.gif filter=lfs diff=lfs merge=lfs -text
+*.dll filter=lfs diff=lfs merge=lfs -text
+*.so filter=lfs diff=lfs merge=lfs -text
+*.dylib filter=lfs diff=lfs merge=lfs -text
+
+# The trimmed Windows engine the Windows preset exports with
+tools/engine/*.exe filter=lfs diff=lfs merge=lfs -text

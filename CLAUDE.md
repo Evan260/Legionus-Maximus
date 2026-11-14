@@ -1,0 +1,34 @@
+# Legionus Maximus
+
+A survivors-style game in pixel art where the player steers a growing Roman legion through barbarian hordes. Fourth game from Slow Sunday Games. [Plan.md](Plan.md) is the plan and [Features.md](Features.md) the full feature set; the game in `game/` is the prototype.
+
+## Commands
+
+Godot is `C:\Users\evand\AppData\Local\Microsoft\WinGet\Packages\GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe\Godot_v4.7.2-stable_win64_console.exe`.
+
+- Tests: `godot --headless --path game -- --run-tests` (must print ALL TESTS PASSED)
+- Speed: `godot --headless --path game -- --bench` (simulation time per update with about 1,000 barbarians)
+- Look without playing: `godot --path game -- --autoplay`, with `--skip=SECONDS` to start later in the run and `--shot=PATH --at=SECONDS` to save a screenshot and quit
+- Windows build: `godot --headless --path game --export-release "Windows"` writes `builds/windows/Legionus Maximus.exe` with the slim engine from Fishus
+
+## Layout
+
+- `game/scripts/sim.gd`: the whole run as plain data (legion, horde, missiles, coins, levels). No nodes, so tests drive it directly.
+- `game/scripts/upgrades.gd`: the level-up choices.
+- `game/scripts/world_view.gd`, `hud.gd`: drawing. Every sprite is in one atlas so the horde draws in one batch.
+- `game/scripts/main.gd`: input, screens and the command-line modes.
+- `game/data/balance.json`: every number.
+
+## Art
+
+All art is PixelLab, made with `tools/art/pixellab.py` (token in `.env`, never in code), costs in `tools/art/ledger.csv`.
+
+- Characters are 48 px (the chieftain 64 px), low top-down, selective outline, from 8 directions. Walking and running use PixelLab's built-in `walking` and `running` motions, which loop and cost nothing.
+- Ground and props are made with Pro Flash using `art_test/raw/style_ref.png` (the commander and a barbarian) as the style image, or they come out in a brighter cartoon style that does not match.
+- `tools/art/batch_art.sh` makes the prototype's art, `build_atlas.py` packs it into `game/assets/atlas.png`, `make_seamless.py` and `remove_leaves.py` make the ground tile.
+- No mirroring: every direction is drawn.
+
+## Rules
+
+- The horde is packed arrays with a flat grid; keep per-enemy work out of dictionaries, and check `--bench` after touching `_move_enemies`.
+- Packed arrays copy when changed through another container, so change them by name.
