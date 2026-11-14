@@ -58,21 +58,21 @@ func test_coins_level_the_legion_up(b: Dictionary) -> void:
 
 func test_a_killed_barbarian_drops_coins_and_is_removed(b: Dictionary) -> void:
 	var s := Sim.new(b, content, 4)
-	s.spawn_enemy(0, Vector2(300, 0))
-	s.spawn_enemy(1, Vector2(-300, 0))
-	var id_left := s.e_id[1]
+	s.horde.spawn("barbarian_club", Vector2(300, 0))
+	s.horde.spawn("barbarian_spear", Vector2(-300, 0))
+	var id_left := s.horde.e_id[1]
 	s.hit(0, 999.0)
 	s._remove_dead()
-	check(s.e_pos.size() == 1, "one barbarian left")
-	check(s.e_id[0] == id_left, "the other barbarian kept its data")
-	check(s.e_pos[0] == Vector2(-300, 0), "and its place")
+	check(s.horde.e_pos.size() == 1, "one barbarian left")
+	check(s.horde.e_id[0] == id_left, "the other barbarian kept its data")
+	check(s.horde.e_pos[0] == Vector2(-300, 0), "and its place")
 	check(s.c_pos.size() == 1 and s.c_val[0] == 1, "a coin dropped")
 	check(s.kills == 1, "kill counted")
 
 
 func test_barbarians_hurt_soldiers_they_reach(b: Dictionary) -> void:
 	var s := Sim.new(b, content, 5)
-	s.spawn_enemy(0, s.commander.pos + Vector2(10, 0))
+	s.horde.spawn("barbarian_club", s.commander.pos + Vector2(10, 0))
 	var before: float = s.commander.hp
 	for i in 30:
 		s.update(1.0 / 60.0, Vector2.ZERO, false)
@@ -84,7 +84,7 @@ func test_testudo_cuts_the_harm_taken(b: Dictionary) -> void:
 	var shielded := Sim.new(b, content, 6)
 	for s in [plain, shielded]:
 		s.soldiers.clear()
-		s.spawn_enemy(0, Vector2(10, 0))
+		s.horde.spawn("barbarian_club", Vector2(10, 0))
 	shielded.update(1.0 / 60.0, Vector2.ZERO, true)
 	plain.update(1.0 / 60.0, Vector2.ZERO, false)
 	for i in 30:
@@ -122,7 +122,7 @@ func test_offers_are_three_different_choices(b: Dictionary) -> void:
 func test_pilum_volley_kills_a_lone_barbarian(b: Dictionary) -> void:
 	var s := Sim.new(b, content, 11)
 	Upgrades.apply(s, "pilum")
-	s.spawn_enemy(0, Vector2(120, 0))
+	s.horde.spawn("barbarian_club", Vector2(120, 0))
 	for i in 120:
 		s.update(1.0 / 60.0, Vector2.ZERO, false)
 	check(s.kills >= 1, "the pilum found its mark")
@@ -169,14 +169,14 @@ func test_the_horde_grows_over_time(b: Dictionary) -> void:
 	s.commander.hp = 1e9
 	for i in 60 * 30:
 		s.update(1.0 / 30.0, Vector2(1, 0), false)
-	check(s.e_pos.size() > 50, "a crowd after a minute (%d)" % s.e_pos.size())
+	check(s.horde.e_pos.size() > 50, "a crowd after a minute (%d)" % s.horde.e_pos.size())
 
 
 func test_far_barbarians_come_round_again(b: Dictionary) -> void:
 	var s := Sim.new(b, content, 17)
-	s.spawn_enemy(0, Vector2(2000, 0))
+	s.horde.spawn("barbarian_club", Vector2(2000, 0))
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
-	check(s.e_pos[0].length() <= float(b.spawn_radius) + 5.0, "brought back to the edge")
+	check(s.horde.e_pos[0].length() <= float(b.spawn_radius) + 5.0, "brought back to the edge")
 
 
 func test_every_direction_has_a_name(b: Dictionary) -> void:
@@ -253,7 +253,7 @@ func _legion_sim(b: Dictionary, seed_value: int, types: Array) -> Sim:
 	s.b = b.duplicate()
 	s.b.spawn_per_second_start = 0.0
 	s.b.spawn_per_second_growth = 0.0
-	s.next_surge = 1e9
+	s.horde.next_surge = 1e9
 	for t in types:
 		s.legion.add(t)
 	var places: Array = s.legion.formation()
@@ -308,19 +308,19 @@ func test_front_rank_takes_the_blow(b: Dictionary) -> void:
 	var rear: Dictionary = s.soldiers[1]
 	front.pos = Vector2(300, 0)
 	rear.pos = Vector2(312, 0)
-	s.spawn_enemy(0, Vector2(322, 0))
+	s.horde.spawn("barbarian_club", Vector2(322, 0))
 	s._rebuild_grids()
 	s.legion.assign_guards()
 	for i in 20:
-		s._move_enemies(1.0 / 60.0)
+		s.horde._move(1.0 / 60.0, s)
 	check(front.hp < front.max_hp, "the front-rank man took the hit")
 	check(rear.hp == rear.max_hp, "the archer behind him was spared")
 	rear.pos = Vector2(300, 60)
 	s._rebuild_grids()
 	s.legion.assign_guards()
-	s.e_pos[0] = Vector2(310, 60)
+	s.horde.e_pos[0] = Vector2(310, 60)
 	for i in 20:
-		s._move_enemies(1.0 / 60.0)
+		s.horde._move(1.0 / 60.0, s)
 	check(rear.hp < rear.max_hp, "with no shield near, the archer is hit")
 
 
@@ -384,21 +384,21 @@ func test_cavalry_rides_out_and_back(b: Dictionary) -> void:
 	var s := _legion_sim(b, 8, ["cavalry"])
 	var cav: Dictionary = s.soldiers[0]
 	var home: Vector2 = cav.pos
-	s.spawn_enemy(0, home + Vector2(0, 70) * signf(home.y))
+	s.horde.spawn("barbarian_club", home + Vector2(0, 70) * signf(home.y))
 	var went := 0.0
 	for i in 240:
 		s.update(1.0 / 60.0, Vector2.ZERO, false)
 		went = maxf(went, cav.pos.distance_to(home))
 		s.commander.hp = 1e9
 	check(went > 30.0, "he rode out (%.0f)" % went)
-	check(s.kills >= 1 or s.e_hp[0] < s.e_max[0], "and struck")
+	check(s.kills >= 1 or s.horde.e_hp[0] < s.horde.e_max[0], "and struck")
 	check(cav.pos.distance_to(s.commander.pos + s.slot_of(cav)) < 8.0, "and is back in his place")
 
 
 func test_ballista_bolt_pierces_all(b: Dictionary) -> void:
 	var s := _legion_sim(b, 9, ["ballista"])
 	for k in 3:
-		s.spawn_enemy(0, Vector2(-80 - 25 * k, 0))
+		s.horde.spawn("barbarian_club", Vector2(-80 - 25 * k, 0))
 	for i in 20:
 		s.update(1.0 / 60.0, Vector2.ZERO, false)
 		s.commander.hp = 1e9
@@ -407,8 +407,8 @@ func test_ballista_bolt_pierces_all(b: Dictionary) -> void:
 		s.update(1.0 / 60.0, Vector2.ZERO, false)
 		s.commander.hp = 1e9
 	var hurt := 0
-	for k in s.e_pos.size():
-		if s.e_hp[k] < s.e_max[k]:
+	for k in s.horde.e_pos.size():
+		if s.horde.e_hp[k] < s.horde.e_max[k]:
 			hurt += 1
 	check(hurt + s.kills >= 2, "it hit the enemies down its line (%d)" % (hurt + s.kills))
 
@@ -417,11 +417,11 @@ func test_centurion_shout_stuns(b: Dictionary) -> void:
 	var s := _legion_sim(b, 10, ["centurion"])
 	var c: Dictionary = s.soldiers[0]
 	c.shout = 0.0
-	s.spawn_enemy(0, c.pos + Vector2(20, 0))
-	s.spawn_enemy(0, c.pos + Vector2(200, 0))
+	s.horde.spawn("barbarian_club", c.pos + Vector2(20, 0))
+	s.horde.spawn("barbarian_club", c.pos + Vector2(200, 0))
 	s._rebuild_grids()
 	s.legion.update(1.0 / 60.0, s)
-	check(s.e_stun[0] > 0.0 and s.e_stun[1] == 0.0, "only the enemy in the shout is stunned")
+	check(s.horde.e_stun[0] > 0.0 and s.horde.e_stun[1] == 0.0, "only the enemy in the shout is stunned")
 
 
 func test_recruit_without_art_is_not_offered(b: Dictionary) -> void:
@@ -456,7 +456,7 @@ func _arms_sim(b: Dictionary, seed_value: int, ranks: Dictionary, game_content: 
 	s.b = b.duplicate()
 	s.b.spawn_per_second_start = 0.0
 	s.b.spawn_per_second_growth = 0.0
-	s.next_surge = 1e9
+	s.horde.next_surge = 1e9
 	for id in ranks:
 		s.ranks[id] = ranks[id]
 	return s
@@ -571,15 +571,15 @@ func test_banished_choice_never_returns(b: Dictionary) -> void:
 
 func test_burning_ground_hurts_over_time(b: Dictionary) -> void:
 	var s := _arms_sim(b, 36, {})
-	s.spawn_enemy(0, Vector2(60, 0))
-	s.e_hp[0] = 400.0
-	s.e_max[0] = 400.0
-	s.e_stun[0] = 100.0
+	s.horde.spawn("barbarian_club", Vector2(60, 0))
+	s.horde.e_hp[0] = 400.0
+	s.horde.e_max[0] = 400.0
+	s.horde.e_stun[0] = 100.0
 	s.arms.add_zone("fire", Vector2(60, 0), 20.0, 5.0, 20.0)
 	_run(s, 0.5)
-	var early: float = s.e_hp[0]
+	var early: float = s.horde.e_hp[0]
 	_run(s, 1.0)
-	var later: float = s.e_hp[0]
+	var later: float = s.horde.e_hp[0]
 	check(early < 400.0, "the fire hurt at once (%.1f)" % early)
 	check(later < early - 10.0, "and kept hurting (%.1f then %.1f)" % [early, later])
 	check(s.arms.ground_zones().size() == 1 and s.arms.ground_zones()[0].kind == "fire", "it is drawn as ground")
@@ -589,48 +589,48 @@ func test_burning_ground_hurts_over_time(b: Dictionary) -> void:
 
 func test_fire_pots_light_the_ground_ahead(b: Dictionary) -> void:
 	var s := _arms_sim(b, 37, {"fire_pots": 3})
-	s.spawn_enemy(0, Vector2(80, 0))
-	s.e_stun[0] = 100.0
-	s.e_hp[0] = 500.0
+	s.horde.spawn("barbarian_club", Vector2(80, 0))
+	s.horde.e_stun[0] = 100.0
+	s.horde.e_hp[0] = 500.0
 	_run(s, 6.0)
-	check(s.e_hp[0] < 500.0, "an enemy ahead was burned (%.1f)" % s.e_hp[0])
+	check(s.horde.e_hp[0] < 500.0, "an enemy ahead was burned (%.1f)" % s.horde.e_hp[0])
 
 
 func test_trumpets_push_enemies_back(b: Dictionary) -> void:
 	var s := _arms_sim(b, 38, {"trumpets": 1})
-	s.spawn_enemy(0, Vector2(60, 0))
-	s.spawn_enemy(0, Vector2(500, 0))
-	s.e_stun[0] = 100.0
-	s.e_stun[1] = 100.0
-	var far_before: Vector2 = s.e_pos[1]
+	s.horde.spawn("barbarian_club", Vector2(60, 0))
+	s.horde.spawn("barbarian_club", Vector2(500, 0))
+	s.horde.e_stun[0] = 100.0
+	s.horde.e_stun[1] = 100.0
+	var far_before: Vector2 = s.horde.e_pos[1]
 	_run(s, 1.5)
-	check(s.e_pos[0].x > 60.0 + 20.0, "the near enemy was pushed away (%.1f)" % s.e_pos[0].x)
-	check(s.e_pos[1].distance_to(far_before) < 40.0, "the far one was not blasted")
+	check(s.horde.e_pos[0].x > 60.0 + 20.0, "the near enemy was pushed away (%.1f)" % s.horde.e_pos[0].x)
+	check(s.horde.e_pos[1].distance_to(far_before) < 40.0, "the far one was not blasted")
 
 
 func test_scorpio_bolt_damages_the_strongest(b: Dictionary) -> void:
 	var s := _arms_sim(b, 39, {"scorpio": 1})
-	s.spawn_enemy(0, Vector2(100, 0))
-	var before: float = s.e_hp[0]
-	s.e_stun[0] = 100.0
+	s.horde.spawn("barbarian_club", Vector2(100, 0))
+	var before: float = s.horde.e_hp[0]
+	s.horde.e_stun[0] = 100.0
 	_run(s, 1.5)
-	check(s.e_hp.size() == 0 or s.e_hp[0] < before, "a projectile weapon hurts")
+	check(s.horde.e_hp.size() == 0 or s.horde.e_hp[0] < before, "a projectile weapon hurts")
 
 
 func test_onager_stone_scatters_the_crowd(b: Dictionary) -> void:
 	var s := _arms_sim(b, 40, {"onager": 2})
 	for i in 12:
-		s.spawn_enemy(0, Vector2(120 + (i % 4) * 5, (i / 4) * 5))
-		s.e_stun[i] = 100.0
-		s.e_hp[i] = 500.0
-	var before: PackedVector2Array = s.e_pos.duplicate()
+		s.horde.spawn("barbarian_club", Vector2(120 + (i % 4) * 5, (i / 4) * 5))
+		s.horde.e_stun[i] = 100.0
+		s.horde.e_hp[i] = 500.0
+	var before: PackedVector2Array = s.horde.e_pos.duplicate()
 	_run(s, 3.0)
 	var hurt := 0
 	var moved := 0
-	for i in s.e_pos.size():
-		if s.e_hp[i] < 500.0:
+	for i in s.horde.e_pos.size():
+		if s.horde.e_hp[i] < 500.0:
 			hurt += 1
-		if s.e_pos[i].distance_to(before[i]) > 2.0:
+		if s.horde.e_pos[i].distance_to(before[i]) > 2.0:
 			moved += 1
 	check(hurt >= 8, "the stone struck the crowd (%d hurt)" % hurt)
 	check(moved >= 6, "and scattered it (%d moved)" % moved)
@@ -639,28 +639,28 @@ func test_onager_stone_scatters_the_crowd(b: Dictionary) -> void:
 func test_stakes_hurt_enemies_in_the_ring(b: Dictionary) -> void:
 	var s := _arms_sim(b, 41, {"stakes": 1})
 	var r: float = float(b.stakes.radius)
-	s.spawn_enemy(0, Vector2(r, 0))
-	s.spawn_enemy(0, Vector2(r * 2.5, 0))
-	s.e_stun[0] = 100.0
-	s.e_stun[1] = 100.0
-	s.e_hp[0] = 300.0
-	s.e_hp[1] = 300.0
+	s.horde.spawn("barbarian_club", Vector2(r, 0))
+	s.horde.spawn("barbarian_club", Vector2(r * 2.5, 0))
+	s.horde.e_stun[0] = 100.0
+	s.horde.e_stun[1] = 100.0
+	s.horde.e_hp[0] = 300.0
+	s.horde.e_hp[1] = 300.0
 	_run(s, 1.0)
-	check(s.e_hp[0] < 290.0, "the one at the ring is hurt (%.1f)" % s.e_hp[0])
-	check(s.e_hp[1] == 300.0, "the one far outside is not")
+	check(s.horde.e_hp[0] < 290.0, "the one at the ring is hurt (%.1f)" % s.horde.e_hp[0])
+	check(s.horde.e_hp[1] == 300.0, "the one far outside is not")
 	check(s.arms.ground_zones().any(func(z): return z.kind == "stakes"), "the ring is drawn")
 
 
 func test_torches_burn_what_they_pass(b: Dictionary) -> void:
 	var s := _arms_sim(b, 42, {"torches": 3})
 	for i in 8:
-		s.spawn_enemy(0, Vector2.from_angle(i * TAU / 8.0) * float(b.torches.radius))
-		s.e_stun[i] = 100.0
-		s.e_hp[i] = 300.0
+		s.horde.spawn("barbarian_club", Vector2.from_angle(i * TAU / 8.0) * float(b.torches.radius))
+		s.horde.e_stun[i] = 100.0
+		s.horde.e_hp[i] = 300.0
 	_run(s, 4.0)
 	var hurt := 0
-	for i in s.e_hp.size():
-		if s.e_hp[i] < 300.0:
+	for i in s.horde.e_hp.size():
+		if s.horde.e_hp[i] < 300.0:
 			hurt += 1
 	check(hurt >= 3, "torches circling the formation hurt those on their path (%d)" % hurt)
 	check(s.arms.torch_points(s).size() == 4, "rank 3 carries four torches")
@@ -669,18 +669,18 @@ func test_torches_burn_what_they_pass(b: Dictionary) -> void:
 func test_eagle_flash_strikes_everyone_around(b: Dictionary) -> void:
 	var s := _arms_sim(b, 43, {"eagle": 1})
 	for i in 5:
-		s.spawn_enemy(0, Vector2.from_angle(i * 1.2) * 50.0)
-		s.e_stun[i] = 100.0
-		s.e_hp[i] = 300.0
-	s.spawn_enemy(0, Vector2(400, 0))
-	s.e_hp[5] = 300.0
+		s.horde.spawn("barbarian_club", Vector2.from_angle(i * 1.2) * 50.0)
+		s.horde.e_stun[i] = 100.0
+		s.horde.e_hp[i] = 300.0
+	s.horde.spawn("barbarian_club", Vector2(400, 0))
+	s.horde.e_hp[5] = 300.0
 	_run(s, 1.0)
 	var hurt := 0
 	for i in 5:
-		if s.e_hp[i] < 300.0:
+		if s.horde.e_hp[i] < 300.0:
 			hurt += 1
 	check(hurt == 5, "all around were struck (%d)" % hurt)
-	check(s.e_hp[5] == 300.0, "the far one was not")
+	check(s.horde.e_hp[5] == 300.0, "the far one was not")
 
 
 func test_caltrops_are_left_behind_and_cut(b: Dictionary) -> void:
@@ -688,50 +688,50 @@ func test_caltrops_are_left_behind_and_cut(b: Dictionary) -> void:
 	_step(s, 3.0, Vector2.RIGHT)
 	var laid: Array = s.arms.ground_zones().filter(func(z): return z.kind == "caltrops")
 	check(laid.size() >= 4, "spikes lie along the march (%d)" % laid.size())
-	s.spawn_enemy(0, laid[0].pos)
-	s.e_stun[0] = 100.0
-	s.e_hp[0] = 300.0
+	s.horde.spawn("barbarian_club", laid[0].pos)
+	s.horde.e_stun[0] = 100.0
+	s.horde.e_hp[0] = 300.0
 	_run(s, 0.6)
-	check(s.e_hp[0] < 300.0, "an enemy on them is cut (%.1f)" % s.e_hp[0])
+	check(s.horde.e_hp[0] < 300.0, "an enemy on them is cut (%.1f)" % s.horde.e_hp[0])
 
 
 func test_war_dogs_run_down_a_straggler(b: Dictionary) -> void:
 	var s := _arms_sim(b, 45, {"war_dogs": 2})
-	s.spawn_enemy(0, Vector2(120, 0))
-	s.e_stun[0] = 100.0
-	var before: float = s.e_hp[0]
+	s.horde.spawn("barbarian_club", Vector2(120, 0))
+	s.horde.e_stun[0] = 100.0
+	var before: float = s.horde.e_hp[0]
 	_run(s, 4.0)
-	check(s.e_hp.size() == 0 or s.e_hp[0] < before, "the dogs bit him")
+	check(s.horde.e_hp.size() == 0 or s.horde.e_hp[0] < before, "the dogs bit him")
 	check(s.arms.dogs.size() == 2, "rank 2 keeps two dogs")
 
 
 func test_oil_slows_enemies_on_it(b: Dictionary) -> void:
 	var s := _arms_sim(b, 46, {})
 	s.arms.add_zone("oil", Vector2(60, 0), 30.0, 5.0, 0.0, {"slow": 0.5})
-	s.spawn_enemy(0, Vector2(80, 0))
-	s.spawn_enemy(0, Vector2(80, 100))
-	var a0: Vector2 = s.e_pos[0]
-	var b0: Vector2 = s.e_pos[1]
+	s.horde.spawn("barbarian_club", Vector2(80, 0))
+	s.horde.spawn("barbarian_club", Vector2(80, 100))
+	var a0: Vector2 = s.horde.e_pos[0]
+	var b0: Vector2 = s.horde.e_pos[1]
 	_run(s, 0.5)
-	var slow: float = a0.distance_to(s.e_pos[0])
-	var free: float = b0.distance_to(s.e_pos[1])
+	var slow: float = a0.distance_to(s.horde.e_pos[0])
+	var free: float = b0.distance_to(s.horde.e_pos[1])
 	check(slow < free * 0.8, "the slick slows (%.1f vs %.1f)" % [slow, free])
 
 
 func test_oil_jars_make_slick_ground(b: Dictionary) -> void:
 	var s := _arms_sim(b, 47, {"oil_jars": 2})
-	s.spawn_enemy(0, Vector2(80, 0))
-	s.e_stun[0] = 100.0
+	s.horde.spawn("barbarian_club", Vector2(80, 0))
+	s.horde.e_stun[0] = 100.0
 	_run(s, 3.0)
 	check(s.arms.ground_zones().any(func(z): return z.kind == "oil"), "a jar broke into a slick")
 
 
 func test_each_forged_form_changes_its_pair(b: Dictionary) -> void:
 	var s := _arms_sim(b, 48, {"pilum": 5, "hooked_pila": 1})
-	s.spawn_enemy(0, Vector2(100, 0))
-	s.e_hp[0] = 1000.0
+	s.horde.spawn("barbarian_club", Vector2(100, 0))
+	s.horde.e_hp[0] = 1000.0
 	_run(s, 1.5)
-	check(s.e_stun[0] > 0.0, "hooked pila pin the enemy")
+	check(s.horde.e_stun[0] > 0.0, "hooked pila pin the enemy")
 	var g := _arms_sim(b, 49, {"fire_arrows": 5, "greek_fire": 1})
 	check(g.burn_seconds() > float(b.fire_arrows.seconds), "Greek fire burns longer")
 	var t := _arms_sim(b, 50, {"scorpio": 5, "onager": 5, "siege_train": 1})
@@ -739,11 +739,11 @@ func test_each_forged_form_changes_its_pair(b: Dictionary) -> void:
 	var h := _arms_sim(b, 51, {"war_dogs": 5, "trumpets": 5, "hunting_horn": 1})
 	check(h.arms.dog_count(h) == 5 + int(b.hunting_horn.extra_dogs), "the horn calls more dogs")
 	var e := _arms_sim(b, 52, {"eagle": 5, "torches": 5, "burning_eagle": 1})
-	e.spawn_enemy(0, Vector2(40, 0))
-	e.e_stun[0] = 100.0
-	e.e_hp[0] = 1000.0
+	e.horde.spawn("barbarian_club", Vector2(40, 0))
+	e.horde.e_stun[0] = 100.0
+	e.horde.e_hp[0] = 1000.0
 	_run(e, 7.0)
-	check(e.e_burn[0] > 0.0 or e.e_hp[0] < 900.0, "the burning eagle sets enemies alight")
+	check(e.horde.e_burn[0] > 0.0 or e.horde.e_hp[0] < 900.0, "the burning eagle sets enemies alight")
 	var f := _arms_sim(b, 53, {"stakes": 5, "oil_jars": 5, "fortified_camp": 1})
 	check(f.arms.stake_dps(f) > float(b.stakes.dps) + 4.0 * float(b.stakes.dps_per_level), "the camp's stakes hurt more")
 
@@ -755,7 +755,7 @@ func test_shield_wall_cuts_front_rank_harm(b: Dictionary) -> void:
 		s.ranks["shield_wall"] = r
 		s.soldiers[0].hp = 1000.0
 		s.soldiers[0].max_hp = 1000.0
-		s.spawn_enemy(0, s.soldiers[0].pos + Vector2(8, 0))
+		s.horde.spawn("barbarian_club", s.soldiers[0].pos + Vector2(8, 0))
 		for i in 60:
 			s.update(1.0 / 60.0, Vector2.ZERO, false)
 		lost.append(1000.0 - s.soldiers[0].hp)
@@ -767,13 +767,13 @@ func test_better_bows_reach_further(b: Dictionary) -> void:
 	var far := _legion_sim(b, 61, ["archer"])
 	far.ranks["better_bows"] = 3
 	for s in [near, far]:
-		s.spawn_enemy(0, s.soldiers[0].pos + Vector2(-float(content.recruits.archer.range) * 1.2, 0))
-		s.e_stun[0] = 100.0
+		s.horde.spawn("barbarian_club", s.soldiers[0].pos + Vector2(-float(content.recruits.archer.range) * 1.2, 0))
+		s.horde.e_stun[0] = 100.0
 	for i in 90:
 		near.update(1.0 / 60.0, Vector2.ZERO, false)
 		far.update(1.0 / 60.0, Vector2.ZERO, false)
-	check(near.shots.is_empty() and near.e_hp[0] == near.e_max[0], "an archer cannot reach")
-	check(not far.shots.is_empty() or far.e_hp[0] < far.e_max[0], "with better bows he can")
+	check(near.shots.is_empty() and near.horde.e_hp[0] == near.horde.e_max[0], "an archer cannot reach")
+	check(not far.shots.is_empty() or far.horde.e_hp[0] < far.horde.e_max[0], "with better bows he can")
 
 
 func test_close_order_keeps_places_faster(b: Dictionary) -> void:
@@ -795,8 +795,8 @@ func test_close_order_keeps_places_faster(b: Dictionary) -> void:
 func test_plunder_and_glory_pay_more(b: Dictionary) -> void:
 	var s := _arms_sim(b, 63, {"plunder": 5})
 	for i in 400:
-		s.spawn_enemy(0, Vector2(300, 300))
-		s.hit(s.e_hp.size() - 1, 9999.0)
+		s.horde.spawn("barbarian_club", Vector2(300, 300))
+		s.hit(s.horde.e_hp.size() - 1, 9999.0)
 		s._remove_dead()
 	var total := _sum(s.c_val)
 	check(s.c_val.size() == 400 and total > 400 * 1.5 and total < 400 * 2.0, "plunder gives about 75 percent more (%d)" % total)
@@ -812,8 +812,8 @@ func test_veterans_grow_with_kills(b: Dictionary) -> void:
 	s.ranks["veterans"] = 2
 	var before: float = s.soldiers[0].max_hp
 	for i in 50:
-		s.spawn_enemy(0, Vector2(300, 300))
-		s.hit(s.e_hp.size() - 1, 9999.0)
+		s.horde.spawn("barbarian_club", Vector2(300, 300))
+		s.hit(s.horde.e_hp.size() - 1, 9999.0)
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
 	check(s.soldiers[0].max_hp > before and s.soldiers[1].max_hp > float(content.recruits.archer.hp), "every soldier is tougher after kills")
 	var grown: float = s.soldiers[0].max_hp
@@ -854,6 +854,155 @@ func test_arms_run_together(b: Dictionary) -> void:
 		s.ranks[id] = 1
 	s.legion.add("archer")
 	for i in 80:
-		s.spawn_enemy(i % 2, s._ring_point() * 0.4)
+		s.horde.spawn(["barbarian_club", "barbarian_spear"][i % 2], s.horde.ring_point() * 0.4)
 	_step(s, 20.0, Vector2(1, 0.3))
 	check(not s.over, "a legion with every arm and form runs on")
+
+
+func _step_dt(s: Sim, seconds: float, move := Vector2.ZERO, testudo := false) -> void:
+	for i in int(seconds * 60.0):
+		s.update(1.0 / 60.0, move, testudo)
+
+
+func test_ranged_enemy_keeps_its_distance(b: Dictionary) -> void:
+	var s := Sim.new(b, Content.with_all_art(), 91)
+	s.horde.spawn("axe_thrower", Vector2(300, 0))
+	_step_dt(s, 12.0)
+	var d: float = s.horde.e_pos[0].distance_to(s.commander.pos)
+	check(d > 100.0 and d < 114.0, "the thrower stops near 110 px (%.1f)" % d)
+	check(not s.horde.spears.is_empty() or s.commander.hp < float(content.base_commander.hp) or s.soldiers[0].hp < 50.0, "and throws spears")
+
+
+func test_testudo_blocks_thrown_spears(b: Dictionary) -> void:
+	var open := Sim.new(b, Content.with_all_art(), 92)
+	var shut := Sim.new(b, Content.with_all_art(), 92)
+	for s in [open, shut]:
+		s.horde.spawn("axe_thrower", Vector2(105, 0))
+	var hp0: float = open.commander.hp + open.soldiers[0].hp + open.soldiers[1].hp
+	for i in 360:
+		open.update(1.0 / 60.0, Vector2.ZERO, false)
+		shut.testudo_left = 5.0
+		shut.update(1.0 / 60.0, Vector2.ZERO, false)
+	var open_hp: float = open.commander.hp + open.soldiers[0].hp + open.soldiers[1].hp
+	var shut_hp: float = shut.commander.hp + shut.soldiers[0].hp + shut.soldiers[1].hp
+	check(open_hp < hp0, "spears hurt an open legion")
+	check(shut_hp == hp0, "the testudo takes none of them (%.1f of %.1f)" % [shut_hp, hp0])
+
+
+func test_elite_drops_a_chest(b: Dictionary) -> void:
+	var art := Content.with_all_art()
+	var s := Sim.new(b, art, 93)
+	var i: int = s.horde.spawn("berserker", Vector2(300, 0))
+	check(s.horde.e_tag[i] == Horde.ELITE and s.horde.e_hp[i] > 300.0, "an elite with far more health")
+	s.hit(i, 1e9)
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.horde.chests.size() == 1, "it drops a chest")
+	s.commander.pos = s.horde.chests[0].pos
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.free_choices == 1 and s.horde.chests.is_empty(), "walking onto it gives one free choice")
+	var before := s.level
+	var picks := Upgrades.next_choices(s)
+	Upgrades.apply(s, picks[0])
+	check(s.free_choices == 0 and s.level == before, "the choice does not change the level")
+	var bare := Sim.new(b, content, 94)
+	var j: int = bare.horde.spawn("berserker", Vector2(300, 0))
+	bare.hit(j, 1e9)
+	bare.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(bare.horde.chests.is_empty(), "with no chest art it drops nothing")
+
+
+func test_cart_magnet_pulls_every_coin(b: Dictionary) -> void:
+	var s := Sim.new(b, Content.with_all_art(), 95)
+	for k in 6:
+		s.c_pos.append(Vector2(400 + k * 30, 200))
+		s.c_val.append(1)
+		s.c_pull.append(0)
+	s.horde.open_cart(s, "magnet")
+	var all := true
+	for p in s.c_pull:
+		all = all and p == 1
+	check(all, "every coin is on its way")
+	s.horde.open_cart(s, "free_choice")
+	check(s.free_choices == 1, "a cart can give a free choice")
+	s.soldiers[0].hp = 1.0
+	s.horde.open_cart(s, "heal")
+	check(s.soldiers[0].hp == s.soldiers[0].max_hp, "or heal the legion")
+	var none := Sim.new(b, content, 96)
+	none.time = float(b.cart.every) + 1.0
+	none.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(none.horde.carts.is_empty(), "no cart without its art")
+	var drawn := Sim.new(b, Content.with_all_art(), 96)
+	drawn.time = float(b.cart.every) + 1.0
+	drawn.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(drawn.horde.carts.size() == 1, "a cart crosses the field with its art")
+
+
+func test_chieftain_war_cry_speeds_the_horde(b: Dictionary) -> void:
+	var calm := Sim.new(b, Content.with_all_art(), 97)
+	var cried := Sim.new(b, Content.with_all_art(), 97)
+	for s in [calm, cried]:
+		s.horde.spawn("chieftain", Vector2(500, 0))
+		s.horde.spawn("barbarian_club", Vector2(450, 150))
+		s.horde.cry_cd = 1e9
+		s.horde.cleave_cd = 1e9
+	cried.horde.war_cry(cried.horde.chieftain_index(), cried)
+	check(cried.horde.e_haste[1] > 0.0, "a nearby enemy is roused")
+	var from: Vector2 = cried.horde.e_pos[1]
+	_step_dt(calm, 1.0)
+	_step_dt(cried, 1.0)
+	var slow: float = calm.horde.e_pos[1].distance_to(from)
+	var fast: float = cried.horde.e_pos[1].distance_to(from)
+	check(fast > slow * 1.3, "it walks faster (%.1f against %.1f)" % [fast, slow])
+
+
+func test_chieftain_cleave_hurts_an_arc_in_front(b: Dictionary) -> void:
+	var s := Sim.new(b, Content.with_all_art(), 98)
+	var i: int = s.horde.spawn("chieftain", Vector2(24, 0))
+	s.horde.e_face[i] = Vector2.LEFT
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	var before: float = s.commander.hp
+	check(s.horde.cleave(i, s), "he cleaves when the legion is in front")
+	check(s.commander.hp < before, "and it hurts")
+	s.horde.e_face[i] = Vector2.RIGHT
+	check(not s.horde.cleave(i, s), "nothing behind him is struck")
+
+
+func test_chargers_dash_in_a_line(b: Dictionary) -> void:
+	var s := Sim.new(b, Content.with_all_art(), 99)
+	var i: int = s.horde.spawn("chariot", Vector2(200, 0))
+	s.horde.e_cd[i] = 0.0
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.horde.e_dash[i] > 0.0, "the chariot starts a dash")
+	var speed: float = float(content.enemies.chariot.speed)
+	var from: Vector2 = s.horde.e_pos[i]
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(from.distance_to(s.horde.e_pos[i]) / (1.0 / 60.0) > speed * 2.0, "the dash is much faster than a walk")
+
+
+func test_beasts_are_fast_and_frail(b: Dictionary) -> void:
+	check(content.enemies.wolf.behaviour == "beast", "the wolf is a beast")
+	check(float(content.enemies.wolf.speed) > float(content.enemies.barbarian_club.speed) and float(content.enemies.wolf.hp) < float(content.enemies.barbarian_club.hp), "fast with low health")
+
+
+func test_province_only_spawns_its_ready_enemies(b: Dictionary) -> void:
+	var s := Sim.new(b, content, 100)
+	var ready_ids: Array = content.province_enemies("germania")
+	check(not ready_ids.has("axe_thrower") and not ready_ids.has("wolf"), "today only the drawn enemies are ready")
+	s.time = 300.0
+	_step_dt(s, 30.0)
+	var seen := {}
+	for k in s.horde.e_kind:
+		seen[s.horde.kind_ids[k]] = true
+	for id in seen:
+		check(ready_ids.has(id), "%s may spawn" % id)
+	check(not seen.has("berserker") and not seen.has("axe_thrower"), "no hidden enemy appears")
+	var wide := Sim.new(b, Content.with_all_art(), 101)
+	wide.time = 119.9
+	wide.horde.next_surge = 120.0
+	_step_dt(wide, 1.0)
+	var elite := false
+	for t in wide.horde.e_tag:
+		elite = elite or t == Horde.ELITE
+	check(elite, "a ready elite arrives with the surge")
+	var wrong := Sim.new(b, Content.with_all_art(), 102, "britannia")
+	check(wrong.horde.ordinary == content.provinces.britannia.ordinary, "another province brings its own")

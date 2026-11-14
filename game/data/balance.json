@@ -86,6 +86,12 @@
   "fortified_camp": {"stake_dps_mult": 2.0, "slow": 0.5, "oil_radius_mult": 1.4, "oil_life_mult": 2.0},
   "drills": {"shield_wall": 0.1, "better_bows": 0.1, "close_order": 0.35, "plunder": 0.15, "glory": 0.1, "veterans_gain": 0.04, "veterans_cap": 0.4, "reserves_seconds": [20, 14, 8]},
   "slow_recover": 2.0,
+  "spawn_mix": {"later_start": 0.25, "later_seconds": 1200},
+  "elites_per_surge": 1,
+  "ranged": {"every": 1.8, "spear_speed": 120, "spear_life": 3.0, "spear_radius": 3},
+  "charger": {"every": 4.0, "speed_mult": 3.0, "seconds": 0.6, "burst_seconds": 1.0, "min_distance": 60, "max_distance": 260},
+  "chest": {"radius": 14},
+  "cart": {"every": 90, "speed": 38, "life": 60, "radius": 14, "aim_scatter": 80},
   "rerolls": 1,
   "banishes": 0,
   "demo": {

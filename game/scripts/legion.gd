@@ -301,10 +301,10 @@ func _missile(s: Dictionary, dt: float, sim: Sim) -> void:
 	var dmg := float(info.damage) * (1.0 + 0.2 * sim.rank("gladius") * 0.5)
 	if s.type == "archer":
 		var fire := sim.rank("fire_arrows")
-		sim.shoot("arrow", s.pos, sim.e_pos[t], float(info.arrow_speed), dmg, int(stat(s.type, "pierce")),
+		sim.shoot("arrow", s.pos, sim.horde.e_pos[t], float(info.arrow_speed), dmg, int(stat(s.type, "pierce")),
 			(_b.fire_arrows.dps + _b.fire_arrows.dps_per_level * (fire - 1)) if fire > 0 else 0.0)
 	else:
-		sim.shoot("stone", s.pos, sim.e_pos[t], float(info.stone_speed), dmg, 0, 0.0,
+		sim.shoot("stone", s.pos, sim.horde.e_pos[t], float(info.stone_speed), dmg, 0, 0.0,
 			{"knock": float(info.knockback), "bounces": int(stat(s.type, "bounces")), "bounce_reach": float(info.bounce_reach)})
 
 
@@ -318,7 +318,7 @@ func _ballista(s: Dictionary, dt: float, sim: Sim) -> void:
 	if t < 0:
 		return
 	s.cd = float(info.cooldown)
-	sim.shoot("bolt", s.pos, sim.e_pos[t], float(info.bolt_speed), float(info.damage), int(info.pierce), 0.0,
+	sim.shoot("bolt", s.pos, sim.horde.e_pos[t], float(info.bolt_speed), float(info.damage), int(info.pierce), 0.0,
 		{"life": reach / float(info.bolt_speed), "explode": stat(s.type, "explode_radius")})
 
 
@@ -329,7 +329,7 @@ func _shout(s: Dictionary, dt: float, sim: Sim) -> void:
 	s.shout = float(s.info.shout_every)
 	var radius := float(s.info.shout_radius) * stat(s.type, "shout_scale", 1.0)
 	for j in sim.enemies_near(s.pos, radius):
-		sim.e_stun[j] = maxf(sim.e_stun[j], float(s.info.stun))
+		sim.horde.e_stun[j] = maxf(sim.horde.e_stun[j], float(s.info.stun))
 	sim.effects.append({"kind": "shout", "pos": s.pos, "t": 0.0, "radius": radius})
 
 
@@ -381,7 +381,7 @@ func _sortie(s: Dictionary, dt: float, sim: Sim) -> void:
 		if t < 0:
 			s.sortie = 2
 			return
-		var to: Vector2 = sim.e_pos[t] - s.pos
+		var to: Vector2 = sim.horde.e_pos[t] - s.pos
 		var d := to.length()
 		var move := minf(d, speed * dt)
 		if d > 0.001:
@@ -391,13 +391,13 @@ func _sortie(s: Dictionary, dt: float, sim: Sim) -> void:
 		var dmg := float(info.damage) * (1.0 + 0.2 * sim.rank("gladius"))
 		if promoted(s.type):
 			for j in sim.enemies_near(s.pos, strike):
-				if not s.struck.has(sim.e_id[j]):
-					s.struck[sim.e_id[j]] = true
+				if not s.struck.has(sim.horde.e_id[j]):
+					s.struck[sim.horde.e_id[j]] = true
 					sim.hit(j, dmg)
 		if d - move <= strike:
-			if not s.struck.has(sim.e_id[t]):
+			if not s.struck.has(sim.horde.e_id[t]):
 				sim.hit(t, dmg)
-			sim.effects.append({"kind": "slash", "pos": s.pos, "to": sim.e_pos[t], "t": 0.0})
+			sim.effects.append({"kind": "slash", "pos": s.pos, "to": sim.horde.e_pos[t], "t": 0.0})
 			s.cd = float(info.cooldown)
 			s.sortie = 2
 		return

@@ -3,7 +3,7 @@ extends RefCounted
 ## One run: the legion, the horde, missiles, coins and levels, as plain data so it runs and tests without a scene.
 
 const CELL := 32.0
-const KINDS := ["barbarian_club", "barbarian_spear", "chieftain"]
+const GW := 48
 const UNIT_RADIUS := 7.0
 const DIRS := ["east", "south-east", "south", "south-west", "west", "north-west", "north", "north-east"]
 
@@ -33,21 +33,21 @@ var soldiers: Array:
 var facing_angle := 0.0
 var moving := false
 
-var e_id := PackedInt32Array()
-var e_pos := PackedVector2Array()
-var e_face := PackedVector2Array()
-var e_hp := PackedFloat32Array()
-var e_max := PackedFloat32Array()
-var e_kind := PackedInt32Array()
-var e_burn := PackedFloat32Array()
-var e_burn_dps := PackedFloat32Array()
-var e_flash := PackedFloat32Array()
-var e_phase := PackedInt32Array()
-var e_fighting := PackedByteArray()
-var e_stun := PackedFloat32Array()
-var e_slow := PackedFloat32Array()
-var next_id := 1
-var chieftain_id := -1
+var horde: Horde
+var province := "germania"
+var free_choices := 0
+var g_origin: Vector2i:
+	get:
+		return horde.g_origin
+var g_start: PackedInt32Array:
+	get:
+		return horde.g_start
+var g_items: PackedInt32Array:
+	get:
+		return horde.g_items
+var chieftain_id: int:
+	get:
+		return horde.chieftain_id
 
 var shots: Array = []
 var c_pos := PackedVector2Array()
@@ -55,8 +55,6 @@ var c_val := PackedInt32Array()
 var c_pull := PackedByteArray()
 var effects: Array = []
 
-var spawn_acc := 0.0
-var next_surge := 0.0
 var arms: Arms
 var rerolls := 0
 var banishes := 0
@@ -65,36 +63,23 @@ var xp_carry := 0.0
 var testudo_left := 0.0
 var testudo_charge := 1.0
 
-# The horde is sorted into a flat grid of cells around the commander, rebuilt every update.
-const GW := 48
-var g_origin := Vector2i.ZERO
-var g_start := PackedInt32Array()
-var g_items := PackedInt32Array()
-var e_push := PackedVector2Array()
-var k_radius := PackedFloat32Array()
-var k_speed := PackedFloat32Array()
-var k_dps := PackedFloat32Array()
-var frame := 0
 var legion_reach := 0.0
 var u_grid := {}
 var units: Array = []
 var content: Content
 
 
-func _init(balance: Dictionary, game_content: Content, seed_value: int = 0) -> void:
+func _init(balance: Dictionary, game_content: Content, seed_value: int = 0, province_id := "germania") -> void:
+	province = province_id
 	b = balance
 	content = game_content
 	rng.seed = seed_value if seed_value != 0 else int(Time.get_unix_time_from_system())
 	legion = Legion.new(b, content, rng, ranks)
 	arms = Arms.new(rng)
+	horde = Horde.new(b, content, rng, legion.commander, province)
 	rerolls = int(b.rerolls)
 	banishes = int(b.banishes)
-	for kind in KINDS:
-		k_radius.append(float(content.enemies[kind].radius))
-		k_speed.append(float(content.enemies[kind].speed))
-		k_dps.append(float(content.enemies[kind].dps))
 	xp_next = int(b.xp_first)
-	next_surge = float(b.surge_every)
 	for i in int(b.start_legionaries):
 		add_soldier("legionary")
 	for i in int(b.start_archers):
@@ -157,8 +142,7 @@ func update(dt: float, move: Vector2, testudo_pressed: bool) -> void:
 		testudo_charge = minf(1.0, testudo_charge + dt / maxf(5.0, b.testudo_recharge - 2.0 * rank("testudo")))
 	_move_legion(dt, move)
 	_rebuild_grids()
-	_spawn(dt)
-	_move_enemies(dt)
+	horde.update(dt, self)
 	_legion_attacks(dt)
 	arms.update(dt, self)
 	_move_shots(dt)
@@ -188,37 +172,8 @@ func _cell(p: Vector2) -> Vector2i:
 	return Vector2i(floori(p.x / CELL), floori(p.y / CELL))
 
 
-func _cidx(p: Vector2) -> int:
-	var cx := floori(p.x / CELL) - g_origin.x
-	var cy := floori(p.y / CELL) - g_origin.y
-	if cx < 0 or cy < 0 or cx >= GW or cy >= GW:
-		return -1
-	return cx + cy * GW
-
-
 func _rebuild_grids() -> void:
-	frame += 1
-	var n := e_pos.size()
-	g_origin = Vector2i(floori(commander.pos.x / CELL) - GW / 2, floori(commander.pos.y / CELL) - GW / 2)
-	var counts := PackedInt32Array()
-	counts.resize(GW * GW + 1)
-	var cell_of := PackedInt32Array()
-	cell_of.resize(n)
-	for i in n:
-		var c := _cidx(e_pos[i])
-		cell_of[i] = c
-		if c >= 0:
-			counts[c + 1] += 1
-	for c in range(1, GW * GW + 1):
-		counts[c] += counts[c - 1]
-	g_items.resize(counts[GW * GW])
-	var fill := counts.duplicate()
-	for i in n:
-		var c := cell_of[i]
-		if c >= 0:
-			g_items[fill[c]] = i
-			fill[c] += 1
-	g_start = counts
+	horde.rebuild_grid()
 	legion_reach = 0.0
 	for so in soldiers:
 		legion_reach = maxf(legion_reach, (so.pos - commander.pos).length())
@@ -233,194 +188,22 @@ func _rebuild_grids() -> void:
 		u_grid[k].append(i)
 
 
-func enemy_hp_for(kind: int) -> float:
-	var base: float = content.enemies[KINDS[kind]].hp
-	if kind == 2:
-		return base
-	return base * (1.0 + b.enemy_health_growth * time)
-
-
-func spawn_enemy(kind: int, pos: Vector2) -> void:
-	e_id.append(next_id)
-	if kind == 2:
-		chieftain_id = next_id
-	next_id += 1
-	e_pos.append(pos)
-	e_face.append((commander.pos - pos).normalized())
-	var hp := enemy_hp_for(kind)
-	e_hp.append(hp)
-	e_max.append(hp)
-	e_kind.append(kind)
-	e_burn.append(0.0)
-	e_burn_dps.append(0.0)
-	e_flash.append(0.0)
-	e_phase.append(rng.randi_range(0, 7))
-	e_fighting.append(0)
-	e_stun.append(0.0)
-	e_slow.append(1.0)
-	e_push.append(Vector2.ZERO)
-
-
-func _ring_point() -> Vector2:
-	var a := rng.randf() * TAU
-	return commander.pos + Vector2(cos(a) * 1.15, sin(a) * 0.75) * b.spawn_radius
-
-
-func _random_kind() -> int:
-	return 1 if rng.randf() < 0.25 + time / 1200.0 else 0
-
-
-func _spawn(dt: float) -> void:
-	spawn_acc += (b.spawn_per_second_start + b.spawn_per_second_growth * time) * dt
-	while spawn_acc >= 1.0:
-		spawn_acc -= 1.0
-		if e_pos.size() < int(b.max_enemies):
-			spawn_enemy(_random_kind(), _ring_point())
-	if time >= next_surge:
-		next_surge += b.surge_every
-		# A surge comes from one side as a crowd, so the legion can see it coming and turn.
-		var side := rng.randf() * TAU
-		var n := int(b.surge_size_start + b.surge_size_growth * time)
-		for i in n:
-			if e_pos.size() >= int(b.max_enemies):
-				break
-			var a := side + rng.randf_range(-0.6, 0.6)
-			var r: float = b.spawn_radius + rng.randf_range(0.0, 80.0)
-			spawn_enemy(_random_kind(), commander.pos + Vector2(cos(a) * 1.15, sin(a) * 0.75) * r)
-	if chieftain_id == -1 and time >= b.chieftain_at:
-		spawn_enemy(2, _ring_point())
-
-
-func _move_enemies(dt: float) -> void:
-	var recycle: float = b.recycle_radius
-	var cpos: Vector2 = commander.pos
-	var reach2 := legion_reach * legion_reach
-	var shield: float = b.testudo_damage_taken if testudo_left > 0.0 else 1.0
-	var phase := frame % 3
-	var slow_recover: float = b.slow_recover
-	var wall := 1.0 - float(b.drills.shield_wall) * rank("shield_wall")
-	for i in e_pos.size():
-		var kind := e_kind[i]
-		var p := e_pos[i]
-		var to := cpos - p
-		var d := to.length()
-		if d > recycle and kind != 2:
-			# Barbarians left far behind come round again from ahead, so the field never empties.
-			e_pos[i] = cpos - to * (b.spawn_radius / d)
-			continue
-		if e_stun[i] > 0.0:
-			e_stun[i] -= dt
-			e_fighting[i] = 0
-			if e_flash[i] > 0.0:
-				e_flash[i] -= dt
-			continue
-		var r := k_radius[kind]
-		var slow := e_slow[i]
-		if slow < 1.0:
-			e_slow[i] = minf(1.0, slow + dt * slow_recover)
-		var v := to / maxf(d, 0.001) * (k_speed[kind] * slow)
-		var push := e_push[i]
-		# Spacing from neighbours is worked out for a third of the horde each update, in turn.
-		if i % 3 == phase:
-			push = Vector2.ZERO
-			var c := _cidx(p)
-			if c >= 0:
-				var kx := c % GW
-				var ky := c / GW
-				var seen := 0
-				for cy in range(maxi(0, ky - 1), mini(GW, ky + 2)):
-					for cx in range(maxi(0, kx - 1), mini(GW, kx + 2)):
-						var cell := cx + cy * GW
-						for t in range(g_start[cell], g_start[cell + 1]):
-							var j := g_items[t]
-							if j == i:
-								continue
-							var away := p - e_pos[j]
-							var dd := away.length_squared()
-							var min_d := r + k_radius[e_kind[j]]
-							if dd < min_d * min_d and dd > 0.0001:
-								var dl := sqrt(dd)
-								push += away / dl * (min_d - dl)
-								seen += 1
-								if seen > 5:
-									break
-			e_push[i] = push
-		e_fighting[i] = 0
-		if d < legion_reach + r and (to.length_squared() < reach2 or kind == 2):
-			var k := _cell(p)
-			var target_unit := -1
-			var best := INF
-			for cx in range(k.x - 1, k.x + 2):
-				for cy in range(k.y - 1, k.y + 2):
-					var ucell: Variant = u_grid.get(Vector2i(cx, cy))
-					if ucell == null:
-						continue
-					for ui in ucell:
-						var dd: float = (units[ui].pos - p).length()
-						if dd < UNIT_RADIUS + r + 2.0 and dd < best:
-							best = dd
-							target_unit = ui
-			if target_unit >= 0:
-				var u: Dictionary = legion.shield(units[target_unit])
-				u.hp -= k_dps[kind] * dt * shield * (wall if u.get("place", "") == "front" else 1.0)
-				u.flash = 0.08
-				e_fighting[i] = 1
-				var out: Vector2 = p - u.pos
-				if out.length() > 0.001:
-					push += out.normalized() * maxf(0.0, UNIT_RADIUS + r - out.length()) * 2.0
-				v = Vector2.ZERO
-		e_pos[i] = p + v * dt + push * 0.6
-		if v != Vector2.ZERO:
-			e_face[i] = to / maxf(d, 0.001)
-		if e_flash[i] > 0.0:
-			e_flash[i] -= dt
-	legion.remove_fallen(self)
+func _cidx(p: Vector2) -> int:
+	return horde.cidx(p)
 
 
 func nearest_enemy(p: Vector2, reach: float) -> int:
-	var c := _cidx(p)
-	if c < 0:
-		return -1
-	var kx := c % GW
-	var ky := c / GW
-	var rings := ceili(reach / CELL)
-	var best := -1
-	var best_d := reach * reach
-	for cy in range(maxi(0, ky - rings), mini(GW, ky + rings + 1)):
-		for cx in range(maxi(0, kx - rings), mini(GW, kx + rings + 1)):
-			var cell := cx + cy * GW
-			for t in range(g_start[cell], g_start[cell + 1]):
-				var j := g_items[t]
-				var dd := (e_pos[j] - p).length_squared()
-				if dd < best_d and e_hp[j] > 0.0:
-					best_d = dd
-					best = j
-	return best
+	return horde.nearest(p, reach)
 
 
 ## Indexes of the living enemies within r of p.
 func enemies_near(p: Vector2, r: float) -> Array:
-	var out: Array = []
-	var c := _cidx(p)
-	if c < 0:
-		return out
-	var kx := c % GW
-	var ky := c / GW
-	var rings := ceili(r / CELL)
-	var r2 := r * r
-	for cy in range(maxi(0, ky - rings), mini(GW, ky + rings + 1)):
-		for cx in range(maxi(0, kx - rings), mini(GW, kx + rings + 1)):
-			var cell := cx + cy * GW
-			for t in range(g_start[cell], g_start[cell + 1]):
-				var j := g_items[t]
-				if e_hp[j] > 0.0 and (e_pos[j] - p).length_squared() <= r2:
-					out.append(j)
-	return out
+	return horde.near(p, r)
 
 
 func hit(i: int, dmg: float, burn_dps: float = 0.0) -> void:
-	e_hp[i] -= dmg
-	e_flash[i] = 0.1
+	horde.e_hp[i] -= dmg
+	horde.e_flash[i] = 0.1
 	if burn_dps > 0.0:
 		var greek: float = float(b.greek_fire.burn_mult) if rank("greek_fire") > 0 else 1.0
 		ignite(i, burn_dps * greek, burn_seconds())
@@ -428,14 +211,14 @@ func hit(i: int, dmg: float, burn_dps: float = 0.0) -> void:
 
 ## Sets an enemy alight; the burn takes its health on the next update.
 func ignite(i: int, dps: float, seconds: float) -> void:
-	e_burn[i] = maxf(e_burn[i], seconds)
-	e_burn_dps[i] = maxf(e_burn_dps[i], dps)
+	horde.e_burn[i] = maxf(horde.e_burn[i], seconds)
+	horde.e_burn_dps[i] = maxf(horde.e_burn_dps[i], dps)
 
 
 ## Harm from standing in fire: it takes health and shows the flames without lighting a new burn.
 func scorch(i: int, dmg: float) -> void:
-	e_hp[i] -= dmg
-	e_burn[i] = maxf(e_burn[i], 0.4)
+	horde.e_hp[i] -= dmg
+	horde.e_burn[i] = maxf(horde.e_burn[i], 0.4)
 
 
 func melee(u: Dictionary, dmg: float, reach: float, cooldown: float, dt: float) -> void:
@@ -447,7 +230,7 @@ func melee(u: Dictionary, dmg: float, reach: float, cooldown: float, dt: float) 
 		return
 	hit(t, dmg * (1.0 + 0.2 * rank("gladius")))
 	u.cd = cooldown
-	effects.append({"kind": "slash", "pos": u.pos, "to": e_pos[t], "t": 0.0})
+	effects.append({"kind": "slash", "pos": u.pos, "to": horde.e_pos[t], "t": 0.0})
 
 
 func _legion_attacks(dt: float) -> void:
@@ -481,16 +264,16 @@ func _move_shots(dt: float) -> void:
 				var cell := cx + cy * GW
 				for t in range(g_start[cell], g_start[cell + 1]):
 					var j := g_items[t]
-					if s.hit.has(e_id[j]) or e_hp[j] <= 0.0:
+					if s.hit.has(horde.e_id[j]) or horde.e_hp[j] <= 0.0:
 						continue
-					var r := k_radius[e_kind[j]] + 3.0
-					if (e_pos[j] - s.pos).length_squared() < r * r:
+					var r := horde.k_radius[horde.e_kind[j]] + 3.0
+					if (horde.e_pos[j] - s.pos).length_squared() < r * r:
 						hit(j, s.dmg, s.burn)
 						if s.pin > 0.0:
-							e_stun[j] = maxf(e_stun[j], s.pin)
+							horde.e_stun[j] = maxf(horde.e_stun[j], s.pin)
 						if s.knock > 0.0:
-							e_pos[j] += (e_pos[j] - s.pos).normalized() * s.knock
-						s.hit[e_id[j]] = true
+							horde.e_pos[j] += (horde.e_pos[j] - s.pos).normalized() * s.knock
+						s.hit[horde.e_id[j]] = true
 						s.pierce -= 1
 						if s.pierce < 0:
 							if s.bounces > 0 and _bounce(s, j):
@@ -508,10 +291,10 @@ func _move_shots(dt: float) -> void:
 func _bounce(s: Dictionary, from_enemy: int) -> bool:
 	var best := -1
 	var best_d := INF
-	for j in enemies_near(e_pos[from_enemy], s.bounce_reach):
-		if s.hit.has(e_id[j]):
+	for j in enemies_near(horde.e_pos[from_enemy], s.bounce_reach):
+		if s.hit.has(horde.e_id[j]):
 			continue
-		var d := (e_pos[j] - e_pos[from_enemy]).length_squared()
+		var d := (horde.e_pos[j] - horde.e_pos[from_enemy]).length_squared()
 		if d < best_d:
 			best_d = d
 			best = j
@@ -519,8 +302,8 @@ func _bounce(s: Dictionary, from_enemy: int) -> bool:
 		return false
 	s.bounces -= 1
 	s.pierce = 0
-	s.pos = e_pos[from_enemy]
-	s.vel = (e_pos[best] - s.pos).normalized() * s.vel.length()
+	s.pos = horde.e_pos[from_enemy]
+	s.vel = (horde.e_pos[best] - s.pos).normalized() * s.vel.length()
 	return true
 
 
@@ -531,17 +314,17 @@ func _explode(p: Vector2, radius: float, dmg: float) -> void:
 
 
 func _burns(dt: float) -> void:
-	for i in e_pos.size():
-		if e_burn[i] > 0.0:
-			e_burn[i] -= dt
-			e_hp[i] -= e_burn_dps[i] * dt
+	for i in horde.e_pos.size():
+		if horde.e_burn[i] > 0.0:
+			horde.e_burn[i] -= dt
+			horde.e_hp[i] -= horde.e_burn_dps[i] * dt
 
 
 func _remove_dead() -> void:
 	var before := kills
-	var i := e_pos.size() - 1
+	var i := horde.e_pos.size() - 1
 	while i >= 0:
-		if e_hp[i] <= 0.0:
+		if horde.e_hp[i] <= 0.0:
 			_kill(i)
 		i -= 1
 	if kills > before:
@@ -549,35 +332,22 @@ func _remove_dead() -> void:
 
 
 func _kill(i: int) -> void:
-	var kind := e_kind[i]
+	var id: String = horde.kind_ids[horde.e_kind[i]]
 	kills += 1
-	var pay := float(content.enemies[KINDS[kind]].coins) * (1.0 + float(b.drills.plunder) * rank("plunder"))
+	var pay := float(content.enemies[id].coins) * (1.0 + float(b.drills.plunder) * rank("plunder"))
 	# A fraction of a coin is paid as the same chance of one more.
 	var value := int(pay) + (1 if pay > floorf(pay) and rng.randf() < pay - floorf(pay) else 0)
 	if value > 0:
-		c_pos.append(e_pos[i])
+		c_pos.append(horde.e_pos[i])
 		c_val.append(value)
 		c_pull.append(0)
-	effects.append({"kind": "death", "pos": e_pos[i], "t": 0.0, "type": KINDS[kind], "facing": e_face[i]})
-	if e_id[i] == chieftain_id:
+	effects.append({"kind": "death", "pos": horde.e_pos[i], "t": 0.0, "type": id, "facing": horde.e_face[i]})
+	if horde.e_tag[i] == Horde.ELITE:
+		horde.drop_chest(horde.e_pos[i])
+	if horde.e_id[i] == horde.chieftain_id:
 		over = true
 		victory = true
-	# Packed arrays are copied when changed through a list, so each one is moved down by name.
-	var last := e_pos.size() - 1
-	e_id[i] = e_id[last]; e_id.resize(last)
-	e_pos[i] = e_pos[last]; e_pos.resize(last)
-	e_face[i] = e_face[last]; e_face.resize(last)
-	e_hp[i] = e_hp[last]; e_hp.resize(last)
-	e_max[i] = e_max[last]; e_max.resize(last)
-	e_kind[i] = e_kind[last]; e_kind.resize(last)
-	e_burn[i] = e_burn[last]; e_burn.resize(last)
-	e_burn_dps[i] = e_burn_dps[last]; e_burn_dps.resize(last)
-	e_flash[i] = e_flash[last]; e_flash.resize(last)
-	e_phase[i] = e_phase[last]; e_phase.resize(last)
-	e_fighting[i] = e_fighting[last]; e_fighting.resize(last)
-	e_stun[i] = e_stun[last]; e_stun.resize(last)
-	e_slow[i] = e_slow[last]; e_slow.resize(last)
-	e_push[i] = e_push[last]; e_push.resize(last)
+	horde.remove_at(i)
 
 
 func _coins(dt: float) -> void:
@@ -636,7 +406,7 @@ func _regen(dt: float) -> void:
 
 
 func chieftain_index() -> int:
-	return e_id.find(chieftain_id) if chieftain_id != -1 else -1
+	return horde.chieftain_index()
 
 
 static func dir_name(v: Vector2) -> String:

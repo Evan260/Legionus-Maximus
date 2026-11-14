@@ -109,7 +109,7 @@ func _process(dt: float) -> void:
 		shot_at = -1.0
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png(args.shot)
-		print("FPS %d with %d barbarians" % [Engine.get_frames_per_second(), sim.e_pos.size()])
+		print("FPS %d with %d barbarians" % [Engine.get_frames_per_second(), sim.horde.e_pos.size()])
 		get_tree().quit()
 		return
 	if Input.is_action_just_pressed("fullscreen"):
@@ -131,7 +131,7 @@ func _process(dt: float) -> void:
 			sim.update(minf(dt, 1.0 / 30.0), move, testudo)
 			if sim.over:
 				state = "over"
-			elif sim.pending_levels > 0:
+			elif sim.pending_levels > 0 or sim.free_choices > 0:
 				_open_choices()
 		"choose":
 			if args.has("autoplay") and clock > 0.5 and not args.has("hold-choice"):
@@ -149,6 +149,7 @@ func _process(dt: float) -> void:
 				selected = mini(selected, choices.size() - 1)
 				if choices.is_empty():
 					sim.pending_levels = 0
+					sim.free_choices = 0
 					state = "play"
 		"pause":
 			if Input.is_action_just_pressed("pause"):
@@ -177,7 +178,7 @@ func _take(i: int) -> void:
 	state = "play"
 	# The confirm key is also the testudo key, so the press that took the choice must not raise the shields.
 	Input.action_release("testudo")
-	if sim.pending_levels > 0:
+	if sim.pending_levels > 0 or sim.free_choices > 0:
 		_open_choices()
 
 
@@ -195,24 +196,26 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _bench() -> void:
-	var s := Sim.new(balance, content, 7)
+	var mixed := Content.with_all_art()
+	var s := Sim.new(balance, mixed, 7)
 	for id in content.arms:
 		if content.arms[id].implemented:
 			s.ranks[id] = 3
 	var mix := ["legionary", "archer", "slinger", "cavalry", "standard_bearer", "medicus", "ballista", "centurion", "legionary", "archer"]
 	for i in 100:
 		s.add_soldier(mix[i % mix.size()])
+	var kinds := ["barbarian_club", "barbarian_spear", "axe_thrower", "wolf", "chariot", "berserker"]
 	for i in 1000:
-		s.spawn_enemy(i % 2, s._ring_point() * randf_range(0.3, 1.0))
+		s.horde.spawn(kinds[i % kinds.size()], s.horde.ring_point() * randf_range(0.3, 1.0))
 	var frames := 300
 	var spent := 0
 	for f in frames:
 		# The horde is topped back up so every measured update meets the full 1,000.
-		while s.e_pos.size() < 1000:
-			s.spawn_enemy(randi() % 2, s._ring_point() * randf_range(0.3, 1.0))
+		while s.horde.e_pos.size() < 1000:
+			s.horde.spawn(kinds[randi() % kinds.size()], s.horde.ring_point() * randf_range(0.3, 1.0))
 		var start := Time.get_ticks_usec()
 		s.update(1.0 / 60.0, Vector2(1, 0.3), false)
 		spent += Time.get_ticks_usec() - start
 	var ms := spent / 1000.0 / frames
-	print("BENCH %d enemies, %d soldiers: %.2f ms per update" % [s.e_pos.size(), s.soldiers.size(), ms])
+	print("BENCH %d enemies, %d soldiers: %.2f ms per update" % [s.horde.e_pos.size(), s.soldiers.size(), ms])
 	get_tree().quit()

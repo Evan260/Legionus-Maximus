@@ -117,7 +117,7 @@ func _pilum(dt: float, sim: Sim) -> void:
 			continue
 		var t := sim.nearest_enemy(s.pos, float(p.range))
 		if t >= 0:
-			sim.shoot("pilum", s.pos, sim.e_pos[t], p.speed, lv(p, "damage", pr), pierce, 0.0, extra)
+			sim.shoot("pilum", s.pos, sim.horde.e_pos[t], p.speed, lv(p, "damage", pr), pierce, 0.0, extra)
 			thrown += 1
 
 
@@ -132,19 +132,19 @@ func _scorpio(dt: float, sim: Sim) -> void:
 	var best_hp := 0.0
 	var cpos: Vector2 = sim.commander.pos
 	for i in sim.enemies_near(cpos, float(sc.range)):
-		if sim.e_hp[i] > best_hp:
-			best_hp = sim.e_hp[i]
+		if sim.horde.e_hp[i] > best_hp:
+			best_hp = sim.horde.e_hp[i]
 			best = i
 	if best < 0:
 		return
 	var dmg := lv(sc, "damage", sr)
-	sim.shoot("bolt", cpos, sim.e_pos[best], sc.speed, dmg, int(sc.pierce))
+	sim.shoot("bolt", cpos, sim.horde.e_pos[best], sc.speed, dmg, int(sc.pierce))
 	if siege:
 		# The siege train fans extra bolts either side of the main one.
 		var fan := float(sim.b.siege_train.bolt_fan)
 		for k in int(sim.b.siege_train.extra_bolts):
 			var turn := fan * (k / 2 + 1) * (1.0 if k % 2 == 0 else -1.0)
-			sim.shoot("bolt", cpos, cpos + (sim.e_pos[best] - cpos).rotated(turn), sc.speed, dmg, int(sc.pierce))
+			sim.shoot("bolt", cpos, cpos + (sim.horde.e_pos[best] - cpos).rotated(turn), sc.speed, dmg, int(sc.pierce))
 
 
 func _onager(dt: float, sim: Sim) -> void:
@@ -196,7 +196,7 @@ func _thickest(sim: Sim, reach: float) -> Variant:
 		for dx in range(-1, 2):
 			var cell := (best_cell.y + dy) * gw + best_cell.x + dx
 			for t in range(gs[cell], gs[cell + 1]):
-				sum += sim.e_pos[sim.g_items[t]]
+				sum += sim.horde.e_pos[sim.g_items[t]]
 				count += 1
 	return sum / count
 
@@ -244,11 +244,11 @@ func _stakes(dt: float, sim: Sim) -> void:
 	var camp := sim.rank("fortified_camp") > 0
 	var dmg := stake_dps(sim) * float(cfg.tick)
 	for j in sim.enemies_near(cpos, ring + band):
-		if absf((sim.e_pos[j] - cpos).length() - ring) > band:
+		if absf((sim.horde.e_pos[j] - cpos).length() - ring) > band:
 			continue
 		sim.hit(j, dmg)
 		if camp:
-			sim.e_slow[j] = minf(sim.e_slow[j], float(sim.b.fortified_camp.slow))
+			sim.horde.e_slow[j] = minf(sim.horde.e_slow[j], float(sim.b.fortified_camp.slow))
 
 
 func _fire_pots(dt: float, sim: Sim) -> void:
@@ -264,7 +264,7 @@ func _fire_pots(dt: float, sim: Sim) -> void:
 		return
 	var greek := sim.rank("greek_fire") > 0
 	var g: Dictionary = sim.b.greek_fire
-	lobs.append({"kind": "pot", "from": sim.commander.pos, "to": sim.e_pos[t], "t": 0.0, "dur": float(cfg.flight),
+	lobs.append({"kind": "pot", "from": sim.commander.pos, "to": sim.horde.e_pos[t], "t": 0.0, "dur": float(cfg.flight),
 		"radius": lv(cfg, "radius", r) * (float(g.zone_radius_mult) if greek else 1.0),
 		"life": lv(cfg, "life", r) * (float(g.zone_life_mult) if greek else 1.0),
 		"dps": lv(cfg, "dps", r) * (float(g.zone_dps_mult) if greek else 1.0), "tick": float(cfg.tick)})
@@ -307,19 +307,19 @@ func _war_dogs(dt: float, sim: Sim) -> void:
 		d.run += dt
 		var ti: int = d.idx
 		# The horde's arrays are reordered when an enemy dies, so the target is checked by its id.
-		if ti >= 0 and (ti >= sim.e_id.size() or sim.e_id[ti] != d.tid or sim.e_hp[ti] <= 0.0):
+		if ti >= 0 and (ti >= sim.horde.e_id.size() or sim.horde.e_id[ti] != d.tid or sim.horde.e_hp[ti] <= 0.0):
 			ti = -1
 		if ti < 0 and d.look <= 0.0:
 			d.look = float(cfg.look_every)
 			ti = sim.nearest_enemy(d.pos, float(cfg.search))
-			if ti >= 0 and sim.e_pos[ti].distance_to(cpos) > float(cfg.leash):
+			if ti >= 0 and sim.horde.e_pos[ti].distance_to(cpos) > float(cfg.leash):
 				ti = -1
 			if ti >= 0:
-				d.tid = sim.e_id[ti]
+				d.tid = sim.horde.e_id[ti]
 		d.idx = ti
 		var goal: Vector2
 		if ti >= 0:
-			goal = sim.e_pos[ti]
+			goal = sim.horde.e_pos[ti]
 		else:
 			goal = cpos + Vector2.from_angle(sim.facing_angle + PI + (k - n / 2.0) * 0.5) * float(cfg.home)
 		var to: Vector2 = goal - d.pos
@@ -343,11 +343,11 @@ func _trumpets(dt: float, sim: Sim) -> void:
 	var push := lv(cfg, "push", r)
 	var cpos: Vector2 = sim.commander.pos
 	for j in sim.enemies_near(cpos, radius):
-		var away: Vector2 = sim.e_pos[j] - cpos
+		var away: Vector2 = sim.horde.e_pos[j] - cpos
 		var d := away.length()
 		var dir := away / d if d > 0.001 else Vector2.RIGHT
-		sim.e_pos[j] += dir * push * (1.0 - 0.5 * d / radius)
-		sim.e_stun[j] = maxf(sim.e_stun[j], float(cfg.stun))
+		sim.horde.e_pos[j] += dir * push * (1.0 - 0.5 * d / radius)
+		sim.horde.e_stun[j] = maxf(sim.horde.e_stun[j], float(cfg.stun))
 	sim.effects.append({"kind": "trumpet", "pos": cpos, "t": 0.0, "radius": radius})
 	if sim.rank("hunting_horn") > 0:
 		# The call sends the pack off at once and hard.
@@ -414,10 +414,10 @@ func _lobs(dt: float, sim: Sim) -> void:
 func _land_stone(l: Dictionary, sim: Sim) -> void:
 	for j in sim.enemies_near(l.to, l.radius):
 		sim.hit(j, l.dmg)
-		var away: Vector2 = sim.e_pos[j] - l.to
+		var away: Vector2 = sim.horde.e_pos[j] - l.to
 		var d := away.length()
 		var dir := away / d if d > 0.001 else Vector2.from_angle(_rng.randf() * TAU)
-		sim.e_pos[j] += dir * float(l.scatter) * (1.0 - 0.5 * d / l.radius)
+		sim.horde.e_pos[j] += dir * float(l.scatter) * (1.0 - 0.5 * d / l.radius)
 	sim.effects.append({"kind": "boom", "pos": l.to, "t": 0.0, "radius": l.radius})
 
 
@@ -432,7 +432,7 @@ func _zones(dt: float, sim: Sim) -> void:
 		keep.append(z)
 		if z.kind == "oil":
 			for j in sim.enemies_near(z.pos, z.radius):
-				sim.e_slow[j] = minf(sim.e_slow[j], z.slow)
+				sim.horde.e_slow[j] = minf(sim.horde.e_slow[j], z.slow)
 			continue
 		z.next -= dt
 		if z.next > 0.0:
@@ -444,5 +444,5 @@ func _zones(dt: float, sim: Sim) -> void:
 			else:
 				sim.hit(j, z.dps * z.tick)
 				if z.pin > 0.0:
-					sim.e_stun[j] = maxf(sim.e_stun[j], z.pin)
+					sim.horde.e_stun[j] = maxf(sim.horde.e_stun[j], z.pin)
 	zones = keep

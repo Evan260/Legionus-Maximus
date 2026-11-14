@@ -106,12 +106,12 @@ func _top_bar(sim: Sim) -> void:
 	var charge := 1.0 if sim.testudo_left > 0.0 else sim.testudo_charge
 	draw_rect(Rect2(9, H - 8, 32 * charge, 2), GOLD if ready or sim.testudo_left > 0.0 else PARCH_DARK)
 	text("TESTUDO" if sim.testudo_left <= 0.0 else "HOLD!", Vector2(46, H - 6), GOLD_LIGHT if ready or sim.testudo_left > 0.0 else Color(0.7, 0.66, 0.6))
-	var ci := sim.chieftain_index()
+	var ci := sim.horde.chieftain_index()
 	if ci >= 0:
 		text("THE CHIEFTAIN", Vector2(0, 48), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
 		draw_rect(Rect2(W / 2 - 101, 52, 202, 6), INK)
-		draw_rect(Rect2(W / 2 - 100, 53, 200 * clampf(sim.e_hp[ci] / sim.e_max[ci], 0, 1), 4), RED)
-	elif sim.time > float(sim.b.chieftain_at) - 30.0 and sim.chieftain_id == -1:
+		draw_rect(Rect2(W / 2 - 100, 53, 200 * clampf(sim.horde.e_hp[ci] / sim.horde.e_max[ci], 0, 1), 4), RED)
+	elif sim.time > float(sim.b.chieftain_at) - 30.0 and sim.horde.chieftain_id == -1:
 		text("The chieftain is coming", Vector2(0, 48), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
 
 
@@ -119,7 +119,7 @@ func _choices(sim: Sim) -> void:
 	if main.choices.is_empty():
 		return
 	draw_rect(Rect2(0, 0, W, H), Color(0, 0, 0, 0.5))
-	text("LEVEL %d" % sim.level, Vector2(0, 74), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
+	text("LEVEL %d" % sim.level if sim.pending_levels > 0 else "SUPPLIES", Vector2(0, 74), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
 	text("Choose one", Vector2(0, 86), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W)
 	choice_rects.clear()
 	var n: int = main.choices.size()

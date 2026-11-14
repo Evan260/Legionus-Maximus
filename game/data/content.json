@@ -630,7 +630,27 @@
    "art": [
     "unit:chieftain"
    ],
-   "chieftain": true
+   "chieftain": true,
+   "attacks": {
+    "cleave": {
+     "every": 5.0,
+     "reach": 34,
+     "arc": 2.0,
+     "damage_mult": 1.2
+    },
+    "charge": {
+     "every": 11.0,
+     "speed_mult": 4.0,
+     "seconds": 0.7,
+     "burst_mult": 1.5
+    },
+    "war_cry": {
+     "every": 18.0,
+     "radius": 240,
+     "seconds": 4.0,
+     "speed_mult": 1.5
+    }
+   }
   },
   "painted_warrior": {
    "name": "Painted warrior",
@@ -727,7 +747,27 @@
    "art": [
     "unit:warrior_queen"
    ],
-   "chieftain": true
+   "chieftain": true,
+   "attacks": {
+    "cleave": {
+     "every": 5.0,
+     "reach": 34,
+     "arc": 2.0,
+     "damage_mult": 1.2
+    },
+    "charge": {
+     "every": 11.0,
+     "speed_mult": 4.0,
+     "seconds": 0.7,
+     "burst_mult": 1.5
+    },
+    "war_cry": {
+     "every": 18.0,
+     "radius": 240,
+     "seconds": 4.0,
+     "speed_mult": 1.5
+    }
+   }
   },
   "gaul_swordsman": {
    "name": "Swordsman",
@@ -823,7 +863,27 @@
    "art": [
     "unit:gaul_king"
    ],
-   "chieftain": true
+   "chieftain": true,
+   "attacks": {
+    "cleave": {
+     "every": 5.0,
+     "reach": 34,
+     "arc": 2.0,
+     "damage_mult": 1.2
+    },
+    "charge": {
+     "every": 11.0,
+     "speed_mult": 4.0,
+     "seconds": 0.7,
+     "burst_mult": 1.5
+    },
+    "war_cry": {
+     "every": 18.0,
+     "radius": 240,
+     "seconds": 4.0,
+     "speed_mult": 1.5
+    }
+   }
   },
   "falx_warrior": {
    "name": "Falx warrior",
@@ -919,7 +979,27 @@
    "art": [
     "unit:dacian_king"
    ],
-   "chieftain": true
+   "chieftain": true,
+   "attacks": {
+    "cleave": {
+     "every": 5.0,
+     "reach": 34,
+     "arc": 2.0,
+     "damage_mult": 1.2
+    },
+    "charge": {
+     "every": 11.0,
+     "speed_mult": 4.0,
+     "seconds": 0.7,
+     "burst_mult": 1.5
+    },
+    "war_cry": {
+     "every": 18.0,
+     "radius": 240,
+     "seconds": 4.0,
+     "speed_mult": 1.5
+    }
+   }
   },
   "horse_archer": {
    "name": "Horse archer",
@@ -1015,7 +1095,27 @@
    "art": [
     "unit:shah"
    ],
-   "chieftain": true
+   "chieftain": true,
+   "attacks": {
+    "cleave": {
+     "every": 5.0,
+     "reach": 34,
+     "arc": 2.0,
+     "damage_mult": 1.2
+    },
+    "charge": {
+     "every": 11.0,
+     "speed_mult": 4.0,
+     "seconds": 0.7,
+     "burst_mult": 1.5
+    },
+    "war_cry": {
+     "every": 18.0,
+     "radius": 240,
+     "seconds": 4.0,
+     "speed_mult": 1.5
+    }
+   }
   }
  },
  "provinces": {

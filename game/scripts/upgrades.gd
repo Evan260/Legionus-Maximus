@@ -76,6 +76,7 @@ static func next_choices(sim: Sim) -> Array:
 	var picks := offers(sim)
 	if picks.is_empty():
 		sim.pending_levels = 0
+		sim.free_choices = 0
 	return picks
 
 
@@ -131,3 +132,5 @@ static func apply(sim: Sim, id: String) -> void:
 				u.hp = minf(u.max_hp, u.hp + base * 0.2)
 	if sim.pending_levels > 0:
 		sim.pending_levels -= 1
+	elif sim.free_choices > 0:
+		sim.free_choices -= 1

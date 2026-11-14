@@ -42,6 +42,20 @@ static func load_all(available_keys: Dictionary) -> Content:
 	return c
 
 
+## Content with every art key counted as drawn, for tests and the bench that need enemies and props that have no art yet.
+static func with_all_art() -> Content:
+	var c := load_all({})
+	for kind in KINDS:
+		for id in c.get(kind):
+			var entry: Variant = c.get(kind)[id]
+			if entry is Dictionary:
+				for key in entry.get("art", []):
+					c.available[key] = true
+	c.available["prop:chest"] = true
+	c.available["prop:supply_cart"] = true
+	return c
+
+
 ## True when every art key of the entry exists.
 func ready(kind: String, id: String) -> bool:
 	var entry: Dictionary = get(kind).get(id, {})

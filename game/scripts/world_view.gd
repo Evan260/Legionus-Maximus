@@ -11,6 +11,7 @@ var atlas: Atlas
 var ground: Texture2D
 var shadow: Texture2D
 var props_cache := {}
+var font: Font
 
 var _keys := PackedInt64Array()
 var _rects: Array = []
@@ -19,6 +20,7 @@ var _mods := PackedColorArray()
 
 
 func _ready() -> void:
+	font = load("res://assets/fonts/Silkscreen-Regular.ttf")
 	ground = load("res://assets/ground.png")
 	var img := Image.create(16, 6, false, Image.FORMAT_RGBA8)
 	for y in 6:
@@ -100,17 +102,17 @@ func _draw() -> void:
 		draw_texture(shadow, (u.pos - Vector2(8, 3)).round())
 		_add(u.pos.y, f[0], u.pos - f[1], mod)
 
-	for i in sim.e_pos.size():
-		var p: Vector2 = sim.e_pos[i]
+	for i in sim.horde.e_pos.size():
+		var p: Vector2 = sim.horde.e_pos[i]
 		if not view.has_point(p):
 			continue
-		var type: String = Sim.KINDS[sim.e_kind[i]]
-		var t := sim.time * 11.0 + sim.e_phase[i]
-		var f := atlas.unit_frame(type, "move", Sim.dir_name(sim.e_face[i]), t if sim.e_fighting[i] == 0 else float(sim.e_phase[i]))
+		var type: String = sim.horde.kind_ids[sim.horde.e_kind[i]]
+		var t := sim.time * 11.0 + sim.horde.e_phase[i]
+		var f := atlas.unit_frame(type, "move", Sim.dir_name(sim.horde.e_face[i]), t if sim.horde.e_fighting[i] == 0 else float(sim.horde.e_phase[i]))
 		var mod := white
-		if sim.e_flash[i] > 0.0:
+		if sim.horde.e_flash[i] > 0.0:
 			mod = Color(1.0, 0.5, 0.45)
-		elif sim.e_burn[i] > 0.0:
+		elif sim.horde.e_burn[i] > 0.0:
 			mod = Color(1.0, 0.78, 0.6)
 		draw_texture(shadow, (p - Vector2(8, 3)).round())
 		_add(p.y, f[0], p - f[1], mod)
@@ -122,6 +124,7 @@ func _draw() -> void:
 			_add(e.pos.y, f[0], e.pos - f[1] + Vector2(0, e.t * 8.0), Color(0.75, 0.35, 0.3, a))
 
 	_add_arm_sprites(view)
+	_add_chests_and_carts(view)
 	_draw_coins(view)
 	_keys.sort()
 	var tex := atlas.texture
@@ -130,6 +133,8 @@ func _draw() -> void:
 		draw_texture_rect_region(tex, Rect2(_dests[idx], _rects[idx].size), _rects[idx], _mods[idx])
 
 	_draw_shots(tex)
+	_draw_spears()
+	_draw_elite_names(view)
 	_draw_lobs(tex)
 	_draw_effects()
 	_draw_torches()
@@ -248,6 +253,40 @@ func _draw_coins(view: Rect2) -> void:
 			draw_rect(Rect2(p + Vector2(-r - 2, -r - 2), Vector2(1, 1)), Color(1, 1, 0.9))
 
 
+## Chests left by elites and supply carts, when their art is drawn.
+func _add_chests_and_carts(view: Rect2) -> void:
+	if atlas.props.has("chest"):
+		var f := atlas.prop_frame("chest")
+		for ch in sim.horde.chests:
+			if view.has_point(ch.pos):
+				_add(ch.pos.y, f[0], ch.pos - f[1], Color.WHITE)
+	if atlas.props.has("supply_cart"):
+		var f := atlas.prop_frame("supply_cart")
+		for cart in sim.horde.carts:
+			if view.has_point(cart.pos):
+				_add(cart.pos.y, f[0], cart.pos - f[1], Color.WHITE)
+
+
+## Spears thrown by the horde are drawn as short pixel lines.
+func _draw_spears() -> void:
+	for s in sim.horde.spears:
+		var dir: Vector2 = s.vel.normalized()
+		draw_line(s.pos - dir * 7.0, s.pos, Color(0.45, 0.3, 0.16), 1.0)
+		draw_rect(Rect2(s.pos.round(), Vector2(1, 1)), Color(0.85, 0.85, 0.8))
+
+
+## An elite's name stands over its head in small text.
+func _draw_elite_names(view: Rect2) -> void:
+	var h: Horde = sim.horde
+	for i in h.e_pos.size():
+		if h.e_tag[i] != Horde.ELITE or not view.has_point(h.e_pos[i]):
+			continue
+		var label: String = sim.content.enemies[h.kind_ids[h.e_kind[i]]].name
+		var at: Vector2 = (h.e_pos[i] + Vector2(-60, -34)).round()
+		draw_string(font, at + Vector2(1, 1), label, HORIZONTAL_ALIGNMENT_CENTER, 120, 8, Color(0.16, 0.1, 0.08))
+		draw_string(font, at, label, HORIZONTAL_ALIGNMENT_CENTER, 120, 8, Color(1.0, 0.89, 0.59))
+
+
 func _draw_shots(tex: Texture2D) -> void:
 	var pil := atlas.prop_frame("pilum")
 	for s in sim.shots:
@@ -298,19 +337,29 @@ func _draw_effects() -> void:
 			for ray in 8:
 				var dir := Vector2.from_angle(ray * TAU / 8.0 + 0.4)
 				draw_line(e.pos + dir * e.radius * 0.2 * (1.0 + k), e.pos + dir * e.radius * (0.35 + 0.65 * k), Color(1.0, 0.95, 0.6, 1.0 - k), 1.0)
+		elif e.kind == "cleave":
+			var k: float = e.t / 0.45
+			var a: float = e.dir.angle()
+			draw_arc(e.pos, e.radius * (0.6 + 0.4 * k), a - e.arc / 2.0, a + e.arc / 2.0, 12, Color(1.0, 0.8, 0.6, 1.0 - k), 2.0)
+		elif e.kind == "cry":
+			var k: float = e.t / 0.45
+			draw_arc(e.pos, e.radius * (0.2 + 0.8 * k), 0.0, TAU, 48, Color(0.9, 0.25, 0.2, 1.0 - k), 2.0)
+		elif e.kind == "spark":
+			var k: float = e.t / 0.45
+			draw_rect(Rect2((e.pos + Vector2(-1, -1 - k * 4.0)).round(), Vector2(2, 2)), Color(1.0, 0.95, 0.6, 1.0 - k))
 		elif e.kind == "heal":
 			var k: float = e.t / 0.45
 			var h: Vector2 = (e.pos + Vector2(-1, -14.0 - k * 8.0)).round()
 			var green := Color(0.5, 1.0, 0.55, 1.0 - k)
 			draw_rect(Rect2(h + Vector2(1, 0), Vector2(1, 3)), green)
 			draw_rect(Rect2(h + Vector2(0, 1), Vector2(3, 1)), green)
-	for i in sim.e_pos.size():
-		if sim.e_burn[i] > 0.0:
-			var p: Vector2 = sim.e_pos[i] + Vector2(-2 + (int(sim.time * 20.0 + i) % 4), -22)
+	for i in sim.horde.e_pos.size():
+		if sim.horde.e_burn[i] > 0.0:
+			var p: Vector2 = sim.horde.e_pos[i] + Vector2(-2 + (int(sim.time * 20.0 + i) % 4), -22)
 			draw_rect(Rect2(p.round(), Vector2(1, 2)), Color(1, 0.6, 0.15, 0.9))
 			draw_rect(Rect2((p + Vector2(2, 2)).round(), Vector2(1, 1)), Color(1, 0.85, 0.3, 0.9))
-		if sim.e_stun[i] > 0.0:
-			var q: Vector2 = sim.e_pos[i] + Vector2(-3 + (int(sim.time * 12.0 + i) % 7), -26)
+		if sim.horde.e_stun[i] > 0.0:
+			var q: Vector2 = sim.horde.e_pos[i] + Vector2(-3 + (int(sim.time * 12.0 + i) % 7), -26)
 			draw_rect(Rect2(q.round(), Vector2(2, 2)), Color(1, 0.95, 0.45))
 
 
