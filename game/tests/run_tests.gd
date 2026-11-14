@@ -1189,3 +1189,143 @@ func test_quartermaster_ranks_change_the_start(b: Dictionary) -> void:
 	check(paid_boosted > paid_base * 1.15, "kills pay more denarii")
 	check(boosted._bonus_amount("no_such_upgrade") == 0.0, "an unknown upgrade adds nothing")
 	check(fresh.speed() > Sim.new(b, Content.with_all_art(), {"seed": 120}).speed(), "a faster march")
+
+
+const ProfileScript := preload("res://scripts/profile.gd")
+const TEST_PROFILE := "user://test_profile.json"
+
+
+func _fresh_profile() -> Node:
+	var p: Node = ProfileScript.new()
+	p.disabled = false
+	p.path = TEST_PROFILE
+	p.data = ProfileScript.defaults()
+	return p
+
+
+func _cleanup_profile_files() -> void:
+	for f in [TEST_PROFILE, TEST_PROFILE + ".tmp"]:
+		if FileAccess.file_exists(f):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(f))
+
+
+func test_denarii_are_banked_after_a_run(b: Dictionary) -> void:
+	var p := _fresh_profile()
+	var all := Content.with_all_art()
+	var s := Sim.new(b, all, {"seed": 130})
+	s.denarii = 120
+	s.kills = 40
+	s.over = true
+	s.victory = false
+	p.record_run(s)
+	check(p.data.denarii == 120, "a lost run still banks its denarii")
+	check(p.data.totals.kills == 40 and p.data.totals.runs == 1, "kills and runs are counted")
+	check(not p.record_of("germania").won, "a lost run is not a win")
+	check(p.data.seen.has("legionary"), "the legion's recruits are seen")
+	var again := Sim.new(b, all, {"seed": 131})
+	again.denarii = 30
+	again.over = true
+	p.record_run(again)
+	check(p.data.denarii == 150, "denarii add up across runs")
+	p.free()
+	_cleanup_profile_files()
+
+
+func test_winning_germania_unlocks_the_archer_captain(b: Dictionary) -> void:
+	var p := _fresh_profile()
+	var all := Content.with_all_art()
+	check(not p.commander_unlocked("archer_captain"), "he starts locked")
+	var s := Sim.new(b, all, {"seed": 132})
+	s.time = 900.0
+	s.over = true
+	s.victory = true
+	p.record_run(s)
+	check(p.commander_unlocked("archer_captain"), "winning in Germania unlocks the archer captain")
+	check(p.record_of("germania").won and is_equal_approx(p.record_of("germania").best_time, 900.0), "the win and its time are recorded")
+	check(p.province_unlocked("britannia"), "the next province opens")
+	check(not p.commander_unlocked("legate") and not p.commander_unlocked("engineer"), "the others stay locked")
+	var faster := Sim.new(b, all, {"seed": 133, "hard": true})
+	faster.time = 700.0
+	faster.over = true
+	faster.victory = true
+	p.record_run(faster)
+	check(p.record_of("germania").hard_won, "a hard win is its own record")
+	check(is_equal_approx(p.record_of("germania").best_time, 700.0), "the best time keeps the fastest win")
+	var kills := Sim.new(b, all, {"seed": 134})
+	kills.kills = 5000
+	kills.over = true
+	p.record_run(kills)
+	check(p.commander_unlocked("cavalry_prefect"), "5,000 kills in total unlock the cavalry prefect")
+	p.free()
+	_cleanup_profile_files()
+
+
+func test_quartermaster_rank_costs_and_caps(b: Dictionary) -> void:
+	var p := _fresh_profile()
+	var qm: Dictionary = content.quartermaster
+	p.data.denarii = 1000000
+	for id in qm:
+		var info: Dictionary = qm[id]
+		check(info.costs.size() == int(info.ranks), "%s has a cost for every rank" % id)
+		for r in int(info.ranks):
+			check(p.next_cost(id, content) == int(info.costs[r]), "%s rank %d costs what the data says" % [id, r + 1])
+			var before: int = p.data.denarii
+			check(p.buy(id, content), "%s rank %d can be bought" % [id, r + 1])
+			check(before - p.data.denarii == int(info.costs[r]), "and costs exactly that")
+		check(p.rank(id) == int(info.ranks), "%s reaches its cap" % id)
+		check(p.next_cost(id, content) == -1 and not p.buy(id, content), "%s cannot go past its cap" % id)
+	check(p.bonuses().size() == qm.size(), "every rank reaches the run's bonuses")
+	var poor := _fresh_profile()
+	poor.data.denarii = int(qm.start_health.costs[0]) - 1
+	check(not poor.buy("start_health", content) and poor.rank("start_health") == 0, "too few denarii buy nothing")
+	check(poor.data.denarii == int(qm.start_health.costs[0]) - 1, "and spend nothing")
+	check(not poor.buy("no_such_upgrade", content), "an unknown upgrade is refused")
+	p.free()
+	poor.free()
+	_cleanup_profile_files()
+
+
+func test_damaged_profile_loads_defaults(b: Dictionary) -> void:
+	_cleanup_profile_files()
+	var p := _fresh_profile()
+	p.load_file()
+	check(p.data == ProfileScript.defaults(), "a missing file gives the defaults")
+	for junk in ["", "not json at all {{{", "[1, 2, 3]", "\"text\"", "null"]:
+		var f := FileAccess.open(TEST_PROFILE, FileAccess.WRITE)
+		f.store_string(junk)
+		f.close()
+		p.load_file()
+		check(p.data == ProfileScript.defaults(), "damaged file %s gives the defaults" % junk.left(8))
+	var partial := FileAccess.open(TEST_PROFILE, FileAccess.WRITE)
+	partial.store_string(JSON.stringify({"denarii": 75, "ranks": {"damage": 2, "armour": "lots"}, "totals": {"kills": "many", "runs": 3},
+		"unlocked": {"commanders": ["tribune", "legate", 7]}, "seen": {"wolf": true, "pilum": "yes"}, "old_key": 1}))
+	partial.close()
+	p.load_file()
+	check(p.data.denarii == 75, "a readable number is kept")
+	check(p.data.ranks == {"damage": 2}, "a rank with the wrong type is dropped and the rest kept")
+	check(p.data.totals.kills == 0 and p.data.totals.runs == 3, "totals merge by key")
+	check(p.data.unlocked.commanders == ["tribune", "legate"] and p.data.unlocked.provinces == ["germania"], "unlocks keep the readable ids")
+	check(p.data.seen == {"wolf": true}, "seen keeps the true entries")
+	check(not p.data.has("old_key"), "unknown keys are not carried")
+	p.free()
+	_cleanup_profile_files()
+
+
+func test_disabled_profile_never_writes(b: Dictionary) -> void:
+	_cleanup_profile_files()
+	var p := _fresh_profile()
+	p.disabled = true
+	p.data.denarii = 99
+	p.save()
+	check(not FileAccess.file_exists(TEST_PROFILE) and not FileAccess.file_exists(TEST_PROFILE + ".tmp"), "a disabled profile writes nothing")
+	p.disabled = false
+	p.save()
+	check(FileAccess.file_exists(TEST_PROFILE), "an enabled one does write")
+	var back := _fresh_profile()
+	back.load_file()
+	check(back.data.denarii == 99, "and reads back what it wrote")
+	back.free()
+	p.free()
+	_cleanup_profile_files()
+	check(Profile.disabled, "the real profile is disabled while the tests run")
+	check(Profile.path == "user://profile.json" and Profile.data == ProfileScript.defaults(), "and holds only defaults")

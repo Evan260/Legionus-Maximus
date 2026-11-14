@@ -74,6 +74,8 @@ var decimatio := false
 var bonuses := {}
 var decimate_next := 0.0
 var endless_since := -1.0
+var peak_soldiers := 0
+var killed_kinds := {}
 
 
 func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
@@ -198,6 +200,7 @@ func update(dt: float, move: Vector2, testudo_pressed: bool) -> void:
 	_effects(dt)
 	_regen(dt)
 	_decimate()
+	peak_soldiers = maxi(peak_soldiers, soldiers.size())
 	if commander.hp <= 0.0:
 		over = true
 		victory = false
@@ -386,6 +389,7 @@ func _remove_dead() -> void:
 func _kill(i: int) -> void:
 	var id: String = horde.kind_ids[horde.e_kind[i]]
 	kills += 1
+	killed_kinds[id] = true
 	var pay := float(content.enemies[id].coins) * (1.0 + float(b.drills.plunder) * rank("plunder") + _bonus_amount("denarii")) * (float(b.hard.denarii_mult) if hard else 1.0)
 	# A fraction of a coin is paid as the same chance of one more.
 	var value := int(pay) + (1 if pay > floorf(pay) and rng.randf() < pay - floorf(pay) else 0)

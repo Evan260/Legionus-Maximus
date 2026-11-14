@@ -14,6 +14,10 @@ config/windows_native_icon="res://icon.ico"
 boot_splash/bg_color=Color(0.16, 0.1, 0.08, 1)
 boot_splash/show_image=false
 
+[autoload]
+
+Profile="*res://scripts/profile.gd"
+
 [display]
 
 window/size/viewport_width=640

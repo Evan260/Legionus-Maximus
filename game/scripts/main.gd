@@ -8,6 +8,7 @@ extends Node
 ##   --chieftain-at=S   bring the chieftain at this many seconds instead
 ##   --hold-choice      with --autoplay, give a level at once and leave its choices open
 ##   --hard, --endless, --decimatio   start the run in that mode
+##   --screen=NAME      open a camp screen (camp, quartermaster, tablinum, map, commanders) with a sample profile, for screenshots
 ##   --commander=ID     start with that commander (the tribune when his art is not drawn)
 ##   --give=ID,ID:RANK  start the run with these arms or drills at the rank (default 1), for looking at them
 
@@ -20,6 +21,10 @@ var selected := 0
 var args := {}
 var shot_at := -1.0
 var clock := 0.0
+var ui := Ui.new()
+var screens := {}
+var camp_sim: Sim
+var run_setup := {"province": "germania", "commander": "tribune", "hard": false, "endless": false, "decimatio": false}
 
 @onready var world: Node2D = $World
 @onready var hud: Node2D = $UI/Hud
@@ -48,7 +53,16 @@ func _ready() -> void:
 	_setup_input()
 	world.atlas = Atlas.new()
 	hud.main = self
+	hud.ui = ui
+	screens = {"camp": CampScreen.new(self), "quartermaster": QuartermasterScreen.new(self), "tablinum": TablinumScreen.new(self),
+		"map": MapScreen.new(self), "commanders": CommandersScreen.new(self)}
+	_load_run_setup()
 	_new_sim()
+	if args.has("screen") and screens.has(args.screen):
+		_sample_profile()
+		_enter_camp()
+		state = args.screen
+		ui.focus = ""
 	if args.has("autoplay") or args.has("skip"):
 		_start()
 		if args.has("skip"):
@@ -74,13 +88,45 @@ func _new_sim() -> void:
 				sim.ranks[parts[0]] = clampi(int(parts[1]) if parts.size() > 1 else 1, 0, int(info.get("max", 0)))
 
 
-## The run's options from the command line; the camp screen will fill them in for real play.
+## The camp's choices, the saved ones first, then anything the command line asks for.
+func _load_run_setup() -> void:
+	var settings: Dictionary = Profile.data.settings
+	if content.ready("provinces", str(settings.get("province", ""))) and Profile.province_unlocked(settings.province):
+		run_setup.province = settings.province
+	if content.ready("commanders", str(settings.get("commander", ""))) and Profile.commander_unlocked(settings.commander):
+		run_setup.commander = settings.commander
+	if args.has("commander") and content.ready("commanders", args.commander):
+		run_setup.commander = args.commander
+	for mode in ["hard", "endless", "decimatio"]:
+		run_setup[mode] = args.has(mode)
+
+
+## The run's options: what was chosen in the camp and the quartermaster's ranks.
 func _run_options() -> Dictionary:
-	var options := {"province": "germania", "commander": str(args.get("commander", "tribune")), "hard": args.has("hard"),
-		"endless": args.has("endless"), "decimatio": args.has("decimatio"), "profile_bonuses": {}}
-	if not content.ready("commanders", options.commander):
-		options.commander = "tribune"
+	var options: Dictionary = run_setup.duplicate()
+	options.profile_bonuses = Profile.bonuses()
 	return options
+
+
+## A profile with something in every screen, held in memory only, so a screenshot shows the screens filled in.
+func _sample_profile() -> void:
+	Profile.data = Profile.merge_saved({"denarii": 640, "ranks": {"start_health": 2, "damage": 1, "rerolls": 3, "denarii": 5},
+		"records": {"germania": {"best_time": 1110.0, "longest": 1200.0, "won": true, "hard_won": false}},
+		"seen": {"legionary": true, "archer": true, "pilum": true, "barbarian_club": true, "wolf": true, "berserker": true},
+		"totals": {"kills": 2400, "runs": 9, "wins": 1}, "unlocked": {"commanders": ["tribune", "archer_captain"]}})
+
+
+## Back to the camp, with the legion standing on the field as the chosen commander and the quartermaster's ranks would start it.
+func _enter_camp(focus_id := "march") -> void:
+	camp_sim = Sim.new(balance, content, _run_options())
+	world.sim = camp_sim
+	state = "camp"
+	ui.focus = focus_id
+
+
+func _finish_run() -> void:
+	state = "over"
+	Profile.record_run(sim)
 
 
 func _start() -> void:
@@ -92,7 +138,7 @@ func _setup_input() -> void:
 	var keys := {
 		"left": [KEY_A, KEY_LEFT], "right": [KEY_D, KEY_RIGHT], "up": [KEY_W, KEY_UP], "down": [KEY_S, KEY_DOWN],
 		"testudo": [KEY_SPACE], "reroll": [KEY_R], "banish": [KEY_B], "confirm": [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER], "pause": [KEY_ESCAPE], "quit": [KEY_Q],
-		"fullscreen": [KEY_F11],
+		"fullscreen": [KEY_F11], "back": [KEY_ESCAPE],
 	}
 	for action in keys:
 		if not InputMap.has_action(action):
@@ -101,7 +147,7 @@ func _setup_input() -> void:
 			var e := InputEventKey.new()
 			e.physical_keycode = k
 			InputMap.action_add_event(action, e)
-	var pad := {"reroll": JOY_BUTTON_Y, "banish": JOY_BUTTON_X, "testudo": JOY_BUTTON_A, "confirm": JOY_BUTTON_A, "pause": JOY_BUTTON_START,
+	var pad := {"back": JOY_BUTTON_B, "reroll": JOY_BUTTON_Y, "banish": JOY_BUTTON_X, "testudo": JOY_BUTTON_A, "confirm": JOY_BUTTON_A, "pause": JOY_BUTTON_START,
 		"left": JOY_BUTTON_DPAD_LEFT, "right": JOY_BUTTON_DPAD_RIGHT, "up": JOY_BUTTON_DPAD_UP, "down": JOY_BUTTON_DPAD_DOWN}
 	for action in pad:
 		var e := InputEventJoypadButton.new()
@@ -129,7 +175,9 @@ func _process(dt: float) -> void:
 	match state:
 		"title":
 			if Input.is_action_just_pressed("confirm"):
-				_start()
+				_enter_camp()
+		"camp", "quartermaster", "tablinum", "map", "commanders":
+			_screen_input(dt)
 		"play":
 			if Input.is_action_just_pressed("pause"):
 				state = "pause"
@@ -141,7 +189,7 @@ func _process(dt: float) -> void:
 				testudo = int(sim.time) % 20 == 5
 			sim.update(minf(dt, 1.0 / 30.0), move, testudo)
 			if sim.over:
-				state = "over"
+				_finish_run()
 			elif sim.pending_levels > 0 or sim.free_choices > 0:
 				_open_choices()
 		"choose":
@@ -167,13 +215,45 @@ func _process(dt: float) -> void:
 				state = "play"
 			elif Input.is_action_just_pressed("quit"):
 				sim.over = true
-				state = "over"
+				_finish_run()
 		"over":
 			if Input.is_action_just_pressed("confirm"):
-				_start()
+				_enter_camp()
 			elif Input.is_action_just_pressed("pause"):
 				_new_sim()
 				state = "title"
+
+
+func _screen_input(dt: float) -> void:
+	if state == "camp":
+		for u in [camp_sim.commander] + camp_sim.soldiers:
+			u.anim += dt * 6.0
+	if Input.is_action_just_pressed("back"):
+		if state == "camp":
+			_new_sim()
+			state = "title"
+		else:
+			_enter_camp(state)
+		return
+	for dir in [["left", Vector2.LEFT], ["right", Vector2.RIGHT], ["up", Vector2.UP], ["down", Vector2.DOWN]]:
+		if Input.is_action_just_pressed(dir[0]):
+			ui.move(dir[1])
+	if Input.is_action_just_pressed("confirm"):
+		_activate(ui.focus)
+
+
+func _activate(id: String) -> void:
+	if not ui.is_enabled(id):
+		return
+	if state == "camp":
+		if id == "march":
+			_start()
+			Input.action_release("testudo")
+		elif screens.has(id):
+			state = id
+			ui.focus = ""
+	else:
+		screens[state].activate(id)
 
 
 func _open_choices() -> void:
@@ -194,6 +274,15 @@ func _take(i: int) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if screens.has(state):
+		if event is InputEventMouseMotion:
+			ui.hover(hud.get_global_mouse_position())
+		elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			var id := ui.at(hud.get_global_mouse_position())
+			if id != "":
+				ui.focus = id
+				_activate(id)
+		return
 	if state != "choose":
 		return
 	if event is InputEventMouseMotion:

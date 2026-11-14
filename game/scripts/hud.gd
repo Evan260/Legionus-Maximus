@@ -13,6 +13,7 @@ const GOLD_LIGHT := Color(1.0, 0.89, 0.59)
 const RED := Color(0.72, 0.18, 0.14)
 
 var main: Node
+var ui: Ui
 var font: Font
 var logo: Texture2D
 var icons := {}
@@ -68,6 +69,11 @@ func _draw() -> void:
 	if main == null:
 		return
 	var sim: Sim = main.sim
+	if main.screens.has(main.state):
+		ui.begin()
+		main.screens[main.state].draw(self, ui)
+		ui.end()
+		return
 	match main.state:
 		"title":
 			_title()
@@ -185,7 +191,7 @@ func _summary(sim: Sim) -> void:
 	for i in rows.size():
 		text(rows[i][0], Vector2(W / 2 - 100, 140 + i * 14), INK, HORIZONTAL_ALIGNMENT_LEFT, -1, false)
 		text(rows[i][1], Vector2(0, 140 + i * 14), INK, HORIZONTAL_ALIGNMENT_RIGHT, W / 2 + 100, false)
-	text("Space  march again", Vector2(0, 228), INK, HORIZONTAL_ALIGNMENT_CENTER, W, false)
+	text("Space  back to the camp", Vector2(0, 228), INK, HORIZONTAL_ALIGNMENT_CENTER, W, false)
 	text("Esc  title", Vector2(0, 242), INK, HORIZONTAL_ALIGNMENT_CENTER, W, false)
 
 
