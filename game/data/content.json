@@ -1682,16 +1682,10 @@
    "kind": "province",
    "target": "parthia"
   },
-  "commander_tribune": {
-   "name": "Tribune unlocked",
-   "text": "Unlock the Tribune.",
-   "kind": "commander",
-   "target": "tribune"
-  },
-  "commander_archer_captain": {
-   "name": "Archer captain unlocked",
-   "text": "Unlock the Archer captain.",
-   "kind": "commander",
+  "win_as_archer_captain": {
+   "name": "Victory as the Archer captain",
+   "text": "Win a run as the Archer captain.",
+   "kind": "commander_win",
    "target": "archer_captain"
   },
   "commander_cavalry_prefect": {
@@ -1700,10 +1694,10 @@
    "kind": "commander",
    "target": "cavalry_prefect"
   },
-  "commander_engineer": {
-   "name": "Engineer unlocked",
-   "text": "Unlock the Engineer.",
-   "kind": "commander",
+  "win_as_engineer": {
+   "name": "Victory as the Engineer",
+   "text": "Win a run as the Engineer.",
+   "kind": "commander_win",
    "target": "engineer"
   },
   "commander_old_centurion": {

@@ -2,6 +2,7 @@ extends Node
 ## Steam and the achievements: earned ones are kept in the profile and handed to Steam whenever it is running, and what friends
 ## see (rich presence) is sent only on a change. Outside Steam, in tests and in screenshots, nothing here calls Steam.
 
+const HIDING_STATES := ["choose", "over"]
 const STORE_URL := "https://store.steampowered.com/app/%d"
 
 var steam: Object = null
@@ -11,7 +12,7 @@ var content: Content
 var queue: Array = []
 var card: Dictionary = {}
 var card_age := 0.0
-## True while the level-up choice is open, so no card covers it.
+## True while the level-up choice or the summary is open, so no card covers them.
 var blocked := false
 var _presence := {}
 var _sent_at := -1000.0
@@ -47,6 +48,11 @@ func _process(dt: float) -> void:
 			card = {}
 
 
+## Whether the card on show is drawn in this state of the game.
+func card_visible(state: String) -> bool:
+	return not card.is_empty() and not state in HIDING_STATES
+
+
 func card_total() -> float:
 	return float(balance.steam.card_hold) + 2.0 * float(balance.steam.card_slide)
 
@@ -68,7 +74,7 @@ func sync() -> void:
 
 
 func _send(id: String) -> void:
-	if steam and not Profile.disabled:
+	if steam:
 		steam.call("setAchievement", id)
 		steam.call("storeStats")
 
@@ -98,6 +104,8 @@ func met(info: Dictionary, sim: Sim, banked: bool) -> bool:
 			return bool(Profile.record_of(str(target)).won)
 		"commander":
 			return Profile.commander_unlocked(str(target))
+		"commander_win":
+			return sim.victory and not sim.demo_over and sim.commander_id == str(target)
 		"forged":
 			return sim.rank(str(target)) > 0
 		"kills":
@@ -133,10 +141,10 @@ static func presence_of(province: String, minute: int, legion: int) -> Dictionar
 
 ## Tells Steam what the player is doing, only when it changed and at most once per interval.
 func presence(province: String, minute: int, legion: int) -> void:
-	if steam == null or Profile.disabled:
+	if steam == null or _clock - _sent_at < float(balance.steam.presence_every):
 		return
 	var now := presence_of(province, minute, legion)
-	if now == _presence or _clock - _sent_at < float(balance.steam.presence_every):
+	if now == _presence:
 		return
 	_presence = now
 	_sent_at = _clock

@@ -61,6 +61,8 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	var hint := held if held != "" else "Space camp     Esc title"
 	if sim.demo_over:
 		hint = "The full game continues past %d minutes" % (int(main.balance.demo.seconds) / 60)
+	if sim.demo_over:
+		title = "THE DEMO ENDS HERE"
 	var r := ui.frame(c, title, hint)
 	if not modes.is_empty():
 		var room := r.size.x - 36.0 - ui.width_of(title)

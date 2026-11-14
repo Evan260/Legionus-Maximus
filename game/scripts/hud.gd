@@ -74,7 +74,7 @@ func _draw() -> void:
 ## An achievement card sliding in at the top right, a parchment panel with a laurel, over whatever is on screen.
 func _card() -> void:
 	var card: Dictionary = Steamworks.card
-	if card.is_empty():
+	if not Steamworks.card_visible(main.state):
 		return
 	var big := Ui.scale > 1
 	var w := 190.0 if not big else 280.0

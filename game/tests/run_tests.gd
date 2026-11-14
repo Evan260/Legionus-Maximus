@@ -1598,7 +1598,7 @@ func test_achievements_unlock_from_the_run(b: Dictionary) -> void:
 	Profile.data = Profile.defaults()
 	var s := Sim.new(b, content, {"seed": 30})
 	var fresh: Array = Steamworks.check(s)
-	check(fresh == ["commander_tribune"], "only the free commander is earned at the start")
+	check(fresh.is_empty(), "nothing is earned at the start")
 	s.ranks["hooked_pila"] = 1
 	for i in 30:
 		s.add_soldier("legionary")
@@ -1608,12 +1608,12 @@ func test_achievements_unlock_from_the_run(b: Dictionary) -> void:
 	check("forge_hooked_pila" in fresh and "legion_25" in fresh and "kills_1000" in fresh, "forged form, legion size and kills are earned live")
 	check(not "legion_50" in fresh and not "kills_10000" in fresh, "larger targets stay unearned")
 	check(Steamworks.check(s).is_empty(), "an earned achievement is not earned again")
-	check(Profile.data.achievements.size() == 4, "every earned one is kept in the profile")
+	check(Profile.data.achievements.size() == 3, "every earned one is kept in the profile")
 	s.victory = true
 	s.over = true
 	Profile.record_run(s)
 	fresh = Steamworks.check(s, true)
-	check("win_germania" in fresh and "commander_archer_captain" in fresh and not "kills_10000" in fresh, "a won province and the commander it opens are earned when the run ends, and kills are not counted twice")
+	check("win_germania" in fresh and not "kills_10000" in fresh, "a won province is earned when the run ends, and kills are not counted twice")
 	check(Profile.merge_saved(JSON.parse_string(JSON.stringify(Profile.data))).achievements == Profile.data.achievements, "the earned list survives saving")
 	Steamworks.queue.clear()
 	Profile.data = saved
@@ -1665,3 +1665,51 @@ func test_demo_offers_three_commanders(b: Dictionary) -> void:
 	check(Game.province_allowed("germania", b) and not Game.province_allowed("gaul", b), "the demo opens Germania only")
 	check(Game.run_cap(b) == 900.0, "the demo caps the run at 900 seconds")
 	Game.demo_forced = false
+
+
+func test_winning_as_a_commander_is_earned(b: Dictionary) -> void:
+	var saved: Dictionary = Profile.data
+	Profile.data = Profile.defaults()
+	var s := Sim.new(b, content, {"seed": 32, "commander": "archer_captain"})
+	check(not "win_as_archer_captain" in Steamworks.check(s), "not earned before the win")
+	s.victory = true
+	s.over = true
+	check("win_as_archer_captain" in Steamworks.check(s), "earned by winning as that commander")
+	Steamworks.queue.clear()
+	Profile.data = saved
+
+
+class FakeSteam:
+	extends RefCounted
+	var sent: Array = []
+
+	func setAchievement(id: String) -> void:
+		sent.append(id)
+
+	func storeStats() -> void:
+		pass
+
+
+func test_achievements_wait_in_the_profile_until_steam_is_there(b: Dictionary) -> void:
+	var saved: Dictionary = Profile.data
+	Profile.data = Profile.defaults()
+	check(Steamworks.unlock("kills_1000"), "earned without Steam")
+	check(Profile.data.achievements == ["kills_1000"], "kept in the profile")
+	var fake := FakeSteam.new()
+	Steamworks.steam = fake
+	Steamworks.unlock("legion_25")
+	check(fake.sent == ["legion_25"], "sent at once when Steam is there")
+	fake.sent.clear()
+	Steamworks.sync()
+	check(fake.sent.size() == 2 and "kills_1000" in fake.sent and "legion_25" in fake.sent, "sync sends every earned one")
+	Steamworks.steam = null
+	Steamworks.queue.clear()
+	Profile.data = saved
+
+
+func test_no_card_draws_over_the_choice_or_the_summary(b: Dictionary) -> void:
+	Steamworks.card = {"id": "kills_1000", "name": "x", "text": "y"}
+	check(Steamworks.card_visible("play") and Steamworks.card_visible("camp"), "a card shows while playing and in the camp")
+	check(not Steamworks.card_visible("choose") and not Steamworks.card_visible("over"), "no card over the level-up choice or the summary")
+	Steamworks.card = {}
+

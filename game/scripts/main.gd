@@ -215,7 +215,7 @@ func _setup_input() -> void:
 
 func _process(dt: float) -> void:
 	clock += dt
-	Steamworks.blocked = state == "choose"
+	Steamworks.blocked = state in Steamworks.HIDING_STATES
 	_steam_update(dt)
 	Audio.set_run(state in ["play", "choose", "pause"], sim.time if sim != null else 0.0)
 	if shot_at >= 0.0 and clock >= shot_at:
