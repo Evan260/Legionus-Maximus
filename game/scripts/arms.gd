@@ -3,7 +3,7 @@ extends RefCounted
 ## The legion-wide weapons and their forged forms. Each fires on its own timer from the ranks in the sim; every number is in balance.json.
 
 # A ground zone is named for its kind; fire is the burning ground the fire pots leave.
-const ZONE_WEAPON := {"fire": "fire_pots"}
+const ZONE_WEAPON := {"fire": "fire_pots", "oil": "oil_jars"}
 
 var zones: Array = []
 var lobs: Array = []
