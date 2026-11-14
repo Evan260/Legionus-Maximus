@@ -416,13 +416,13 @@ func _bench() -> void:
 	for i in 100:
 		s.add_soldier(mix[i % mix.size()])
 	var kinds := ["barbarian_club", "barbarian_spear", "axe_thrower", "wolf", "chariot", "berserker"]
-	for i in 1000:
+	for i in int(balance.max_enemies):
 		s.horde.spawn(kinds[i % kinds.size()], s.horde.ring_point() * randf_range(0.3, 1.0))
 	var frames := 300
 	var spent := 0
 	for f in frames:
-		# The horde is topped back up so every measured update meets the full 1,000.
-		while s.horde.e_pos.size() < 1000:
+		# The horde is topped back up so every measured update meets the full cap.
+		while s.horde.e_pos.size() < int(balance.max_enemies):
 			s.horde.spawn(kinds[randi() % kinds.size()], s.horde.ring_point() * randf_range(0.3, 1.0))
 		var start := Time.get_ticks_usec()
 		s.update(1.0 / 60.0, Vector2(1, 0.3), false)

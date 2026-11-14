@@ -8,7 +8,7 @@ Godot is `C:\Users\evand\AppData\Local\Microsoft\WinGet\Packages\GodotEngine.God
 
 - Import after adding assets: `godot --headless --path game --import`
 - Tests: `godot --headless --path game -- --run-tests` (must print ALL TESTS PASSED)
-- Speed: `godot --headless --path game -- --bench` (simulation time per update with 1,000 barbarians and a 100-soldier legion; keep it under 5 ms, and run it three times after touching `_move_enemies` or the legion)
+- Speed: `godot --headless --path game -- --bench` (simulation time per update at the horde cap (balance max_enemies) and a 100-soldier legion; keep it under 5 ms, and run it three times after touching `_move_enemies` or the legion)
 - Look without playing: `godot --path game -- --autoplay`, with `--skip=SECONDS` to start later in the run and `--shot=PATH --at=SECONDS` to save a screenshot and quit
 - Every other flag, all for looking or testing and none of them saved to the profile:
   - `--chieftain-at=S` brings the chieftain at that second; `--hold-choice` with `--autoplay` leaves a level-up open
