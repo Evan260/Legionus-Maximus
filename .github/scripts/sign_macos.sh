@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-# Runs on a Mac: opens Godot's export, signs, notarizes and staples the app when the Apple secrets are set, and zips it
-# with the credits into dist/. Without the secrets it zips the app unsigned and says so.
-#   bash .github/scripts/sign_macos.sh <folder with the exported .zip and the credits> <full|demo>
+# Runs on a Mac: signs and notarizes the exported app when the Apple secrets are set, else zips it unsigned.
 set -euo pipefail
 
 EXPORT="$1"
@@ -16,7 +14,6 @@ rm -rf "$WORK" "$DIST"
 mkdir -p "$WORK/$GAME_NAME" "$DIST"
 exported=("$EXPORT"/*.zip)
 ditto -x -k "${exported[0]}" "$WORK/$GAME_NAME"
-[ -f "$EXPORT/Credits and licences.txt" ] && cp "$EXPORT/Credits and licences.txt" "$WORK/$GAME_NAME/" || true
 apps=("$WORK/$GAME_NAME"/*.app)
 app="${apps[0]}"
 [ -d "$app" ] || { echo "::error::No .app inside ${exported[0]}"; exit 1; }
@@ -26,12 +23,12 @@ for name in "${SECRETS[@]}"; do
   [ -n "${!name:-}" ] || missing+=("$name")
 done
 if [ ${#missing[@]} -eq ${#SECRETS[@]} ]; then
-  echo "::notice title=macOS build left unsigned::The Apple secrets are not set, so $GAME_NAME for macOS is not signed or notarized (docs/Release-builds.md)."
+  echo "::notice title=macOS build left unsigned::The Apple secrets are not set, so $GAME_NAME for macOS is not signed or notarized (the Release section of CLAUDE.md)."
   ditto -c -k --keepParent "$WORK/$GAME_NAME" "$DIST/$SLUG-$LABEL-macos-unsigned.zip"
   exit 0
 fi
 if [ ${#missing[@]} -gt 0 ]; then
-  echo "::error title=Apple secrets incomplete::Missing: ${missing[*]} (docs/Release-builds.md)"
+  echo "::error title=Apple secrets incomplete::Missing: ${missing[*]} (the Release section of CLAUDE.md)"
   exit 1
 fi
 

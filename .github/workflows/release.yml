@@ -41,7 +41,7 @@ jobs:
       - uses: ./.github/actions/setup-godot
 
       - name: Import
-        run: godot --headless --path game --import
+        run: godot --headless --path game --import || godot --headless --path game --import
 
       - name: Run the tests
         run: |
@@ -69,7 +69,7 @@ jobs:
           templates: "true"
 
       - name: Import
-        run: godot --headless --path game --import
+        run: godot --headless --path game --import || godot --headless --path game --import
 
       - name: Export
         run: bash .github/scripts/export.sh ${{ matrix.platform }} ${{ matrix.edition }}

@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
-# Installs the pinned Godot for Linux from the official GitHub release, checking each download against its checksum:
-#   bash .github/scripts/install_godot.sh editor      the headless-capable editor, as ~/godot/godot
-#   bash .github/scripts/install_godot.sh templates   the Linux and macOS export templates this game exports with
-# The Windows export uses the trimmed template in the repository, so no stock Windows template is installed.
+# Installs the pinned Godot editor or its Linux and macOS export templates: editor | templates.
 set -euo pipefail
 
 VERSION=4.7.2

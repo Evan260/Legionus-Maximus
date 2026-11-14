@@ -10,9 +10,8 @@ Usage:
 The Steam account, app and depot ids are in tools/steam/steam.json; a depot left at 0 is skipped, and a dry run with
 no ids yet builds every platform. tools/export.py exports each platform here on Windows, then tools/steam/wsl_build.sh
 takes over inside WSL: a Mac app copied through Windows loses its file permissions and will not open, so the builds are
-laid out, the Mac app signed and notarized, and the upload made with Valve's Linux steamcmd there. The
-everything-unlocked launcher is left out of every depot.
-docs/Steam-publishing.md has the one-time setup.
+laid out, the Mac app signed and notarized, and the upload made with Valve's Linux steamcmd there.
+The Release section of CLAUDE.md has the one-time setup.
 Steam only lets a script make a build live on a branch other than the default one, so testers choose that branch
 once in the game's Properties, Betas; builds for the default branch are set live on the Steamworks site.
 """
@@ -54,7 +53,6 @@ def vdf(target, depots, note, content, output):
 \t\t\t\t"DepotPath" "."
 \t\t\t\t"recursive" "1"
 \t\t\t}}
-\t\t\t"FileExclusion" "{export.LAUNCHER}"
 \t\t}}''' for platform, depot in depots.items())
     return f'''"AppBuild"
 {{
@@ -82,7 +80,7 @@ def main():
     depots = {platform: depot for platform, depot in target["depots"].items() if depot}
     if not target["app_id"] or not depots:
         if not args.dry_run:
-            fail(f"set the {args.target} app id and depot ids in {CONFIG} first (see docs/Steam-publishing.md)")
+            fail(f"set the {args.target} app id and depot ids in {CONFIG} first (see the Release section of CLAUDE.md)")
         depots = dict(target["depots"])
         print("note: no Steam ids yet, so the dry run builds every platform")
     store = int(json.loads((ROOT / "game" / "data" / "balance.json").read_text(encoding="utf-8"))["demo"]["store_app_id"])
@@ -95,15 +93,13 @@ def main():
     if not home:
         fail("WSL does not answer; check that Ubuntu is installed (wsl --list)")
     if not args.dry_run and wsl("test", "-x", f"{home}/{WSL_HOME}/steamcmd/steamcmd.sh").returncode != 0:
-        fail("WSL is not set up for uploads yet; run tools/steam/wsl_setup.sh once (see docs/Steam-publishing.md)")
+        fail("WSL is not set up for uploads yet; run tools/steam/wsl_setup.sh once (see the Release section of CLAUDE.md)")
     stage = ROOT / "builds" / "steam" / args.target
     if stage.exists():
         shutil.rmtree(stage)
     export.godot("--import")
     for platform in depots:
         export.export(platform, stage / platform, args.target == "demo")
-        # The everything-unlocked launcher is for local builds and GitHub releases, never for players on Steam.
-        (stage / platform / export.LAUNCHER).unlink(missing_ok=True)
     work = f"{home}/{WSL_HOME}/{args.target}"
     commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
     note = f"{datetime.date.today()} {commit} {args.note}".strip().replace('"', "'")
@@ -119,7 +115,7 @@ def main():
         return
     if "Successfully finished AppID" not in result.stdout:
         fail("the upload did not finish; if steamcmd asked for a password or a Steam Guard code, log in by hand once "
-             "(see docs/Steam-publishing.md) and run this again")
+             "(see the Release section of CLAUDE.md) and run this again")
     print(f"uploaded and live on the '{target['branch']}' branch of app {target['app_id']}")
 
 

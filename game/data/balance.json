@@ -89,5 +89,8 @@
     "range": 240,
     "speed": 330,
     "pierce": 6
+  },
+  "demo": {
+    "store_app_id": 0
   }
 }

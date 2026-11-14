@@ -1,5 +1,5 @@
 {
-  "_evan": "Fill in the uploading Steam account, then each app's App ID and depot ids (the Playtest, the game and the demo) from Steamworks once the account is verified; every 0 is a placeholder (docs/Steam-publishing.md, One-time setup on Steamworks).",
+  "_evan": "Fill in the uploading Steam account, then each app's App ID and depot ids (the Playtest, the game and the demo) from Steamworks once the account is verified; every 0 is a placeholder (the Release section of CLAUDE.md).",
   "account": "",
   "targets": {
     "playtest": {

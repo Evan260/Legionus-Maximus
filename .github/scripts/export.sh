@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
-# Exports one platform of the full game or the demo with tools/export.py, then packs it into dist/:
-#   bash .github/scripts/export.sh <windows|macos|linux> <full|demo>
-# Windows becomes a .zip and Linux a .tar.gz, which keeps the executable permissions that artifacts drop. macOS stays
-# Godot's own .zip beside the credits, for the signing job to open on a Mac.
+# Exports one platform of the full game or the demo with tools/export.py and packs it into dist/.
 set -euo pipefail
 
 PLATFORM="$1"

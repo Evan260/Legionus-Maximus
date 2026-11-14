@@ -1,6 +1,5 @@
 # shellcheck shell=bash disable=SC2034
-# Sourced by the release scripts: the build's name, the full game's or the demo's, its name in file names, and the label
-# its files carry.
+# Sourced by the release scripts: the build's name, its name in file names and its label.
 GAME_NAME="Legionus Maximus"
 if [ "${EDITION:-full}" = demo ]; then
   GAME_NAME="Legionus Maximus Demo"
