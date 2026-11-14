@@ -564,10 +564,12 @@ func drop_coin(pos: Vector2, value: int) -> void:
 
 func _coins(dt: float) -> void:
 	var r2 := pickup_radius() * pickup_radius()
+	var far := legion_reach + pickup_radius()
+	var far2 := far * far
 	var i := c_pos.size() - 1
 	while i >= 0:
 		var to: Vector2 = commander.pos - c_pos[i]
-		if c_pull[i] == 0 and to.length_squared() < r2:
+		if c_pull[i] == 0 and (to.length_squared() < r2 or (to.length_squared() < far2 and _unit_near(c_pos[i], r2))):
 			c_pull[i] = 1
 		if c_pull[i] == 1:
 			var d := to.length()
@@ -586,6 +588,21 @@ func _coins(dt: float) -> void:
 			else:
 				c_pos[i] += to / d * minf(d, 220.0 * dt)
 		i -= 1
+
+
+## Whether any soldier stands within the pickup radius of p, so the whole legion gathers coins for the commander.
+func _unit_near(p: Vector2, r2: float) -> bool:
+	var k := _cell(p)
+	var span := ceili(sqrt(r2) / CELL)
+	for cx in range(k.x - span, k.x + span + 1):
+		for cy in range(k.y - span, k.y + span + 1):
+			var cell: Variant = u_grid.get(Vector2i(cx, cy))
+			if cell == null:
+				continue
+			for ui in cell:
+				if (units[ui].pos - p).length_squared() < r2:
+					return true
+	return false
 
 
 func gain(value: int) -> void:

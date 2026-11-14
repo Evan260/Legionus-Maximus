@@ -99,6 +99,22 @@ func _go(id: String, dt: float) -> bool:
 	return t <= 0.0
 
 
+## The nearest enemy within reach in front of the legion, since the front ranks throw the way they face.
+func _nearest_ahead(sim: Sim, from: Vector2, reach: float) -> int:
+	var ahead := Vector2.from_angle(sim.facing_angle)
+	var best := -1
+	var best_d := INF
+	for t in sim.enemies_near(from, reach):
+		var to: Vector2 = sim.horde.e_pos[t] - from
+		if to.dot(ahead) <= 0.0:
+			continue
+		var d := to.length_squared()
+		if d < best_d:
+			best_d = d
+			best = t
+	return best
+
+
 func _pilum(dt: float, sim: Sim) -> void:
 	var pr := sim.rank("pilum")
 	if pr <= 0 or not _go("pilum", dt):
@@ -118,7 +134,7 @@ func _pilum(dt: float, sim: Sim) -> void:
 			break
 		if sim.content.unit(s.type).get("place", "front") != "front":
 			continue
-		var t := sim.nearest_enemy(s.pos, float(p.range))
+		var t := _nearest_ahead(sim, s.pos, float(p.range))
 		if t >= 0:
 			sim.shoot("pilum", s.pos, sim.horde.e_pos[t], p.speed, lv(p, "damage", pr), pierce, 0.0, extra)
 			thrown += 1

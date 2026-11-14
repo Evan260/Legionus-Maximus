@@ -128,6 +128,36 @@ func test_pilum_volley_kills_a_lone_barbarian(b: Dictionary) -> void:
 	check(s.kills >= 1, "the pilum found its mark")
 
 
+func test_pila_are_thrown_only_ahead(b: Dictionary) -> void:
+	var s := Sim.new(b, content, {"seed": 11})
+	s.b = b.duplicate()
+	s.b.spawn_per_second_start = 0.0
+	s.b.spawn_per_second_growth = 0.0
+	Upgrades.apply(s, "pilum")
+	s.horde.spawn("barbarian_club", s.commander.pos - Vector2.from_angle(s.facing_angle) * 120.0)
+	for i in 240:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.damage_by_source.get("pilum", 0.0) == 0.0, "no pilum flies at a barbarian behind the legion")
+
+
+func test_soldiers_gather_coins_for_the_commander(b: Dictionary) -> void:
+	var s := Sim.new(b, content, {"seed": 13})
+	s.b = b.duplicate()
+	s.b.spawn_per_second_start = 0.0
+	s.b.spawn_per_second_growth = 0.0
+	for i in 30:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+	var far: Dictionary = s.soldiers[0]
+	far.pos = s.commander.pos + Vector2(80, 0)
+	s.drop_coin(far.pos + Vector2(4, 0), 1)
+	var before := s.xp + (s.level - 1) * 1000
+	for i in 120:
+		far.pos = s.commander.pos + Vector2(80, 0)
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.c_pos.is_empty(), "the coin by the soldier was gathered")
+	check(s.xp + (s.level - 1) * 1000 > before, "and counted for the legion")
+
+
 func test_lorica_raises_health(b: Dictionary) -> void:
 	var s := Sim.new(b, content, {"seed": 12})
 	var before: float = s.commander.max_hp
@@ -1459,6 +1489,10 @@ func test_every_damage_path_names_its_source(b: Dictionary) -> void:
 
 func test_history_samples_every_ten_seconds(b: Dictionary) -> void:
 	var s := Sim.new(b, content, {"seed": 204})
+	s.b = b.duplicate()
+	# No barbarians come, so the legion stays the same size through all three samples.
+	s.b.spawn_per_second_start = 0.0
+	s.b.spawn_per_second_growth = 0.0
 	Upgrades.apply(s, "archer")
 	for f in 35 * 30:
 		s.update(1.0 / 30.0, Vector2.ZERO, false)

@@ -146,7 +146,7 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 		elite_ids.append(next_id)
 	var hp := float(info.hp)
 	if tag == ORDINARY:
-		hp *= 1.0 + float(b.enemy_health_growth) * time
+		hp *= 1.0 + float(b.enemy_health_growth) * time + float(b.get("enemy_health_curve", 0.0)) * pow(time / 60.0, 2.0)
 	if hard:
 		hp *= float(b.hard.health_mult)
 	var owner_sim: Sim = sim_ref.get_ref() if sim_ref != null else null
