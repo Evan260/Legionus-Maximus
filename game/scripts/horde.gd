@@ -417,6 +417,10 @@ func _move(dt: float, sim: Sim) -> void:
 								if seen > 5:
 									break
 			e_push[i] = push
+		elif i % 3 == phase:
+			# A push worked out earlier is dropped once the enemy is beyond the spacing range.
+			e_push[i] = Vector2.ZERO
+			push = Vector2.ZERO
 		e_fighting[i] = 0
 		if k_beh[kind] != RANGED and d < legion_reach + r and (to.length_squared() < reach2 or e_tag[i] == CHIEF):
 			var k := Vector2i(floori(p.x / CELL), floori(p.y / CELL))
