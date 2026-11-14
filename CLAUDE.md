@@ -4,24 +4,35 @@ A survivors-style game in pixel art where the player steers a growing Roman legi
 
 ## Commands
 
-Godot is `C:\Users\evand\AppData\Local\Microsoft\WinGet\Packages\GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe\Godot_v4.7.2-stable_win64_console.exe`.
+Godot is `C:\Users\evand\AppData\Local\Microsoft\WinGet\Packages\GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe\Godot_v4.7.2-stable_win64_console.exe`. Run it with `--path game`; the flags after `--` go to the game, which reads them in `main.gd`.
 
+- Import after adding assets: `godot --headless --path game --import`
 - Tests: `godot --headless --path game -- --run-tests` (must print ALL TESTS PASSED)
-- Speed: `godot --headless --path game -- --bench` (simulation time per update with about 1,000 barbarians)
+- Speed: `godot --headless --path game -- --bench` (simulation time per update with 1,000 barbarians and a 100-soldier legion; keep it under 5 ms, and run it three times after touching `_move_enemies` or the legion)
 - Look without playing: `godot --path game -- --autoplay`, with `--skip=SECONDS` to start later in the run and `--shot=PATH --at=SECONDS` to save a screenshot and quit
-- Windows build: `godot --headless --path game --export-release "Windows"` writes `builds/windows/Legionus Maximus.exe` with the slim engine from Fishus
+- Every other flag, all for looking or testing and none of them saved to the profile:
+  - `--chieftain-at=S` brings the chieftain at that second; `--hold-choice` with `--autoplay` leaves a level-up open
+  - `--hard`, `--endless`, `--decimatio` start the run in that mode
+  - `--screen=camp|quartermaster|tablinum|map|commanders|settings|title|pause|summary` opens a screen with a sample profile (`--page=controls` for the key page of the settings)
+  - `--lang=CODE`, `--text-size=1|2`, `--commander=ID`, `--as-demo`, `--card=ID` (an achievement card), `--give=ID,ID:RANK` (arms and drills to start with)
+- Windows build: `godot --headless --path game --export-release "Windows"` writes `builds/windows/Legionus Maximus.exe` with the slim engine from Fishus. Run it with `-- --autoplay --shot=PATH --at=10` to check it.
+- Boot splash: `python tools/art/make_boot_splash.py` after the logo changes, then copy the colour it prints into `boot_splash/bg_color` in `project.godot`.
 
 ## Layout
 
-- `game/scripts/sim.gd`: the whole run as plain data (legion, horde, missiles, coins, levels). No nodes, so tests drive it directly.
+- Autoloads (`project.godot`): `Profile` (`profile.gd`, the saved profile), `Lang` (`lang.gd`, languages and fonts), `Audio` (`audio.gd`, sounds and the two music layers), `Steamworks` (`steam.gd`, achievements and rich presence).
+- `game/scripts/sim.gd`: the whole run as plain data (legion, horde, missiles, coins, levels). No nodes, so tests drive it directly. `legion.gd` is the soldiers and their formation, `horde.gd` the barbarians as packed arrays, elites, chieftains, chests and supply carts.
 - `game/scripts/arms.gd`: the twelve weapons and six forged forms, on their timers, with burning ground, oil, caltrops and the stake ring as zones.
 - `game/scripts/upgrades.gd`: the level-up choices, rerolls and banishes.
-- `game/scripts/world_view.gd`, `hud.gd`: drawing. Every sprite is in one atlas so the horde draws in one batch.
-- `game/scripts/main.gd`: input, screens and the command-line modes (`--screen=settings|summary|title|pause`, `--text-size=2`).
-- `game/scripts/controls.gd`: the default keys and pad buttons and the player's rebinding laid over them; `screens/`: title, camp, pause, settings and the run summary.
-- `game/data/balance.json`: every number.
+- `game/scripts/content.gd`: reads `game/data/content.json` (every recruit, arm, forged form, drill, enemy, province, commander, quartermaster upgrade and achievement, with its name, text, history and art keys). An entry whose art keys are not in the atlas or the icons folder stays hidden, so content can be built before its art.
+- `game/data/balance.json`: every number. `credits.json` feeds the credits.
+- `game/scripts/world_view.gd`, `hud.gd`, `atlas.gd`: drawing. Every sprite is in one atlas so the horde draws in one batch.
+- `game/scripts/main.gd`: input, the state machine and the command-line modes. `game.gd` says whether this is the demo.
+- `game/scripts/screens/`: title, camp, quartermaster, tablinum, map, commanders, pause, settings and the run summary, all drawn through `ui.gd`. `controls.gd` has the default keys and pad buttons and the player's rebinding laid over them.
+- `game/tests/run_tests.gd`: every test. `WAITING_FOR_ART` (recruits) and `NO_ICON_YET` (arms, forged forms, drills) list entries whose art is not drawn yet; shrink them as art lands (see ART-NEEDED.md).
+- `ART-NEEDED.md`: every art key still missing, the PixelLab command for each, its cost and what it unlocks.
 - `game/scripts/lang.gd` (autoload `Lang`): the 14 languages, their fonts and the saved or system language. Every player-facing string goes through `tr("English words")`, and `content.json` names, texts and histories get a key such as `content.recruits.legionary.name` that `Content.localize()` lays over the English. `--lang=CODE` shows another language.
-- Translations: `python tools/extract_strings.py` fills `game/translations/strings.csv`, `python tools/translate_strings.py` sends the empty cells to Azure (key in `.env`), `python tools/write_presence.py` writes `tools/steam/rich_presence.vdf`; reimport the project afterwards. English, French, German, Spanish, Italian and Portuguese draw in Silkscreen, Polish, Turkish, Russian and Ukrainian in Fusion Pixel 10 px (16 px at large text), Chinese, Japanese and Korean in Fusion Pixel 8 px. Draw text through `Ui.font()` and `Ui.px`, and wrap it with `Ui.lines_of`, which breaks between letters in Chinese and Japanese.
+- Translations: `python tools/extract_strings.py` fills `game/translations/strings.csv` (and clears the cells of a line whose English changed), `python tools/translate_strings.py` sends the empty cells to Azure (key in `.env`), `python tools/write_presence.py` writes `tools/steam/rich_presence.vdf`; reimport the project afterwards. English, French, German, Spanish, Italian and Portuguese draw in Silkscreen, Polish, Turkish, Russian and Ukrainian in Fusion Pixel 10 px (16 px at large text), Chinese, Japanese and Korean in Fusion Pixel 8 px. Draw text through `Ui.font()` and `Ui.px`, and wrap it with `Ui.lines_of`, which breaks between letters in Chinese and Japanese.
 
 ## Art
 
@@ -29,7 +40,7 @@ All art is PixelLab, made with `tools/art/pixellab.py` (token in `.env`, never i
 
 - Characters are 48 px (the chieftain 64 px), low top-down, selective outline, from 8 directions. Walking and running use PixelLab's built-in `walking` and `running` motions, which loop and cost nothing.
 - Ground and props are made with Pro Flash using `art_test/raw/style_ref.png` (the commander and a barbarian) as the style image, or they come out in a brighter cartoon style that does not match.
-- `tools/art/batch_art.sh` makes the prototype's art, `build_atlas.py` packs it into `game/assets/atlas.png`, `make_seamless.py` and `remove_leaves.py` make the ground tile.
+- `tools/art/batch_art.sh` makes the prototype's art, `build_atlas.py` packs it into `game/assets/atlas.png` and takes new units and props through its `UNITS` and `PROPS`; `make_seamless.py` and `remove_leaves.py` make the ground tile and `make_boot_splash.py` the boot splash.
 - No mirroring: every direction is drawn.
 
 ## Rules
