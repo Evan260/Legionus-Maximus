@@ -106,7 +106,8 @@ func formation() -> Array:
 	var rear_places := _block(groups.rear.size(), float(_l.rear_start), -1.0)
 	for k in rear_places.size():
 		out[groups.rear[k]] = rear_places[k]
-	# Flanks stand beyond both the front ranks and the middle men, so no place is shared.
+		front_half = maxf(front_half, absf(rear_places[k].y))
+	# Flanks stand beyond the front ranks, the rear block and the middle men, so no place is shared.
 	if not groups.middle.is_empty():
 		front_half = maxf(front_half, float(_l.middle_across) + float(_l.middle_step) * ((groups.middle.size() - 1) / 2))
 	for k in groups.flank.size():

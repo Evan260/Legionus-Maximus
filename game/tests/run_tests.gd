@@ -447,6 +447,19 @@ func test_a_full_legion_of_every_kind_has_no_overlapping_places(b: Dictionary) -
 	check(worst >= 8.0, "no two places closer than 8 px (%.1f)" % worst)
 
 
+func test_a_rear_heavy_legion_has_no_overlapping_places(b: Dictionary) -> void:
+	var types: Array = []
+	for i in 100:
+		types.append("archer" if i < 88 else "cavalry")
+	var s := _legion_sim(b, 13, types)
+	var places: Array = s.legion.formation()
+	var worst := INF
+	for i in places.size():
+		for j in range(i + 1, places.size()):
+			worst = minf(worst, places[i].distance_to(places[j]))
+	check(worst >= 8.0, "a rear-heavy legion has no two places closer than 8 px (%.1f)" % worst)
+
+
 ## A quiet run: no arrivals, an unkillable commander and no soldiers, with the given ranks.
 func _arms_sim(b: Dictionary, seed_value: int, ranks: Dictionary, game_content: Content = null) -> Sim:
 	var s := Sim.new(b, game_content if game_content != null else content, {"seed": seed_value})
