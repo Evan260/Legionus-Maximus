@@ -2087,3 +2087,13 @@ func test_coins_on_the_field_are_capped_without_losing_value(b: Dictionary) -> v
 		held += v
 	check(held == total, "the merged coins hold the same value (%d of %d)" % [held, total])
 	check(s.c_pos.size() == s.c_born.size() and s.c_pos.size() == s.c_pull.size(), "the coin arrays stay in step")
+
+
+func test_credits_carry_the_licence_texts_in_full(_b: Dictionary) -> void:
+	var credits: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/credits.json"))
+	var text := "
+".join(load("res://tools/write_credits.gd").licence_sections(credits))
+	for path in ["res://addons/godotsteam/license.md", "res://assets/fonts/OFL.txt", "res://assets/fonts/fusion-pixel-OFL.txt",
+			"res://assets/fonts/fusion-pixel-LICENSES/misaki/misaki.txt", "res://assets/fonts/fusion-pixel-LICENSES/galmuri/LICENSE.txt",
+			"res://assets/fonts/fusion-pixel-LICENSES/ark-pixel/OFL.txt"]:
+		check(text.contains(FileAccess.get_file_as_string(path).strip_edges()), "the credits hold %s in full" % path)

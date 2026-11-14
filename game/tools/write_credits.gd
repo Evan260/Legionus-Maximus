@@ -7,6 +7,31 @@ extends SceneTree
 const CREDITS := "res://data/credits.json"
 
 
+## The licence texts the credits name by file or folder, each under its own heading, in full.
+static func licence_sections(credits: Dictionary) -> PackedStringArray:
+	var out := PackedStringArray()
+	var own: Dictionary = credits.get("licence_files", {})
+	for name in own:
+		for path in own[name]:
+			for file in _files_under(String(path)):
+				out.append("----- " + String(name) + (" (" + file.get_file().get_basename() + ")" if DirAccess.dir_exists_absolute(String(path)) else "") + " -----")
+				out.append(FileAccess.get_file_as_string(file).strip_edges())
+				out.append("")
+	return out
+
+
+## The file itself, or every file inside the folder and its subfolders, in name order.
+static func _files_under(path: String) -> PackedStringArray:
+	if not DirAccess.dir_exists_absolute(path):
+		return PackedStringArray([path])
+	var found := PackedStringArray()
+	for dir in DirAccess.get_directories_at(path):
+		found.append_array(_files_under(path.path_join(dir)))
+	for file in DirAccess.get_files_at(path):
+		found.append(path.path_join(file))
+	return found
+
+
 func _init() -> void:
 	var out := ""
 	for arg in OS.get_cmdline_user_args():
@@ -26,11 +51,7 @@ func _init() -> void:
 		for line in lines:
 			text.append("  " + String(line))
 		text.append("")
-	var own: Dictionary = credits.get("library_licences", {})
-	for name in own:
-		text.append("----- " + String(name) + " -----")
-		text.append(String(own[name]))
-		text.append("")
+	text.append_array(licence_sections(credits))
 	text.append("MADE WITH THE GODOT ENGINE")
 	text.append("")
 	text.append(Engine.get_license_text())

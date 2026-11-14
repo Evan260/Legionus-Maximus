@@ -62,5 +62,11 @@
 		"Silkscreen by Jason Kottke, SIL Open Font Licence 1.1",
 		"Fusion Pixel Font by TakWolf, SIL Open Font Licence 1.1, with glyphs from Ark Pixel Font, Misaki, Galmuri, Boutique Bitmap and Miseki Bitmap",
 		"The translations were made with Azure AI Translator"
-	]
+	],
+	"licence_files": {
+		"GodotSteam (MIT)": ["res://addons/godotsteam/license.md"],
+		"Silkscreen (SIL Open Font Licence 1.1)": ["res://assets/fonts/OFL.txt"],
+		"Fusion Pixel Font (SIL Open Font Licence 1.1)": ["res://assets/fonts/fusion-pixel-OFL.txt"],
+		"Fonts inside Fusion Pixel Font": ["res://assets/fonts/fusion-pixel-LICENSES"]
+	}
 }
