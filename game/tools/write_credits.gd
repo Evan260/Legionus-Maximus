@@ -14,7 +14,7 @@ static func licence_sections(credits: Dictionary) -> PackedStringArray:
 	for name in own:
 		for path in own[name]:
 			for file in _files_under(String(path)):
-				out.append("----- " + String(name) + (" (" + file.get_file().get_basename() + ")" if DirAccess.dir_exists_absolute(String(path)) else "") + " -----")
+				out.append("----- " + String(name) + (" (" + file.get_base_dir().get_file() + ")" if DirAccess.dir_exists_absolute(String(path)) else "") + " -----")
 				out.append(FileAccess.get_file_as_string(file).strip_edges())
 				out.append("")
 	return out
