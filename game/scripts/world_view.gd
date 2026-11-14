@@ -80,6 +80,7 @@ func _draw() -> void:
 			draw_texture(ground, Vector2(gx * gw, gy * gh))
 
 	_draw_ground_zones(view_for(top_left))
+	_draw_warnings()
 	_keys.clear()
 	_rects.clear()
 	_dests.clear()
@@ -217,6 +218,19 @@ func _draw_lobs(tex: Texture2D) -> void:
 				draw_rect(Rect2(q + Vector2(-2, -3), Vector2(4, 5)), Color(0.36, 0.2, 0.1))
 				draw_rect(Rect2(q + Vector2(-1, -4), Vector2(2, 1)), Color(0.5, 0.3, 0.16))
 				draw_rect(Rect2(q + Vector2(-1, -2), Vector2(1, 3)), Color(0.55, 0.36, 0.2))
+	for l in sim.horde.foe_lobs:
+		var k: float = l.t / l.dur
+		var ground: Vector2 = l.from.lerp(l.to, k)
+		_lob_sprite(tex, "fire_pot", ground + Vector2(0, -sin(k * PI) * 40.0))
+
+
+## Red rings on the ground where the war priests' pots will land, filling in as each pot falls.
+func _draw_warnings() -> void:
+	for l in sim.horde.foe_lobs:
+		var k: float = clampf(l.t / l.dur, 0.0, 1.0)
+		draw_circle(l.to, l.radius, Color(0.75, 0.12, 0.08, 0.12 + 0.18 * k))
+		draw_arc(l.to, l.radius, 0.0, TAU, 32, Color(0.95, 0.25, 0.15, 0.85), 1.0)
+		draw_circle(l.to, l.radius * k, Color(0.95, 0.35, 0.15, 0.25))
 
 
 func _lob_sprite(tex: Texture2D, key: String, p: Vector2) -> void:

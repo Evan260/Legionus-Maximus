@@ -5,7 +5,7 @@ extends RefCounted
 
 const CHUNK := 160.0
 const REGION := 480.0
-const SCATTER := ["oak", "fir", "rock", "log", "bush", "stones", "bush", "stones", "fir", "rock"]
+const SCATTER := ["oak", "fir", "rock", "log", "stones", "stones", "fir", "rock"]
 const SOLID := {"oak": 9.0, "fir": 8.0, "rock": 10.0, "log": 9.0}
 
 const CELL := 64.0
@@ -19,6 +19,14 @@ var solid := PackedVector3Array()
 var start := PackedInt32Array()
 var items := PackedInt32Array()
 var clear_radius := 200.0
+# The way round obstacles towards the commander: one step direction per FLOW_CELL square, or none where no way exists.
+const FLOW_CELL := 32.0
+const FN := 56
+const STEPS := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)]
+var flow_origin := Vector2.ZERO
+var flow_dir := PackedVector2Array()
+var _blocked := PackedByteArray()
+var _flow_goal := Vector2i(1 << 30, 0)
 var empty := false
 var _chunks := {}
 var _regions := {}
@@ -146,6 +154,71 @@ func refresh(p: Vector2) -> void:
 		start[i] = items.size()
 		items.append_array(cells[i])
 	start[GN * GN] = items.size()
+	_mark_blocked()
+
+
+## Marks every flow square a barbarian cannot stand in because a solid prop covers it.
+func _mark_blocked() -> void:
+	flow_origin = origin + (Vector2(GN, GN) * CELL - Vector2(FN, FN) * FLOW_CELL) / 2.0
+	_blocked.resize(FN * FN)
+	_blocked.fill(0)
+	for sv in solid:
+		var reach := sv.z + 8.0
+		var x0 := clampi(floori((sv.x - reach - flow_origin.x) / FLOW_CELL), 0, FN - 1)
+		var x1 := clampi(floori((sv.x + reach - flow_origin.x) / FLOW_CELL), 0, FN - 1)
+		var y0 := clampi(floori((sv.y - reach - flow_origin.y) / FLOW_CELL), 0, FN - 1)
+		var y1 := clampi(floori((sv.y + reach - flow_origin.y) / FLOW_CELL), 0, FN - 1)
+		for gx in range(x0, x1 + 1):
+			for gy in range(y0, y1 + 1):
+				var centre := flow_origin + (Vector2(gx, gy) + Vector2(0.5, 0.5)) * FLOW_CELL
+				if centre.distance_to(Vector2(sv.x, sv.y)) < reach:
+					_blocked[gx + gy * FN] = 1
+	_flow_goal = Vector2i(1 << 30, 0)
+
+
+## Works out, for every open square, which way leads round the obstacles to the commander; redone when he moves to another square.
+func update_flow(goal: Vector2) -> void:
+	var g := Vector2i(floori((goal.x - flow_origin.x) / FLOW_CELL), floori((goal.y - flow_origin.y) / FLOW_CELL))
+	if g == _flow_goal or g.x < 0 or g.y < 0 or g.x >= FN or g.y >= FN:
+		return
+	_flow_goal = g
+	flow_dir.resize(FN * FN)
+	flow_dir.fill(Vector2.ZERO)
+	var seen := PackedByteArray()
+	seen.resize(FN * FN)
+	var queue := PackedInt32Array([g.x + g.y * FN])
+	seen[queue[0]] = 1
+	var head := 0
+	while head < queue.size():
+		var c := queue[head]
+		head += 1
+		var cx := c % FN
+		var cy := c / FN
+		for st in STEPS:
+			var nx: int = cx + st.x
+			var ny: int = cy + st.y
+			if nx < 0 or ny < 0 or nx >= FN or ny >= FN:
+				continue
+			var n := nx + ny * FN
+			if seen[n] == 1 or _blocked[n] == 1:
+				continue
+			# A diagonal step may not cut the corner between two blocked squares.
+			if st.x != 0 and st.y != 0 and (_blocked[cx + ny * FN] == 1 or _blocked[nx + cy * FN] == 1):
+				continue
+			seen[n] = 1
+			flow_dir[n] = -Vector2(st).normalized()
+			queue.append(n)
+
+
+## The way to walk from p round the obstacles to the commander, or zero where the map has no answer.
+func flow_at(p: Vector2) -> Vector2:
+	if flow_dir.is_empty():
+		return Vector2.ZERO
+	var gx := floori((p.x - flow_origin.x) / FLOW_CELL)
+	var gy := floori((p.y - flow_origin.y) / FLOW_CELL)
+	if gx < 0 or gy < 0 or gx >= FN or gy >= FN:
+		return Vector2.ZERO
+	return flow_dir[gx + gy * FN]
 
 
 ## Moves a circle at p with radius r out of every solid prop it overlaps and returns where it ends up.

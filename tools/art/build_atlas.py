@@ -20,7 +20,7 @@ OUT = ROOT / "game" / "assets"
 DIRS = ["east", "south-east", "south", "south-west", "west", "north-west", "north", "north-east"]
 UNITS = {"commander": "walking", "legionary": "walking", "archer": "walking",
          "barbarian_club": "running", "barbarian_spear": "running", "chieftain": "running",
-         "berserker": "running", "war_band_leader": "running", "axe_thrower": "running", "wolf": "running", "war_dog": "running"}
+         "berserker": "running", "war_band_leader": "running", "axe_thrower": "running", "wolf": "running", "war_dog": "running", "war_priest": "walking"}
 PROPS = {"oak": "props2/oak.png", "fir": "props2/fir.png", "rock": "props2/rock.png", "log": "props2/log.png",
          "bush": "props/bush.png", "stones": "props/stones.png", "coin": "props/coin.png", "pilum": "props2/pilum.png",
          "stake": "props3/stake.png", "caltrops": "props3/caltrops.png", "fire_pot": "props3/fire_pot.png",

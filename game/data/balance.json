@@ -15,6 +15,8 @@
   "recycle_radius": 620,
   "legion_cap": 100,
   "commander_regen": 0.3,
+  "detour": {"seconds": 0.6},
+  "press": {"per_enemy": 0.06, "slowest": 0.2},
   "promotion_picks": 5,
   "legion": {
     "front_start": 22,
@@ -96,7 +98,7 @@
   "ranged": {"every": 1.8, "throws": 3, "spear_speed": 120, "spear_life": 3.0, "spear_radius": 3},
   "charger": {"every": 4.0, "speed_mult": 3.0, "seconds": 0.6, "burst_seconds": 1.0, "min_distance": 60, "max_distance": 260},
   "chest": {"radius": 14},
-  "cart": {"every": 90, "speed": 38, "life": 60, "radius": 14, "aim_scatter": 80},
+  "cart": {"every": 90, "life": 45, "radius": 14, "near": 90, "far": 140},
   "hard": {"health_mult": 1.6, "spawn_mult": 1.4, "denarii_mult": 1.5},
   "endless": {"health_per_minute": 0.15, "step_seconds": 60},
   "decimatio": {"start_soldiers": 30, "every": 120, "one_in": 10},

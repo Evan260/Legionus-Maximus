@@ -192,3 +192,12 @@ time,kind,name,cost_usd,cost_generations,usd_left
 2026-11-14T14:07:08,animate,art_test/raw/war_dog/t_running_north-east,0.0185,0,20.6326
 2026-11-14T14:07:19,animate,art_test/raw/war_dog/t_running_east,0.0278,0,20.6233
 2026-11-14T14:07:30,animate,art_test/raw/war_dog/t_running_south-east,0.0384,0,20.6126
+2026-11-14T15:03:16,character,art_test/raw/war_priest,0.0358,0,20.5768
+2026-11-14T15:05:34,animate,art_test/raw/war_priest/t_walking_south,0.0293,0,20.5475
+2026-11-14T15:05:34,animate,art_test/raw/war_priest/t_walking_west,0.0293,0,20.5475
+2026-11-14T15:05:45,animate,art_test/raw/war_priest/t_walking_north-west,0.0443,0,20.5325
+2026-11-14T15:05:56,animate,art_test/raw/war_priest/t_walking_south-west,0.0624,0,20.5144
+2026-11-14T15:08:41,animate,art_test/raw/war_priest/t_walking_south-east,0.0174,0,20.4969
+2026-11-14T15:08:51,animate,art_test/raw/war_priest/t_walking_north,0.0554,0,20.4590
+2026-11-14T15:08:51,animate,art_test/raw/war_priest/t_walking_east,0.0554,0,20.4590
+2026-11-14T15:09:02,animate,art_test/raw/war_priest/t_walking_north-east,0.0773,0,20.4370

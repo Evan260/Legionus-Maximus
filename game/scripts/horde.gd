@@ -8,7 +8,8 @@ const MELEE := 0
 const RANGED := 1
 const CHARGER := 2
 const BEAST := 3
-const BEHAVIOURS := {"melee": MELEE, "ranged": RANGED, "charger": CHARGER, "beast": BEAST}
+const LOBBER := 4
+const BEHAVIOURS := {"melee": MELEE, "ranged": RANGED, "charger": CHARGER, "beast": BEAST, "lobber": LOBBER}
 const ORDINARY := 0
 const ELITE := 1
 const CHIEF := 2
@@ -54,6 +55,10 @@ var e_cd := PackedFloat32Array()
 var e_dash := PackedFloat32Array()
 # Throws left before a ranged enemy closes in to fight hand to hand.
 var e_ammo := PackedInt32Array()
+# Seconds left walking round an obstacle, and which way round (1 or -1).
+var e_detour := PackedFloat32Array()
+var e_side := PackedInt32Array()
+var e_way := PackedVector2Array()
 var e_dir := PackedVector2Array()
 var e_haste := PackedFloat32Array()
 var next_id := 1
@@ -85,6 +90,10 @@ var chief_dead := false
 var hard := false
 var sim_ref: WeakRef
 var carts: Array = []
+# Burning pots thrown by war priests: each lands where a red ring marks it and hurts every Roman inside.
+var foe_lobs: Array = []
+# Seconds until each rallying elite, by enemy id, shouts again.
+var rally_cd := {}
 
 
 func _init(balance: Dictionary, game_content: Content, random: RandomNumberGenerator, commander_unit: Dictionary, province_id: String) -> void:
@@ -187,6 +196,9 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 	e_cd.append(wait)
 	e_dash.append(0.0)
 	e_ammo.append(int(b.ranged.get("throws", 1 << 30)))
+	e_detour.append(0.0)
+	e_side.append(1)
+	e_way.append(Vector2.ZERO)
 	e_dir.append(Vector2.ZERO)
 	e_haste.append(0.0)
 	return e_id.size() - 1
@@ -251,7 +263,9 @@ func update(dt: float, sim: Sim) -> void:
 	time = sim.time
 	_spawn(dt, sim)
 	_chieftain(dt, sim)
+	_rally(dt, sim)
 	_move(dt, sim)
+	_foe_lobs(dt, sim)
 	_spears(dt, sim)
 	_carts(dt, sim)
 	_chests(sim)
@@ -351,6 +365,66 @@ func cleave(ci: int, sim: Sim) -> bool:
 	return hit_any
 
 
+## A rallying elite shouts every so often, and the barbarians around him move faster for a few seconds.
+func _rally(dt: float, sim: Sim) -> void:
+	for id in elite_ids:
+		var i := e_id.find(id)
+		if i < 0:
+			continue
+		var info: Dictionary = content.enemies[kind_ids[e_kind[i]]]
+		if not info.has("rally"):
+			continue
+		var cfg: Dictionary = info.rally
+		var left: float = rally_cd.get(id, float(cfg.every) * 0.5) - dt
+		if left <= 0.0:
+			left = float(cfg.every)
+			var r2 := float(cfg.radius) * float(cfg.radius)
+			for j in e_pos.size():
+				if (e_pos[j] - e_pos[i]).length_squared() <= r2:
+					e_haste[j] = float(cfg.seconds)
+			haste_mult = float(cfg.speed_mult)
+			sim.effects.append({"kind": "cry", "pos": e_pos[i], "t": 0.0, "radius": float(cfg.radius)})
+		rally_cd[id] = left
+
+
+## A war priest throws a burning pot at the thickest knot of Romans and returns the seconds until his next throw.
+func _lob_at_ranks(i: int, sim: Sim) -> float:
+	var cfg: Dictionary = content.enemies[kind_ids[e_kind[i]]].lob
+	var best: Vector2 = commander.pos
+	var most := -1
+	for k in mini(12, sim.units.size()):
+		var u: Dictionary = sim.units[rng.randi_range(0, sim.units.size() - 1)]
+		var near := 0
+		for o in sim.units:
+			if (o.pos - u.pos).length_squared() < float(cfg.radius) * float(cfg.radius):
+				near += 1
+		if near > most:
+			most = near
+			best = u.pos
+	foe_lobs.append({"from": e_pos[i], "to": best, "t": 0.0, "dur": float(cfg.flight), "radius": float(cfg.radius), "dmg": float(cfg.damage)})
+	return float(cfg.every)
+
+
+func _foe_lobs(dt: float, sim: Sim) -> void:
+	if foe_lobs.is_empty():
+		return
+	var flying: Array = []
+	var shield: float = b.testudo_damage_taken if sim.testudo_left > 0.0 else 1.0
+	for l in foe_lobs:
+		l.t += dt
+		if l.t < l.dur:
+			flying.append(l)
+			continue
+		for u in sim.units:
+			if (u.pos - l.to).length() < l.radius + Sim.UNIT_RADIUS:
+				u.hp -= l.dmg * shield
+				u.flash = 0.12
+		sim.effects.append({"kind": "boom", "pos": l.to, "t": 0.0, "radius": l.radius})
+		sim.shake = maxf(sim.shake, float(sim.b.shake.hurt))
+	foe_lobs = flying
+	sim.legion.remove_fallen(sim)
+
+
 ## The chieftain's shout: every enemy near him moves faster for a few seconds.
 func war_cry(ci: int, sim: Sim) -> void:
 	var atk: Dictionary = content.enemies[kind_ids[e_kind[ci]]].attacks.war_cry
@@ -386,7 +460,14 @@ func _move(dt: float, sim: Sim) -> void:
 	var t_solid := sim.terrain.solid
 	var t_cell := Terrain.CELL
 	var t_n := Terrain.GN
+	var f_dir := sim.terrain.flow_dir
+	var f_ready := not f_dir.is_empty()
+	var f_origin := sim.terrain.flow_origin
+	var f_cell := Terrain.FLOW_CELL
+	var f_n := Terrain.FN
+	var held := 0
 	var solid_range: float = b.get("solid_range", 400.0)
+	var detour_seconds: float = b.detour.seconds
 	for i in e_pos.size():
 		var kind := e_kind[i]
 		var p := e_pos[i]
@@ -412,12 +493,15 @@ func _move(dt: float, sim: Sim) -> void:
 			spd *= haste_mult
 		var v := to / maxf(d, 0.001) * spd
 		var dashing := false
-		var throwing := k_beh[kind] == RANGED and e_ammo[i] > 0
+		var lobber := k_beh[kind] == LOBBER
+		var throwing := (k_beh[kind] == RANGED and e_ammo[i] > 0) or lobber
 		if throwing:
 			if d <= k_range[kind] + legion_reach:
 				v = Vector2.ZERO
 				e_cd[i] -= dt
-				if e_cd[i] <= 0.0:
+				if lobber and e_cd[i] <= 0.0:
+					e_cd[i] = _lob_at_ranks(i, sim)
+				elif e_cd[i] <= 0.0:
 					e_cd[i] = throw_every
 					# A thrower aims at the nearest Roman, so the outer ranks take the axes before the commander does.
 					var aim := to
@@ -495,10 +579,20 @@ func _move(dt: float, sim: Sim) -> void:
 					e_dash[i] = 0.0
 				u.flash = 0.08
 				e_fighting[i] = 1
+				held += 1
 				var out: Vector2 = p - u.pos
 				if out.length() > 0.001:
 					push += out.normalized() * maxf(0.0, Sim.UNIT_RADIUS + r - out.length()) * 2.0
 				v = Vector2.ZERO
+		if e_detour[i] > 0.0:
+			e_detour[i] -= dt
+			if v != Vector2.ZERO:
+				var way := e_way[i]
+				var fx := floori((p.x - f_origin.x) / f_cell)
+				var fy := floori((p.y - f_origin.y) / f_cell)
+				if f_ready and fx >= 0 and fy >= 0 and fx < f_n and fy < f_n and f_dir[fx + fy * f_n] != Vector2.ZERO:
+					way = f_dir[fx + fy * f_n]
+				v = way * spd
 		var np := p + v * dt + push * 0.6
 		# Trees and rocks push the barbarian back out, read straight from the terrain grid since this runs for the whole horde.
 		# Barbarians well off the screen pass through, since nobody sees them and the check is costly for a full horde.
@@ -515,11 +609,19 @@ func _move(dt: float, sim: Sim) -> void:
 				if d2 < reach * reach and d2 > 0.000001:
 					var dl := sqrt(d2)
 					np = Vector2(so.x + ax / dl * reach, so.y + ay / dl * reach)
+					# A barbarian walking into a tree or rock slides along it on the side that leads towards the legion, and keeps that side a while.
+					if v != Vector2.ZERO:
+						var along := Vector2(-ay, ax) / dl
+						if e_detour[i] <= 0.0:
+							e_side[i] = 1 if along.dot(to) >= 0.0 else -1
+						e_way[i] = along * e_side[i]
+						e_detour[i] = detour_seconds
 		e_pos[i] = np
 		if v != Vector2.ZERO:
 			e_face[i] = to / maxf(d, 0.001) if not dashing else e_dir[i]
 		if e_flash[i] > 0.0:
 			e_flash[i] -= dt
+	sim.pressing = held
 	sim.legion.remove_fallen(sim)
 
 
@@ -584,11 +686,14 @@ func _spears(dt: float, sim: Sim) -> void:
 
 
 ## A supply cart rolls across the field in a straight line, passing near the commander.
+## A stranded supply cart stands somewhere on screen for the legion to reach before it is plundered.
 func spawn_cart() -> void:
 	var cfg: Dictionary = b.cart
-	var from := ring_point()
-	var aim: Vector2 = commander.pos + Vector2(rng.randf_range(-1.0, 1.0), rng.randf_range(-1.0, 1.0)) * float(cfg.aim_scatter)
-	carts.append({"pos": from, "vel": (aim - from).normalized() * float(cfg.speed), "t": 0.0})
+	var at: Vector2 = commander.pos + Vector2.from_angle(rng.randf() * TAU) * Vector2(1.6, 1.0) * rng.randf_range(float(cfg.near), float(cfg.far))
+	var owner_sim: Sim = sim_ref.get_ref() if sim_ref != null else null
+	if owner_sim != null:
+		at = owner_sim.terrain.push_out(at, float(cfg.radius))
+	carts.append({"pos": at, "t": 0.0})
 
 
 func _carts(dt: float, sim: Sim) -> void:
@@ -597,7 +702,6 @@ func _carts(dt: float, sim: Sim) -> void:
 	var cfg: Dictionary = b.cart
 	var keep: Array = []
 	for cart in carts:
-		cart.pos += cart.vel * dt
 		cart.t += dt
 		if cart.t > float(cfg.life):
 			continue
@@ -719,5 +823,8 @@ func remove_at(i: int) -> void:
 	e_cd[i] = e_cd[last]; e_cd.resize(last)
 	e_dash[i] = e_dash[last]; e_dash.resize(last)
 	e_ammo[i] = e_ammo[last]; e_ammo.resize(last)
+	e_detour[i] = e_detour[last]; e_detour.resize(last)
+	e_side[i] = e_side[last]; e_side.resize(last)
+	e_way[i] = e_way[last]; e_way.resize(last)
 	e_dir[i] = e_dir[last]; e_dir.resize(last)
 	e_haste[i] = e_haste[last]; e_haste.resize(last)

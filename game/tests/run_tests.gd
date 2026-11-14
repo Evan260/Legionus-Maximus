@@ -230,6 +230,93 @@ func test_every_full_choice_holds_a_recruit(b: Dictionary) -> void:
 	check(always, "fifty sets of choices each held a recruit")
 
 
+func _quiet_sim(b: Dictionary, seed_value: int, art: Content = null) -> Sim:
+	var s := Sim.new(b, art if art != null else content, {"seed": seed_value})
+	s.terrain.clear()
+	s.b = b.duplicate()
+	s.b.spawn_per_second_start = 0.0
+	s.b.spawn_per_second_growth = 0.0
+	s.horde.next_surge = 1e9
+	s.horde.next_band = 1e9
+	s.horde.next_cart = 1e9
+	return s
+
+
+func test_a_crowd_in_melee_holds_the_legion_back(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 130)
+	var free := s.speed()
+	s.pressing = 10
+	check(s.speed() < free * 0.5, "ten barbarians in melee more than halve the march (%.0f of %.0f)" % [s.speed(), free])
+	s.pressing = 1000
+	check(is_equal_approx(s.speed(), free * float(b.press.slowest)), "but never stop it dead")
+
+
+func test_barbarians_find_a_way_round_a_wall(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 131)
+	s.terrain.empty = false
+	var top: Array = []
+	var bottom: Array = []
+	for k in 13:
+		var tree := ["fir", Vector2(100, -130 + k * 22), 8.0]
+		(top if tree[1].y < 0 else bottom).append(tree)
+	s.terrain._chunks[Vector2i(0, -1)] = top
+	s.terrain._chunks[Vector2i(0, 0)] = bottom
+	s.terrain._anchor = Vector2i(1 << 30, 0)
+	s.terrain.refresh(s.commander.pos)
+	s.terrain.update_flow(s.commander.pos)
+	s.commander.hp = 1e9
+	for i in 10:
+		s.horde.spawn("barbarian_spear", Vector2(200, -30 + i * 6))
+	_step_dt(s, 15.0)
+	var behind := 0
+	for p in s.horde.e_pos:
+		if p.x > 100.0:
+			behind += 1
+	check(behind <= 2, "after fifteen seconds most have gone round the wall (%d still behind)" % behind)
+
+
+func test_a_supply_cart_stands_still(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 132, Content.with_all_art())
+	s.horde.spawn_cart()
+	var at: Vector2 = s.horde.carts[0].pos
+	var gap := at.distance_to(s.commander.pos)
+	check(gap > float(b.cart.near) * 0.9 and gap < float(b.cart.far) * 1.7, "it stands near the legion (%.0f)" % gap)
+	s.commander.pos = Vector2(-500, 0)
+	_step_dt(s, 5.0)
+	check(not s.horde.carts.is_empty() and s.horde.carts[0].pos == at, "and does not move")
+
+
+func test_a_war_priest_burns_only_the_ring(b: Dictionary) -> void:
+	for testudo in [false, true]:
+		var s := _quiet_sim(b, 133, Content.with_all_art())
+		s.commander.hp = 1e9
+		s.commander.max_hp = 1e9
+		var victim: Dictionary = s.soldiers[0]
+		var other: Dictionary = s.soldiers[1]
+		victim.pos = Vector2(300, 300)
+		other.pos = Vector2(400, 300)
+		s._rebuild_grids()
+		var hp0: float = victim.hp
+		s.horde.foe_lobs.append({"from": Vector2(500, 300), "to": victim.pos, "t": 0.0, "dur": 0.1, "radius": 20.0, "dmg": 10.0})
+		if testudo:
+			s.testudo_left = 3.0
+		s.horde._foe_lobs(0.2, s)
+		var want := 10.0 * (float(b.testudo_damage_taken) if testudo else 1.0)
+		check(is_equal_approx(hp0 - victim.hp, want), "the soldier in the ring loses %.0f (testudo %s)" % [want, testudo])
+		check(other.hp == other.max_hp, "the soldier outside it is untouched")
+
+
+func test_a_war_band_leader_rallies_those_near_him(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 134, Content.with_all_art())
+	var leader := s.horde.spawn("war_band_leader", Vector2(300, 0), true)
+	var near := s.horde.spawn("barbarian_club", Vector2(320, 0))
+	var far := s.horde.spawn("barbarian_club", Vector2(300, 600))
+	s.horde.rally_cd[s.horde.e_id[leader]] = 0.01
+	s.horde._rally(0.05, s)
+	check(s.horde.e_haste[near] > 0.0, "a man beside him is rallied")
+	check(s.horde.e_haste[far] == 0.0, "a man far off is not")
+
+
 func test_lorica_raises_health(b: Dictionary) -> void:
 	var s := Sim.new(b, content, {"seed": 12})
 	var before: float = s.commander.max_hp
@@ -312,7 +399,7 @@ func test_every_content_entry_has_a_name_and_text(b: Dictionary) -> void:
 	check(content.provinces.size() == 5 and content.commanders.size() == 6, "five provinces and six commanders")
 	for p in content.provinces:
 		var pr: Dictionary = content.provinces[p]
-		check(pr.ordinary.size() == 4 and pr.elites.size() == 2 and content.enemies.has(pr.chieftain), "%s has its enemies" % p)
+		check(pr.ordinary.size() == 4 and pr.elites.size() >= 2 and content.enemies.has(pr.chieftain), "%s has its enemies" % p)
 
 
 func test_every_implemented_entry_is_ready_and_complete(b: Dictionary) -> void:

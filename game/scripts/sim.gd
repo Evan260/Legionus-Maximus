@@ -38,6 +38,8 @@ var soldiers: Array:
 		legion.soldiers = value
 var facing_angle := 0.0
 var moving := false
+# How many barbarians were locked in melee with the legion on the last update.
+var pressing := 0
 
 var horde: Horde
 var terrain: Terrain
@@ -190,7 +192,9 @@ func slot_of(soldier: Dictionary) -> Vector2:
 
 func speed() -> float:
 	var v: float = content.base_commander.speed * (1.0 + 0.08 * rank("march") + _bonus_amount("move_speed")) * float(content.commanders[commander_id].get("speed_mult", 1.0))
-	return v * (b.testudo_speed if testudo_left > 0.0 else 1.0)
+	# Barbarians locked in melee hold the legion back, so marching into a crowd bogs it down instead of passing through.
+	var held := maxf(float(b.press.slowest), 1.0 - float(b.press.per_enemy) * pressing)
+	return v * held * (b.testudo_speed if testudo_left > 0.0 else 1.0)
 
 
 func range_mult() -> float:
@@ -310,6 +314,7 @@ func _move_legion(dt: float, move: Vector2) -> void:
 		commander.facing = move.normalized()
 	commander.pos = terrain.push_out(commander.pos, UNIT_RADIUS)
 	terrain.refresh(commander.pos)
+	terrain.update_flow(commander.pos)
 	commander.moving = moving
 	commander.anim += dt * 10.0
 	legion.follow(dt, self)

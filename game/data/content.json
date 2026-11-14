@@ -574,7 +574,11 @@
    "dps": 3,
    "radius": 6,
    "coins": 1,
-      "sprint": {"every": 5.0, "speed_mult": 2.2, "seconds": 1.0},
+   "sprint": {
+    "every": 5.0,
+    "speed_mult": 2.2,
+    "seconds": 1.0
+   },
    "art": [
     "unit:barbarian_club"
    ]
@@ -603,7 +607,7 @@
    "dps": 2,
    "radius": 6,
    "coins": 2,
-      "arrives": 180,
+   "arrives": 180,
    "art": [
     "unit:axe_thrower"
    ],
@@ -619,7 +623,7 @@
    "dps": 3,
    "radius": 5,
    "coins": 1,
-      "arrives": 90,
+   "arrives": 90,
    "art": [
     "unit:wolf"
    ]
@@ -637,7 +641,15 @@
    "art": [
     "unit:berserker"
    ],
-   "elite": true
+   "elite": true,
+   "attacks": {
+    "charge": {
+     "every": 5.0,
+     "speed_mult": 3.0,
+     "seconds": 0.6,
+     "burst_mult": 2.0
+    }
+   }
   },
   "war_band_leader": {
    "name": "War band leader",
@@ -652,7 +664,35 @@
    "art": [
     "unit:war_band_leader"
    ],
-   "elite": true
+   "elite": true,
+   "rally": {
+    "every": 10.0,
+    "radius": 200,
+    "seconds": 4.0,
+    "speed_mult": 1.5
+   }
+  },
+  "war_priest": {
+   "name": "War priest",
+   "text": "He stands back and hurls burning pots into the thickest ranks. A red ring shows where each will land.",
+   "history": "Germanic priests went to war with the tribes and read the omens before a battle.",
+   "behaviour": "lobber",
+   "hp": 380,
+   "speed": 38,
+   "dps": 0,
+   "radius": 8,
+   "coins": 0,
+   "range": 170,
+   "art": [
+    "unit:war_priest"
+   ],
+   "elite": true,
+   "lob": {
+    "every": 3.5,
+    "flight": 1.2,
+    "radius": 28,
+    "damage": 22
+   }
   },
   "chieftain": {
    "name": "Arminius-style war chief",
@@ -1207,7 +1247,8 @@
    ],
    "elites": [
     "berserker",
-    "war_band_leader"
+    "war_band_leader",
+    "war_priest"
    ],
    "chieftain": "chieftain",
    "art": [
