@@ -52,7 +52,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 		ui.button(c, r, id, "", "", true, null, true)
 		ui.text(c, tr(BOARDS[i][1]).to_upper(), Vector2(r.position.x, r.position.y + 16), Ui.INK, HORIZONTAL_ALIGNMENT_CENTER, bw)
 		ui.fit_text(c, sub_line(id), bw - 12, Vector2(r.position.x, r.position.y + 30), Ui.BROWN, HORIZONTAL_ALIGNMENT_CENTER, bw)
-	ui.text(c, tr("Esc  title"), Vector2(10, Ui.H - 8), Ui.CREAM, HORIZONTAL_ALIGNMENT_LEFT, -1, true)
+	ui.text(c, Controls.hint("title"), Vector2(10, Ui.H - 8), Ui.CREAM, HORIZONTAL_ALIGNMENT_LEFT, -1, true)
 
 
 ## Two rows of two boards, each with its name over a line of detail, for the large text.
@@ -64,4 +64,4 @@ func _boards_large(c: CanvasItem, ui: Ui) -> void:
 		ui.button(c, r, id, "", "", true, null, true)
 		ui.text(c, tr(BOARDS[i][1]).to_upper(), Vector2(r.position.x, r.position.y + 18), Ui.INK, HORIZONTAL_ALIGNMENT_CENTER, bw)
 		ui.fit_text(c, sub_line(id), bw - 12, Vector2(r.position.x, r.position.y + 38), Ui.BROWN, HORIZONTAL_ALIGNMENT_CENTER, bw)
-	ui.text(c, tr("Esc  title"), Vector2(10, Ui.H - 4), Ui.CREAM, HORIZONTAL_ALIGNMENT_LEFT, -1, true)
+	ui.text(c, Controls.hint("title"), Vector2(10, Ui.H - 4), Ui.CREAM, HORIZONTAL_ALIGNMENT_LEFT, -1, true)

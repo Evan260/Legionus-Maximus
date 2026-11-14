@@ -197,7 +197,7 @@ func _draw_controls(c: CanvasItem, ui: Ui) -> void:
 
 ## Every language named in its own words and letters, with the computer's own language first.
 func _draw_language(c: CanvasItem, ui: Ui) -> void:
-	var r := ui.frame(c, tr("Language").to_upper(), tr("Arrows or WASD move     Space choose     Esc back"))
+	var r := ui.frame(c, tr("Language").to_upper(), Controls.hint("pick"))
 	var choices: Array = [""]
 	choices.append_array(Lang.languages())
 	var h := 24.0 if Ui.scale > 1 else 21.0

@@ -178,12 +178,12 @@ func _choices(sim: Sim) -> void:
 		text(Upgrades.level_text(sim, id), Vector2(r.position.x, y + 2 * step + 2 + extra_y), RED, HORIZONTAL_ALIGNMENT_CENTER, bw, false)
 		wrap_text(Upgrades.describe(sim, id), Vector2(r.position.x + 9, y + 3 * step + 6 + extra_y), bw - 18, INK)
 	var hint_y := top + card_h + (22.0 if big else 16.0)
-	ui.fit_text(self, tr("A / D to choose     Space to take it") if not big else tr("Take one"), W - 16.0, Vector2(0, hint_y), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W, true)
+	ui.fit_text(self, Controls.hint("level") if not big else tr("Take one"), W - 16.0, Vector2(0, hint_y), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W, true)
 	var extras: Array = []
 	if sim.rerolls > 0:
-		extras.append(tr("R / Y  reroll (%d)") % sim.rerolls)
+		extras.append(Controls.hint("reroll", sim.rerolls))
 	if sim.banishes > 0:
-		extras.append(tr("B / X  banish (%d)") % sim.banishes)
+		extras.append(Controls.hint("banish", sim.banishes))
 	if not extras.is_empty():
 		ui.fit_text(self, "     ".join(extras), W - 16.0, Vector2(0, hint_y + (20.0 if big else 13.0)), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W, true)
 

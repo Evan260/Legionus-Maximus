@@ -246,6 +246,7 @@ func _process(dt: float) -> void:
 		"play":
 			if Input.is_action_just_pressed("pause"):
 				state = "pause"
+				screens.pause.confirming = false
 				ui.focus = "resume"
 				return
 			var move := Input.get_vector("left", "right", "up", "down")
@@ -326,6 +327,7 @@ func _back() -> void:
 		"camp", "over":
 			go_to_title()
 		"pause":
+			screens.pause.confirming = false
 			state = "play"
 			ui.focus = ""
 		"settings":

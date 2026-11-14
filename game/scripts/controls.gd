@@ -103,3 +103,40 @@ static func slot_text(saved: Dictionary, action: String, kind: String, slot: int
 	if slot >= list.size():
 		return "-"
 	return key_name(list[slot]) if kind == "keys" else pad_name(list[slot])
+
+
+## The first key of an action in the player's own bindings.
+static func key_of(action: String) -> String:
+	return slot_text(Profile.setting("bindings"), action, "keys", 0)
+
+
+## The first pad button of an action in the player's own bindings.
+static func pad_of(action: String) -> String:
+	return slot_text(Profile.setting("bindings"), action, "pads", 0)
+
+
+## The four marching keys, for the hints that say how to move.
+static func march_keys() -> String:
+	return " ".join(["up", "left", "down", "right"].map(key_of))
+
+
+## The key hint at the foot of a screen, naming the player's current keys; `count` is the rerolls or banishes left.
+static func hint(kind: String, count := 0) -> String:
+	match kind:
+		"pick":
+			return TranslationServer.translate("%s move     %s choose     %s back") % [march_keys(), key_of("confirm"), key_of("back")]
+		"buy":
+			return TranslationServer.translate("%s move     %s buy a rank     %s back") % [march_keys(), key_of("confirm"), key_of("back")]
+		"look":
+			return TranslationServer.translate("%s move     %s back") % [march_keys(), key_of("back")]
+		"level":
+			return TranslationServer.translate("%s / %s to choose     %s to take it") % [key_of("left"), key_of("right"), key_of("confirm")]
+		"reroll":
+			return TranslationServer.translate("%s / %s  reroll (%d)") % [key_of("reroll"), pad_of("reroll"), count]
+		"banish":
+			return TranslationServer.translate("%s / %s  banish (%d)") % [key_of("banish"), pad_of("banish"), count]
+		"summary":
+			return TranslationServer.translate("%s camp     %s title") % [key_of("confirm"), key_of("back")]
+		"title":
+			return TranslationServer.translate("%s  title") % key_of("back")
+	return ""

@@ -42,3 +42,10 @@ static func run_cap(balance: Dictionary) -> float:
 ## Whether a confirm press counts. Space is also the testudo key, so a tap just as a choice or the summary opens must not take it.
 static func confirm_allowed(state: String, opened_at: float, now: float, balance: Dictionary) -> bool:
 	return not (state == "choose" or state == "over") or now - opened_at >= float(balance.confirm_delay)
+
+
+## The title's goal line: the minutes to survive, and the chieftain's death in the full game; the demo ends at its time limit and has no chieftain.
+static func goal_text(balance: Dictionary) -> String:
+	if is_demo():
+		return TranslationServer.translate("Survive %d minutes.") % int(float(balance.demo.seconds) / 60.0)
+	return TranslationServer.translate("Survive %d minutes and kill the chieftain.") % int(float(balance.chieftain_at) / 60.0)

@@ -35,7 +35,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	for e in list:
 		if Profile.data.seen.has(e[0]):
 			found += 1
-	var r := ui.frame(c, tr("Tablinum").to_upper(), tr("Arrows or WASD move     Esc back"))
+	var r := ui.frame(c, tr("Tablinum").to_upper(), Controls.hint("look"))
 	ui.text(c, tr("%d of %d found") % [found, list.size()], Vector2(0, r.position.y + 16), Ui.INK, HORIZONTAL_ALIGNMENT_RIGHT, r.end.x - 12)
 	var origin := r.position + Vector2(12, 28)
 	for i in list.size():

@@ -84,7 +84,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	var held := ""
 	if sim.endless and sim.endless_since >= 0.0:
 		held = tr("Held out %s after the chieftain") % clock(sim.endless_seconds())
-	var hint := held if held != "" else tr("Space camp     Esc title")
+	var hint := held if held != "" else Controls.hint("summary")
 	if sim.demo_over:
 		hint = tr("The full game continues past %d minutes") % (int(main.balance.demo.seconds) / 60)
 	if sim.demo_over:

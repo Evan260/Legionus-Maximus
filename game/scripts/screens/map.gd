@@ -51,7 +51,7 @@ func mode_width(room: float) -> float:
 
 func draw(c: CanvasItem, ui: Ui) -> void:
 	var content: Content = main.content
-	var r := ui.frame(c, tr("Map").to_upper(), tr("Arrows or WASD move     Space choose     Esc back"))
+	var r := ui.frame(c, tr("Map").to_upper(), Controls.hint("pick"))
 	var setup: Dictionary = main.run_setup
 	var big := Ui.scale > 1
 	var ids: Array = []

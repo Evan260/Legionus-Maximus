@@ -1890,12 +1890,13 @@ func _cuts_in(loc: String, scale: int, c: Content, sim: Sim, cuts: Array) -> voi
 	var commanders: Array = c.commanders.values().map(func(e): return str(e.name))
 	var tr_ := func(s: String) -> String: return TranslationServer.translate(s)
 	# The key hints at the foot of a screen, which lose their first parts when they do not fit.
-	for s in ["Arrows or WASD move     Space choose     Esc back", "Arrows or WASD move     Space buy a rank     Esc back", "Arrows or WASD move     Esc back",
-			"Arrows or WASD move     Left and right change a volume     Esc back", "Press the new key or button     Esc cancel",
-			"Space change a key or button     Esc back", "Space camp     Esc title"]:
+	for s in ["Arrows or WASD move     Left and right change a volume     Esc back", "Press the new key or button     Esc cancel",
+			"Space change a key or button     Esc back"]:
 		_fit(cuts, loc, scale, "key hint", tr_.call(s), 624.0)
-	_fit(cuts, loc, scale, "level-up hint", tr_.call("A / D to choose     Space to take it"), 624.0)
-	_fit(cuts, loc, scale, "level-up extras", tr_.call("R / Y  reroll (%d)") % 9 + "     " + tr_.call("B / X  banish (%d)") % 9, 624.0)
+	_fit(cuts, loc, scale, "give-up prompt", tr_.call("Give up the run? %s again to confirm") % "Q", 624.0)
+	for kind in ["pick", "buy", "look", "summary", "level"]:
+		_fit(cuts, loc, scale, "key hint " + kind, Controls.hint(kind), 624.0)
+	_fit(cuts, loc, scale, "level-up extras", Controls.hint("reroll", 9) + "     " + Controls.hint("banish", 9), 624.0)
 	_fit(cuts, loc, scale, "demo hint", tr_.call("The full game continues past %d minutes") % 15, 624.0)
 	_fit(cuts, loc, scale, "endless hint", tr_.call("Held out %s after the chieftain") % "99:59", 624.0)
 	# Pause and title buttons.
@@ -2007,3 +2008,45 @@ func test_confirm_waits_after_a_choice_or_the_summary_opens(b: Dictionary) -> vo
 		check(not Game.confirm_allowed(st, 10.0, 10.0 + delay * 0.5, b), "%s ignores a press right after it opens" % st)
 		check(Game.confirm_allowed(st, 10.0, 10.0 + delay + 0.01, b), "%s takes a press after the delay" % st)
 	check(Game.confirm_allowed("camp", 10.0, 10.0, b), "other screens take confirm at once")
+
+
+func test_hints_name_the_players_own_keys(_b: Dictionary) -> void:
+	var saved: Dictionary = Profile.data
+	Profile.data = Profile.defaults()
+	Profile.data.settings.bindings = {}
+	check(Controls.hint("level") == "A / D to choose     Space to take it", "the default level-up hint is unchanged")
+	Controls.rebind(Profile.data.settings.bindings, "left", "keys", 0, KEY_J)
+	Controls.rebind(Profile.data.settings.bindings, "confirm", "keys", 0, KEY_E)
+	check(Controls.hint("level") == "J / D to choose     E to take it", "the level-up hint shows the rebound keys")
+	check(Controls.hint("summary").begins_with("E camp"), "the summary hint shows the rebound confirm key")
+	check(Controls.hint("pick").begins_with("W J S D move"), "the move hint shows the rebound march keys")
+	Controls.install({})
+	Profile.data = saved
+
+
+func test_title_goal_comes_from_the_balance(b: Dictionary) -> void:
+	check("20" in Game.goal_text(b) and "chieftain" in Game.goal_text(b), "the full game names 20 minutes and the chieftain")
+	Game.demo_forced = true
+	check("15" in Game.goal_text(b) and not "chieftain" in Game.goal_text(b), "the demo names 15 minutes and no chieftain")
+	Game.demo_forced = false
+
+
+class FakeMain:
+	extends Node
+	var state := "pause"
+	var finished := false
+	var sim: Sim
+
+	func _finish_run() -> void:
+		finished = true
+
+
+func test_giving_up_asks_twice(b: Dictionary) -> void:
+	var m := FakeMain.new()
+	m.sim = Sim.new(b, content, {"seed": 5})
+	var pause := PauseScreen.new(m)
+	pause.activate("giveup")
+	check(not m.finished and not m.sim.over, "the first press only asks")
+	pause.activate("giveup")
+	check(m.finished and m.sim.over, "the second press gives up")
+	m.free()

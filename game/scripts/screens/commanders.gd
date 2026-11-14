@@ -19,7 +19,7 @@ func activate(id: String) -> void:
 
 func draw(c: CanvasItem, ui: Ui) -> void:
 	var content: Content = main.content
-	var r := ui.frame(c, tr("Commanders").to_upper(), tr("Arrows or WASD move     Space choose     Esc back"))
+	var r := ui.frame(c, tr("Commanders").to_upper(), Controls.hint("pick"))
 	var ids := Game.commanders(content, main.balance)
 	var text_w: float = r.size.x - 40.0
 	# Every row is as tall as the longest description needs, so the list stays even.

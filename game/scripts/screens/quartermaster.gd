@@ -18,7 +18,7 @@ func activate(id: String) -> void:
 
 func draw(c: CanvasItem, ui: Ui) -> void:
 	var content: Content = main.content
-	var r := ui.frame(c, tr("Quartermaster").to_upper(), tr("Arrows or WASD move     Space buy a rank     Esc back"))
+	var r := ui.frame(c, tr("Quartermaster").to_upper(), Controls.hint("buy"))
 	ui.text(c, (tr("%d denarii") % int(Profile.data.denarii)).to_upper(), Vector2(0, r.position.y + 16), Ui.INK, HORIZONTAL_ALIGNMENT_RIGHT, r.end.x - 12)
 	var i := 0
 	for id in content.quartermaster:
