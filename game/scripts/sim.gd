@@ -67,24 +67,65 @@ var legion_reach := 0.0
 var u_grid := {}
 var units: Array = []
 var content: Content
+var commander_id := "tribune"
+var hard := false
+var endless := false
+var decimatio := false
+var bonuses := {}
+var decimate_next := 0.0
+var endless_since := -1.0
 
 
-func _init(balance: Dictionary, game_content: Content, seed_value: int = 0, province_id := "germania") -> void:
-	province = province_id
+func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
+	province = options.get("province", "germania")
+	commander_id = options.get("commander", "tribune")
+	hard = options.get("hard", false)
+	endless = options.get("endless", false)
+	decimatio = options.get("decimatio", false)
+	bonuses = options.get("profile_bonuses", {})
 	b = balance
 	content = game_content
+	var seed_value := int(options.get("seed", 0))
 	rng.seed = seed_value if seed_value != 0 else int(Time.get_unix_time_from_system())
+	var kit: Dictionary = content.commanders[commander_id]
 	legion = Legion.new(b, content, rng, ranks)
 	arms = Arms.new(rng)
+	legion.commander_hp_add = _bonus_amount("start_health")
+	legion.commander_hp_mult = float(kit.get("hp_mult", 1.0))
+	legion.commander.max_hp = legion.max_hp_of("commander")
+	legion.commander.hp = legion.commander.max_hp
 	horde = Horde.new(b, content, rng, legion.commander, province)
-	rerolls = int(b.rerolls)
-	banishes = int(b.banishes)
+	horde.hard = hard
+	rerolls = int(b.rerolls) + int(kit.get("rerolls", 0)) + int(_bonus_amount("rerolls"))
+	banishes = int(b.banishes) + int(_bonus_amount("banishes"))
 	xp_next = int(b.xp_first)
-	for i in int(b.start_legionaries):
+	decimate_next = float(b.decimatio.every)
+	var kit_types: Array = []
+	for key in kit.starts:
+		if key.begins_with("arm:"):
+			ranks[key.trim_prefix("arm:")] = int(kit.starts[key])
+		else:
+			kit_types.append(key)
+			for i in int(kit.starts[key]):
+				add_soldier(key)
+	if decimatio:
+		var i := 0
+		while soldiers.size() < int(b.decimatio.start_soldiers):
+			add_soldier(kit_types[i % kit_types.size()] if not kit_types.is_empty() else "legionary")
+			i += 1
+	for i in int(_bonus_amount("start_soldiers")):
 		add_soldier("legionary")
-	for i in int(b.start_archers):
-		add_soldier("archer")
 	legion.place_all(facing_angle)
+
+
+## The rank the profile holds in a quartermaster upgrade.
+func _bonus(id: String) -> int:
+	return int(bonuses.get(id, 0))
+
+
+## What a quartermaster upgrade adds, its rank times its step.
+func _bonus_amount(id: String) -> float:
+	return float(_bonus(id)) * float(content.quartermaster[id].per_rank)
 
 
 func rank(id: String) -> int:
@@ -108,7 +149,7 @@ func slot_of(soldier: Dictionary) -> Vector2:
 
 
 func speed() -> float:
-	var v: float = content.base_commander.speed * (1.0 + 0.08 * rank("march"))
+	var v: float = content.base_commander.speed * (1.0 + 0.08 * rank("march") + _bonus_amount("move_speed")) * float(content.commanders[commander_id].get("speed_mult", 1.0))
 	return v * (b.testudo_speed if testudo_left > 0.0 else 1.0)
 
 
@@ -126,7 +167,7 @@ func attack_rate() -> float:
 
 
 func pickup_radius() -> float:
-	return b.pickup_radius * (1.0 + 0.3 * rank("reach"))
+	return b.pickup_radius * (1.0 + 0.3 * rank("reach") + _bonus_amount("pickup_radius"))
 
 
 func update(dt: float, move: Vector2, testudo_pressed: bool) -> void:
@@ -139,7 +180,7 @@ func update(dt: float, move: Vector2, testudo_pressed: bool) -> void:
 	if testudo_left > 0.0:
 		testudo_left -= dt
 	else:
-		testudo_charge = minf(1.0, testudo_charge + dt / maxf(5.0, b.testudo_recharge - 2.0 * rank("testudo")))
+		testudo_charge = minf(1.0, testudo_charge + dt / maxf(5.0, b.testudo_recharge - 2.0 * rank("testudo") - _bonus_amount("testudo_charge")))
 	_move_legion(dt, move)
 	_rebuild_grids()
 	horde.update(dt, self)
@@ -151,6 +192,7 @@ func update(dt: float, move: Vector2, testudo_pressed: bool) -> void:
 	_coins(dt)
 	_effects(dt)
 	_regen(dt)
+	_decimate()
 	if commander.hp <= 0.0:
 		over = true
 		victory = false
@@ -202,7 +244,7 @@ func enemies_near(p: Vector2, r: float) -> Array:
 
 
 func hit(i: int, dmg: float, burn_dps: float = 0.0) -> void:
-	horde.e_hp[i] -= dmg
+	horde.e_hp[i] -= dmg * (1.0 + _bonus_amount("damage"))
 	horde.e_flash[i] = 0.1
 	if burn_dps > 0.0:
 		var greek: float = float(b.greek_fire.burn_mult) if rank("greek_fire") > 0 else 1.0
@@ -334,7 +376,7 @@ func _remove_dead() -> void:
 func _kill(i: int) -> void:
 	var id: String = horde.kind_ids[horde.e_kind[i]]
 	kills += 1
-	var pay := float(content.enemies[id].coins) * (1.0 + float(b.drills.plunder) * rank("plunder"))
+	var pay := float(content.enemies[id].coins) * (1.0 + float(b.drills.plunder) * rank("plunder") + _bonus_amount("denarii")) * (float(b.hard.denarii_mult) if hard else 1.0)
 	# A fraction of a coin is paid as the same chance of one more.
 	var value := int(pay) + (1 if pay > floorf(pay) and rng.randf() < pay - floorf(pay) else 0)
 	if value > 0:
@@ -345,8 +387,12 @@ func _kill(i: int) -> void:
 	if horde.e_tag[i] == Horde.ELITE:
 		horde.drop_chest(horde.e_pos[i])
 	if horde.e_id[i] == horde.chieftain_id:
-		over = true
-		victory = true
+		if endless:
+			endless_since = time
+			horde.endless_since = time
+		else:
+			over = true
+			victory = true
 	horde.remove_at(i)
 
 
@@ -375,7 +421,7 @@ func _coins(dt: float) -> void:
 
 func gain(value: int) -> void:
 	denarii += value
-	xp_carry += value * (1.0 + float(b.drills.glory) * rank("glory"))
+	xp_carry += value * (1.0 + float(b.drills.glory) * rank("glory") + _bonus_amount("experience"))
 	xp += int(xp_carry)
 	xp_carry -= int(xp_carry)
 	while xp >= xp_next:
@@ -403,6 +449,23 @@ func _regen(dt: float) -> void:
 		return
 	for u in [commander] + soldiers:
 		u.hp = minf(u.max_hp, u.hp + r * dt)
+
+
+## Decimatio: every so often one soldier in ten is taken from the legion, at least one once it has ten.
+func _decimate() -> void:
+	if not decimatio or time < decimate_next:
+		return
+	decimate_next += float(b.decimatio.every)
+	var n := soldiers.size()
+	var lose := n / int(b.decimatio.one_in)
+	for i in lose:
+		var gone: Dictionary = soldiers.pop_back()
+		effects.append({"kind": "fallen", "pos": gone.pos, "t": 0.0, "type": gone.type, "facing": gone.facing})
+
+
+## Seconds the legion has lasted since the chieftain fell in an endless run.
+func endless_seconds() -> float:
+	return maxf(0.0, time - endless_since) if endless_since >= 0.0 else 0.0
 
 
 func chieftain_index() -> int:

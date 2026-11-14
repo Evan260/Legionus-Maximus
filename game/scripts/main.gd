@@ -7,6 +7,8 @@ extends Node
 ##   --shot=PATH        save a screenshot after --at seconds (default 3) and quit
 ##   --chieftain-at=S   bring the chieftain at this many seconds instead
 ##   --hold-choice      with --autoplay, give a level at once and leave its choices open
+##   --hard, --endless, --decimatio   start the run in that mode
+##   --commander=ID     start with that commander (the tribune when his art is not drawn)
 ##   --give=ID,ID:RANK  start the run with these arms or drills at the rank (default 1), for looking at them
 
 var balance: Dictionary
@@ -62,7 +64,7 @@ func _ready() -> void:
 
 
 func _new_sim() -> void:
-	sim = Sim.new(balance, content)
+	sim = Sim.new(balance, content, _run_options())
 	world.sim = sim
 	if args.has("autoplay") or args.has("skip"):
 		for entry in str(args.get("give", "")).split(",", false):
@@ -70,6 +72,15 @@ func _new_sim() -> void:
 			var info := content.upgrade(parts[0])
 			if not info.is_empty():
 				sim.ranks[parts[0]] = clampi(int(parts[1]) if parts.size() > 1 else 1, 0, int(info.get("max", 0)))
+
+
+## The run's options from the command line; the camp screen will fill them in for real play.
+func _run_options() -> Dictionary:
+	var options := {"province": "germania", "commander": str(args.get("commander", "tribune")), "hard": args.has("hard"),
+		"endless": args.has("endless"), "decimatio": args.has("decimatio"), "profile_bonuses": {}}
+	if not content.ready("commanders", options.commander):
+		options.commander = "tribune"
+	return options
 
 
 func _start() -> void:
@@ -197,7 +208,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _bench() -> void:
 	var mixed := Content.with_all_art()
-	var s := Sim.new(balance, mixed, 7)
+	var s := Sim.new(balance, mixed, {"seed": 7})
 	for id in content.arms:
 		if content.arms[id].implemented:
 			s.ranks[id] = 3

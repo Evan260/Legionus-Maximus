@@ -8,6 +8,8 @@ var picks := {}
 var fallen: Array = []
 var revive_timer := 0.0
 var reserves: Array = []
+var commander_hp_add := 0.0
+var commander_hp_mult := 1.0
 
 var _b: Dictionary
 var _content: Content
@@ -50,7 +52,10 @@ func stat(type: String, key: String, fallback: float = 0.0) -> float:
 
 
 func max_hp_of(type: String) -> float:
-	var hp := float(_content.unit(type).hp) * (1.0 + float(_l.lorica_hp) * float(_ranks.get("lorica", 0)))
+	var base := float(_content.unit(type).hp)
+	if type == "commander":
+		base = (base + commander_hp_add) * commander_hp_mult
+	var hp := base * (1.0 + float(_l.lorica_hp) * float(_ranks.get("lorica", 0)))
 	if type != "commander" and promoted(type):
 		hp *= float(_content.recruits[type].promotion.get("hp_mult", 1.0))
 	return hp

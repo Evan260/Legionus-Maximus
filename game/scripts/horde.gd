@@ -78,6 +78,8 @@ var sp_life := PackedFloat32Array()
 var chests: Array = []
 var elite_ids: Array = []
 var chief_dead := false
+var hard := false
+var endless_since := -1.0
 var carts: Array = []
 
 
@@ -144,6 +146,10 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 	var hp := float(info.hp)
 	if tag == ORDINARY:
 		hp *= 1.0 + float(b.enemy_health_growth) * time
+	if hard:
+		hp *= float(b.hard.health_mult)
+	if endless_since >= 0.0 and tag != CHIEF:
+		hp *= 1.0 + float(b.endless.health_per_minute) * floorf((time - endless_since) / float(b.endless.step_seconds))
 	e_id.append(next_id)
 	next_id += 1
 	e_pos.append(pos)
@@ -234,7 +240,7 @@ func update(dt: float, sim: Sim) -> void:
 
 
 func _spawn(dt: float, sim: Sim) -> void:
-	spawn_acc += (b.spawn_per_second_start + b.spawn_per_second_growth * time) * dt
+	spawn_acc += (b.spawn_per_second_start + b.spawn_per_second_growth * time) * (float(b.hard.spawn_mult) if hard else 1.0) * dt
 	while spawn_acc >= 1.0:
 		spawn_acc -= 1.0
 		if e_pos.size() < int(b.max_enemies) and not ordinary.is_empty():

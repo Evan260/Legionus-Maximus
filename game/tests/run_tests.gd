@@ -33,13 +33,13 @@ func run(balance: Dictionary) -> int:
 
 
 func test_the_run_starts_with_the_commander_and_two_legionaries(b: Dictionary) -> void:
-	var s := Sim.new(b, content, 1)
+	var s := Sim.new(b, content, {"seed": 1})
 	check(s.soldiers.size() == 2, "two soldiers at the start")
 	check(s.count("legionary") == 2, "both are legionaries")
 
 
 func test_soldiers_reach_their_places_after_marching(b: Dictionary) -> void:
-	var s := Sim.new(b, content, 2)
+	var s := Sim.new(b, content, {"seed": 2})
 	Upgrades.apply(s, "archer")
 	for i in 180:
 		s.update(1.0 / 60.0, Vector2.RIGHT, false)
@@ -49,7 +49,7 @@ func test_soldiers_reach_their_places_after_marching(b: Dictionary) -> void:
 
 
 func test_coins_level_the_legion_up(b: Dictionary) -> void:
-	var s := Sim.new(b, content, 3)
+	var s := Sim.new(b, content, {"seed": 3})
 	s.gain(int(b.xp_first))
 	check(s.level == 2, "first level reached")
 	check(s.pending_levels == 1, "one choice waiting")
@@ -57,7 +57,7 @@ func test_coins_level_the_legion_up(b: Dictionary) -> void:
 
 
 func test_a_killed_barbarian_drops_coins_and_is_removed(b: Dictionary) -> void:
-	var s := Sim.new(b, content, 4)
+	var s := Sim.new(b, content, {"seed": 4})
 	s.horde.spawn("barbarian_club", Vector2(300, 0))
 	s.horde.spawn("barbarian_spear", Vector2(-300, 0))
 	var id_left := s.horde.e_id[1]
@@ -71,7 +71,7 @@ func test_a_killed_barbarian_drops_coins_and_is_removed(b: Dictionary) -> void:
 
 
 func test_barbarians_hurt_soldiers_they_reach(b: Dictionary) -> void:
-	var s := Sim.new(b, content, 5)
+	var s := Sim.new(b, content, {"seed": 5})
 	s.horde.spawn("barbarian_club", s.commander.pos + Vector2(10, 0))
 	var before: float = s.commander.hp
 	for i in 30:
@@ -80,8 +80,8 @@ func test_barbarians_hurt_soldiers_they_reach(b: Dictionary) -> void:
 
 
 func test_testudo_cuts_the_harm_taken(b: Dictionary) -> void:
-	var plain := Sim.new(b, content, 6)
-	var shielded := Sim.new(b, content, 6)
+	var plain := Sim.new(b, content, {"seed": 6})
+	var shielded := Sim.new(b, content, {"seed": 6})
 	for s in [plain, shielded]:
 		s.soldiers.clear()
 		s.horde.spawn("barbarian_club", Vector2(10, 0))
@@ -97,7 +97,7 @@ func test_testudo_cuts_the_harm_taken(b: Dictionary) -> void:
 
 
 func test_arms_stop_at_their_last_level(b: Dictionary) -> void:
-	var s := Sim.new(b, content, 8)
+	var s := Sim.new(b, content, {"seed": 8})
 	for i in 9:
 		Upgrades.apply(s, "pilum")
 	check(s.rank("pilum") == 9, "ranks counted")
@@ -105,14 +105,14 @@ func test_arms_stop_at_their_last_level(b: Dictionary) -> void:
 
 
 func test_burning_arrows_need_archers(b: Dictionary) -> void:
-	var s := Sim.new(b, content, 9)
+	var s := Sim.new(b, content, {"seed": 9})
 	check(not Upgrades.available(s).has("fire_arrows"), "no burning arrows without archers")
 	Upgrades.apply(s, "archer")
 	check(Upgrades.available(s).has("fire_arrows"), "offered once archers join")
 
 
 func test_offers_are_three_different_choices(b: Dictionary) -> void:
-	var s := Sim.new(b, content, 10)
+	var s := Sim.new(b, content, {"seed": 10})
 	for i in 20:
 		var o := Upgrades.offers(s)
 		check(o.size() == 3, "three choices")
@@ -120,7 +120,7 @@ func test_offers_are_three_different_choices(b: Dictionary) -> void:
 
 
 func test_pilum_volley_kills_a_lone_barbarian(b: Dictionary) -> void:
-	var s := Sim.new(b, content, 11)
+	var s := Sim.new(b, content, {"seed": 11})
 	Upgrades.apply(s, "pilum")
 	s.horde.spawn("barbarian_club", Vector2(120, 0))
 	for i in 120:
@@ -129,7 +129,7 @@ func test_pilum_volley_kills_a_lone_barbarian(b: Dictionary) -> void:
 
 
 func test_lorica_raises_health(b: Dictionary) -> void:
-	var s := Sim.new(b, content, 12)
+	var s := Sim.new(b, content, {"seed": 12})
 	var before: float = s.commander.max_hp
 	Upgrades.apply(s, "lorica")
 	check(s.commander.max_hp > before, "the commander's health rose")
@@ -139,7 +139,7 @@ func test_lorica_raises_health(b: Dictionary) -> void:
 
 
 func test_the_chieftain_comes_and_his_death_wins(b: Dictionary) -> void:
-	var s := Sim.new(b, content, 13)
+	var s := Sim.new(b, content, {"seed": 13})
 	s.time = float(b.chieftain_at) - 0.01
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
 	var ci := s.chieftain_index()
@@ -150,21 +150,21 @@ func test_the_chieftain_comes_and_his_death_wins(b: Dictionary) -> void:
 
 
 func test_the_commanders_death_loses(b: Dictionary) -> void:
-	var s := Sim.new(b, content, 14)
+	var s := Sim.new(b, content, {"seed": 14})
 	s.commander.hp = 0.0
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
 	check(s.over and not s.victory, "the run is lost")
 
 
 func test_fallen_soldiers_leave_the_formation(b: Dictionary) -> void:
-	var s := Sim.new(b, content, 15)
+	var s := Sim.new(b, content, {"seed": 15})
 	s.soldiers[0].hp = 0.0
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
 	check(s.soldiers.size() == 1, "one soldier left")
 
 
 func test_the_horde_grows_over_time(b: Dictionary) -> void:
-	var s := Sim.new(b, content, 16)
+	var s := Sim.new(b, content, {"seed": 16})
 	s.soldiers.clear()
 	s.commander.hp = 1e9
 	for i in 60 * 30:
@@ -173,7 +173,7 @@ func test_the_horde_grows_over_time(b: Dictionary) -> void:
 
 
 func test_far_barbarians_come_round_again(b: Dictionary) -> void:
-	var s := Sim.new(b, content, 17)
+	var s := Sim.new(b, content, {"seed": 17})
 	s.horde.spawn("barbarian_club", Vector2(2000, 0))
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
 	check(s.horde.e_pos[0].length() <= float(b.spawn_radius) + 5.0, "brought back to the edge")
@@ -245,7 +245,7 @@ func _full_content() -> Content:
 
 ## A run with no soldiers, then one of each listed type added and set on its place.
 func _legion_sim(b: Dictionary, seed_value: int, types: Array) -> Sim:
-	var s := Sim.new(b, content, seed_value)
+	var s := Sim.new(b, content, {"seed": seed_value})
 	s.soldiers.clear()
 	s.commander.hp = 1e9
 	s.commander.max_hp = 1e9
@@ -449,7 +449,7 @@ func test_a_full_legion_of_every_kind_has_no_overlapping_places(b: Dictionary) -
 
 ## A quiet run: no arrivals, an unkillable commander and no soldiers, with the given ranks.
 func _arms_sim(b: Dictionary, seed_value: int, ranks: Dictionary, game_content: Content = null) -> Sim:
-	var s := Sim.new(b, game_content if game_content != null else content, seed_value)
+	var s := Sim.new(b, game_content if game_content != null else content, {"seed": seed_value})
 	s.soldiers.clear()
 	s.commander.hp = 1e9
 	s.commander.max_hp = 1e9
@@ -865,7 +865,7 @@ func _step_dt(s: Sim, seconds: float, move := Vector2.ZERO, testudo := false) ->
 
 
 func test_ranged_enemy_keeps_its_distance(b: Dictionary) -> void:
-	var s := Sim.new(b, Content.with_all_art(), 91)
+	var s := Sim.new(b, Content.with_all_art(), {"seed": 91})
 	s.horde.spawn("axe_thrower", Vector2(300, 0))
 	_step_dt(s, 12.0)
 	var d: float = s.horde.e_pos[0].distance_to(s.commander.pos)
@@ -874,8 +874,8 @@ func test_ranged_enemy_keeps_its_distance(b: Dictionary) -> void:
 
 
 func test_testudo_blocks_thrown_spears(b: Dictionary) -> void:
-	var open := Sim.new(b, Content.with_all_art(), 92)
-	var shut := Sim.new(b, Content.with_all_art(), 92)
+	var open := Sim.new(b, Content.with_all_art(), {"seed": 92})
+	var shut := Sim.new(b, Content.with_all_art(), {"seed": 92})
 	for s in [open, shut]:
 		s.horde.spawn("axe_thrower", Vector2(105, 0))
 	var hp0: float = open.commander.hp + open.soldiers[0].hp + open.soldiers[1].hp
@@ -891,7 +891,7 @@ func test_testudo_blocks_thrown_spears(b: Dictionary) -> void:
 
 func test_elite_drops_a_chest(b: Dictionary) -> void:
 	var art := Content.with_all_art()
-	var s := Sim.new(b, art, 93)
+	var s := Sim.new(b, art, {"seed": 93})
 	var i: int = s.horde.spawn("berserker", Vector2(300, 0))
 	check(s.horde.e_tag[i] == Horde.ELITE and s.horde.e_hp[i] > 300.0, "an elite with far more health")
 	s.hit(i, 1e9)
@@ -904,7 +904,7 @@ func test_elite_drops_a_chest(b: Dictionary) -> void:
 	var picks := Upgrades.next_choices(s)
 	Upgrades.apply(s, picks[0])
 	check(s.free_choices == 0 and s.level == before, "the choice does not change the level")
-	var bare := Sim.new(b, content, 94)
+	var bare := Sim.new(b, content, {"seed": 94})
 	var j: int = bare.horde.spawn("berserker", Vector2(300, 0))
 	bare.hit(j, 1e9)
 	bare.update(1.0 / 60.0, Vector2.ZERO, false)
@@ -912,7 +912,7 @@ func test_elite_drops_a_chest(b: Dictionary) -> void:
 
 
 func test_cart_magnet_pulls_every_coin(b: Dictionary) -> void:
-	var s := Sim.new(b, Content.with_all_art(), 95)
+	var s := Sim.new(b, Content.with_all_art(), {"seed": 95})
 	for k in 6:
 		s.c_pos.append(Vector2(400 + k * 30, 200))
 		s.c_val.append(1)
@@ -927,19 +927,19 @@ func test_cart_magnet_pulls_every_coin(b: Dictionary) -> void:
 	s.soldiers[0].hp = 1.0
 	s.horde.open_cart(s, "heal")
 	check(s.soldiers[0].hp == s.soldiers[0].max_hp, "or heal the legion")
-	var none := Sim.new(b, content, 96)
+	var none := Sim.new(b, content, {"seed": 96})
 	none.time = float(b.cart.every) + 1.0
 	none.update(1.0 / 60.0, Vector2.ZERO, false)
 	check(none.horde.carts.is_empty(), "no cart without its art")
-	var drawn := Sim.new(b, Content.with_all_art(), 96)
+	var drawn := Sim.new(b, Content.with_all_art(), {"seed": 96})
 	drawn.time = float(b.cart.every) + 1.0
 	drawn.update(1.0 / 60.0, Vector2.ZERO, false)
 	check(drawn.horde.carts.size() == 1, "a cart crosses the field with its art")
 
 
 func test_chieftain_war_cry_speeds_the_horde(b: Dictionary) -> void:
-	var calm := Sim.new(b, Content.with_all_art(), 97)
-	var cried := Sim.new(b, Content.with_all_art(), 97)
+	var calm := Sim.new(b, Content.with_all_art(), {"seed": 97})
+	var cried := Sim.new(b, Content.with_all_art(), {"seed": 97})
 	for s in [calm, cried]:
 		s.horde.spawn("chieftain", Vector2(500, 0))
 		s.horde.spawn("barbarian_club", Vector2(450, 150))
@@ -956,7 +956,7 @@ func test_chieftain_war_cry_speeds_the_horde(b: Dictionary) -> void:
 
 
 func test_chieftain_cleave_hurts_an_arc_in_front(b: Dictionary) -> void:
-	var s := Sim.new(b, Content.with_all_art(), 98)
+	var s := Sim.new(b, Content.with_all_art(), {"seed": 98})
 	var i: int = s.horde.spawn("chieftain", Vector2(24, 0))
 	s.horde.e_face[i] = Vector2.LEFT
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
@@ -968,7 +968,7 @@ func test_chieftain_cleave_hurts_an_arc_in_front(b: Dictionary) -> void:
 
 
 func test_chargers_dash_in_a_line(b: Dictionary) -> void:
-	var s := Sim.new(b, Content.with_all_art(), 99)
+	var s := Sim.new(b, Content.with_all_art(), {"seed": 99})
 	var i: int = s.horde.spawn("chariot", Vector2(200, 0))
 	s.horde.e_cd[i] = 0.0
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
@@ -985,7 +985,7 @@ func test_beasts_are_fast_and_frail(b: Dictionary) -> void:
 
 
 func test_province_only_spawns_its_ready_enemies(b: Dictionary) -> void:
-	var s := Sim.new(b, content, 100)
+	var s := Sim.new(b, content, {"seed": 100})
 	var ready_ids: Array = content.province_enemies("germania")
 	check(not ready_ids.has("axe_thrower") and not ready_ids.has("wolf"), "today only the drawn enemies are ready")
 	s.time = 300.0
@@ -996,7 +996,7 @@ func test_province_only_spawns_its_ready_enemies(b: Dictionary) -> void:
 	for id in seen:
 		check(ready_ids.has(id), "%s may spawn" % id)
 	check(not seen.has("berserker") and not seen.has("axe_thrower"), "no hidden enemy appears")
-	var wide := Sim.new(b, Content.with_all_art(), 101)
+	var wide := Sim.new(b, Content.with_all_art(), {"seed": 101})
 	wide.time = 119.9
 	wide.horde.next_surge = 120.0
 	_step_dt(wide, 1.0)
@@ -1004,12 +1004,12 @@ func test_province_only_spawns_its_ready_enemies(b: Dictionary) -> void:
 	for t in wide.horde.e_tag:
 		elite = elite or t == Horde.ELITE
 	check(elite, "a ready elite arrives with the surge")
-	var wrong := Sim.new(b, Content.with_all_art(), 102, "britannia")
+	var wrong := Sim.new(b, Content.with_all_art(), {"seed": 102, "province": "britannia"})
 	check(wrong.horde.ordinary == content.provinces.britannia.ordinary, "another province brings its own")
 
 
 func test_thrower_stays_outside_a_big_legion(b: Dictionary) -> void:
-	var s := Sim.new(b, Content.with_all_art(), 103)
+	var s := Sim.new(b, Content.with_all_art(), {"seed": 103})
 	s.b = b.duplicate()
 	s.b.spawn_per_second_start = 0.0
 	s.b.spawn_per_second_growth = 0.0
@@ -1027,3 +1027,120 @@ func test_thrower_stays_outside_a_big_legion(b: Dictionary) -> void:
 			nearest = minf(nearest, u.pos.distance_to(s.horde.e_pos[0]))
 	check(nearest > 110.0, "the thrower stays outside every soldier (%.1f)" % nearest)
 	check(s.horde.e_fighting[0] == 0, "and never fights in melee")
+
+
+## A run with no arrivals of its own and an unkillable commander.
+func _mode_sim(b: Dictionary, options: Dictionary) -> Sim:
+	var s := Sim.new(b, Content.with_all_art(), options)
+	s.b = b.duplicate(true)
+	s.b.spawn_per_second_start = 0.0
+	s.b.spawn_per_second_growth = 0.0
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	return s
+
+
+func test_endless_keeps_going_after_the_chieftain(b: Dictionary) -> void:
+	var s := _mode_sim(b, {"seed": 110, "endless": true})
+	s.time = float(b.chieftain_at) - 0.01
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	var ci := s.chieftain_index()
+	check(ci >= 0, "the chieftain arrived")
+	s.hit(ci, 1e9)
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(not s.over and not s.victory, "his death does not end an endless run")
+	var plain := _mode_sim(b, {"seed": 110})
+	var since := s.time
+	s.time = since + 120.0
+	plain.time = s.time
+	s.horde.time = s.time
+	plain.horde.time = s.time
+	var a := s.horde.spawn("barbarian_club", Vector2(300, 0))
+	var c := plain.horde.spawn("barbarian_club", Vector2(300, 0))
+	var want := 1.0 + 2.0 * float(b.endless.health_per_minute)
+	check(absf(s.horde.e_hp[a] / plain.horde.e_hp[c] - want) < 0.001, "two minutes on, enemies have %.2f times the health (%.3f)" % [want, s.horde.e_hp[a] / plain.horde.e_hp[c]])
+	var normal := _mode_sim(b, {"seed": 111})
+	normal.time = float(b.chieftain_at) - 0.01
+	normal.update(1.0 / 60.0, Vector2.ZERO, false)
+	normal.hit(normal.chieftain_index(), 1e9)
+	normal.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(normal.over and normal.victory, "a normal run still ends with the chieftain")
+
+
+func test_decimatio_takes_one_in_ten(b: Dictionary) -> void:
+	var s := _mode_sim(b, {"seed": 112, "decimatio": true})
+	check(s.soldiers.size() == int(b.decimatio.start_soldiers), "the legion starts at %d" % int(b.decimatio.start_soldiers))
+	s.time = float(b.decimatio.every) - 0.01
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.soldiers.size() == 27, "one in ten is gone after two minutes (%d)" % s.soldiers.size())
+	s.time = 2.0 * float(b.decimatio.every) - 0.01
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.soldiers.size() == 25, "and again after four (%d)" % s.soldiers.size())
+	var small := _mode_sim(b, {"seed": 113, "decimatio": true})
+	small.soldiers.resize(10)
+	small.time = float(b.decimatio.every) - 0.01
+	small.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(small.soldiers.size() == 9, "ten soldiers lose one")
+	var tiny := _mode_sim(b, {"seed": 114, "decimatio": true})
+	tiny.soldiers.resize(9)
+	tiny.time = float(b.decimatio.every) - 0.01
+	tiny.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(tiny.soldiers.size() == 9, "nine soldiers lose none")
+	var archers := _mode_sim(b, {"seed": 115, "decimatio": true, "commander": "archer_captain"})
+	check(archers.soldiers.size() == 30 and archers.count("archer") > 3 and archers.count("legionary") == 0, "the archer captain's legion is archers")
+
+
+func test_hard_mode_pays_more(b: Dictionary) -> void:
+	var easy := _mode_sim(b, {"seed": 116})
+	var hard := _mode_sim(b, {"seed": 116, "hard": true})
+	var e := easy.horde.spawn("barbarian_club", Vector2(300, 0))
+	var h := hard.horde.spawn("barbarian_club", Vector2(300, 0))
+	check(absf(hard.horde.e_hp[h] / easy.horde.e_hp[e] - float(b.hard.health_mult)) < 0.001, "enemies have more health")
+	var paid := [0, 0]
+	var runs := [easy, hard]
+	for k in 2:
+		var s: Sim = runs[k]
+		for i in 400:
+			s.horde.spawn("barbarian_club", Vector2(300, 0))
+			s.horde.e_hp[s.horde.e_hp.size() - 1] = 0.0
+		s._remove_dead()
+		for v in s.c_val:
+			paid[k] += v
+	var ratio: float = float(paid[1]) / maxf(1.0, float(paid[0]))
+	check(ratio > 1.3 and ratio < 1.7, "denarii pay about %.1f times as much (%.2f)" % [float(b.hard.denarii_mult), ratio])
+	easy.b.spawn_per_second_start = 2.0
+	hard.b.spawn_per_second_start = 2.0
+	for i in 600:
+		easy.update(1.0 / 60.0, Vector2.ZERO, false)
+		hard.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(hard.horde.e_pos.size() > easy.horde.e_pos.size() * 1.2, "and they arrive faster")
+
+
+func test_each_commander_starts_with_his_kit(b: Dictionary) -> void:
+	var all := Content.with_all_art()
+	for id in all.commanders:
+		var kit: Dictionary = all.commanders[id].starts
+		var s := _mode_sim(b, {"seed": 117, "commander": id})
+		for key in kit:
+			if key.begins_with("arm:"):
+				check(s.rank(key.trim_prefix("arm:")) == int(kit[key]), "%s starts with the %s" % [id, key])
+			else:
+				check(s.count(key) == int(kit[key]), "%s starts with %d %s" % [id, int(kit[key]), key])
+		check(s.commander_id == id, "%s is the commander" % id)
+	var old := _mode_sim(b, {"seed": 118, "commander": "old_centurion"})
+	check(Sim.new(b, all, {"seed": 118, "commander": "old_centurion"}).commander.max_hp == float(all.base_commander.hp) * 1.5, "the old centurion has more health")
+	check(old.speed() < _mode_sim(b, {"seed": 118}).speed(), "and marches slower")
+	check(_mode_sim(b, {"seed": 118, "commander": "legate"}).rerolls == int(b.rerolls) + 1, "the legate has a free reroll")
+	check(_mode_sim(b, {"seed": 119}).count("legionary") == 2, "the default is the tribune with two legionaries")
+	check(content.ready("commanders", "tribune"), "the tribune can be chosen")
+	check(not content.ready("commanders", "cavalry_prefect") or content.available.has("unit:cavalry"), "a commander whose cavalry is not drawn is not offered")
+
+
+func test_quartermaster_ranks_change_the_start(b: Dictionary) -> void:
+	var s := _mode_sim(b, {"seed": 120, "profile_bonuses": {"start_health": 2, "start_soldiers": 3, "rerolls": 2, "banishes": 1}})
+	var fresh := Sim.new(b, Content.with_all_art(), {"seed": 120, "profile_bonuses": {"start_health": 2, "start_soldiers": 3, "rerolls": 2, "banishes": 1, "move_speed": 2}})
+	var qm: Dictionary = fresh.content.quartermaster
+	check(fresh.commander.max_hp == float(fresh.content.base_commander.hp) + 2.0 * float(qm.start_health.per_rank), "two ranks of health")
+	check(fresh.count("legionary") == 2 + 3, "three more soldiers")
+	check(fresh.rerolls == int(b.rerolls) + 2 and fresh.banishes == int(b.banishes) + 1, "more rerolls and banishes")
+	check(fresh.speed() > Sim.new(b, Content.with_all_art(), {"seed": 120}).speed(), "a faster march")

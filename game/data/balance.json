@@ -93,6 +93,9 @@
   "charger": {"every": 4.0, "speed_mult": 3.0, "seconds": 0.6, "burst_seconds": 1.0, "min_distance": 60, "max_distance": 260},
   "chest": {"radius": 14},
   "cart": {"every": 90, "speed": 38, "life": 60, "radius": 14, "aim_scatter": 80},
+  "hard": {"health_mult": 1.6, "spawn_mult": 1.4, "denarii_mult": 1.5},
+  "endless": {"health_per_minute": 0.15, "step_seconds": 60},
+  "decimatio": {"start_soldiers": 30, "every": 120, "one_in": 10},
   "rerolls": 1,
   "banishes": 0,
   "demo": {
