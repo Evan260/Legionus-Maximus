@@ -29,6 +29,15 @@ SOUNDS = {
     347174: "Davidsraba", 350875: "cabled_mess",
     609335: "Kenneth_Cooney", 442943: "qubodup",
     253168: "suntemple", 467951: "benzix2", 546974: "finix473",
+    # Boss abilities, felling, building, fire and the gods.
+    593875: "igroglaz", 494071: "Kinoton", 342542: "sgrowe", 173941: "JohnsonBrandEditing", 202231: "deraj",
+    478238: "Fission9", 803551: "agaisgsbs", 244926: "hnhnh", 260555: "LookIMadeAThing",
+    521639: "Fupicat", 877983: "Qvantor", 
+    521831: "joelcarrsound", 521832: "joelcarrsound", 346373: "denao270", 399080: "Kinoton", 623130: "Brsjak",
+    876169: "Assetsmith", 420677: "SypherZent", 512217: "Mateusz_Chenc", 714257: "qubodup",
+    513694: "kasparsj", 350978: "cabled_mess", 621352: "WelvynZPorterSamples", 274121: "bone666138",
+    361772: "kingsrow", 840628: "loganzsound", 431851: "nofeedbak",
+    431174: "Blankened", 186932: "ReadeOnly", 505063: "olver", 204912: "Noxdl",
     # The VSCO 2 CE harp notes the calm music is played from, the same ones the other games use.
     373556: "sgossner", 373559: "sgossner", 373560: "sgossner", 373563: "sgossner", 373565: "sgossner",
     373566: "sgossner", 373568: "sgossner", 373570: "sgossner", 373571: "sgossner", 373573: "sgossner",
