@@ -314,7 +314,7 @@ func _war_dogs(dt: float, sim: Sim) -> void:
 	var n := dog_count(sim)
 	var cpos: Vector2 = sim.commander.pos
 	while dogs.size() < n:
-		dogs.append({"pos": cpos, "tid": -1, "idx": -1, "cd": 0.0, "look": 0.0, "face": Vector2.RIGHT, "run": 0.0})
+		dogs.append({"pos": cpos, "tid": -1, "idx": -1, "cd": 0.0, "look": 0.0, "face": Vector2.RIGHT, "run": 0.0, "bit": -1e9})
 	var rush: float = timers.get("rush", 0.0) - dt
 	timers.rush = rush
 	var speed := float(cfg.speed) * (float(sim.b.hunting_horn.speed_mult) if rush > 0.0 else 1.0)
@@ -346,6 +346,9 @@ func _war_dogs(dt: float, sim: Sim) -> void:
 		if ti >= 0 and dist <= float(cfg.strike):
 			if d.cd <= 0.0:
 				d.cd = float(cfg.cooldown)
+				d.bit = sim.time
+				if dist > 0.001:
+					d.face = to / dist
 				sim.hit(ti, dmg, 0.0, "war_dogs")
 		elif dist > 2.0:
 			d.pos += to / dist * minf(dist, speed * dt)

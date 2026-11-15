@@ -2,7 +2,8 @@
 texture in one batch.
 
 Each animation is cropped to the area its frames use and keeps an anchor at the unit's feet, so units stand on their
-position whatever the canvas PixelLab drew them on.
+position whatever the canvas PixelLab drew them on. A unit whose attack_<direction> folders exist also gets an "attack"
+action, anchored on the standing pose its first frame repeats.
 
 Usage: python tools/art/build_atlas.py
 Writes game/assets/atlas.png, game/assets/atlas.json and game/assets/grounds/germania.png.
@@ -27,7 +28,12 @@ PROPS = {"oak": "props2/oak.png", "fir": "props2/fir.png", "rock": "props2/rock.
          "onager_stone": "props3/onager_stone.png", "chest": "props3/chest.png", "supply_cart": "props3/supply_cart.png",
          "fort_gate": "props3/fort_gate.png", "hut": "props3/hut.png", "eagle_standard": "props3/eagle_standard.png",
          "altar": "props3/altar.png", "stump": "props3/stump.png", "timber": "props3/timber.png"}
-WIDTH = 2048
+# The bosses are drawn from their larger remakes; the small originals stay on disk.
+FOLDERS = {"berserker": "berserker_big", "war_band_leader": "war_band_leader_big", "war_priest": "war_priest_big",
+           "chieftain": "chieftain_big"}
+WIDTH = 4096
+# GL Compatibility on older GPUs guarantees 4096 px textures, so the atlas never grows past it.
+MAX_SIDE = 4096
 
 
 def crop_set(images, anchor):
@@ -45,8 +51,10 @@ def feet(images):
 def main():
     sets = []
     for unit, action in UNITS.items():
+        src = RAW / FOLDERS.get(unit, unit)
+        attacks = all((src / f"attack_{d}").is_dir() for d in DIRS)
         for d in DIRS:
-            folder = RAW / unit / f"t_{action}_{d}"
+            folder = src / f"t_{action}_{d}"
             frames = [Image.open(p).convert("RGBA") for p in sorted(folder.glob("frame_*.png"))]
             if not frames:
                 raise SystemExit(f"missing {folder}")
@@ -54,9 +62,17 @@ def main():
             loop = frames[1:] if len(frames) > 8 else frames
             images, anchor = crop_set(loop, (loop[0].width / 2, feet(loop)))
             sets.append((("units", unit, "move", d), images, anchor))
-            still = Image.open(RAW / unit / f"{d}.png").convert("RGBA")
+            still = Image.open(src / f"{d}.png").convert("RGBA")
             images, anchor = crop_set([still], (still.width / 2, feet([still])))
             sets.append((("units", unit, "idle", d), images, anchor))
+            if attacks:
+                names = sorted(p.name for p in (src / f"attack_{d}").iterdir())
+                if names != [f"frame_{i:02d}.png" for i in range(9)]:
+                    raise SystemExit(f"{src / f'attack_{d}'} must hold exactly frame_00 to frame_08")
+                frames = [Image.open(src / f"attack_{d}" / n).convert("RGBA") for n in names]
+                # The strike starts from the standing pose, so the anchor comes from it and the pose itself is left out.
+                images, anchor = crop_set(frames[1:], (frames[0].width / 2, feet(frames[:1])))
+                sets.append((("units", unit, "attack", d), images, anchor))
     for name, path in PROPS.items():
         im = Image.open(RAW / path).convert("RGBA")
         images, anchor = crop_set([im], (im.width / 2, feet([im])))
@@ -73,6 +89,8 @@ def main():
         places[(key, i)] = (x, y)
         x += im.width + 1
         shelf = max(shelf, im.height)
+    if y + shelf + 1 > MAX_SIDE:
+        raise SystemExit(f"atlas would be {WIDTH}x{y + shelf + 1}, over {MAX_SIDE}")
     atlas = Image.new("RGBA", (WIDTH, y + shelf + 1), (0, 0, 0, 0))
     meta = {"units": {}, "props": {}}
     for key, images, anchor in sets:

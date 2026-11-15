@@ -54,6 +54,8 @@ var e_burn_src := PackedInt32Array()
 var e_flash := PackedFloat32Array()
 var e_phase := PackedInt32Array()
 var e_fighting := PackedByteArray()
+# When each enemy last threw, lobbed or struck a single blow, for its attack animation.
+var e_strike := PackedFloat32Array()
 var e_stun := PackedFloat32Array()
 var e_slow := PackedFloat32Array()
 var e_push := PackedVector2Array()
@@ -216,6 +218,7 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 	e_flash.append(0.0)
 	e_phase.append(rng.randi_range(0, 7))
 	e_fighting.append(0)
+	e_strike.append(-1e9)
 	e_stun.append(0.0)
 	e_slow.append(1.0)
 	e_push.append(Vector2.ZERO)
@@ -462,6 +465,8 @@ func slam(ci: int, sim: Sim) -> bool:
 		if (u.pos - p).length_squared() < reach:
 			foe_lobs.append({"from": p, "to": p, "t": 0.0, "dur": float(atk.windup), "radius": r, "dmg": k_dps[kind] * float(atk.damage_mult), "slam": true})
 			_hold(ci, float(atk.windup))
+			# The chop is timed to come down as the ring fills.
+			e_strike[ci] = time + float(atk.windup) - Atlas.ATTACK_FRAMES / Atlas.ATTACK_FPS
 			return true
 	return false
 
@@ -517,6 +522,7 @@ func cleave(ci: int, sim: Sim) -> bool:
 		u.flash = 0.12
 		hit_any = true
 	if hit_any:
+		e_strike[ci] = time
 		sim.effects.append({"kind": "cleave", "pos": e_pos[ci], "dir": dir, "t": 0.0, "radius": reach, "arc": float(atk.arc)})
 		sim.shake = maxf(sim.shake, float(sim.b.shake.chieftain))
 		sim.legion.remove_fallen(sim)
@@ -560,6 +566,9 @@ func _lob_at_ranks(i: int, sim: Sim) -> float:
 			most = near
 			best = u.pos
 	foe_lobs.append({"from": e_pos[i], "to": best, "t": 0.0, "dur": float(cfg.flight), "radius": float(cfg.radius), "dmg": float(cfg.damage)})
+	e_strike[i] = time
+	if best != e_pos[i]:
+		e_face[i] = (best - e_pos[i]).normalized()
 	return float(cfg.every)
 
 
@@ -695,6 +704,8 @@ func _move(dt: float, sim: Sim) -> void:
 							aim = off
 					_throw(p, aim.normalized(), k_dps[kind] * throw_every)
 					e_ammo[i] -= 1
+					e_strike[i] = time
+					e_face[i] = aim.normalized()
 		elif k_dash_every[kind] > 0.0:
 			if e_dash[i] > 0.0:
 				e_dash[i] -= dt
@@ -764,6 +775,9 @@ func _move(dt: float, sim: Sim) -> void:
 					e_dash[i] = 0.0
 				u.flash = 0.08
 				e_fighting[i] = 1
+				var foe: Vector2 = units[target_unit].pos - p
+				if foe.length_squared() > 0.000001:
+					e_face[i] = foe.normalized()
 				held += 1
 				var out: Vector2 = p - u.pos
 				if out.length() > 0.001:
@@ -1040,6 +1054,7 @@ func remove_at(i: int) -> void:
 	e_flash[i] = e_flash[last]; e_flash.resize(last)
 	e_phase[i] = e_phase[last]; e_phase.resize(last)
 	e_fighting[i] = e_fighting[last]; e_fighting.resize(last)
+	e_strike[i] = e_strike[last]; e_strike.resize(last)
 	e_stun[i] = e_stun[last]; e_stun.resize(last)
 	e_slow[i] = e_slow[last]; e_slow.resize(last)
 	e_push[i] = e_push[last]; e_push.resize(last)

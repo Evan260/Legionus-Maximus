@@ -43,9 +43,9 @@ Godot is `C:\Users\evand\AppData\Local\Microsoft\WinGet\Packages\GodotEngine.God
 
 All art is PixelLab, made with `tools/art/pixellab.py` (token in `.env`, never in code), costs in `tools/art/ledger.csv`.
 
-- Characters are 48 px (the chieftain 64 px), low top-down, selective outline, from 8 directions. Walking and running use PixelLab's built-in `walking` and `running` motions, which loop and cost nothing.
+- Characters are 48 px (the berserker, war band leader and war priest 80 px, the chieftain 112 px, all from their `_big` folders), low top-down, selective outline, from 8 directions. Walking and running use PixelLab's built-in `walking` and `running` motions, which loop and cost nothing.
 - Ground and props are made with Pro Flash using `art_test/raw/style_ref.png` (the commander and a barbarian) as the style image, or they come out in a brighter cartoon style that does not match.
-- `tools/art/batch_art.sh` makes the prototype's art, `build_atlas.py` packs it into `game/assets/atlas.png` and takes new units and props through its `UNITS` and `PROPS`; `make_seamless.py` and `remove_leaves.py` make the ground tile and `make_boot_splash.py` the boot splash.
+- `tools/art/batch_art.sh` makes the prototype's art, `build_atlas.py` packs it into `game/assets/atlas.png` (4096 px wide, refused past 4096 tall) and takes new units and props through its `UNITS` and `PROPS`, a unit's art folder through `FOLDERS`, and an "attack" action wherever `attack_<direction>` folders hold frame_00 to frame_08; `make_seamless.py` and `remove_leaves.py` make the ground tile and `make_boot_splash.py` the boot splash.
 - No mirroring: every direction is drawn.
 
 ## Rules

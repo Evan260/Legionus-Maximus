@@ -58,7 +58,7 @@ func add(sim: Sim, kind: String, pos: Vector2) -> Dictionary:
 			for k in n:
 				var out := Vector2.from_angle(TAU * k / n + 0.4)
 				o.guards.append({"type": "legionary", "info": info, "pos": pos + out * float(c.guard_ring), "hp": hp, "max_hp": hp, "cd": 0.0,
-					"anim": k * 2.0, "facing": out, "moving": false, "flash": 0.0, "haste": 1.0})
+					"anim": k * 2.0, "facing": out, "moving": false, "flash": 0.0, "haste": 1.0, "struck_at": -1e9, "strike_dir": out})
 		"grove":
 			var c: Dictionary = cfg.grove
 			var ring := float(c.ring)

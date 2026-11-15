@@ -19,6 +19,11 @@ var _dests := PackedVector2Array()
 var _mods := PackedColorArray()
 # The trees being chopped this frame, as [position, seconds of chopping], for their progress bars.
 var _felling: Array = []
+# Per enemy kind of the current sim: its art name, whether it has an attack drawn, and its shadow's width.
+var _kinds_of: Sim
+var _k_type := PackedStringArray()
+var _k_attack := PackedByteArray()
+var _k_shadow := PackedFloat32Array()
 
 
 func _ready() -> void:
@@ -134,8 +139,7 @@ func _draw() -> void:
 
 	var gold := Color(1.0, 0.92, 0.7)
 	for u in [sim.commander] + sim.soldiers:
-		var action := "move" if u.moving else "idle"
-		var f := atlas.unit_frame(u.type, action, Sim.dir_name(u.facing), u.anim)
+		var f := _legion_frame(u)
 		var mod := white
 		if u.flash > 0.0:
 			mod = Color(1.0, 0.55, 0.55)
@@ -144,19 +148,37 @@ func _draw() -> void:
 		draw_texture(shadow, _snap(u.pos - Vector2(8, 3)))
 		_add(u.pos.y, f[0], u.pos - f[1], mod, true)
 
-	for i in sim.horde.e_pos.size():
-		var p: Vector2 = sim.horde.e_pos[i]
+	if _kinds_of != sim:
+		_index_kinds()
+	var h: Horde = sim.horde
+	var strike_secs := Atlas.ATTACK_FRAMES / Atlas.ATTACK_FPS
+	var loop_t := sim.time * Atlas.ATTACK_FPS
+	for i in h.e_pos.size():
+		var p: Vector2 = h.e_pos[i]
 		if not view.has_point(p):
 			continue
-		var type: String = sim.horde.kind_ids[sim.horde.e_kind[i]]
-		var t := sim.time * 11.0 + sim.horde.e_phase[i]
-		var f := atlas.unit_frame(type, "move", Sim.dir_name(sim.horde.e_face[i]), t if sim.horde.e_fighting[i] == 0 else float(sim.horde.e_phase[i]))
+		var kind := h.e_kind[i]
+		var type := _k_type[kind]
+		var dir := Sim.dir_name(h.e_face[i])
+		var f: Array
+		var since := sim.time - h.e_strike[i]
+		if _k_attack[kind] == 1 and since >= 0.0 and since < strike_secs:
+			f = atlas.attack_frame(type, dir, since)
+		# The chieftain's blows are his cleave and slam, so only lesser men swing on and on while locked in melee.
+		elif _k_attack[kind] == 1 and h.e_fighting[i] == 1 and h.e_tag[i] != Horde.CHIEF:
+			f = atlas.unit_frame(type, "attack", dir, loop_t + h.e_phase[i])
+		else:
+			f = atlas.unit_frame(type, "move", dir, sim.time * 11.0 + h.e_phase[i] if h.e_fighting[i] == 0 else float(h.e_phase[i]))
 		var mod := white
-		if sim.horde.e_flash[i] > 0.0:
+		if h.e_flash[i] > 0.0:
 			mod = Color(1.0, 0.5, 0.45)
-		elif sim.horde.e_burn[i] > 0.0:
+		elif h.e_burn[i] > 0.0:
 			mod = Color(1.0, 0.78, 0.6)
-		draw_texture(shadow, _snap(p - Vector2(8, 3)))
+		var sw := _k_shadow[kind]
+		if sw <= 16.0:
+			draw_texture(shadow, _snap(p - Vector2(8, 3)))
+		else:
+			draw_texture_rect(shadow, Rect2(_snap(p - Vector2(sw / 2.0, sw * 0.1875)), Vector2(sw, sw * 0.375)), false)
 		_add(p.y, f[0], p - f[1], mod, true)
 
 	for e in sim.effects:
@@ -186,6 +208,29 @@ func _draw() -> void:
 	_draw_bars()
 	_draw_felling()
 	_draw_gods(top_left, screen)
+
+
+## A legion soldier's frame: his attack while a strike plays, otherwise his walk or stance.
+func _legion_frame(u: Dictionary) -> Array:
+	var since: float = sim.time - float(u.get("struck_at", -1e9))
+	if since < Atlas.ATTACK_FRAMES / Atlas.ATTACK_FPS:
+		var f := atlas.attack_frame(u.type, Sim.dir_name(u.strike_dir), since)
+		if not f.is_empty():
+			return f
+	return atlas.unit_frame(u.type, "move" if u.moving else "idle", Sim.dir_name(u.facing), u.anim)
+
+
+func _index_kinds() -> void:
+	_kinds_of = sim
+	var h: Horde = sim.horde
+	_k_type.resize(h.kind_ids.size())
+	_k_attack.resize(h.kind_ids.size())
+	_k_shadow.resize(h.kind_ids.size())
+	for k in h.kind_ids.size():
+		_k_type[k] = h.kind_ids[k]
+		_k_attack[k] = 1 if atlas.units.has(h.kind_ids[k]) and atlas.units[h.kind_ids[k]].has("attack") else 0
+		# A small barbarian keeps the 16 px shadow; a boss's grows with his body.
+		_k_shadow[k] = maxf(16.0, h.k_radius[k] * 2.4)
 
 
 func view_for(top_left: Vector2) -> Rect2:
@@ -239,7 +284,9 @@ func _add_arm_sprites(view: Rect2) -> void:
 	if atlas.units.has("war_dog"):
 		var action := "move" if atlas.units.war_dog.has("move") else "idle"
 		for d in sim.arms.dogs:
-			var f := atlas.unit_frame("war_dog", action, Sim.dir_name(d.face), d.run * 12.0)
+			var f := atlas.attack_frame("war_dog", Sim.dir_name(d.face), sim.time - float(d.bit))
+			if f.is_empty():
+				f = atlas.unit_frame("war_dog", action, Sim.dir_name(d.face), d.run * 12.0)
 			draw_texture(shadow, (d.pos - Vector2(8, 3)).round())
 			_add(d.pos.y, f[0], d.pos - f[1], Color.WHITE)
 
@@ -359,7 +406,7 @@ func _add_objectives(view: Rect2) -> void:
 			"column":
 				_add_prop("supply_cart", o.pos, Color.WHITE)
 				for g in o.guards:
-					var f := atlas.unit_frame("legionary", "idle", Sim.dir_name(g.facing), g.anim)
+					var f := _legion_frame(g)
 					draw_texture(shadow, (g.pos - Vector2(8, 3)).round())
 					_add(g.pos.y, f[0], g.pos - f[1], Color(1.0, 0.55, 0.55) if g.flash > 0.0 else Color.WHITE)
 			"grove":
@@ -445,8 +492,10 @@ func _draw_elite_names(view: Rect2) -> void:
 		var i := h.e_id.find(id)
 		if i < 0 or not view.has_point(h.e_pos[i]):
 			continue
-		var label: String = sim.content.enemies[h.kind_ids[h.e_kind[i]]].name
-		var at: Vector2 = (h.e_pos[i] + Vector2(-60, -34)).round()
+		var type: String = h.kind_ids[h.e_kind[i]]
+		var label: String = sim.content.enemies[type].name
+		var tall: float = atlas.units[type].idle.south.frames[0][3] if atlas.units.has(type) else 40.0
+		var at: Vector2 = (h.e_pos[i] + Vector2(-60, -tall - 2.0)).round()
 		draw_string(Ui.font(), at + Vector2(1, 1), label, HORIZONTAL_ALIGNMENT_CENTER, 120, Lang.base_px(), Color(0.16, 0.1, 0.08))
 		draw_string(Ui.font(), at, label, HORIZONTAL_ALIGNMENT_CENTER, 120, Lang.base_px(), Color(1.0, 0.89, 0.59))
 

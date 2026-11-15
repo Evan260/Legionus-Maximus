@@ -3429,3 +3429,66 @@ func test_the_gods_have_their_own_key(b: Dictionary) -> void:
 		check(not _has_key(other, KEY_F), "F is not also %s" % other)
 	for other in ["testudo", "build", "pause", "back"]:
 		check(not _has_button(other, JOY_BUTTON_Y), "Y is not also %s" % other)
+
+
+const ATTACKERS := ["legionary", "commander", "archer", "barbarian_club", "barbarian_spear", "axe_thrower", "wolf", "war_dog",
+	"berserker", "war_band_leader", "war_priest", "chieftain"]
+const DIRECTIONS := ["east", "south-east", "south", "south-west", "west", "north-west", "north", "north-east"]
+
+
+func test_every_fighter_has_an_attack_in_all_eight_directions(_b: Dictionary) -> void:
+	var atlas := Atlas.new()
+	for type in ATTACKERS:
+		var unit: Dictionary = atlas.units.get(type, {})
+		check(unit.has("attack"), "%s has an attack in the atlas" % type)
+		for d in DIRECTIONS:
+			check(unit.get("attack", {}).has(d) and unit.attack[d].frames.size() == 8, "%s attacks facing %s in 8 frames" % [type, d])
+
+
+func test_a_soldiers_strike_plays_his_attack_once(b: Dictionary) -> void:
+	var atlas := Atlas.new()
+	var s := _quiet_sim(b, 600)
+	var so: Dictionary = s.soldiers[0]
+	s.horde.spawn("barbarian_club", so.pos + Vector2(0, 12))
+	s.horde.e_stun[0] = 100.0
+	s.horde.e_hp[0] = 1e6
+	s.horde.e_max[0] = 1e6
+	so.cd = 0.0
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(is_equal_approx(float(so.get("struck_at", -1.0)), s.time), "the strike is timed on the soldier")
+	check(Sim.dir_name(so.strike_dir) == "south", "he turns to the barbarian he strikes (%s)" % Sim.dir_name(so.strike_dir))
+	var start := atlas.attack_frame(so.type, Sim.dir_name(so.strike_dir), s.time - so.struck_at)
+	check(not start.is_empty() and start[0] == atlas.unit_frame(so.type, "attack", "south", 0.0)[0], "his attack starts on its first frame")
+	s.horde.remove_at(0)
+	for i in 60:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(atlas.attack_frame(so.type, Sim.dir_name(so.strike_dir), s.time - so.struck_at).is_empty(), "and is over a second later")
+
+
+func test_barbarians_turn_to_the_roman_they_fight(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 601)
+	s.horde.spawn("barbarian_club", s.commander.pos + Vector2(-9, -9))
+	s.horde.e_face[0] = Vector2.RIGHT
+	for i in 10:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.horde.e_fighting[0] == 1, "the barbarian is in melee")
+	check(s.horde.e_face[0].dot((s.commander.pos - s.horde.e_pos[0]).normalized()) > 0.9, "and faces the man he fights")
+
+
+func test_a_thrower_marks_his_throw_and_faces_it(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 602)
+	s.horde.spawn("axe_thrower", s.commander.pos + Vector2(0, -80))
+	s.horde.e_cd[0] = 0.0
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.horde.sp_pos.size() == 1, "the axe is thrown")
+	check(is_equal_approx(s.horde.e_strike[0], s.time), "the throw is timed on the thrower")
+	check(Sim.dir_name(s.horde.e_face[0]) == "south", "he faces where he threw")
+
+
+func test_the_bosses_are_drawn_big(_b: Dictionary) -> void:
+	var atlas := Atlas.new()
+	for type in ["berserker", "war_band_leader", "war_priest"]:
+		var h: int = atlas.units[type].idle.south.frames[0][3]
+		check(h >= 64, "%s stands at least 64 px tall (%d)" % [type, h])
+	var ch: int = atlas.units.chieftain.idle.south.frames[0][3]
+	check(ch >= 96, "the chieftain stands at least 96 px tall (%d)" % ch)

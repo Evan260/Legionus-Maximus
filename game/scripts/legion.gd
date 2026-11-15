@@ -28,7 +28,7 @@ func _init(balance: Dictionary, game_content: Content, random: RandomNumberGener
 	_l = balance.legion
 	var cu: Dictionary = _content.base_commander
 	commander = {"type": "commander", "pos": Vector2.ZERO, "hp": float(cu.hp), "max_hp": float(cu.hp), "cd": 0.0,
-		"anim": 0.0, "facing": Vector2.RIGHT, "moving": false, "flash": 0.0, "haste": 1.0}
+		"anim": 0.0, "facing": Vector2.RIGHT, "moving": false, "flash": 0.0, "haste": 1.0, "struck_at": -1e9, "strike_dir": Vector2.RIGHT}
 
 
 func count(type: String) -> int:
@@ -69,7 +69,8 @@ func add(type: String) -> bool:
 	var hp := max_hp_of(type)
 	soldiers.append({"type": type, "info": info, "place": info.place, "pos": commander.pos, "target": commander.pos,
 		"hp": hp, "max_hp": hp, "cd": _rng.randf() * 0.5, "anim": _rng.randf() * 8.0, "facing": Vector2.RIGHT,
-		"moving": false, "flash": 0.0, "haste": 1.0, "guard": null, "sortie": 0, "struck": {}})
+		"moving": false, "flash": 0.0, "haste": 1.0, "guard": null, "sortie": 0, "struck": {}, "struck_at": -1e9,
+		"strike_dir": Vector2.RIGHT})
 	return true
 
 
@@ -303,6 +304,7 @@ func _missile(s: Dictionary, dt: float, sim: Sim) -> void:
 	if t < 0:
 		return
 	s.cd = float(info.cooldown)
+	sim.strike(s, sim.horde.e_pos[t])
 	# Missiles get half the gladius bonus because the drill trains sword work.
 	var dmg := float(info.damage) * (1.0 + 0.2 * sim.rank("gladius") * 0.5)
 	if s.type == "archer":

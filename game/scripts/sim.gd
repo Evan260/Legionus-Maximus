@@ -483,9 +483,17 @@ func melee(u: Dictionary, dmg: float, reach: float, cooldown: float, dt: float) 
 	var t := horde.nearest_edge(u.pos, reach)
 	if t < 0:
 		return
+	strike(u, horde.e_pos[t])
 	hit(t, dmg * (1.0 + 0.2 * rank("gladius")), 0.0, u.type)
 	u.cd = cooldown
 	effects.append({"kind": "slash", "pos": u.pos, "to": horde.e_pos[t], "t": 0.0})
+
+
+## Times a soldier's blow or shot and turns him to its target, for his attack animation.
+func strike(u: Dictionary, at: Vector2) -> void:
+	u.struck_at = time
+	if at != u.pos:
+		u.strike_dir = (at - u.pos).normalized()
 
 
 func _legion_attacks(dt: float) -> void:
