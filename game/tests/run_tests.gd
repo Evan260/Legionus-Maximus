@@ -3492,6 +3492,36 @@ func test_a_thrower_marks_his_throw_and_faces_it(b: Dictionary) -> void:
 	check(Sim.dir_name(s.horde.e_face[0]) == "south", "he faces where he threw")
 
 
+func test_the_horde_is_drawn_from_the_atlas_frames(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 603)
+	var view: Node2D = load("res://scripts/world_view.gd").new()
+	view.atlas = Atlas.new()
+	view.sim = s
+	view._index_kinds()
+	var wrong: Array = []
+	for k in s.horde.kind_ids.size():
+		var type: String = s.horde.kind_ids[k]
+		if not view.atlas.units.has(type):
+			continue
+		for d in 8:
+			var slot: int = k * 16 + d
+			for t in [0.0, 0.7, 3.2, 7.9, 8.0, 13.5, 101.25]:
+				var f: Array = view.atlas.unit_frame(type, "move", Sim.DIRS[d], t)
+				if f[0] != view._f_rect[view._f_start[slot] + posmod(int(t), view._f_count[slot])] or f[1] != view._f_anchor[slot]:
+					wrong.append("%s move %s %.2f" % [type, Sim.DIRS[d], t])
+				if view._k_attack[k] == 1:
+					var since: float = fmod(t, 0.5)
+					var a: Array = view.atlas.attack_frame(type, Sim.DIRS[d], since)
+					if a[0] != view._f_rect[view._f_start[slot + 8] + int(since * Atlas.ATTACK_FPS)] or a[1] != view._f_anchor[slot + 8]:
+						wrong.append("%s attack %s %.2f" % [type, Sim.DIRS[d], since])
+		for d in 8:
+			var face := Vector2.from_angle(d * PI / 4.0 + 0.3)
+			if Sim.DIRS[Sim.dir_index(face)] != Sim.dir_name(face):
+				wrong.append("direction %d" % d)
+	view.free()
+	check(wrong.is_empty(), "every barbarian's frame comes from the atlas (%s)" % [wrong.slice(0, 4)])
+
+
 func test_the_bosses_are_drawn_big(_b: Dictionary) -> void:
 	var atlas := Atlas.new()
 	for type in ["berserker", "war_band_leader", "war_priest"]:

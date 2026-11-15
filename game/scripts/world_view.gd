@@ -14,7 +14,7 @@ var _cam := Vector2.ZERO
 var _shake_rng := RandomNumberGenerator.new()
 
 var _keys := PackedInt64Array()
-var _rects: Array = []
+var _rects: Array[Rect2] = []
 var _dests := PackedVector2Array()
 var _mods := PackedColorArray()
 # The trees being chopped this frame, as [position, seconds of chopping], for their progress bars.
@@ -24,6 +24,11 @@ var _kinds_of: Sim
 var _k_type := PackedStringArray()
 var _k_attack := PackedByteArray()
 var _k_shadow := PackedFloat32Array()
+# Every enemy kind's walk and attack frames, so drawing the horde reads arrays instead of the atlas's JSON: slot (kind * 2 + action) * 8 + direction gives where its frames start in _f_rect, how many there are and the anchor.
+var _f_start := PackedInt32Array()
+var _f_count := PackedInt32Array()
+var _f_anchor := PackedVector2Array()
+var _f_rect: Array[Rect2] = []
 # The rocky lip drawn along every ravine.
 var ravine_edge: Texture2D
 
@@ -167,17 +172,20 @@ func _draw() -> void:
 		if not view.has_point(p):
 			continue
 		var kind := h.e_kind[i]
-		var type := _k_type[kind]
-		var dir := Sim.dir_name(h.e_face[i])
-		var f: Array
+		var slot := kind * 16 + Sim.dir_index(h.e_face[i])
+		var fi: int
 		var since := sim.time - h.e_strike[i]
 		if _k_attack[kind] == 1 and since >= 0.0 and since < strike_secs:
-			f = atlas.attack_frame(type, dir, since)
+			slot += 8
+			fi = int(since * Atlas.ATTACK_FPS)
 		# The chieftain's blows are his cleave and slam, so only lesser men swing on and on while locked in melee.
 		elif _k_attack[kind] == 1 and h.e_fighting[i] == 1 and h.e_tag[i] != Horde.CHIEF:
-			f = atlas.unit_frame(type, "attack", dir, loop_t + h.e_phase[i])
+			slot += 8
+			fi = posmod(int(loop_t + h.e_phase[i]), _f_count[slot])
 		else:
-			f = atlas.unit_frame(type, "move", dir, sim.time * 11.0 + h.e_phase[i] if h.e_fighting[i] == 0 else float(h.e_phase[i]))
+			fi = posmod(int(sim.time * 11.0 + h.e_phase[i] if h.e_fighting[i] == 0 else float(h.e_phase[i])), _f_count[slot])
+		var rect := _f_rect[_f_start[slot] + fi]
+		var anchor := _f_anchor[slot]
 		var mod := white
 		if h.e_flash[i] > 0.0:
 			mod = Color(1.0, 0.5, 0.45)
@@ -190,7 +198,7 @@ func _draw() -> void:
 			draw_texture(shadow, _snap(p - Vector2(8, 3)))
 		else:
 			draw_texture_rect(shadow, Rect2(_snap(p - Vector2(sw / 2.0, sw * 0.1875)), Vector2(sw, sw * 0.375)), false)
-		_add(p.y, f[0], p - f[1], mod, true)
+		_add(p.y, rect, p - anchor, mod, true)
 
 	for e in sim.effects:
 		if e.kind == "death" or e.kind == "fallen":
@@ -246,6 +254,26 @@ func _index_kinds() -> void:
 		_k_attack[k] = 1 if atlas.units.has(h.kind_ids[k]) and atlas.units[h.kind_ids[k]].has("attack") else 0
 		# A small barbarian keeps the 16 px shadow; a boss's grows with his body.
 		_k_shadow[k] = maxf(16.0, h.k_radius[k] * 2.4)
+	var slots := h.kind_ids.size() * 16
+	_f_start.resize(slots)
+	_f_count.resize(slots)
+	_f_anchor.resize(slots)
+	_f_rect.clear()
+	for k in h.kind_ids.size():
+		var unit: Dictionary = atlas.units.get(h.kind_ids[k], {})
+		for a in 2:
+			var action := "attack" if a == 1 else "move"
+			for d in 8:
+				var slot := (k * 2 + a) * 8 + d
+				_f_start[slot] = _f_rect.size()
+				_f_count[slot] = 0
+				if not unit.has(action):
+					continue
+				var anim: Dictionary = unit[action][Sim.DIRS[d]]
+				for f in anim.frames:
+					_f_rect.append(Rect2(f[0], f[1], f[2], f[3]))
+				_f_count[slot] = anim.frames.size()
+				_f_anchor[slot] = Vector2(anim.anchor[0], anim.anchor[1])
 
 
 func view_for(top_left: Vector2) -> Rect2:
