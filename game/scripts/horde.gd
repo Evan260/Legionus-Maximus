@@ -1017,21 +1017,18 @@ func _move(dt: float, sim: Sim) -> void:
 				var y0 := maxi(maxi(0, ky - ring), floori((p.y - reach) / CELL) - g_origin.y)
 				var y1 := mini(mini(GW - 1, ky + ring), floori((p.y + reach) / CELL) - g_origin.y)
 				for cy in range(y0, y1 + 1):
-					for cx in range(x0, x1 + 1):
-						var cell := cx + cy * GW
-						# The enemy himself is in the list too, but at no distance he fails the test below.
-						for t in range(gs[cell], gs[cell + 1]):
-							var away := p - e_pos[gi[t]]
-							var dd := away.length_squared()
-							var min_d := r + gr[t]
-							if dd < min_d * min_d and dd > 0.0001:
-								var dl := sqrt(dd)
-								push += away / dl * (min_d - dl)
-								seen += 1
-								if seen > 5:
-									break
-						if seen > 5:
-							break
+					# The cells of one row lie side by side in g_items, so a row is read as one run.
+					# The enemy himself is in the run too, but at no distance he fails the test below.
+					for t in range(gs[x0 + cy * GW], gs[x1 + 1 + cy * GW]):
+						var away := p - e_pos[gi[t]]
+						var dd := away.length_squared()
+						var min_d := r + gr[t]
+						if dd < min_d * min_d and dd > 0.0001:
+							var dl := sqrt(dd)
+							push += away / dl * (min_d - dl)
+							seen += 1
+							if seen > 5:
+								break
 					if seen > 5:
 						break
 			e_push[i] = push
