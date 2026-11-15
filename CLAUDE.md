@@ -1,6 +1,6 @@
 # Legionus Maximus
 
-A survivors-style game in pixel art where the player steers a growing Roman legion through barbarian hordes. Fourth game from Slow Sunday Games. [Plan.md](Plan.md) is the plan and [Features.md](Features.md) the full feature set; the game in `game/` is the prototype.
+A survivors-style game in pixel art where the player steers a growing Roman legion through barbarian hordes. Fourth game from Slow Sunday Games. The game is in `game/`.
 
 ## Commands
 
@@ -37,8 +37,7 @@ Godot is `C:\Users\evand\AppData\Local\Microsoft\WinGet\Packages\GodotEngine.God
 - `game/scripts/world_view.gd`, `hud.gd`, `atlas.gd`: drawing. Every sprite is in one atlas so the horde draws in one batch.
 - `game/scripts/main.gd`: input, the state machine and the command-line modes. `game.gd` says whether this is the demo.
 - `game/scripts/screens/`: title, camp, quartermaster, tablinum, map, commanders, pause, settings and the run summary, all drawn through `ui.gd`. `controls.gd` has the default keys and pad buttons and the player's rebinding laid over them.
-- `game/tests/run_tests.gd`: every test. `WAITING_FOR_ART` (recruits) and `NO_ICON_YET` (arms, forged forms, drills, empty since every icon exists) list entries whose art is not drawn yet; shrink them as art lands (see ART-NEEDED.md).
-- `ART-NEEDED.md`: every art key still missing, the PixelLab command for each, its cost and what it unlocks.
+- `game/tests/run_tests.gd`: every test. `WAITING_FOR_ART` (recruits) and `NO_ICON_YET` (arms, forged forms, drills, empty since every icon exists) list entries whose art is not drawn yet; shrink them as art lands.
 - `game/scripts/lang.gd` (autoload `Lang`): the 14 languages, their fonts and the saved or system language. Every player-facing string goes through `tr("English words")`, and `content.json` names, texts and histories get a key such as `content.recruits.legionary.name` that `Content.localize()` lays over the English. `--lang=CODE` shows another language.
 - Translations: `python tools/extract_strings.py` fills `game/translations/strings.csv` (and clears the cells of a line whose English changed), `python tools/translate_strings.py --yes` sends the empty cells to Azure (key in `.env`) and then writes the hand-checked cells of `tools/translation_fixes.json` over the machine's (its glossary keeps names such as the gods' in each language's form; put every hand fix there, never only in the CSV), `python tools/write_presence.py` writes `tools/steam/rich_presence.vdf`; reimport the project afterwards. English, French, German, Spanish, Italian and Portuguese draw in Silkscreen, Polish, Turkish, Russian and Ukrainian in Fusion Pixel 10 px (16 px at large text), Chinese, Japanese and Korean in Fusion Pixel 8 px. Draw text through `Ui.font()` and `Ui.px`, and wrap it with `Ui.lines_of`, which breaks between letters in Chinese and Japanese. Key hints are built in `Controls.hint()` from a key and one translated word each (`Controls.HINT_WORDS`), so no translated string holds a key.
 
@@ -50,6 +49,10 @@ All art is PixelLab, made with `tools/art/pixellab.py` (token in `.env`, never i
 - Ground and props are made with Pro Flash using `art_test/raw/style_ref.png` (the commander and a barbarian) as the style image, or they come out in a brighter cartoon style that does not match.
 - `tools/art/batch_art.sh` makes the prototype's art, `build_atlas.py` packs it into `game/assets/atlas.png` (4096 px wide, refused past 4096 tall) and takes new units and props through its `UNITS` and `PROPS`, a unit's art folder through `FOLDERS`, and an "attack" action wherever `attack_<direction>` folders hold frame_00 to frame_08; `make_seamless.py` and `remove_leaves.py` make the ground tile and `make_boot_splash.py` the boot splash.
 - No mirroring: every direction is drawn.
+- Look at every still before paying to animate it, and try one direction of a new animation before paying for all eight.
+- Animals and riders use `--template dog`, `bear` or `horse`. The `horse` and `bear` templates save each picture under the direction one step clockwise of the one drawn, so rename the stills to what they show and keep PixelLab's own label in `character.json` as `pixellab_direction`.
+- Icons use pixen with "inventory item icon of a single object: ... Object only, no people, no faces, no creatures", or it draws a figure. Ask for no symbols or crosses on props.
+- When jobs run in parallel, log each job's own cost in `ledger.csv`, not the whole balance drop.
 
 ## Rules
 

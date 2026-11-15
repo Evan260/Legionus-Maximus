@@ -28,8 +28,6 @@ Move with WASD, the arrow keys or the left stick. Space or the south face button
 | `docs/` | The build plans |
 | `builds/` | Exported builds (not kept in git) |
 
-The art still to be drawn is in [ART-NEEDED.md](ART-NEEDED.md).
-
 ## Checking changes
 
 ```

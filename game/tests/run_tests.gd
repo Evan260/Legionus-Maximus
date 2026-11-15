@@ -500,7 +500,7 @@ func test_every_content_entry_has_a_name_and_text(b: Dictionary) -> void:
 		for id in entries:
 			check(str(entries[id].get("name", "")) != "", "%s %s has a name" % [kind, id])
 			check(str(entries[id].get("text", "")) != "", "%s %s has a text" % [kind, id])
-	check(content.recruits.size() == 8 and content.arms.size() == 12 and content.forged.size() == 6 and content.drills.size() == 15, "the full set from Features.md")
+	check(content.recruits.size() == 8 and content.arms.size() == 12 and content.forged.size() == 6 and content.drills.size() == 15, "the full set of recruits, arms, forged forms and drills")
 	check(content.provinces.size() == 5 and content.commanders.size() == 6, "five provinces and six commanders")
 	for p in content.provinces:
 		var pr: Dictionary = content.provinces[p]
