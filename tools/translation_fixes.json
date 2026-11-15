@@ -1680,6 +1680,19 @@
       "ko": "빛과 치유의 신 아폴로에게는 기원전 433년 역병을 끝내기 위해 로마에 신전이 바쳐졌다.",
       "zh_CN": "公元前433年，为了平息一场瘟疫，罗马为光明与治愈之神阿波罗建造了一座神庙。",
       "zh_TW": "公元前433年，為了平息一場瘟疫，羅馬為光明與療癒之神阿波羅建造了一座神廟。"
+    },
+    "content.drills.plunder.text": {
+      "en": "Every fallen barbarian drops 15% more denarii.",
+      "zh_CN": "每个倒下的野蛮人多掉落15%的银币。"
+    },
+    "content.quartermaster.denarii.name": {
+      "en": "More denarii",
+      "zh_CN": "更多银币",
+      "zh_TW": "更多銀幣"
+    },
+    "content.quartermaster.denarii.text": {
+      "en": "Fallen barbarians drop more denarii.",
+      "zh_CN": "倒下的野蛮人会掉落更多银币。"
     }
   }
 }
