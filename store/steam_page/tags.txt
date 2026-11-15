@@ -1,0 +1,25 @@
+Steamworks lets a game choose up to 20 tags, in order of importance; the first few carry the most weight in
+recommendations. Pick each from Steam's own list; if one is not offered, skip it.
+
+1. Action Roguelike
+2. Bullet Heaven
+3. Roguelite
+4. Pixel Graphics
+5. Rome
+6. Historical
+7. Military
+8. Top-Down
+9. Action
+10. Arcade
+11. Survival
+12. Replay Value
+13. 2D
+14. Strategy
+15. Difficult
+16. War
+17. Score Attack
+18. Singleplayer
+19. Controller
+20. Indie
+
+Genres (Steamworks, Basic Info): Action, Indie

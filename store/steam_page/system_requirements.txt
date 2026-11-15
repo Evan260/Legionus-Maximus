@@ -1,0 +1,46 @@
+These are estimates from what the game draws and how it runs on the development machine; they have not yet been
+measured on old or low end computers. The busiest late runs, with a hundred soldiers and the full horde on screen,
+are the part that needs the processor most.
+
+WINDOWS
+
+Minimum
+OS: Windows 10 or 11, 64-bit
+Processor: any quad-core processor from the last ten years
+Memory: 2 GB RAM
+Graphics: any graphics card or integrated graphics supporting OpenGL 3.3
+Storage: 150 MB available space
+
+Recommended
+Processor: any quad-core processor from the last six years
+Memory: 4 GB RAM
+Additional notes: The game is 2D and about 50 MB.
+
+
+MACOS
+
+Minimum
+OS: macOS 13 Ventura or later on Apple silicon, macOS 11 Big Sur or later on Intel
+Processor: Apple silicon or a 64-bit Intel processor
+Memory: 2 GB RAM
+Graphics: any Mac that runs these versions of macOS
+Storage: 250 MB available space
+
+Recommended
+Memory: 4 GB RAM
+Additional notes: The game is 2D and runs natively on Apple silicon and Intel Macs.
+
+
+LINUX / STEAMOS
+
+Minimum
+OS: a 64-bit distribution from the last five years, or SteamOS
+Processor: any quad-core processor from the last ten years
+Memory: 2 GB RAM
+Graphics: any graphics card or integrated graphics supporting OpenGL 3.3
+Storage: 150 MB available space
+
+Recommended
+Processor: any quad-core processor from the last six years
+Memory: 4 GB RAM
+Additional notes: The game is 2D.

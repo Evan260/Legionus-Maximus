@@ -1,0 +1,70 @@
+[h2]You steer. The legion fights.[/h2]
+
+Legionus Maximus is a survivors-style action game in pixel art, set in the forests of Germania after the Teutoburg disaster. You move the commander and nothing else. Every legionary stabs, every archer shoots and every weapon fires on its own, while the barbarians pour in from every side. Each level-up adds men, a weapon or a drill, so a run that starts with a handful of soldiers ends with a hundred men in formation holding off a screen full of enemies.
+
+[h2]At a glance[/h2]
+[list]
+[*]One control that matters: where you march. The formation turns as you turn, shields to the front and archers behind.
+[*]From a handful of men to a legion of a hundred, every one of them on the field and fighting.
+[*]Elites every minute, each with abilities of his own, and a chieftain who comes out to stop you.
+[*]Five gods of Rome to call on when their favour is full: lightning, an earthquake, war frenzy, a rain of fire and healing light.
+[*]Fell trees for timber, drive palisades across the barbarians' path and lay bridges over the ravines.
+[*]Retake the eagles, burn the sacred grove and march into the Roman fort to win the run.
+[/list]
+
+[h2]A legion that grows with every level[/h2]
+Fallen barbarians drop denarii, and the denarii fill the level bar. Each level pauses the battle and offers three choices:
+[list]
+[*][b]Recruits:[/b] more legionaries for the front ranks and archers for the rear, each soldier with his own health.
+[*][b]Arms:[/b] twelve weapons that fire on their own, from pilum volleys, the scorpio and the onager to war dogs, fire pots, caltrops and a ring of torches. Each has five ranks.
+[*][b]Forged forms:[/b] bring two arms to their last rank and they can be forged into one, such as Greek fire or the siege train. There are six to find.
+[*][b]Drills:[/b] fifteen upgrades for the whole legion, from forced marches and better armour to reserves who replace the fallen.
+[/list]
+The front rank takes the blows meant for the men behind it, so a deep formation keeps its archers alive. Press the testudo when the axes and spears start to fly, and the shields lock for a few seconds.
+
+[h2]Bosses that tell you what they are about to do[/h2]
+Elites come on their own timer, more of them as the run goes on. Every ability is shown on the ground before it lands, so a legion that is watching can step out of it.
+[list]
+[*][b]The berserker[/b] circles round to the archers at the back, charges, and spins in a whirlwind inside a red ring.
+[*][b]The war band leader[/b] raises his shield to the legion, so you have to take him from the side, and calls his band around him.
+[*][b]The war priest[/b] throws burning pots at your thickest ranks, heals the barbarians round him, curses the legion and vanishes in smoke when your men reach him.
+[*][b]The chieftain[/b] marches out with his bodyguard. A red line shows his charge and a red ring his slam, he blows his war horn for more warriors, and below half health he roars and fights faster.
+[/list]
+
+[h2]The gods of Rome[/h2]
+Every barbarian killed fills the favour of the gods. When it is full, call on them and choose one of three:
+[list]
+[*][b]Jupiter[/b] brings down a storm of lightning on everything on screen.
+[*][b]Neptune[/b] shakes the earth and throws the horde back, some of them into the ravines.
+[*][b]Mars[/b] fills the legion with war frenzy.
+[*][b]Vulcan[/b] rains fire, and every barbarian it touches burns.
+[*][b]Apollo[/b] heals the whole legion and brings back the fallen.
+[/list]
+
+[h2]Cut your own road[/h2]
+The forest grows in long ridges too thick to pass, and deep ravines split the field into regions joined at narrow crossings, so there are only certain ways to go and a legion can be cornered. Soldiers pressed against a tree fell it, and every tree they bring down is a log of timber. Spend timber to drive a line of stakes across the barbarians' path, or to lay a plank bridge over a ravine and open a way no one else can take.
+
+[h2]A mission, not just a timer[/h2]
+Every run is a campaign to win back the eagle standards Rome lost in the forest.
+[list]
+[*]Storm a barbarian camp and take back its eagle, then watch the huts burn.
+[*]Reach a stranded column holding out round its supply cart, and its survivors join your ranks.
+[*]Hold the sacred grove while war bands come to defend it, and burn it.
+[*]At 16 minutes a Roman fort appears to the north. March into it and hold it to win, while the chieftain does all he can to stop you.
+[/list]
+
+[h2]Between runs[/h2]
+[list]
+[*]The denarii you carry home buy about twenty permanent upgrades from the quartermaster.
+[*]The tablinum keeps every soldier, weapon, enemy and god you have met, with a line of real history for each.
+[*]Win in Germania to unlock a second commander, and the Hard, Endless and Decimatio modes.
+[*]A run summary with your time, kills, denarii, the damage each weapon did and the size of your legion over time.
+[/list]
+
+[h2]Made to play your way[/h2]
+[list]
+[*]Full controller support, and every key and button can be rebound.
+[*]Larger text, screen shake and damage numbers can each be set in the options.
+[*]Pixel art that stays sharp at every screen size.
+[*]Steam achievements, and play in 14 languages.
+[/list]
