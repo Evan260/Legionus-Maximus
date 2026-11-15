@@ -17,6 +17,11 @@ var _rng: RandomNumberGenerator
 var _ranks: Dictionary
 var _cap := 100
 var _l: Dictionary
+# The attack rate for this update, read once since every soldier's cooldown runs on it.
+var _rate := 1.0
+# The roll formation() last placed and the places it gave, reused while the roll is the same.
+var _form_roll: Array = []
+var _form_places: Array = []
 
 
 func _init(balance: Dictionary, game_content: Content, random: RandomNumberGenerator, ranks: Dictionary) -> void:
@@ -94,6 +99,14 @@ func refresh_health(type: String) -> void:
 
 ## Places in the legion's own frame, +x ahead, one for each soldier in the order of the soldiers array.
 func formation() -> Array:
+	if _form_roll.size() == soldiers.size():
+		var same := true
+		for i in soldiers.size():
+			if not is_same(_form_roll[i], soldiers[i]):
+				same = false
+				break
+		if same:
+			return _form_places
 	var groups := {"front": [], "rear": [], "flank": [], "middle": []}
 	for i in soldiers.size():
 		groups[soldiers[i].place].append(i)
@@ -120,6 +133,8 @@ func formation() -> Array:
 	for k in groups.middle.size():
 		var side := 1.0 if k % 2 == 0 else -1.0
 		out[groups.middle[k]] = Vector2(float(_l.middle_x), side * (float(_l.middle_across) + float(_l.middle_step) * (k / 2)))
+	_form_roll = soldiers.duplicate()
+	_form_places = out
 	return out
 
 
@@ -226,13 +241,21 @@ func update(dt: float, sim: Sim) -> void:
 	_auras()
 	_reserves(dt)
 	var medici: Array = []
+	_rate = sim.attack_rate()
 	for s in soldiers:
 		var info: Dictionary = s.info
 		match info.attack:
 			"melee":
-				sim.melee(s, _melee_damage(s.type), float(info.reach), float(info.cooldown), dt)
+				# A man still waiting out his cooldown only counts it down, so his blow is worked out only when he can strike.
+				if s.cd - dt * _rate * s.haste > 0.0:
+					s.cd -= dt * _rate * s.haste
+				else:
+					sim.melee(s, _melee_damage(s.type), float(info.reach), float(info.cooldown), dt)
 			"shout":
-				sim.melee(s, _melee_damage(s.type), float(info.reach), float(info.cooldown), dt)
+				if s.cd - dt * _rate * s.haste > 0.0:
+					s.cd -= dt * _rate * s.haste
+				else:
+					sim.melee(s, _melee_damage(s.type), float(info.reach), float(info.cooldown), dt)
 				_shout(s, dt, sim)
 			"missile":
 				_missile(s, dt, sim)
@@ -313,7 +336,7 @@ func _auras() -> void:
 
 func _missile(s: Dictionary, dt: float, sim: Sim) -> void:
 	var info: Dictionary = s.info
-	s.cd -= dt * sim.attack_rate() * s.haste
+	s.cd -= dt * _rate * s.haste
 	if s.cd > 0.0:
 		return
 	var t := sim.nearest_enemy(s.pos, float(info.range) * sim.range_mult())
@@ -334,7 +357,7 @@ func _missile(s: Dictionary, dt: float, sim: Sim) -> void:
 
 func _ballista(s: Dictionary, dt: float, sim: Sim) -> void:
 	var info: Dictionary = s.info
-	s.cd -= dt * sim.attack_rate() * s.haste
+	s.cd -= dt * _rate * s.haste
 	if s.cd > 0.0:
 		return
 	var reach := float(info.range) * sim.range_mult()
@@ -395,7 +418,7 @@ func _sortie(s: Dictionary, dt: float, sim: Sim) -> void:
 	var speed := float(info.ride_speed)
 	var strike := float(info.strike_reach)
 	if s.sortie == 0:
-		s.cd -= dt * sim.attack_rate() * s.haste
+		s.cd -= dt * _rate * s.haste
 		if s.cd <= 0.0 and sim.nearest_enemy(s.pos, float(info.reach)) >= 0:
 			s.sortie = 1
 			s.struck = {}

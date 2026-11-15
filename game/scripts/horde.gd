@@ -915,6 +915,9 @@ func _move(dt: float, sim: Sim) -> void:
 	var ci := chieftain_index()
 	var chief_pos := e_pos[ci] if ci >= 0 else Vector2.ZERO
 	var through := ci if charging else -1
+	var gs := g_start
+	var gi := g_items
+	var gr := g_rad
 	for i in e_pos.size():
 		var kind := e_kind[i]
 		var p := e_pos[i]
@@ -1011,13 +1014,11 @@ func _move(dt: float, sim: Sim) -> void:
 				for cy in range(y0, y1 + 1):
 					for cx in range(x0, x1 + 1):
 						var cell := cx + cy * GW
-						for t in range(g_start[cell], g_start[cell + 1]):
-							var j := g_items[t]
-							if j == i:
-								continue
-							var away := p - e_pos[j]
+						# The enemy himself is in the list too, but at no distance he fails the test below.
+						for t in range(gs[cell], gs[cell + 1]):
+							var away := p - e_pos[gi[t]]
 							var dd := away.length_squared()
-							var min_d := r + g_rad[t]
+							var min_d := r + gr[t]
 							if dd < min_d * min_d and dd > 0.0001:
 								var dl := sqrt(dd)
 								push += away / dl * (min_d - dl)
