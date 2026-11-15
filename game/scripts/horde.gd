@@ -1317,15 +1317,16 @@ func nearest(p: Vector2, reach: float) -> int:
 	var rings := ceili(reach / CELL)
 	var best := -1
 	var best_d := reach * reach
+	var x0 := maxi(0, kx - rings)
+	var x1 := mini(GW, kx + rings + 1)
+	# The cells of one row lie side by side in g_items, so each row is read as one run.
 	for cy in range(maxi(0, ky - rings), mini(GW, ky + rings + 1)):
-		for cx in range(maxi(0, kx - rings), mini(GW, kx + rings + 1)):
-			var cell := cx + cy * GW
-			for t in range(g_start[cell], g_start[cell + 1]):
-				var j := g_items[t]
-				var dd := (e_pos[j] - p).length_squared()
-				if dd < best_d and e_hp[j] > 0.0:
-					best_d = dd
-					best = j
+		for t in range(g_start[x0 + cy * GW], g_start[x1 + cy * GW]):
+			var j := g_items[t]
+			var dd := (e_pos[j] - p).length_squared()
+			if dd < best_d and e_hp[j] > 0.0:
+				best_d = dd
+				best = j
 	return best
 
 
@@ -1340,15 +1341,15 @@ func nearest_edge(p: Vector2, reach: float) -> int:
 	var rings := ceili((reach + (max_radius if big_alive > 0 else 6.0)) / CELL)
 	var best := -1
 	var best_d := reach
+	var x0 := maxi(0, kx - rings)
+	var x1 := mini(GW, kx + rings + 1)
 	for cy in range(maxi(0, ky - rings), mini(GW, ky + rings + 1)):
-		for cx in range(maxi(0, kx - rings), mini(GW, kx + rings + 1)):
-			var cell := cx + cy * GW
-			for t in range(g_start[cell], g_start[cell + 1]):
-				var j := g_items[t]
-				var dd := (e_pos[j] - p).length() - k_radius[e_kind[j]]
-				if dd < best_d and e_hp[j] > 0.0:
-					best_d = dd
-					best = j
+		for t in range(g_start[x0 + cy * GW], g_start[x1 + cy * GW]):
+			var j := g_items[t]
+			var dd := (e_pos[j] - p).length() - k_radius[e_kind[j]]
+			if dd < best_d and e_hp[j] > 0.0:
+				best_d = dd
+				best = j
 	return best
 
 
@@ -1362,13 +1363,13 @@ func near(p: Vector2, r: float) -> Array:
 	var ky := c / GW
 	var rings := ceili(r / CELL)
 	var r2 := r * r
+	var x0 := maxi(0, kx - rings)
+	var x1 := mini(GW, kx + rings + 1)
 	for cy in range(maxi(0, ky - rings), mini(GW, ky + rings + 1)):
-		for cx in range(maxi(0, kx - rings), mini(GW, kx + rings + 1)):
-			var cell := cx + cy * GW
-			for t in range(g_start[cell], g_start[cell + 1]):
-				var j := g_items[t]
-				if e_hp[j] > 0.0 and (e_pos[j] - p).length_squared() <= r2:
-					out.append(j)
+		for t in range(g_start[x0 + cy * GW], g_start[x1 + cy * GW]):
+			var j := g_items[t]
+			if e_hp[j] > 0.0 and (e_pos[j] - p).length_squared() <= r2:
+				out.append(j)
 	return out
 
 
