@@ -83,15 +83,15 @@ var testudo_charge := 1.0
 
 var legion_reach := 0.0
 var units: Array = []
-# The units listed by cell on the horde's grid, built every update, and 1 in every cell an enemy up to NEAR_RADIUS wide could strike a unit from.
-var ug_start := PackedInt32Array()
-var ug_items := PackedInt32Array()
+# The units by cell on the horde's grid, built every update: the first unit in each cell or -1, the next unit in the same cell or -1,
+# and 1 in every cell an enemy up to NEAR_RADIUS wide could strike a unit from.
+var ug_head := PackedInt32Array()
+var ug_next := PackedInt32Array()
 var ug_near := PackedByteArray()
 ## Whether every unit stands inside the horde's grid; when one does not, lookups go through unit_cells() instead.
 var ug_all_in := false
 var _u_cells := {}
 var _u_cells_ready := false
-var _ug_cell := PackedInt32Array()
 var _ug_pos := PackedVector2Array()
 var content: Content
 var commander_id := "tribune"
@@ -484,11 +484,11 @@ func _rebuild_grids() -> void:
 	var gw := Horde.GW
 	var go := horde.g_origin
 	var n := units.size()
-	ug_start.resize(gw * gw + 1)
-	ug_start.fill(0)
+	ug_head.resize(gw * gw)
+	ug_head.fill(-1)
+	ug_next.resize(n)
 	ug_near.resize(gw * gw)
 	ug_near.fill(0)
-	_ug_cell.resize(n)
 	_ug_pos.resize(n)
 	ug_all_in = true
 	for i in n:
@@ -498,23 +498,19 @@ func _rebuild_grids() -> void:
 		var cy := floori(p.y / CELL) - go.y
 		if cx < 0 or cy < 0 or cx >= gw or cy >= gw:
 			ug_all_in = false
-			_ug_cell[i] = -1
 			continue
-		_ug_cell[i] = cx + cy * gw
-		ug_start[cx + cy * gw + 1] += 1
 		var reach := UNIT_RADIUS + 2.0 + NEAR_RADIUS
 		for y in range(maxi(0, floori((p.y - reach) / CELL) - go.y), mini(gw, floori((p.y + reach) / CELL) - go.y + 1)):
 			for x in range(maxi(0, floori((p.x - reach) / CELL) - go.x), mini(gw, floori((p.x + reach) / CELL) - go.x + 1)):
 				ug_near[x + y * gw] = 1
-	for c in range(1, gw * gw + 1):
-		ug_start[c] += ug_start[c - 1]
-	ug_items.resize(ug_start[gw * gw])
-	var fill := ug_start.duplicate()
-	for i in n:
-		var c := _ug_cell[i]
-		if c >= 0:
-			ug_items[fill[c]] = i
-			fill[c] += 1
+	# Linked from the last unit back, each cell lists its units in the order of the units array.
+	for i in range(n - 1, -1, -1):
+		var p := _ug_pos[i]
+		var cx := floori(p.x / CELL) - go.x
+		var cy := floori(p.y / CELL) - go.y
+		if cx >= 0 and cy >= 0 and cx < gw and cy < gw:
+			ug_next[i] = ug_head[cx + cy * gw]
+			ug_head[cx + cy * gw] = i
 
 
 ## The units by global cell where they stood when the grids were built, for a lookup the horde's grid cannot answer.
@@ -841,9 +837,11 @@ func _unit_near(p: Vector2, r2: float) -> bool:
 		for cx in range(maxi(0, kx - span), mini(gw, kx + span + 1)):
 			for cy in range(maxi(0, ky - span), mini(gw, ky + span + 1)):
 				var cell := cx + cy * gw
-				for t in range(ug_start[cell], ug_start[cell + 1]):
-					if (units[ug_items[t]].pos - p).length_squared() < r2:
+				var ui := ug_head[cell]
+				while ui >= 0:
+					if (units[ui].pos - p).length_squared() < r2:
 						return true
+					ui = ug_next[ui]
 		return false
 	var cells := unit_cells()
 	for cx in range(k.x - span, k.x + span + 1):

@@ -892,8 +892,8 @@ func _move(dt: float, sim: Sim) -> void:
 	var sep_range: float = b.separation_range
 	var units := sim.units
 	var ug_near := sim.ug_near
-	var ug_start := sim.ug_start
-	var ug_items := sim.ug_items
+	var ug_head := sim.ug_head
+	var ug_next := sim.ug_next
 	var ug_all_in := sim.ug_all_in
 	var ox := g_origin.x
 	var oy := g_origin.y
@@ -1053,13 +1053,13 @@ func _move(dt: float, sim: Sim) -> void:
 				var best := INF
 				for cx in range(maxi(0, maxi(kx - span, floori((p.x - hit_r) / CELL) - ox)), mini(GW, mini(kx + span, floori((p.x + hit_r) / CELL) - ox) + 1)):
 					for cy in range(maxi(0, maxi(ky - span, floori((p.y - hit_r) / CELL) - oy)), mini(GW, mini(ky + span, floori((p.y + hit_r) / CELL) - oy) + 1)):
-						var cell := cx + cy * GW
-						for t in range(ug_start[cell], ug_start[cell + 1]):
-							var ui := ug_items[t]
+						var ui := ug_head[cx + cy * GW]
+						while ui >= 0:
 							var dd: float = (units[ui].pos - p).length()
 							if dd < hit_r and dd < best:
 								best = dd
 								target_unit = ui
+							ui = ug_next[ui]
 			if target_unit >= 0:
 				var u: Dictionary = sim.legion.shield(units[target_unit])
 				var guard := shield * (wall if u.get("place", "") == "front" else 1.0)
@@ -1223,10 +1223,11 @@ func _spear_target(p: Vector2, hit_radius: float, sim: Sim) -> int:
 	if sim.ug_all_in:
 		for cx in range(maxi(0, kx - 1), mini(GW, kx + 2)):
 			for cy in range(maxi(0, ky - 1), mini(GW, ky + 2)):
-				var cell := cx + cy * GW
-				for t in range(sim.ug_start[cell], sim.ug_start[cell + 1]):
-					if (sim.units[sim.ug_items[t]].pos - p).length() < hit_radius:
-						return sim.ug_items[t]
+				var ui := sim.ug_head[cx + cy * GW]
+				while ui >= 0:
+					if (sim.units[ui].pos - p).length() < hit_radius:
+						return ui
+					ui = sim.ug_next[ui]
 		return -1
 	var cells := sim.unit_cells()
 	for cx in range(kx + g_origin.x - 1, kx + g_origin.x + 2):
