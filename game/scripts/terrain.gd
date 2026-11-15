@@ -13,6 +13,8 @@ const TREES := {"oak": true, "fir": true}
 const CELL := 64.0
 const GN := 28
 const MAX_UNIT := 16.0
+# Where a felled tree or rotted stake goes in the solid list, far beyond any field.
+const GONE := 1.0e9
 
 var seed_value := 0
 var _anchor := Vector2i(1 << 30, 0)
@@ -48,6 +50,13 @@ var flow_origin := Vector2.ZERO
 var flow_dir := PackedVector2Array()
 var _blocked := PackedByteArray()
 var _flow_goal := Vector2i(1 << 30, 0)
+# The eight steps of the route map as flat offsets, x and y parts, and the way back along each.
+var _step_off := PackedInt32Array()
+var _step_dx := PackedInt32Array()
+var _step_dy := PackedInt32Array()
+var _step_back := PackedVector2Array()
+var _edge := PackedByteArray()
+var _queue := PackedInt32Array()
 var empty := false
 var _chunks := {}
 var _regions := {}
@@ -93,7 +102,7 @@ func chop_of(p: Vector2) -> float:
 	return chops[p][0] if chops.has(p) else 0.0
 
 
-## Cuts down the tree at p, leaving its stump; the solid grid drops it on the next refresh.
+## Cuts down the tree at p, leaving its stump, and takes it out of the solid grid at once.
 func fell(p: Vector2) -> void:
 	felled[p] = true
 	chops.erase(p)
@@ -101,7 +110,53 @@ func fell(p: Vector2) -> void:
 	for i in props.size():
 		if props[i][1] == p and TREES.has(props[i][0]):
 			props[i] = ["stump", p, 0.0]
-	_anchor = Vector2i(1 << 30, 0)
+	for k in solid.size():
+		if solid_tree[k] == 1 and solid[k].x == p.x and solid[k].y == p.y:
+			_drop_solid(k)
+			return
+
+
+## Takes entry k out of the solid grid without rebuilding it: the entry moves far off the field, where it touches nothing.
+func _drop_solid(k: int) -> void:
+	var sv := solid[k]
+	solid[k] = Vector3(GONE, GONE, 0.0)
+	solid_tree[k] = 0
+	var reach := sv.z + 8.0
+	var x0 := clampi(floori((sv.x - reach - flow_origin.x) / FLOW_CELL), 0, FN - 1)
+	var x1 := clampi(floori((sv.x + reach - flow_origin.x) / FLOW_CELL), 0, FN - 1)
+	var y0 := clampi(floori((sv.y - reach - flow_origin.y) / FLOW_CELL), 0, FN - 1)
+	var y1 := clampi(floori((sv.y + reach - flow_origin.y) / FLOW_CELL), 0, FN - 1)
+	var changed := false
+	for gx in range(x0, x1 + 1):
+		for gy in range(y0, y1 + 1):
+			var centre := flow_origin + (Vector2(gx, gy) + Vector2(0.5, 0.5)) * FLOW_CELL
+			if _blocked[gx + gy * FN] == 1 and centre.distance_to(Vector2(sv.x, sv.y)) < reach and not _blocks(centre, gx, gy):
+				_blocked[gx + gy * FN] = 0
+				changed = true
+	if changed:
+		_flow_goal = Vector2i(1 << 30, 0)
+
+
+## Whether a solid prop or a ravine blocks the flow square (gx, gy) with this centre, as _mark_blocked decides it.
+func _blocks(centre: Vector2, gx: int, gy: int) -> bool:
+	var cx := floori((centre.x - origin.x) / CELL)
+	var cy := floori((centre.y - origin.y) / CELL)
+	if cx >= 0 and cy >= 0 and cx < GN and cy < GN:
+		var cell := cx + cy * GN
+		for t in range(start[cell], start[cell + 1]):
+			var sv := solid[items[t]]
+			if centre.distance_to(Vector2(sv.x, sv.y)) < sv.z + 8.0:
+				return true
+	for k in rv_seg.size():
+		var sg := rv_seg[k]
+		var reach := maxf(rv_half[k].x, rv_half[k].y) + 8.0
+		var x0 := clampi(floori((minf(sg.x, sg.z) - reach - flow_origin.x) / FLOW_CELL), 0, FN - 1)
+		var x1 := clampi(floori((maxf(sg.x, sg.z) + reach - flow_origin.x) / FLOW_CELL), 0, FN - 1)
+		var y0 := clampi(floori((minf(sg.y, sg.w) - reach - flow_origin.y) / FLOW_CELL), 0, FN - 1)
+		var y1 := clampi(floori((maxf(sg.y, sg.w) + reach - flow_origin.y) / FLOW_CELL), 0, FN - 1)
+		if gx >= x0 and gx <= x1 and gy >= y0 and gy <= y1 and _seg_edge(k, centre) < 8.0 and on_bridge(centre) < 0:
+			return true
+	return false
 
 
 ## Fells every tree chopped long enough and returns how many fell; one the legion did half the chopping on adds a log.
@@ -146,10 +201,13 @@ func add_post(p: Vector2, radius: float, until: float) -> void:
 func rot_posts(now: float) -> bool:
 	var gone := false
 	while not posts.is_empty() and posts[0][3] <= now:
-		posts.pop_front()
+		var post: Array = posts.pop_front()
 		gone = true
-	if gone:
-		_anchor = Vector2i(1 << 30, 0)
+		# Stakes are listed after every other prop, so the search runs from the end.
+		for k in range(solid.size() - 1, -1, -1):
+			if solid[k].x == post[1].x and solid[k].y == post[1].y and solid_tree[k] == 0:
+				_drop_solid(k)
+				break
 	return gone
 
 
@@ -411,54 +469,76 @@ func update_flow(goal: Vector2) -> void:
 	if g == _flow_goal or g.x < 0 or g.y < 0 or g.x >= FN or g.y >= FN:
 		return
 	_flow_goal = g
+	if _step_off.is_empty():
+		for st in STEPS:
+			_step_off.append(st.x + st.y * FN)
+			_step_dx.append(st.x)
+			_step_dy.append(st.y)
+			_step_back.append(-Vector2(st).normalized())
+		_edge.resize(FN * FN)
+		for c in FN * FN:
+			_edge[c] = 1 if c % FN == 0 or c / FN == 0 or c % FN == FN - 1 or c / FN == FN - 1 else 0
+	var off := _step_off
+	var sdx := _step_dx
+	var sdy := _step_dy
+	var back := _step_back
+	var edge := _edge
 	flow_dir.resize(FN * FN)
 	flow_dir.fill(Vector2.ZERO)
-	var seen := PackedByteArray()
-	seen.resize(FN * FN)
-	var queue := PackedInt32Array([g.x + g.y * FN])
-	seen[queue[0]] = 1
+	# Each square's state: bit 1 once reached, bit 2 when blocked.
+	var state := _blocked.duplicate()
+	for c in FN * FN:
+		state[c] <<= 1
+	_queue.resize(FN * FN)
+	var queue := _queue
+	queue[0] = g.x + g.y * FN
+	state[queue[0]] |= 1
 	var head := 0
-	while head < queue.size():
+	var tail := 1
+	while head < tail:
 		var c := queue[head]
 		head += 1
-		var cx := c % FN
-		var cy := c / FN
-		for st in STEPS:
-			var nx: int = cx + st.x
-			var ny: int = cy + st.y
-			if nx < 0 or ny < 0 or nx >= FN or ny >= FN:
-				continue
-			var n := nx + ny * FN
-			if seen[n] == 1 or _blocked[n] == 1:
+		var at_edge := edge[c] == 1
+		for k in 8:
+			if at_edge:
+				var nx := c % FN + sdx[k]
+				var ny := c / FN + sdy[k]
+				if nx < 0 or ny < 0 or nx >= FN or ny >= FN:
+					continue
+			var n := c + off[k]
+			if state[n] != 0:
 				continue
 			# A diagonal step may not cut the corner between two blocked squares.
-			if st.x != 0 and st.y != 0 and (_blocked[cx + ny * FN] == 1 or _blocked[nx + cy * FN] == 1):
+			if k >= 4 and (state[c + sdy[k] * FN] >= 2 or state[c + sdx[k]] >= 2):
 				continue
-			seen[n] = 1
-			flow_dir[n] = -Vector2(st).normalized()
-			queue.append(n)
+			state[n] = 1
+			flow_dir[n] = back[k]
+			queue[tail] = n
+			tail += 1
 	# A barbarian caught among trees stands in blocked squares, so the map also spreads from open ground through the trees, pointing back out.
-	var escape := PackedInt32Array()
+	tail = 0
 	for c in FN * FN:
-		if seen[c] == 1 and _blocked[c] == 0:
-			escape.append(c)
+		if state[c] == 1:
+			queue[tail] = c
+			tail += 1
 	head = 0
-	while head < escape.size():
-		var c := escape[head]
+	while head < tail:
+		var c := queue[head]
 		head += 1
-		var cx := c % FN
-		var cy := c / FN
-		for st in STEPS:
-			var nx: int = cx + st.x
-			var ny: int = cy + st.y
-			if nx < 0 or ny < 0 or nx >= FN or ny >= FN:
+		var at_edge := edge[c] == 1
+		for k in 8:
+			if at_edge:
+				var nx := c % FN + sdx[k]
+				var ny := c / FN + sdy[k]
+				if nx < 0 or ny < 0 or nx >= FN or ny >= FN:
+					continue
+			var n := c + off[k]
+			if state[n] & 1 == 1:
 				continue
-			var n := nx + ny * FN
-			if seen[n] == 1:
-				continue
-			seen[n] = 1
-			flow_dir[n] = -Vector2(st).normalized()
-			escape.append(n)
+			state[n] |= 1
+			flow_dir[n] = back[k]
+			queue[tail] = n
+			tail += 1
 
 
 ## Whether p is clear of the forest, as far as the map round the commander knows; beyond it everything counts as open.
