@@ -166,7 +166,7 @@ func follow(dt: float, sim: Sim) -> void:
 			continue
 		var to: Vector2 = target - s.pos
 		var d := to.length()
-		s.moving = d > 1.5
+		s.moving = d > 1.5 or sim.moving
 		if d > 0.01:
 			s.pos += to / d * minf(d, step)
 		s.facing = to.normalized() if d > 3.0 else commander.facing

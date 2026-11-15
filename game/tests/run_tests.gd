@@ -381,6 +381,40 @@ func test_a_war_band_leader_rallies_those_near_him(b: Dictionary) -> void:
 	check(s.horde.e_haste[far] == 0.0, "a man far off is not")
 
 
+func test_marching_soldiers_walk(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 140)
+	for f in 90:
+		s.update(1.0 / 60.0, Vector2.RIGHT, false)
+	var all := true
+	for so in s.soldiers:
+		all = all and so.moving
+	check(all, "every soldier shows his walk while the legion marches")
+
+
+func test_a_wedged_barbarian_slips_free(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 141)
+	s.terrain.empty = false
+	var ring: Array = []
+	for k in 10:
+		ring.append(["fir", Vector2(300, 0) + Vector2.from_angle(k * TAU / 10.0) * 18.0, 8.0])
+	s.terrain._chunks[Vector2i(1, 0)] = ring
+	s.terrain._anchor = Vector2i(1 << 30, 0)
+	s.terrain.refresh(s.commander.pos)
+	s.commander.hp = 1e9
+	s.horde.spawn("barbarian_spear", Vector2(300, 0))
+	_step_dt(s, 6.0)
+	check(s.horde.e_pos.size() == 1 and s.horde.e_pos[0].distance_to(Vector2(300, 0)) > 30.0, "a barbarian boxed in by trees gets out (%.0f px)" % s.horde.e_pos[0].distance_to(Vector2(300, 0)))
+
+
+func test_newcomers_arrive_on_open_ground(b: Dictionary) -> void:
+	var s := Sim.new(b, content, {"seed": 142})
+	var open := 0
+	for k in 200:
+		if s.terrain.is_open(s.horde.ring_point()):
+			open += 1
+	check(open >= 195, "stream arrivals stand clear of the forest (%d of 200)" % open)
+
+
 func test_lorica_raises_health(b: Dictionary) -> void:
 	var s := Sim.new(b, content, {"seed": 12})
 	var before: float = s.commander.max_hp

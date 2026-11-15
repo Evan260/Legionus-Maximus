@@ -66,6 +66,8 @@ var e_dir := PackedVector2Array()
 var e_haste := PackedFloat32Array()
 # A bodyguard's place beside the chieftain, or zero for everyone else.
 var e_guard := PackedVector2Array()
+# Seconds spent failing to make headway (counting up), or, below zero, seconds left slipping through the trees to get free.
+var e_stuck := PackedFloat32Array()
 var next_id := 1
 var chieftain_id := -1
 
@@ -229,6 +231,7 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 	e_dir.append(Vector2.ZERO)
 	e_haste.append(0.0)
 	e_guard.append(Vector2.ZERO)
+	e_stuck.append(0.0)
 	return e_id.size() - 1
 
 
@@ -251,7 +254,20 @@ func spawn_chieftain(pos: Vector2) -> int:
 
 func ring_point() -> Vector2:
 	var a := rng.randf() * TAU
-	return commander.pos + Vector2(cos(a) * 1.15, sin(a) * 0.75) * b.spawn_radius
+	return open_point(commander.pos + Vector2(cos(a) * 1.15, sin(a) * 0.75) * b.spawn_radius)
+
+
+## Where a newcomer at p arrives: p itself on open ground, or the nearest open spot round the legion when p is inside the forest.
+func open_point(p: Vector2) -> Vector2:
+	var owner: Sim = sim_ref.get_ref() if sim_ref != null else null
+	if owner == null:
+		return p
+	var at := p
+	for k in 8:
+		if owner.terrain.is_open(at):
+			return at
+		at = commander.pos + (p - commander.pos).rotated(0.2 * (k / 2 + 1) * (1 if k % 2 == 0 else -1))
+	return p
 
 
 ## An ordinary enemy for the stream: the first in the province's list most often, the rest more often as the run goes on.
@@ -337,7 +353,7 @@ func _spawn(dt: float, sim: Sim) -> void:
 				break
 			var a := side + rng.randf_range(-0.6, 0.6)
 			var r: float = b.spawn_radius + rng.randf_range(0.0, 80.0)
-			spawn(_pick_ordinary(), commander.pos + Vector2(cos(a) * 1.15, sin(a) * 0.75) * r)
+			spawn(_pick_ordinary(), open_point(commander.pos + Vector2(cos(a) * 1.15, sin(a) * 0.75) * r))
 		if not elites.is_empty():
 			for i in int(b.elites_per_surge):
 				var a := side + rng.randf_range(-0.3, 0.3)
@@ -354,7 +370,7 @@ func _spawn(dt: float, sim: Sim) -> void:
 func _war_band(sim: Sim, behind := false) -> void:
 	var ahead := Vector2.from_angle(sim.facing_angle)
 	var dir := -ahead if behind else (ahead if rng.randf() < 0.5 else -ahead)
-	war_band_at(sim, commander.pos + dir.rotated(rng.randf_range(-0.4, 0.4)) * Vector2(1.15, 0.75) * float(b.spawn_radius))
+	war_band_at(sim, open_point(commander.pos + dir.rotated(rng.randf_range(-0.4, 0.4)) * Vector2(1.15, 0.75) * float(b.spawn_radius)))
 
 
 ## A war band gathered round a given point, such as the defenders of an objective.
@@ -603,6 +619,8 @@ func _move(dt: float, sim: Sim) -> void:
 	var held := 0
 	var solid_range: float = b.get("solid_range", 400.0)
 	var detour_seconds: float = b.detour.seconds
+	var stuck_after: float = b.detour.stuck_after
+	var stuck_slip: float = b.detour.stuck_slip
 	var rear := -Vector2.from_angle(sim.facing_angle)
 	var ci := chieftain_index()
 	var chief_pos := e_pos[ci] if ci >= 0 else Vector2.ZERO
@@ -753,7 +771,7 @@ func _move(dt: float, sim: Sim) -> void:
 		# Barbarians well off the screen pass through, since nobody sees them and the check is costly for a full horde.
 		var gx := floori((np.x - t_origin.x) / t_cell)
 		var gy := floori((np.y - t_origin.y) / t_cell)
-		if d < solid_range and gx >= 0 and gy >= 0 and gx < t_n and gy < t_n:
+		if d < solid_range and e_stuck[i] >= 0.0 and gx >= 0 and gy >= 0 and gx < t_n and gy < t_n:
 			var gc := gx + gy * t_n
 			for t in range(t_start[gc], t_start[gc + 1]):
 				var so := t_solid[t_items[t]]
@@ -771,6 +789,15 @@ func _move(dt: float, sim: Sim) -> void:
 							e_side[i] = 1 if along.dot(to) >= 0.0 else -1
 						e_way[i] = along * e_side[i]
 						e_detour[i] = detour_seconds
+		# A barbarian wedged among trees who makes no headway for a while slips through them for a moment to get free.
+		if e_stuck[i] < 0.0:
+			e_stuck[i] = minf(0.0, e_stuck[i] + dt)
+		elif v != Vector2.ZERO and (np - p).length_squared() < v.length_squared() * dt * dt * 0.0625:
+			e_stuck[i] += dt
+			if e_stuck[i] > stuck_after:
+				e_stuck[i] = -stuck_slip
+		elif e_stuck[i] > 0.0:
+			e_stuck[i] = maxf(0.0, e_stuck[i] - dt)
 		e_pos[i] = np
 		if v != Vector2.ZERO:
 			e_face[i] = e_dir[i] if dashing else (v.normalized() if circling else to / maxf(d, 0.001))
@@ -985,3 +1012,4 @@ func remove_at(i: int) -> void:
 	e_dir[i] = e_dir[last]; e_dir.resize(last)
 	e_haste[i] = e_haste[last]; e_haste.resize(last)
 	e_guard[i] = e_guard[last]; e_guard.resize(last)
+	e_stuck[i] = e_stuck[last]; e_stuck.resize(last)

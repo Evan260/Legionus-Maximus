@@ -10,6 +10,7 @@ var _ground_of := "germania"
 var shadow: Texture2D
 var shake_on := true
 var digits: Texture2D
+var _cam := Vector2.ZERO
 var _shake_rng := RandomNumberGenerator.new()
 
 var _keys := PackedInt64Array()
@@ -57,17 +58,23 @@ func _process(dt: float) -> void:
 		queue_redraw()
 
 
-func _add(y: float, rect: Rect2, dest: Vector2, mod: Color) -> void:
+func _add(y: float, rect: Rect2, dest: Vector2, mod: Color, moving := false) -> void:
 	_keys.append((int(y) + 100000) * 65536 + _rects.size())
 	_rects.append(rect)
-	_dests.append(dest.round())
+	_dests.append(_snap(dest) if moving else dest.round())
 	_mods.append(mod)
+
+
+## Rounds a moving unit to the pixel relative to the camera, so men marching beside the commander keep a steady gap on a diagonal.
+func _snap(p: Vector2) -> Vector2:
+	return (p - _cam).round() + _cam.round()
 
 
 func _draw() -> void:
 	if not sim:
 		return
 	var cam: Vector2 = sim.commander.pos
+	_cam = cam
 	var screen := get_viewport_rect().size
 	var top_left := cam - screen / 2.0
 	if sim.province != _ground_of:
@@ -127,8 +134,8 @@ func _draw() -> void:
 			mod = Color(1.0, 0.55, 0.55)
 		elif sim.testudo_left > 0.0:
 			mod = gold
-		draw_texture(shadow, (u.pos - Vector2(8, 3)).round())
-		_add(u.pos.y, f[0], u.pos - f[1], mod)
+		draw_texture(shadow, _snap(u.pos - Vector2(8, 3)))
+		_add(u.pos.y, f[0], u.pos - f[1], mod, true)
 
 	for i in sim.horde.e_pos.size():
 		var p: Vector2 = sim.horde.e_pos[i]
@@ -142,8 +149,8 @@ func _draw() -> void:
 			mod = Color(1.0, 0.5, 0.45)
 		elif sim.horde.e_burn[i] > 0.0:
 			mod = Color(1.0, 0.78, 0.6)
-		draw_texture(shadow, (p - Vector2(8, 3)).round())
-		_add(p.y, f[0], p - f[1], mod)
+		draw_texture(shadow, _snap(p - Vector2(8, 3)))
+		_add(p.y, f[0], p - f[1], mod, true)
 
 	for e in sim.effects:
 		if e.kind == "death" or e.kind == "fallen":

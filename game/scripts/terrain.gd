@@ -380,6 +380,37 @@ func update_flow(goal: Vector2) -> void:
 			seen[n] = 1
 			flow_dir[n] = -Vector2(st).normalized()
 			queue.append(n)
+	# A barbarian caught among trees stands in blocked squares, so the map also spreads from open ground through the trees, pointing back out.
+	var escape := PackedInt32Array()
+	for c in FN * FN:
+		if seen[c] == 1 and _blocked[c] == 0:
+			escape.append(c)
+	head = 0
+	while head < escape.size():
+		var c := escape[head]
+		head += 1
+		var cx := c % FN
+		var cy := c / FN
+		for st in STEPS:
+			var nx: int = cx + st.x
+			var ny: int = cy + st.y
+			if nx < 0 or ny < 0 or nx >= FN or ny >= FN:
+				continue
+			var n := nx + ny * FN
+			if seen[n] == 1:
+				continue
+			seen[n] = 1
+			flow_dir[n] = -Vector2(st).normalized()
+			escape.append(n)
+
+
+## Whether p is clear of the forest, as far as the map round the commander knows; beyond it everything counts as open.
+func is_open(p: Vector2) -> bool:
+	var gx := floori((p.x - flow_origin.x) / FLOW_CELL)
+	var gy := floori((p.y - flow_origin.y) / FLOW_CELL)
+	if _blocked.is_empty() or gx < 0 or gy < 0 or gx >= FN or gy >= FN:
+		return true
+	return _blocked[gx + gy * FN] == 0
 
 
 ## The way to walk from p round the obstacles to the commander, or zero where the map has no answer.

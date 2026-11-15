@@ -14,7 +14,7 @@ const GOLD_LIGHT := Color(1.0, 0.89, 0.59)
 const RED := Color(0.72, 0.18, 0.14)
 const BROWN_TEXT := Color(0.5, 0.36, 0.22)
 
-const EDGE := 14.0
+const EDGE := 26.0
 ## How far above its foot an objective's name is written when it is on screen, clear of its sprite.
 const LABEL_RISE := {"camp": 56.0, "column": 50.0, "grove": 40.0, "fort": 76.0}
 
@@ -205,16 +205,19 @@ func _objective_arrows(sim: Sim) -> void:
 			continue
 		var at := edge_point(view, off, top)
 		var dir := off.normalized()
-		var side := dir.orthogonal() * (5.0 + 2.0 * Ui.scale)
-		var back := at - dir * (10.0 + 4.0 * Ui.scale)
-		var tip := PackedVector2Array([at + dir * 2.0, back + side * 1.4 - dir * 2.0, back - side * 1.4 - dir * 2.0])
+		# The arrow pulses gently so it catches the eye at the edge of a busy screen.
+		var pulse := 1.0 + 0.12 * sin(sim.time * 5.0)
+		var side := dir.orthogonal() * (10.0 + 3.0 * Ui.scale) * pulse
+		var back := at - dir * (22.0 + 6.0 * Ui.scale) * pulse
+		var tip := PackedVector2Array([at + dir * 3.0, back + side * 1.35 - dir * 3.0, back - side * 1.35 - dir * 3.0])
 		draw_colored_polygon(tip, INK)
 		draw_colored_polygon(PackedVector2Array([at, back + side, back - side]), RED if t[0] == "fort" else GOLD)
+		draw_colored_polygon(PackedVector2Array([at - dir * 3.0, back + side * 0.45, back]), GOLD_LIGHT if t[0] != "fort" else Color(0.95, 0.45, 0.35))
 		var box := Rect2(tip[0], Vector2.ZERO)
 		for q in tip:
 			box = box.expand(q)
 		placed.append(box)
-		labels.append([t[0], back - dir * 6.0, tr("%d m") % int(off.length() / metre), dir])
+		labels.append([t[0], back - dir * 8.0, tr("%d m") % int(off.length() / metre), dir])
 	var note: Dictionary = sim.objectives.notice
 	if not note.is_empty() and sim.time - float(note.at) < float(sim.b.objectives.notice_seconds):
 		var line := _notice_text(note.kind).to_upper()
