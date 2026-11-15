@@ -22,6 +22,9 @@ var _rate := 1.0
 # The roll formation() last placed and the places it gave, reused while the roll is the same.
 var _form_roll: Array = []
 var _form_places: Array = []
+# The commander and soldiers below full health this update, in roll order, gathered for the medici; only they can be the worst hurt.
+var _hurt: Array = []
+var _hurt_ready := false
 
 
 func _init(balance: Dictionary, game_content: Content, random: RandomNumberGenerator, ranks: Dictionary) -> void:
@@ -203,16 +206,22 @@ func assign_guards() -> void:
 	for s in soldiers:
 		if s.place == "front":
 			fronts.append(s)
+	var at := PackedVector2Array()
+	at.resize(fronts.size())
+	for k in fronts.size():
+		at[k] = fronts[k].pos
+	var reach := float(_l.guard_reach)
 	for s in soldiers:
 		s.guard = null
 		if s.place != "rear" and s.place != "middle":
 			continue
-		var best := float(_l.guard_reach)
-		for f in fronts:
-			var d: float = (f.pos - s.pos).length()
+		var best := reach
+		var p: Vector2 = s.pos
+		for k in at.size():
+			var d: float = (at[k] - p).length()
 			if d < best:
 				best = d
-				s.guard = f
+				s.guard = fronts[k]
 
 
 ## Whoever takes a blow aimed at this unit.
@@ -242,6 +251,7 @@ func update(dt: float, sim: Sim) -> void:
 	_reserves(dt)
 	var medici: Array = []
 	_rate = sim.attack_rate()
+	_hurt_ready = false
 	for s in soldiers:
 		var info: Dictionary = s.info
 		match info.attack:
@@ -317,8 +327,11 @@ func _melee_damage(type: String) -> float:
 
 func _auras() -> void:
 	commander.haste = 1.0
-	for s in soldiers:
-		s.haste = 1.0
+	var at := PackedVector2Array()
+	at.resize(soldiers.size())
+	for k in soldiers.size():
+		soldiers[k].haste = 1.0
+		at[k] = soldiers[k].pos
 	for s in soldiers:
 		if s.info.attack != "aura":
 			continue
@@ -329,9 +342,10 @@ func _auras() -> void:
 		var r2 := reach * reach
 		if (commander.pos - s.pos).length_squared() <= r2:
 			commander.haste = maxf(commander.haste, boost)
-		for o in soldiers:
-			if (o.pos - s.pos).length_squared() <= r2:
-				o.haste = maxf(o.haste, boost)
+		var p: Vector2 = s.pos
+		for k in at.size():
+			if (at[k] - p).length_squared() <= r2:
+				soldiers[k].haste = maxf(soldiers[k].haste, boost)
 
 
 func _missile(s: Dictionary, dt: float, sim: Sim) -> void:
@@ -385,7 +399,13 @@ func _heal(s: Dictionary, dt: float, sim: Sim) -> void:
 	var r2 := float(info.radius) * float(info.radius)
 	var worst: Variant = null
 	var worst_ratio := 1.0
-	for u in [commander] + soldiers:
+	if not _hurt_ready:
+		_hurt_ready = true
+		_hurt.clear()
+		for u in [commander] + soldiers:
+			if u.hp / u.max_hp < 1.0:
+				_hurt.append(u)
+	for u in _hurt:
 		var ratio: float = u.hp / u.max_hp
 		if ratio < worst_ratio and (u.pos - s.pos).length_squared() <= r2:
 			worst_ratio = ratio
