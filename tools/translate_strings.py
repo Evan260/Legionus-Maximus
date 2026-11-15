@@ -4,6 +4,9 @@ Reads game/translations/strings.csv (one row per string, its key first and the E
 cells to Azure, and writes the answers back, saving after each language so an interrupted run loses nothing.
 Placeholders such as %s, %d, %.1f and {name} are shielded so they come back exactly as they went in.
 
+After translating, the hand-checked cells in tools/translation_fixes.json are written over the machine's, and its
+glossary keeps names such as the gods' in the form each language uses for them.
+
 Usage:
     python tools/translate_strings.py                    every language below
     python tools/translate_strings.py --languages fr,ja  just those
@@ -29,6 +32,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CSV_PATH = ROOT / "game" / "translations" / "strings.csv"
+FIXES_PATH = ROOT / "tools" / "translation_fixes.json"
 ENDPOINT = "https://api.cognitive.microsofttranslator.com/translate?api-version=3.0&from=en&to={to}&textType=html"
 # Godot's locale code for each column, and the code Azure knows the language by.
 LANGUAGES = {
@@ -47,7 +51,7 @@ HINTS = {
     "Title": "Main menu", "Hold!": "Hold the line!", "Recruit": "Soldier recruit", "Max": "Maximum rank",
     "Camp": "Army camp", "Legion": "Roman legion", "New": "New upgrade", "Free": "Free (nothing to unlock)",
     "Pause": "Pause button", "Back": "Back (previous screen)", "Start": "Start button", "Confirm": "Confirm button",
-    "March": "Set off (start the run)", "%s  march": "%s  march the legion", "%s  pause": "%s  pause the game",
+    "March": "Set off (start the run)",
     "March up": "Move the legion up", "March down": "Move the legion down", "March left": "Move the legion left",
     "March right": "Move the legion right", "Resume": "Resume the game", "Settings": "Settings (game options)",
     "Paused": "Game paused", "Hard": "Hard difficulty mode", "Endless": "Endless mode", "Endless %s": "Endless mode %s",
@@ -61,16 +65,7 @@ HINTS = {
     "Defeat %d barbarians in total": "Defeat a total of %d barbarians", "Win in %s": "Win a victory in %s",
     "Win in every province": "Win a victory in every province", "Win here to open these": "Win in this province to unlock these",
     "Dpad up": "D-pad up button", "Dpad down": "D-pad down button", "Dpad left": "D-pad left button", "Dpad right": "D-pad right button",
-    "Space camp     Esc title": "Space: go to the camp     Esc: back to the main menu",
-    "Arrows or WASD move     Space choose     Esc back": "Arrow keys or WASD: move     Space: choose     Esc: go back",
-    "Arrows or WASD move     Space buy a rank     Esc back": "Arrow keys or WASD: move     Space: buy a rank     Esc: go back",
-    "Arrows or WASD move     Esc back": "Arrow keys or WASD: move     Esc: go back",
-    "Arrows or WASD move     Left and right change a volume     Esc back": "Arrow keys or WASD: move     Left and right arrow: change a volume     Esc: go back",
-    "Press the new key or button     Esc cancel": "Press the new key or button     Esc: cancel",
-    "Space change a key or button     Esc back": "Space: change a key or button     Esc: go back",
-    "A / D to choose     Space to take it": "A / D: choose     Space: take it",
-    "Esc  title": "Esc  main menu",
-    "R / Y  reroll (%d)": "R / Y  reroll the choices (%d)", "B / X  banish (%d)": "B / X  banish a choice (%d)",
+    "Reroll": "Reroll the choices", "Banish": "Banish a choice",
 }
 
 
@@ -84,15 +79,54 @@ def read_env():
                 os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
 
 
-def shield(text):
-    """The text as HTML, with each placeholder wrapped so the translator leaves it alone."""
+def load_fixes():
+    return json.loads(FIXES_PATH.read_text(encoding="utf-8")) if FIXES_PATH.exists() else {"glossary": {}, "fixes": {}}
+
+
+def glossary_pattern(glossary, lang):
+    terms = sorted((t for t, forms in glossary.items() if lang in forms), key=len, reverse=True)
+    return re.compile(r"\b(" + "|".join(re.escape(t) for t in terms) + r")\b") if terms else None
+
+
+def shield(text, lang="", glossary=None):
+    """The text as HTML, with each placeholder wrapped so the translator leaves it alone and each glossary name already in the language's own form."""
+    glossary = glossary or {}
+    names = glossary_pattern(glossary, lang)
     parts, last = [], 0
     for m in PLACEHOLDER.finditer(text):
-        parts.append(html.escape(text[last:m.start()], quote=False))
+        parts.append(shield_names(text[last:m.start()], lang, glossary, names))
         parts.append(f'<span class="notranslate">{html.escape(m.group(0), quote=False)}</span>')
+        last = m.end()
+    parts.append(shield_names(text[last:], lang, glossary, names))
+    return "".join(parts)
+
+
+def shield_names(text, lang, glossary, names):
+    if names is None:
+        return html.escape(text, quote=False)
+    parts, last = [], 0
+    for m in names.finditer(text):
+        parts.append(html.escape(text[last:m.start()], quote=False))
+        parts.append(f'<span class="notranslate">{html.escape(glossary[m.group(0)][lang], quote=False)}</span>')
         last = m.end()
     parts.append(html.escape(text[last:], quote=False))
     return "".join(parts)
+
+
+def apply_fixes(header, rows, fixes):
+    """Writes the hand-checked cells over the sheet; a fix whose English no longer matches the sheet is reported and skipped."""
+    by_key = {r[0]: r for r in rows}
+    for key, cells in fixes.items():
+        row = by_key.get(key)
+        if row is None:
+            print(f"  fix for {key!r} has no row in the sheet")
+            continue
+        if cells.get("en", row[1]) != row[1]:
+            print(f"  fix for {key!r} was written for other English; check it")
+            continue
+        for lang, text in cells.items():
+            if lang != "en" and lang in header:
+                row[header.index(lang)] = text
 
 
 def unshield(text):
@@ -165,12 +199,17 @@ def main():
         col = header.index(redo)
         for r in rows:
             r[col] = ""
+    fixes = load_fixes()
     todo = {lang: [r for r in rows if not r[header.index(lang)].strip()] for lang in wanted}
     chars = sum(len(r[1]) for missing in todo.values() for r in missing)
     for lang, missing in todo.items():
         print(f"{lang:6} {len(missing):4} strings to translate")
     print(f"{chars:,} characters, about ${chars / 1e6 * USD_PER_MILLION:.2f} at Azure's paid rate (free within 2M a month)")
-    if "--dry-run" in args or chars == 0:
+    if "--dry-run" in args:
+        return
+    if chars == 0:
+        apply_fixes(header, rows, fixes["fixes"])
+        save(header, rows)
         return
     read_env()
     key = os.environ.get("AZURE_TRANSLATOR_KEY")
@@ -185,7 +224,7 @@ def main():
         col = header.index(lang)
         done = 0
         for batch in batches(missing):
-            answers = translate([shield(HINTS.get(r[0], r[1])) for r in batch], LANGUAGES[lang], key, region)
+            answers = translate([shield(HINTS.get(r[0], r[1]), lang, fixes["glossary"]) for r in batch], LANGUAGES[lang], key, region)
             for r, a in zip(batch, answers):
                 r[col] = unshield(a)
             done += len(batch)
@@ -197,6 +236,8 @@ def main():
                 print(f"  {lang}: placeholders changed in {r[1]!r} -> {r[col]!r}; left empty")
                 r[col] = ""
         save(header, rows)
+    apply_fixes(header, rows, fixes["fixes"])
+    save(header, rows)
     print("Done. Reimport the project in Godot so every language column becomes a translation file.")
 
 

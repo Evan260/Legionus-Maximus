@@ -701,7 +701,7 @@
   "war_priest": {
    "name": "War priest",
    "text": "He stands back and hurls burning pots into the thickest ranks. He heals the warriors round him, curses the legion and vanishes in smoke when soldiers reach him.",
-   "history": "Germanic priests went to war with the tribes and read the omens before a battle.",
+   "history": "Germanic priests marched to war alongside the tribes and read the omens before a battle.",
    "behaviour": "lobber",
    "hp": 4560,
    "speed": 38,
@@ -740,7 +740,7 @@
    }
   },
   "chieftain": {
-   "name": "Arminius-style war chief",
+   "name": "War chief",
    "text": "The war chief who united the tribes against Rome, swinging a great axe.",
    "history": "In 9 AD Arminius led three Roman legions into a forest ambush at Teutoburg and destroyed them.",
    "behaviour": "melee",
@@ -1970,7 +1970,7 @@
   "jupiter": {
    "name": "Jupiter",
    "text": "A storm of lightning strikes down the barbarians on screen.",
-   "history": "Jupiter Optimus Maximus, king of the gods, held the thunderbolt and guarded Rome from the Capitol.",
+   "history": "Jupiter Optimus Maximus, king of the gods, held the thunderbolt and guarded Rome from the Capitoline Hill.",
    "art": [
     "icon:god_jupiter"
    ]
@@ -1978,7 +1978,7 @@
   "neptune": {
    "name": "Neptune",
    "text": "An earthquake throws every barbarian on screen back and stuns them.",
-   "history": "Neptune ruled the sea and was the earth-shaker, the god Romans blamed for earthquakes.",
+   "history": "Neptune ruled the sea and shook the earth, and Romans blamed him for earthquakes.",
    "art": [
     "icon:god_neptune"
    ]
@@ -1994,7 +1994,7 @@
   "vulcan": {
    "name": "Vulcan",
    "text": "Fire rains on the screen: every barbarian burns and the ground catches fire.",
-   "history": "Vulcan forged weapons in his fires under the mountains; his feast was kept against city fires.",
+   "history": "Vulcan forged weapons in fires under the mountains; Romans held his feast to keep Rome safe from fire.",
    "art": [
     "icon:god_vulcan"
    ]

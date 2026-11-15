@@ -5,7 +5,7 @@ extends RefCounted
 
 # The actions the settings screen lets the player rebind, with their names.
 const ACTIONS := [["up", "March up"], ["down", "March down"], ["left", "March left"], ["right", "March right"],
-	["testudo", "Testudo"], ["build", "Build a palisade"], ["bridge", "Lay a bridge"], ["pray", "Call the gods"], ["pause", "Pause"], ["confirm", "Confirm"], ["back", "Back"]]
+	["testudo", "Testudo"], ["build", "Build a palisade"], ["bridge", "Lay a bridge"], ["pray", "Call the gods"], ["reroll", "Reroll"], ["banish", "Banish"], ["pause", "Pause"], ["confirm", "Confirm"], ["back", "Back"]]
 const KEYS := {
 	"left": [KEY_A, KEY_LEFT], "right": [KEY_D, KEY_RIGHT], "up": [KEY_W, KEY_UP], "down": [KEY_S, KEY_DOWN],
 	"testudo": [KEY_SPACE], "build": [KEY_E], "bridge": [KEY_C], "pray": [KEY_F], "reroll": [KEY_R], "banish": [KEY_B], "confirm": [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER], "pause": [KEY_ESCAPE], "quit": [KEY_Q],
@@ -17,6 +17,12 @@ const STICK := [["left", JOY_AXIS_LEFT_X, -1.0], ["right", JOY_AXIS_LEFT_X, 1.0]
 const PAD_NAMES := {JOY_BUTTON_A: "A", JOY_BUTTON_B: "B", JOY_BUTTON_X: "X", JOY_BUTTON_Y: "Y", JOY_BUTTON_BACK: "Back", JOY_BUTTON_START: "Start",
 	JOY_BUTTON_LEFT_SHOULDER: "LB", JOY_BUTTON_RIGHT_SHOULDER: "RB", JOY_BUTTON_DPAD_UP: "Dpad up", JOY_BUTTON_DPAD_DOWN: "Dpad down",
 	JOY_BUTTON_DPAD_LEFT: "Dpad left", JOY_BUTTON_DPAD_RIGHT: "Dpad right", JOY_BUTTON_LEFT_STICK: "L stick", JOY_BUTTON_RIGHT_STICK: "R stick"}
+# The keys whose names are words, translated where they are drawn; every other key is named by its letter or symbol.
+const KEY_NAMES := {KEY_UP: "Up", KEY_DOWN: "Down", KEY_LEFT: "Left", KEY_RIGHT: "Right", KEY_SPACE: "Space", KEY_ESCAPE: "Escape",
+	KEY_ENTER: "Enter", KEY_TAB: "Tab", KEY_BACKSPACE: "Backspace"}
+# The words of the key hints, each translated on its own so no translation has to keep a key in its place.
+const HINT_WORDS := ["move", "choose", "back", "buy a rank", "take it", "call", "not now", "reroll", "banish",
+	"call the gods", "bridge the ravine", "cancel", "change a key or button", "change a volume"]
 
 
 ## The keys and pad buttons an action has: the saved ones, or the defaults when none are saved or the saved list is empty.
@@ -89,6 +95,8 @@ static func reset(saved: Dictionary, action: String) -> void:
 
 
 static func key_name(code: int) -> String:
+	if KEY_NAMES.has(code):
+		return TranslationServer.translate(KEY_NAMES[code])
 	var s := OS.get_keycode_string(code)
 	return s if s != "" else "?"
 
@@ -120,29 +128,43 @@ static func march_keys() -> String:
 	return " ".join(["up", "left", "down", "right"].map(key_of))
 
 
+## One part of a key hint: the keys, then the translated word for what they do.
+static func part(keys: String, word: String) -> String:
+	return keys + "  " + TranslationServer.translate(word)
+
+
 ## The key hint at the foot of a screen, naming the player's current keys; `count` is the rerolls or banishes left.
 static func hint(kind: String, count := 0) -> String:
+	var both := func(action: String) -> String: return key_of(action) + " / " + pad_of(action)
+	var sides := key_of("left") + " / " + key_of("right")
+	var parts: Array = []
 	match kind:
 		"pick":
-			return TranslationServer.translate("%s move     %s choose     %s back") % [march_keys(), key_of("confirm"), key_of("back")]
+			parts = [part(march_keys(), "move"), part(key_of("confirm"), "choose"), part(key_of("back"), "back")]
 		"buy":
-			return TranslationServer.translate("%s move     %s buy a rank     %s back") % [march_keys(), key_of("confirm"), key_of("back")]
+			parts = [part(march_keys(), "move"), part(key_of("confirm"), "buy a rank"), part(key_of("back"), "back")]
 		"look":
-			return TranslationServer.translate("%s move     %s back") % [march_keys(), key_of("back")]
+			parts = [part(march_keys(), "move"), part(key_of("back"), "back")]
+		"volume":
+			parts = [part(march_keys(), "move"), part(sides, "change a volume"), part(key_of("back"), "back")]
+		"keys":
+			parts = [part(key_of("confirm"), "change a key or button"), part(key_of("back"), "back")]
+		"press":
+			parts = [TranslationServer.translate("Press the new key or button"), part(key_name(KEY_ESCAPE), "cancel")]
 		"level":
-			return TranslationServer.translate("%s / %s to choose     %s to take it") % [key_of("left"), key_of("right"), key_of("confirm")]
+			parts = [part(sides, "choose"), part(key_of("confirm"), "take it")]
 		"reroll":
-			return TranslationServer.translate("%s / %s  reroll (%d)") % [key_of("reroll"), pad_of("reroll"), count]
+			parts = [part(both.call("reroll"), "reroll") + " (%d)" % count]
 		"banish":
-			return TranslationServer.translate("%s / %s  banish (%d)") % [key_of("banish"), pad_of("banish"), count]
+			parts = [part(both.call("banish"), "banish") + " (%d)" % count]
 		"summary":
-			return TranslationServer.translate("%s camp     %s title") % [key_of("confirm"), key_of("back")]
+			parts = [part(key_of("confirm"), "Camp"), part(key_of("back"), "Title")]
 		"title":
-			return TranslationServer.translate("%s  title") % key_of("back")
+			parts = [part(key_of("back"), "Title")]
 		"pray":
-			return TranslationServer.translate("%s / %s  call the gods") % [key_of("pray"), pad_of("pray")]
+			parts = [part(both.call("pray"), "call the gods")]
 		"bridge":
-			return TranslationServer.translate("%s / %s  bridge the ravine") % [key_of("bridge"), pad_of("bridge")]
+			parts = [part(both.call("bridge"), "bridge the ravine")]
 		"gods":
-			return TranslationServer.translate("%s / %s to choose     %s to call     %s not now") % [key_of("left"), key_of("right"), key_of("confirm"), key_of("back")]
-	return ""
+			parts = [part(sides, "choose"), part(key_of("confirm"), "call"), part(key_of("back"), "not now")]
+	return "     ".join(parts)

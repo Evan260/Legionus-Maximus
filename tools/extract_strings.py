@@ -21,6 +21,8 @@ KINDS = ["recruits", "enemies", "arms", "forged", "drills", "provinces", "comman
 TABLES = [("screens/camp.gd", "BOARDS"), ("screens/map.gd", "MODES"), ("screens/settings.gd", "VOLUME_NAMES"),
           ("screens/settings.gd", "TOGGLES"), ("screens/tablinum.gd", "KINDS"), ("controls.gd", "ACTIONS"),
           ("controls.gd", "PAD_NAMES"), ("content.gd", "GROUPS")]
+# Tables whose every string is a word to translate, the lower-case ones too.
+WORD_TABLES = [("controls.gd", "HINT_WORDS"), ("controls.gd", "KEY_NAMES")]
 # Words built from ids in code: the mode names, which the camp and the summary capitalise.
 EXTRA = ["Hard", "Endless", "Decimatio", "Language", "Automatic"]
 
@@ -42,7 +44,7 @@ def from_calls():
 
 def from_tables():
     found = []
-    for script, name in TABLES:
+    for script, name in TABLES + WORD_TABLES:
         text = (ROOT / "scripts" / script).read_text(encoding="utf-8")
         start = text.index(f"const {name} :=")
         depth, i, seen = 0, text.index("=", start), False
@@ -59,7 +61,7 @@ def from_tables():
         for m in LITERAL.finditer(block):
             s = unescape(m.group(1))
             # Only the capitalised words are names: the lower-case ones are ids.
-            if re.match(r"[A-Z]", s) and re.search(r"[a-z]{2,}", s):
+            if (script, name) in WORD_TABLES or (re.match(r"[A-Z]", s) and re.search(r"[a-z]{2,}", s)):
                 found.append(s)
     return found
 
