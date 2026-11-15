@@ -349,7 +349,7 @@ func _war_dogs(dt: float, sim: Sim) -> void:
 				d.bit = sim.time
 				if dist > 0.001:
 					d.face = to / dist
-				sim.hit(ti, dmg, 0.0, "war_dogs")
+				sim.hit(ti, dmg, 0.0, "war_dogs", d.pos)
 		elif dist > 2.0:
 			d.pos += to / dist * minf(dist, speed * dt)
 			d.face = to / dist

@@ -401,10 +401,10 @@ func _sortie(s: Dictionary, dt: float, sim: Sim) -> void:
 			for j in sim.enemies_near(s.pos, strike):
 				if not s.struck.has(sim.horde.e_id[j]):
 					s.struck[sim.horde.e_id[j]] = true
-					sim.hit(j, dmg, 0.0, s.type)
+					sim.hit(j, dmg, 0.0, s.type, s.pos)
 		if d - move <= strike:
 			if not s.struck.has(sim.horde.e_id[t]):
-				sim.hit(t, dmg, 0.0, s.type)
+				sim.hit(t, dmg, 0.0, s.type, s.pos)
 			sim.effects.append({"kind": "slash", "pos": s.pos, "to": sim.horde.e_pos[t], "t": 0.0})
 			s.cd = float(info.cooldown)
 			s.sortie = 2

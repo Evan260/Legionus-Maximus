@@ -8,8 +8,9 @@ Everything the finished game has. [Plan.md](Plan.md) has why the game exists and
 - The camera follows the commander over an endless field. Trees, rocks, rivers and ruins are scattered on it.
 - Trees, rocks and logs are solid for the legion and the barbarians alike. Barbarians find their way round them.
 - The forest grows in long winding ridges, too thick to pass, with clearings and paths between them, so there are only certain ways to go and a legion can be cornered against the trees. Lines of rocks and logs cross the open ground.
-- Barbarians arrive from beyond the edges of the screen in a steady stream that thickens over the 20 minutes, with a surge every 2 minutes.
-- War bands of a dozen or more gather in a tight group every 35 seconds, either in the legion's path or closing in from behind.
+- Barbarians arrive from beyond the edges of the screen in a steady stream that thickens over the 20 minutes, with a surge every 2 minutes. The stream is kept a little thinner so the bosses have room.
+- Bosses come on their own: the first at 1:15, then one every minute, two at a time from about 7:30 and three from about 15:00. Only one is on the field at once for the first 4 minutes, one more every 4 minutes after, up to four.
+- War bands of half a dozen or more, growing through the run, gather in a tight group every 35 seconds, either in the legion's path or closing in from behind.
 - Barbarians walk slower than the legion, but club warriors sprint in short bursts faster than it and wolves always run faster, so no direction is safe for long.
 - The commander's own blow is weak: the soldiers do the killing, so an enemy at his back is dangerous until the formation turns to meet it. He recovers health slowly on his own.
 - Barbarians locked in melee hold the legion back: the more of them press against it, the slower it marches, down to a fifth of its speed. A small legion cannot walk through a crowd.
@@ -41,16 +42,26 @@ In 9 AD the Germans destroyed three legions in the Teutoburg Forest and carried 
 
 ## Bosses
 
-The chieftain and the elites are meant to be fought with the whole formation: facing them, closing on the ones who stand back and stepping out of their big blows. They are big and very tough: each has three times the health it first had, an elite stands much bigger than a barbarian and the chieftain bigger still.
+The chieftain and the elites are meant to be fought with the whole formation: facing them, closing on the ones who stand back and stepping out of their big blows. They are big and very tough: an elite has about 5000 health and the chieftain about 23000, an elite stands much bigger than a barbarian and the chieftain bigger still. Elites grow tougher through the run, to twice their health by the 20th minute. The first few come weaker and use their abilities less often, reaching full strength by 10 minutes, so the opening can be learned.
+
+Every boss has a health bar over his head, under an elite's name. Each ability is shown before it lands, so the legion can step out of it.
 
 - **The chieftain** comes with a bodyguard of spearmen who stay round him, so the front rank cannot reach him until they are broken; pila, the onager and fire reach past them. His attacks:
   - **Charge:** a red line on the ground shows his path for a second, then he charges along it and throws aside the soldiers in his way, hurting them and breaking the formation.
   - **Slam:** a red ring round him fills in, then he strikes the ground and hurts everyone inside it.
   - **War horn:** he blows his horn and a war band arrives behind the legion.
   - **Cleave:** a sweep of his axe in front of him.
+  - **Second phase:** below half health he roars, the screen shakes and a notice says so. From then on his attacks come about 40% faster and his horn calls two war bands.
 - **Berserker:** runs round the legion to attack its rear, where the archers are, and charges every few seconds. The legion has to keep turning to keep him in front.
+  - **Whirlwind:** a red ring fills round him for a second, then he spins and hits every Roman inside it hard.
+  - **Rage:** below half health he turns red, moves faster and hits harder.
 - **War band leader:** rallies the barbarians round him, who move faster for a few seconds.
-- **War priest:** stands back and throws burning pots at the thickest ranks, each landing in a red ring that shows a second before.
+  - **Shield wall:** every 12 seconds he stops and raises his shield towards the legion for 4 seconds, shown as a bright arc in front of him. Blows and shots from in front lose four fifths of their harm; blows from the side or behind, and stones and fire falling from above, do full harm, so flanking him, war dogs and the onager pay.
+  - **Call the band:** every 25 seconds a small war band gathers round him.
+- **War priest:** stands back and throws burning pots at the thickest ranks, each landing in a red ring that shows a second before. He should be killed first.
+  - **Mend:** every 12 seconds a green ring spreads round him, and when it fills every barbarian and boss within it gets back a fifth of his health. He does not heal himself.
+  - **Curse:** a purple mark fills on the ground under the commander. If he is still in it after a second the legion marches 40% slower for 5 seconds and shows purple.
+  - **Blink:** when a soldier gets close he vanishes in smoke and comes out further from the legion, at most every 6 seconds.
 
 ## Controls
 
@@ -147,7 +158,7 @@ Small upgrades to the whole legion, each takeable several times.
 
 ## Enemies
 
-Every province has four ordinary enemies, two elites that arrive with the surges, and a chieftain at the 20-minute mark.
+Every province has four ordinary enemies, two or three elites that arrive on their own timer, and a chieftain at the 20-minute mark.
 
 | Province | Ordinary | Elites | Chieftain |
 |---|---|---|---|
@@ -159,11 +170,11 @@ Every province has four ordinary enemies, two elites that arrive with the surges
 
 - Ranged enemies stop at a distance and fire at the nearest Roman, which is what the testudo answers. After three throws they close in to fight hand to hand.
 - Some enemies join the stream later in the run: in Germania, wolves from 1:30 and axe throwers from 3:00.
-- Elites have far more health, a name over their heads and drop a chest with one free choice. Each has a tactic:
-  - the berserker charges the legion every few seconds and hits hard when he arrives;
-  - the war band leader rallies the barbarians around him, who move faster for a few seconds;
-  - the war priest stands back and throws burning pots at the thickest ranks. A red ring marks where each will land a second before it does, so the legion can step out or raise the testudo.
-- A chieftain has a health bar across the top of the screen and three attacks of his own.
+- Elites have far more health, a name and a health bar over their heads, and drop a chest with one free choice. Each has a tactic and abilities of his own (see Bosses):
+  - the berserker charges the legion every few seconds, spins in a whirlwind and rages when wounded;
+  - the war band leader rallies the barbarians around him, raises his shield to the legion and calls his band;
+  - the war priest stands back and throws burning pots at the thickest ranks, heals those round him, curses the legion and vanishes when soldiers reach him. A red ring marks where each pot will land a second before it does, so the legion can step out or raise the testudo.
+- A chieftain has a health bar across the top of the screen and over his head, his attacks, and a second phase below half health.
 
 ## Provinces
 

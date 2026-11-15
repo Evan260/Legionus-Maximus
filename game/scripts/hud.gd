@@ -225,6 +225,8 @@ func _notice_text(kind: String) -> String:
 			return tr("The sacred grove burns")
 		"chieftain":
 			return tr("The chieftain falls: now hold the fort")
+		"roar":
+			return tr("The chieftain roars in fury")
 	return tr("A Roman fort is in sight: hold it")
 
 

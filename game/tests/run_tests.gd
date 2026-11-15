@@ -303,6 +303,7 @@ func _quiet_sim(b: Dictionary, seed_value: int, art: Content = null) -> Sim:
 	s.horde.next_surge = 1e9
 	s.horde.next_band = 1e9
 	s.horde.next_cart = 1e9
+	s.horde.next_boss = 1e9
 	return s
 
 
@@ -1507,13 +1508,12 @@ func test_province_only_spawns_its_ready_enemies(b: Dictionary) -> void:
 		check(ready_ids.has(id), "%s may spawn" % id)
 	check(not seen.has("painted_warrior") and not seen.has("gaul_swordsman"), "no enemy from another province appears")
 	var wide := Sim.new(b, Content.with_all_art(), {"seed": 101})
-	wide.time = 119.9
-	wide.horde.next_surge = 120.0
+	wide.time = float(b.bosses.first) - 0.1
 	_step_dt(wide, 1.0)
 	var elite := false
 	for t in wide.horde.e_tag:
 		elite = elite or t == Horde.ELITE
-	check(elite, "a ready elite arrives with the surge")
+	check(elite, "a ready elite arrives on the boss timer")
 	var wrong := Sim.new(b, Content.with_all_art(), {"seed": 102, "province": "britannia"})
 	check(wrong.horde.ordinary == content.provinces.britannia.ordinary, "another province brings its own")
 
@@ -3492,3 +3492,337 @@ func test_the_bosses_are_drawn_big(_b: Dictionary) -> void:
 		check(h >= 64, "%s stands at least 64 px tall (%d)" % [type, h])
 	var ch: int = atlas.units.chieftain.idle.south.frames[0][3]
 	check(ch >= 96, "the chieftain stands at least 96 px tall (%d)" % ch)
+
+
+func test_bosses_are_much_tougher(_b: Dictionary) -> void:
+	var e: Dictionary = content.enemies
+	for id in ["berserker", "war_band_leader", "war_priest"]:
+		check(float(e[id].hp) >= 4500.0 and float(e[id].hp) <= 6000.0, "the %s has 4500 to 6000 health (%d)" % [id, int(e[id].hp)])
+	check(float(e.chieftain.hp) >= 23000.0 and float(e.chieftain.hp) <= 25000.0, "the chieftain has 23000 to 25000 health (%d)" % int(e.chieftain.hp))
+	for id in e:
+		if e[id].get("elite", false):
+			check(float(e[id].hp) >= 4500.0, "every elite has at least 4500 health (%s %d)" % [id, int(e[id].hp)])
+		if e[id].get("chieftain", false):
+			check(float(e[id].hp) >= 23000.0, "every chieftain has at least 23000 health (%s %d)" % [id, int(e[id].hp)])
+
+
+func test_elites_grow_tougher_through_the_run(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 700, Content.with_all_art())
+	s.horde.time = 1200.0
+	var late := s.horde.spawn("berserker", Vector2(-300, 0), true)
+	var ratio := s.horde.e_max[late] / float(content.enemies.berserker.hp)
+	check(absf(ratio - (1.0 + float(b.bosses.health_growth) * 1200.0)) < 0.01 and ratio > 1.9, "an elite at 20 minutes has about twice his listed health (%.2f)" % ratio)
+
+
+func _boss_count(s: Sim) -> int:
+	var n := 0
+	for t in s.horde.e_tag:
+		if t == Horde.ELITE:
+			n += 1
+	return n
+
+
+func test_bosses_arrive_on_their_own_timer(b: Dictionary) -> void:
+	var cfg: Dictionary = b.bosses
+	var s := _quiet_sim(b, 701, Content.with_all_art())
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	s.horde.next_boss = float(cfg.first)
+	s.time = float(cfg.first) - 0.5
+	_step_dt(s, 1.0)
+	check(_boss_count(s) == int(cfg.count_start), "the first boss arrives at %d s (%d)" % [int(cfg.first), _boss_count(s)])
+	check(is_equal_approx(s.horde.next_boss, float(cfg.first) + float(cfg.every)), "the next comes %d s later" % int(cfg.every))
+	var late := _quiet_sim(b, 702, Content.with_all_art())
+	late.time = 1100.0
+	late.horde.time = 1100.0
+	late.horde._boss_arrival(late)
+	check(_boss_count(late) == int(cfg.count_max), "late in the run %d come at once (%d)" % [int(cfg.count_max), _boss_count(late)])
+	var kinds := {}
+	for k in late.horde.e_kind:
+		kinds[late.horde.kind_ids[k]] = true
+	for id in kinds:
+		check(late.horde.elites.has(id), "%s is one of the province's elites" % id)
+	var full := _quiet_sim(b, 703, Content.with_all_art())
+	full.horde.time = 1100.0
+	for k in 3:
+		full.horde._boss_arrival(full)
+	check(_boss_count(full) == int(cfg.max_alive), "no more than %d bosses at once (%d)" % [int(cfg.max_alive), _boss_count(full)])
+	var surge := _quiet_sim(b, 704, Content.with_all_art())
+	surge.horde.next_surge = 120.0
+	surge.time = 119.9
+	_step_dt(surge, 0.5)
+	check(_boss_count(surge) == 0 and surge.horde.e_pos.size() > 0, "a surge brings barbarians but no boss")
+
+
+func test_the_horde_is_a_quarter_thinner(b: Dictionary) -> void:
+	check(is_equal_approx(float(b.spawn_per_second_start), 0.75) and is_equal_approx(float(b.spawn_per_second_growth), 0.015), "the stream is a quarter thinner")
+	check(int(b.surge_size_start) == 9 and is_equal_approx(float(b.surge_size_growth), 0.045), "so are the surges")
+	check(int(b.war_band.size_start) == 6 and is_equal_approx(float(b.war_band.size_growth), 0.01125), "and the war bands")
+
+
+func _boss_sim(b: Dictionary, seed_value: int, kind: String, at: Vector2) -> Array:
+	var s := _chief_sim(b, seed_value)
+	var i := s.horde.spawn(kind, at, true)
+	s._rebuild_grids()
+	var st: Dictionary = s.horde.boss_state(i)
+	for key in st:
+		if str(key).ends_with("_cd"):
+			st[key] = 1e9
+	return [s, i, st]
+
+
+func test_the_berserker_whirls_after_a_red_ring(b: Dictionary) -> void:
+	var cfg: Dictionary = content.enemies.berserker.whirlwind
+	var r := float(cfg.radius)
+	var at := Vector2(200, 0)
+	var made := _boss_sim(b, 710, "berserker", at)
+	var s: Sim = made[0]
+	var st: Dictionary = made[2]
+	var near: Dictionary = s.soldiers[0]
+	var far: Dictionary = s.soldiers[1]
+	s.commander.pos = Vector2(-300, 0)
+	for so in s.soldiers:
+		so.pos = Vector2(-300, 40)
+	near.pos = at + Vector2(r - 8.0, 0)
+	far.pos = at + Vector2(r + 30.0, 0)
+	near.max_hp = 1e6
+	near.hp = 1e6
+	far.max_hp = 1e6
+	far.hp = 1e6
+	st.whirl_cd = 0.0
+	s._rebuild_grids()
+	s.horde._bosses(1.0 / 60.0, s)
+	var ring := false
+	for l in s.horde.foe_lobs:
+		ring = ring or (l.get("slam", false) and l.to == s.horde.e_pos[made[1]] and is_equal_approx(l.radius, r))
+	check(ring, "a red ring of %d px fills round the berserker" % int(r))
+	check(near.hp == 1e6, "nobody is hurt while it fills")
+	for l in s.horde.foe_lobs:
+		l.t = l.dur
+	s.horde._foe_lobs(0.01, s)
+	var want := float(content.enemies.berserker.dps) * float(cfg.damage_mult) * s.horde.e_power[made[1]]
+	check(is_equal_approx(1e6 - near.hp, want), "then his whirl hits a Roman inside it hard (%.0f)" % (1e6 - near.hp))
+	check(far.hp == 1e6, "and misses a Roman outside it")
+
+
+func test_the_berserker_rages_when_wounded(b: Dictionary) -> void:
+	var made := _boss_sim(b, 711, "berserker", Vector2(300, 0))
+	var s: Sim = made[0]
+	var i: int = made[1]
+	s.horde._bosses(1.0 / 60.0, s)
+	check(s.horde.e_fury[i] == 1.0, "at full health he is calm")
+	s.horde.e_hp[i] = s.horde.e_max[i] * 0.49
+	s.horde._bosses(1.0 / 60.0, s)
+	check(is_equal_approx(s.horde.e_fury[i], float(content.enemies.berserker.rage.mult)), "below half health he rages")
+	s.commander.pos = Vector2.ZERO
+	var p0: Vector2 = s.horde.e_pos[i]
+	s.horde.e_cd[i] = 1e9
+	s._rebuild_grids()
+	s.horde._move(0.1, s)
+	var moved := (s.horde.e_pos[i] - p0).length()
+	check(moved > float(content.enemies.berserker.speed) * 0.1 * 1.2, "and runs faster (%.1f px)" % moved)
+
+
+func test_the_war_band_leader_raises_his_shield(b: Dictionary) -> void:
+	var cfg: Dictionary = content.enemies.war_band_leader.shield_wall
+	var made := _boss_sim(b, 712, "war_band_leader", Vector2(120, 0))
+	var s: Sim = made[0]
+	var i: int = made[1]
+	var st: Dictionary = made[2]
+	s.commander.pos = Vector2.ZERO
+	st.shield_cd = 0.0
+	s._rebuild_grids()
+	s.horde._bosses(1.0 / 60.0, s)
+	check(st.shield > 0.0, "he raises his shield")
+	check(st.shield_dir.dot(Vector2.LEFT) > 0.99, "towards the legion")
+	var hp0: float = s.horde.e_hp[i]
+	s.hit(i, 100.0, 0.0, "", Vector2(60, 0))
+	var front: float = hp0 - s.horde.e_hp[i]
+	check(is_equal_approx(front, 100.0 * (1.0 - float(cfg.cut))), "a blow from in front does a fifth (%.0f)" % front)
+	hp0 = s.horde.e_hp[i]
+	s.hit(i, 100.0, 0.0, "", Vector2(180, 0))
+	check(is_equal_approx(hp0 - s.horde.e_hp[i], 100.0), "a blow from behind does full harm")
+	hp0 = s.horde.e_hp[i]
+	s.hit(i, 100.0, 0.0, "", Vector2(120, 60))
+	check(is_equal_approx(hp0 - s.horde.e_hp[i], 100.0), "a blow from the side does full harm")
+	hp0 = s.horde.e_hp[i]
+	s.hit(i, 100.0, 0.0, "onager")
+	check(is_equal_approx(hp0 - s.horde.e_hp[i], 100.0), "a stone falling from above does full harm")
+	st.shield = 0.0
+	hp0 = s.horde.e_hp[i]
+	s.hit(i, 100.0, 0.0, "", Vector2(60, 0))
+	check(is_equal_approx(hp0 - s.horde.e_hp[i], 100.0), "with the shield down a blow from in front does full harm")
+
+
+func test_a_shot_from_the_front_hits_his_shield(b: Dictionary) -> void:
+	var made := _boss_sim(b, 713, "war_band_leader", Vector2(120, 0))
+	var s: Sim = made[0]
+	var i: int = made[1]
+	made[2].shield = 3.0
+	made[2].shield_dir = Vector2.LEFT
+	s._rebuild_grids()
+	var hp0: float = s.horde.e_hp[i]
+	s.shoot("arrow", Vector2(80, 0), Vector2(120, 0), 300.0, 50.0, 0)
+	s._move_shots(0.1)
+	check(is_equal_approx(hp0 - s.horde.e_hp[i], 50.0 * (1.0 - float(content.enemies.war_band_leader.shield_wall.cut))), "an arrow from in front is mostly stopped (%.0f)" % (hp0 - s.horde.e_hp[i]))
+
+
+func test_the_war_band_leader_calls_his_band(b: Dictionary) -> void:
+	var made := _boss_sim(b, 714, "war_band_leader", Vector2(250, 0))
+	var s: Sim = made[0]
+	var before := s.horde.e_pos.size()
+	made[2].band_cd = 0.0
+	s.horde._bosses(1.0 / 60.0, s)
+	var n := s.horde.e_pos.size() - before
+	var want := int(float(b.war_band.size_start) * float(content.enemies.war_band_leader.call_band.size_mult))
+	check(n == want, "a band of %d arrives (%d)" % [want, n])
+	var round_him := true
+	for k in range(before, s.horde.e_pos.size()):
+		round_him = round_him and s.horde.e_pos[k].distance_to(Vector2(250, 0)) <= float(b.war_band.spread) + 1.0
+	check(round_him, "round him")
+	check(made[2].band_cd > 0.0, "and he waits before calling again")
+
+
+func test_the_war_priest_mends_those_round_him(b: Dictionary) -> void:
+	var cfg: Dictionary = content.enemies.war_priest.mend
+	var made := _boss_sim(b, 715, "war_priest", Vector2(300, 0))
+	var s: Sim = made[0]
+	var i: int = made[1]
+	var near := s.horde.spawn("berserker", Vector2(300 + float(cfg.radius) - 20.0, 0), true)
+	var club := s.horde.spawn("barbarian_club", Vector2(300, 30))
+	var far := s.horde.spawn("barbarian_club", Vector2(300 + float(cfg.radius) + 60.0, 0))
+	for j in [i, near, club, far]:
+		s.horde.e_hp[j] = s.horde.e_max[j] * 0.5
+	made[2].mend_cd = 0.0
+	s.horde._bosses(1.0 / 60.0, s)
+	var green := false
+	for m in s.horde.marks:
+		green = green or (m.kind == "mend" and is_equal_approx(m.radius, float(cfg.radius)))
+	check(green, "a green ring of %d px shows round him" % int(cfg.radius))
+	check(s.horde.e_hp[near] == s.horde.e_max[near] * 0.5, "nobody is healed while it fills")
+	s.horde._marks(float(cfg.windup) + 0.01, s)
+	var share := float(cfg.share)
+	check(is_equal_approx(s.horde.e_hp[near], s.horde.e_max[near] * (0.5 + share)), "a boss near him gets back a fifth of his health")
+	check(is_equal_approx(s.horde.e_hp[club], s.horde.e_max[club] * (0.5 + share)), "so does a barbarian near him")
+	check(is_equal_approx(s.horde.e_hp[far], s.horde.e_max[far] * 0.5), "a barbarian far off is not healed")
+	check(is_equal_approx(s.horde.e_hp[i], s.horde.e_max[i] * 0.5), "he does not heal himself")
+
+
+func test_the_war_priest_curses_the_legion(b: Dictionary) -> void:
+	var cfg: Dictionary = content.enemies.war_priest.curse
+	for stay in [true, false]:
+		var made := _boss_sim(b, 716, "war_priest", Vector2(150, 0))
+		var s: Sim = made[0]
+		s.commander.pos = Vector2.ZERO
+		var plain := s.speed()
+		made[2].curse_cd = 0.0
+		s.horde._bosses(1.0 / 60.0, s)
+		var mark := {}
+		for m in s.horde.marks:
+			if m.kind == "curse":
+				mark = m
+		check(not mark.is_empty() and mark.get("pos", Vector2.INF) == Vector2.ZERO, "a purple mark appears under the commander")
+		if not stay:
+			s.commander.pos = Vector2(0, float(cfg.radius) + 20.0)
+		s.horde._marks(float(cfg.windup) + 0.01, s)
+		if stay:
+			check(is_equal_approx(s.speed(), plain * (1.0 - float(cfg.slow))), "a commander still in it marches %d%% slower" % int(float(cfg.slow) * 100.0))
+			s.horde._bosses(float(cfg.seconds) + 0.1, s)
+			check(is_equal_approx(s.speed(), plain), "until the curse wears off")
+		else:
+			check(is_equal_approx(s.speed(), plain), "a commander who stepped out is not slowed")
+
+
+func test_the_war_priest_blinks_away(b: Dictionary) -> void:
+	var cfg: Dictionary = content.enemies.war_priest.blink
+	var made := _boss_sim(b, 717, "war_priest", Vector2(200, 0))
+	var s: Sim = made[0]
+	var i: int = made[1]
+	s.commander.pos = Vector2(-200, 0)
+	for so in s.soldiers:
+		so.pos = Vector2(-200, 20)
+	made[2].blink_cd = 0.0
+	s._rebuild_grids()
+	s.horde._bosses(1.0 / 60.0, s)
+	check(s.horde.e_pos[i] == Vector2(200, 0), "he stays while nobody is close")
+	s.soldiers[0].pos = Vector2(200 - float(content.enemies.war_priest.radius) - float(cfg.near) + 10.0, 0)
+	s.horde._bosses(1.0 / 60.0, s)
+	var gone := s.horde.e_pos[i].distance_to(Vector2(200, 0))
+	check(gone > float(cfg.distance) * 0.8, "a soldier close by makes him vanish %.0f px away" % gone)
+	check(s.horde.e_pos[i].distance_to(s.commander.pos) > Vector2(200, 0).distance_to(s.commander.pos), "away from the legion")
+	var smoke := 0
+	for e in s.effects:
+		if e.kind == "smoke":
+			smoke += 1
+	check(smoke == 2, "in a puff of smoke where he was and where he comes out")
+	var then := s.horde.e_pos[i]
+	s.soldiers[0].pos = then + Vector2(-20, 0)
+	s.horde._bosses(1.0 / 60.0, s)
+	check(s.horde.e_pos[i] == then, "he cannot blink again at once")
+
+
+func test_the_chieftain_rages_in_his_second_phase(b: Dictionary) -> void:
+	var cfg: Dictionary = content.enemies.chieftain.fury
+	var s := _chief_sim(b, 718)
+	s.facing_angle = 0.0
+	var ci := s.horde.spawn("chieftain", Vector2(300, 0))
+	s.horde.horn_cd = 10.0
+	s.horde._chieftain(1.0, s)
+	check(is_equal_approx(s.horde.horn_cd, 9.0) and not s.horde.chief_fury, "above half health his attacks come at their pace")
+	s.horde.e_hp[ci] = s.horde.e_max[ci] * 0.49
+	s.horde._chieftain(1.0 / 60.0, s)
+	check(s.horde.chief_fury, "below half health he roars")
+	check(s.shake >= float(b.shake.roar), "the screen shakes")
+	check(s.objectives.notice.get("kind", "") == "roar", "and a notice says so")
+	s.horde.horn_cd = 10.0
+	s.horde._chieftain(1.0, s)
+	check(is_equal_approx(s.horde.horn_cd, 10.0 - float(cfg.rate_mult)), "then his attacks come %d%% faster" % roundi((float(cfg.rate_mult) - 1.0) * 100.0))
+	var before := s.horde.e_pos.size()
+	s.horde.horn_cd = 0.0
+	s.horde._chieftain(1.0 / 60.0, s)
+	var n := s.horde.e_pos.size() - before
+	check(n == int(b.war_band.size_start) * int(cfg.bands), "and his horn calls %d bands (%d)" % [int(cfg.bands), n])
+
+
+func test_early_bosses_come_weaker(b: Dictionary) -> void:
+	var cfg: Dictionary = b.bosses
+	var s := _quiet_sim(b, 720, Content.with_all_art())
+	s.horde.time = 0.0
+	var first := s.horde.spawn("berserker", Vector2(300, 0), true)
+	s.horde.time = float(cfg.early_until)
+	var full := s.horde.spawn("berserker", Vector2(-300, 0), true)
+	var grown := 1.0 + float(cfg.health_growth) * float(cfg.early_until)
+	check(is_equal_approx(s.horde.e_max[first] / s.horde.e_max[full], float(cfg.early_mult) / grown), "a boss at the start has %d%% of the health of one at %d s" % [int(float(cfg.early_mult) * 100.0), int(cfg.early_until)])
+	check(is_equal_approx(s.horde.e_power[first], float(cfg.early_mult)) and s.horde.e_power[full] == 1.0, "and hits that much softer")
+	var club := s.horde.spawn("barbarian_club", Vector2(0, 300))
+	check(s.horde.e_power[club] == 1.0, "an ordinary barbarian is not changed")
+	s.horde.e_hp[first] = 1.0
+	s.horde._bosses(1.0 / 60.0, s)
+	check(is_equal_approx(s.horde.e_power[first], float(cfg.early_mult) * float(content.enemies.berserker.rage.mult)), "his rage builds on it")
+
+
+func test_few_bosses_at_once_early_on(b: Dictionary) -> void:
+	var cfg: Dictionary = b.bosses
+	var s := _quiet_sim(b, 721, Content.with_all_art())
+	s.horde.time = 60.0
+	for k in 3:
+		s.horde._boss_arrival(s)
+	check(_boss_count(s) == int(cfg.max_alive_start), "early on only %d boss is on the field at once (%d)" % [int(cfg.max_alive_start), _boss_count(s)])
+
+
+func test_early_bosses_act_less_often(b: Dictionary) -> void:
+	var cfg: Dictionary = b.bosses
+	var made := _boss_sim(b, 722, "war_priest", Vector2(400, 0))
+	var s: Sim = made[0]
+	var st: Dictionary = made[2]
+	s.horde.time = 0.0
+	st.mend_cd = 10.0
+	s.horde._bosses(1.0, s)
+	check(is_equal_approx(st.mend_cd, 10.0 - float(cfg.early_pace)), "at the start his timers run at %d%% pace (%.2f)" % [int(float(cfg.early_pace) * 100.0), st.mend_cd])
+	s.horde.time = float(cfg.early_until)
+	st.mend_cd = 10.0
+	s.horde._bosses(1.0, s)
+	check(is_equal_approx(st.mend_cd, 9.0), "and at full pace later")
+	s.horde.time = 0.0
+	var wait := s.horde._lob_at_ranks(made[1], s)
+	check(is_equal_approx(wait, float(content.enemies.war_priest.lob.every) / float(cfg.early_pace)), "his pots come less often early on (%.1f s)" % wait)

@@ -204,7 +204,8 @@ func speed() -> float:
 	var v: float = content.base_commander.speed * (1.0 + 0.08 * rank("march") + _bonus_amount("move_speed")) * float(content.commanders[commander_id].get("speed_mult", 1.0))
 	# Barbarians locked in melee hold the legion back, so marching into a crowd bogs it down instead of passing through.
 	var held := maxf(float(b.press.slowest), 1.0 - float(b.press.per_enemy) * pressing)
-	return v * held * (b.testudo_speed if testudo_left > 0.0 else 1.0)
+	var cursed := 1.0 - horde.curse_slow if horde.curse_left > 0.0 else 1.0
+	return v * held * cursed * (b.testudo_speed if testudo_left > 0.0 else 1.0)
 
 
 func range_mult() -> float:
@@ -454,8 +455,9 @@ func _number(i: int, taken: float) -> void:
 	numbers.append({"pos": horde.e_pos[i] + Vector2((horde.e_id[i] * 7) % 9 - 4, -12), "v": roundi(taken), "t": 0.0})
 
 
-func hit(i: int, dmg: float, burn_dps: float = 0.0, src := "") -> void:
-	_number(i, _harm(i, dmg, src_id(src)))
+## `from` is where a direct blow or shot came from, for a boss's shield; it is left out for harm that falls from above or burns.
+func hit(i: int, dmg: float, burn_dps: float = 0.0, src := "", from := Vector2.INF) -> void:
+	_number(i, _harm(i, dmg * horde.guard_mult(i, from), src_id(src)))
 	tally(0, horde.e_pos[i])
 	horde.e_flash[i] = 0.1
 	if burn_dps > 0.0:
@@ -484,7 +486,7 @@ func melee(u: Dictionary, dmg: float, reach: float, cooldown: float, dt: float) 
 	if t < 0:
 		return
 	strike(u, horde.e_pos[t])
-	hit(t, dmg * (1.0 + 0.2 * rank("gladius")), 0.0, u.type)
+	hit(t, dmg * (1.0 + 0.2 * rank("gladius")), 0.0, u.type, u.pos)
 	u.cd = cooldown
 	effects.append({"kind": "slash", "pos": u.pos, "to": horde.e_pos[t], "t": 0.0})
 
@@ -534,7 +536,7 @@ func _move_shots(dt: float) -> void:
 						continue
 					var r := horde.k_radius[horde.e_kind[j]] + 3.0
 					if (horde.e_pos[j] - s.pos).length_squared() < r * r:
-						hit(j, s.dmg, s.burn, s.src)
+						hit(j, s.dmg, s.burn, s.src, s.pos - s.vel.normalized() * 30.0)
 						if s.pin > 0.0:
 							horde.e_stun[j] = maxf(horde.e_stun[j], s.pin)
 						if s.knock > 0.0:

@@ -19,6 +19,8 @@ extends Node
 ##   --as-demo          play as the demo: Germania, three commanders and 15 minutes
 ##   --card=ID          show that achievement's card, for looking at it
 ##   --give=ID,ID:RANK  start the run with these arms or drills at the rank (default 1), for looking at them
+##   --boss=ID          with --autoplay, bring that elite or the chieftain beside the legion; --boss-act=whirl|shield|band|mend|curse|blink|rage|roar
+##                      makes him use that ability at once and holds his others back
 ##   --god=ID           with --autoplay, call that god at --god-at seconds (default 2) of the look; --god=choose fills the favour and holds the choice open
 
 var balance: Dictionary
@@ -104,10 +106,39 @@ func _ready() -> void:
 		Steamworks.show_card(args.card)
 	if args.has("hold-choice"):
 		sim.gain(sim.xp_next - sim.xp)
+	if args.has("boss") and sim != null:
+		_bring_boss(str(args.boss), str(args.get("boss-act", "")))
 	if args.has("god"):
 		god_at = float(args.get("god-at", "2"))
 	if args.has("shot"):
 		shot_at = float(args.get("at", "3"))
+
+
+## Brings a boss close beside the legion and has him use one ability at once, for a screenshot.
+func _bring_boss(kind: String, act: String) -> void:
+	if not content.enemies.has(kind):
+		return
+	var h := sim.horde
+	var at: Vector2 = sim.commander.pos + (Vector2(130, 50) if act == "curse" else (Vector2(30, 25) if act == "whirl" else Vector2(60, 50)))
+	if kind == h.chief_kind:
+		var ci := h.spawn_chieftain(at)
+		if act == "roar":
+			h.e_hp[ci] = h.e_max[ci] * 0.5 + 1.0
+		return
+	var i := h.spawn(kind, at, true)
+	var st := h.boss_state(i)
+	var timers := {"whirl": "whirl_cd", "shield": "shield_cd", "band": "band_cd", "mend": "mend_cd", "curse": "curse_cd", "blink": "blink_cd"}
+	for key in timers.values():
+		if st.has(key):
+			st[key] = 1e9
+	if timers.has(act) and st.has(timers[act]):
+		st[timers[act]] = 0.0
+	if act == "rage":
+		h.e_hp[i] = h.e_max[i] * 0.45
+	if act == "mend":
+		for k in 6:
+			var j := h.spawn(h.ordinary[0], at + Vector2.from_angle(k * TAU / 6.0) * 60.0)
+			h.e_hp[j] = h.e_max[j] * 0.4
 
 
 ## Puts the legion just below an objective or inside a freshly raised fort, for a screenshot.

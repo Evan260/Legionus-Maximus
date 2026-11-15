@@ -12,6 +12,7 @@ Godot is `C:\Users\evand\AppData\Local\Microsoft\WinGet\Packages\GodotEngine.God
 - Balance: `godot --headless --path game --script res://tests/balance_bots.gd` plays runs with five bots (standing still, marching straight, circling, facing the crowd, facing with recruits first). Put `{"modes": [...], "seeds": [...], "balance": {...}, "enemies": {...}}` in `game/tests/balance_overrides.json` to try numbers without editing the data (delete it afterwards). After the November 2026 tuning, standing still and marching straight die within about 5 minutes and facing the crowd reaches the chieftain about 4 times in 10.
 - Look without playing: `godot --path game -- --autoplay`, with `--skip=SECONDS` to start later in the run and `--shot=PATH --at=SECONDS` to save a screenshot and quit
 - Every other flag, all for looking or testing and none of them saved to the profile:
+  - `--boss=ID` with `--autoplay` brings that elite or the chieftain beside the legion, and `--boss-act=whirl|shield|band|mend|curse|blink|rage|roar` has him use that ability at once
   - `--chieftain-at=S` brings the chieftain at that second; `--hold-choice` with `--autoplay` leaves a level-up open
   - `--hard`, `--endless`, `--decimatio` start the run in that mode
   - `--screen=camp|quartermaster|tablinum|map|commanders|settings|title|pause|summary` opens a screen with a sample profile (`--page=controls` for the key page of the settings)

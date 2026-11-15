@@ -138,11 +138,14 @@ func _draw() -> void:
 
 
 	var gold := Color(1.0, 0.92, 0.7)
+	var cursed := Color(0.78, 0.55, 1.0)
 	for u in [sim.commander] + sim.soldiers:
 		var f := _legion_frame(u)
 		var mod := white
 		if u.flash > 0.0:
 			mod = Color(1.0, 0.55, 0.55)
+		elif sim.horde.curse_left > 0.0:
+			mod = cursed
 		elif sim.testudo_left > 0.0:
 			mod = gold
 		draw_texture(shadow, _snap(u.pos - Vector2(8, 3)))
@@ -172,6 +175,8 @@ func _draw() -> void:
 		var mod := white
 		if h.e_flash[i] > 0.0:
 			mod = Color(1.0, 0.5, 0.45)
+		elif h.e_fury[i] > 1.0:
+			mod = Color(1.0, 0.42 + 0.12 * sin(sim.time * 10.0), 0.36)
 		elif h.e_burn[i] > 0.0:
 			mod = Color(1.0, 0.78, 0.6)
 		var sw := _k_shadow[kind]
@@ -199,7 +204,7 @@ func _draw() -> void:
 
 	_draw_shots(tex)
 	_draw_spears()
-	_draw_elite_names(view)
+	_draw_boss_heads(view)
 	_draw_lobs(tex)
 	_draw_effects()
 	_draw_objective_marks(view)
@@ -332,6 +337,23 @@ func _draw_warnings() -> void:
 		draw_circle(l.to, l.radius, Color(0.75, 0.12, 0.08, 0.12 + 0.18 * k))
 		draw_arc(l.to, l.radius, 0.0, TAU, 32, Color(0.95, 0.25, 0.15, 0.85), 1.0)
 		draw_circle(l.to, l.radius * k, Color(0.95, 0.35, 0.15, 0.25))
+	for m in h.marks:
+		var k: float = clampf(m.t / m.dur, 0.0, 1.0)
+		var at: Vector2 = m.pos
+		if m.kind == "mend":
+			var pi := h.e_id.find(m.id)
+			if pi >= 0:
+				at = h.e_pos[pi]
+			draw_circle(at, m.radius, Color(0.2, 0.75, 0.3, 0.06 + 0.1 * k))
+			draw_arc(at, m.radius, 0.0, TAU, 64, Color(0.45, 1.0, 0.5, 0.9), 1.0)
+			draw_arc(at, m.radius * k, 0.0, TAU, 64, Color(0.6, 1.0, 0.6, 0.8), 2.0)
+		else:
+			draw_circle(at, m.radius, Color(0.45, 0.12, 0.6, 0.15 + 0.2 * k))
+			draw_arc(at, m.radius, 0.0, TAU, 40, Color(0.8, 0.45, 1.0, 0.95), 1.0)
+			draw_circle(at, m.radius * k, Color(0.7, 0.3, 0.95, 0.3))
+			for n in 3:
+				var a := sim.time * 2.0 + n * TAU / 3.0
+				draw_arc(at, m.radius * 0.6, a, a + 1.2, 8, Color(0.85, 0.55, 1.0, 0.8), 1.0)
 
 
 func _lob_sprite(tex: Texture2D, key: String, p: Vector2) -> void:
@@ -485,17 +507,37 @@ func _draw_spears() -> void:
 		draw_rect(Rect2(h.sp_pos[i].round(), Vector2(1, 1)), Color(0.85, 0.85, 0.8))
 
 
-## An elite's name stands over its head in small text.
-func _draw_elite_names(view: Rect2) -> void:
+## Over each boss: a raised shield in front of a war band leader, an elite's name, and a health bar under it.
+func _draw_boss_heads(view: Rect2) -> void:
 	var h: Horde = sim.horde
-	for id in h.elite_ids:
+	var ids: Array = h.elite_ids.duplicate()
+	var ci := h.chieftain_index()
+	if ci >= 0:
+		ids.append(h.e_id[ci])
+	for id in ids:
 		var i := h.e_id.find(id)
 		if i < 0 or not view.has_point(h.e_pos[i]):
 			continue
 		var type: String = h.kind_ids[h.e_kind[i]]
-		var label: String = sim.content.enemies[type].name
+		var p: Vector2 = h.e_pos[i]
 		var tall: float = atlas.units[type].idle.south.frames[0][3] if atlas.units.has(type) else 40.0
-		var at: Vector2 = (h.e_pos[i] + Vector2(-60, -tall - 2.0)).round()
+		var st: Dictionary = h.boss.get(id, {})
+		if not st.is_empty() and st.shield > 0.0:
+			var a: float = st.shield_dir.angle()
+			var half := float(sim.content.enemies[type].shield_wall.arc) / 2.0
+			var c := p + Vector2(0, -tall * 0.3)
+			var r := h.k_radius[h.e_kind[i]] + 14.0
+			draw_arc(c, r, a - half, a + half, 20, Color(0.16, 0.1, 0.08, 0.9), 8.0)
+			draw_arc(c, r, a - half, a + half, 20, Color(0.55, 0.85, 1.0), 5.0)
+			draw_arc(c, r + 1.0, a - half * 0.85, a + half * 0.85, 16, Color(1.0, 1.0, 0.95), 2.0)
+		var w := 44.0 if h.e_tag[i] == Horde.CHIEF else 32.0
+		var bar: Vector2 = (p + Vector2(-w / 2.0, -tall - 3.0)).round()
+		draw_rect(Rect2(bar - Vector2(1, 1), Vector2(w + 2, 5)), Color(0.16, 0.1, 0.08))
+		draw_rect(Rect2(bar, Vector2(w * clampf(h.e_hp[i] / h.e_max[i], 0.0, 1.0), 3)), Color(0.85, 0.22, 0.18))
+		if h.e_tag[i] == Horde.CHIEF:
+			continue
+		var label: String = sim.content.enemies[type].name
+		var at: Vector2 = (p + Vector2(-60, -tall - 6.0)).round()
 		draw_string(Ui.font(), at + Vector2(1, 1), label, HORIZONTAL_ALIGNMENT_CENTER, 120, Lang.base_px(), Color(0.16, 0.1, 0.08))
 		draw_string(Ui.font(), at, label, HORIZONTAL_ALIGNMENT_CENTER, 120, Lang.base_px(), Color(1.0, 0.89, 0.59))
 
@@ -557,6 +599,22 @@ func _draw_effects() -> void:
 		elif e.kind == "cry":
 			var k: float = e.t / 0.45
 			draw_arc(e.pos, e.radius * (0.2 + 0.8 * k), 0.0, TAU, 48, Color(0.9, 0.25, 0.2, 1.0 - k), 2.0)
+		elif e.kind == "whirl":
+			var k: float = e.t / 0.45
+			for n in 3:
+				var a: float = k * TAU * 1.5 + n * TAU / 3.0
+				draw_arc(e.pos, e.radius * (0.5 + 0.5 * k), a, a + 1.4, 10, Color(1.0, 0.85, 0.7, 1.0 - k), 2.0)
+		elif e.kind == "mend":
+			var k: float = e.t / 0.45
+			draw_arc(e.pos, e.radius * (0.3 + 0.7 * k), 0.0, TAU, 64, Color(0.5, 1.0, 0.55, 1.0 - k), 3.0)
+		elif e.kind == "curse":
+			var k: float = e.t / 0.45
+			draw_circle(e.pos, e.radius * (0.6 + 0.6 * k), Color(0.65, 0.3, 0.95, 0.45 * (1.0 - k)))
+		elif e.kind == "smoke":
+			var k: float = e.t / 0.45
+			for n in 6:
+				var dir := Vector2.from_angle(n * TAU / 6.0 + 0.3)
+				draw_circle(e.pos + Vector2(0, -12) + dir * (4.0 + 10.0 * k), 5.0 + 3.0 * k, Color(0.55, 0.53, 0.58, 0.8 * (1.0 - k)))
 		elif e.kind == "spark":
 			var k: float = e.t / 0.45
 			draw_rect(Rect2((e.pos + Vector2(-1, -1 - k * 4.0)).round(), Vector2(2, 2)), Color(1.0, 0.95, 0.6, 1.0 - k))

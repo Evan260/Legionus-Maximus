@@ -120,6 +120,19 @@ var carts: Array = []
 var foe_lobs: Array = []
 # Seconds until each rallying elite, by enemy id, shouts again.
 var rally_cd := {}
+var next_boss := 0.0
+# Telegraphs of the war priests' mending and curses, each resolving when it has filled.
+var marks: Array = []
+# Seconds left of a war priest's curse on the legion, and how much it slows the march.
+var curse_left := 0.0
+var curse_slow := 0.0
+var chief_fury := false
+# How much faster a raging boss moves; 1 for everyone else.
+var e_fury := PackedFloat32Array()
+# How hard an elite hits: softer for those who come early, harder in a rage; 1 for everyone else.
+var e_power := PackedFloat32Array()
+# Each elite's own ability timers and state, by enemy id, since there are only ever a few of them.
+var boss := {}
 
 
 func _init(balance: Dictionary, game_content: Content, random: RandomNumberGenerator, commander_unit: Dictionary, province_id: String) -> void:
@@ -174,6 +187,7 @@ func _init(balance: Dictionary, game_content: Content, random: RandomNumberGener
 	chief_kind = chief if content.ready("enemies", chief) else ""
 	next_surge = float(b.surge_every)
 	next_band = float(b.war_band.first)
+	next_boss = float(b.bosses.first)
 	next_cart = float(b.cart.every)
 	var attacks: Dictionary = content.enemies[chief].get("attacks", {})
 	cleave_cd = float(attacks.get("cleave", {}).get("every", 5.0)) * 0.5
@@ -183,7 +197,7 @@ func _init(balance: Dictionary, game_content: Content, random: RandomNumberGener
 	horn_cd = float(attacks.get("horn", {}).get("every", 30.0)) * 0.5
 
 
-## Adds an enemy and returns its index. Elites, and the chieftain, keep their listed health for the whole run.
+## Adds an enemy and returns its index. Elites grow tougher through the run on their own curve; the chieftain keeps his listed health.
 func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 	var kind: int = kind_of[kind_id]
 	var info: Dictionary = content.enemies[kind_id]
@@ -197,6 +211,10 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 	var hp := float(info.hp)
 	if tag == ORDINARY:
 		hp *= 1.0 + float(b.enemy_health_growth) * time + float(b.get("enemy_health_curve", 0.0)) * pow(time / 60.0, 2.0)
+	var power := 1.0
+	if tag == ELITE:
+		power = early_boss_mult()
+		hp *= power * (1.0 + float(b.bosses.health_growth) * time)
 	if hard:
 		hp *= float(b.hard.health_mult)
 	var owner_sim: Sim = sim_ref.get_ref() if sim_ref != null else null
@@ -242,6 +260,8 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 	e_haste.append(0.0)
 	e_guard.append(Vector2.ZERO)
 	e_stuck.append(0.0)
+	e_fury.append(1.0)
+	e_power.append(power)
 	return e_id.size() - 1
 
 
@@ -335,9 +355,12 @@ func update(dt: float, sim: Sim) -> void:
 	_spawn(dt, sim)
 	_chieftain(dt, sim)
 	_rally(dt, sim)
+	_bosses(dt, sim)
 	_move(dt, sim)
 	_chieftain_after(sim)
+	_bosses_after()
 	_foe_lobs(dt, sim)
+	_marks(dt, sim)
 	_spears(dt, sim)
 	_carts(dt, sim)
 	_chests(sim)
@@ -364,16 +387,45 @@ func _spawn(dt: float, sim: Sim) -> void:
 			var a := side + rng.randf_range(-0.6, 0.6)
 			var r: float = b.spawn_radius + rng.randf_range(0.0, 80.0)
 			spawn(_pick_ordinary(), open_point(commander.pos + Vector2(cos(a) * 1.15, sin(a) * 0.75) * r))
-		if not elites.is_empty():
-			for i in int(b.elites_per_surge):
-				var a := side + rng.randf_range(-0.3, 0.3)
-				spawn(elites[rng.randi_range(0, elites.size() - 1)], commander.pos + Vector2(cos(a) * 1.15, sin(a) * 0.75) * b.spawn_radius, true)
+	if time >= next_boss:
+		next_boss += float(b.bosses.every)
+		_boss_arrival(sim)
 	if chieftain_id == -1 and chief_kind != "" and time >= b.chieftain_at:
 		spawn_chieftain(sim.objectives.chieftain_point(sim))
 	if time >= next_cart:
 		next_cart += float(b.cart.every)
 		if content.available.has("prop:supply_cart"):
 			spawn_cart()
+
+
+## Early bosses come with part of their health and strength, growing to the full by `early_until`, so the opening stays learnable.
+func early_boss_mult() -> float:
+	var cfg: Dictionary = b.bosses
+	return lerpf(float(cfg.early_mult), 1.0, clampf(time / float(cfg.early_until), 0.0, 1.0))
+
+
+## How fast early bosses use their abilities, rising to full pace by `early_until`.
+func early_pace() -> float:
+	var cfg: Dictionary = b.bosses
+	return lerpf(float(cfg.early_pace), 1.0, clampf(time / float(cfg.early_until), 0.0, 1.0))
+
+
+## Bosses come from one side on their own timer, more of them at once as the run goes on.
+func _boss_arrival(sim: Sim) -> void:
+	if elites.is_empty():
+		return
+	var cfg: Dictionary = b.bosses
+	var n := mini(int(cfg.count_max), int(float(cfg.count_start) + float(cfg.count_growth) * time))
+	var side := rng.randf() * TAU
+	var came := false
+	for k in n:
+		if elite_ids.size() >= mini(int(cfg.max_alive), int(float(cfg.max_alive_start) + float(cfg.max_alive_growth) * time)):
+			break
+		var a := side + rng.randf_range(-0.5, 0.5)
+		spawn(elites[rng.randi_range(0, elites.size() - 1)], open_point(commander.pos + Vector2(cos(a) * 1.15, sin(a) * 0.75) * b.spawn_radius), true)
+		came = true
+	if came:
+		sim.event("surge", commander.pos)
 
 
 ## A tight band gathers in the legion's path or closes in from behind, so marching straight on is never safe for long.
@@ -383,12 +435,12 @@ func _war_band(sim: Sim, behind := false) -> void:
 	war_band_at(sim, open_point(commander.pos + dir.rotated(rng.randf_range(-0.4, 0.4)) * Vector2(1.15, 0.75) * float(b.spawn_radius)))
 
 
-## A war band gathered round a given point, such as the defenders of an objective.
-func war_band_at(sim: Sim, centre: Vector2) -> void:
+## A war band gathered round a given point, such as the defenders of an objective; `mult` scales its size.
+func war_band_at(sim: Sim, centre: Vector2, mult := 1.0) -> void:
 	if ordinary.is_empty():
 		return
 	var wb: Dictionary = b.war_band
-	var n := int(float(wb.size_start) + float(wb.size_growth) * time)
+	var n := int((float(wb.size_start) + float(wb.size_growth) * time) * mult)
 	for i in n:
 		if e_pos.size() >= int(b.max_enemies):
 			break
@@ -408,11 +460,15 @@ func _chieftain(dt: float, sim: Sim) -> void:
 	var atk: Dictionary = content.enemies[kind_ids[e_kind[ci]]].get("attacks", {})
 	if atk.is_empty():
 		return
-	cleave_cd -= dt
-	cry_cd -= dt
-	charge_cd -= dt
-	slam_cd -= dt
-	horn_cd -= dt
+	var fury: Dictionary = content.enemies[kind_ids[e_kind[ci]]].get("fury", {})
+	if not fury.is_empty() and not chief_fury and e_hp[ci] < e_max[ci] * float(fury.below):
+		_roar(ci, sim)
+	var rate := float(fury.rate_mult) if chief_fury else 1.0
+	cleave_cd -= dt * rate
+	cry_cd -= dt * rate
+	charge_cd -= dt * rate
+	slam_cd -= dt * rate
+	horn_cd -= dt * rate
 	chief_hold = maxf(0.0, chief_hold - dt)
 	if cleave_cd <= 0.0:
 		cleave_cd = float(atk.cleave.every) if cleave(ci, sim) else float(atk.cleave.retry)
@@ -433,7 +489,17 @@ func _chieftain(dt: float, sim: Sim) -> void:
 		slam_cd = float(atk.slam.every) if slam(ci, sim) else float(atk.slam.retry)
 	if horn_cd <= 0.0:
 		horn_cd = float(atk.horn.every)
-		_war_band(sim, true)
+		for k in (int(fury.bands) if chief_fury else 1):
+			_war_band(sim, k == 0)
+
+
+## The chieftain's second phase: below half health he roars and fights faster from then on.
+func _roar(ci: int, sim: Sim) -> void:
+	chief_fury = true
+	sim.shake = maxf(sim.shake, float(sim.b.shake.roar))
+	sim.objectives.notice = {"kind": "roar", "at": time}
+	sim.event("chieftain", e_pos[ci])
+	sim.effects.append({"kind": "cry", "pos": e_pos[ci], "t": 0.0, "radius": 120.0})
 
 
 ## Marks the chieftain's charge on the ground and holds him still until it starts.
@@ -551,6 +617,175 @@ func _rally(dt: float, sim: Sim) -> void:
 		rally_cd[id] = left
 
 
+const ABILITY_TIMERS := {"whirlwind": "whirl_cd", "shield_wall": "shield_cd", "call_band": "band_cd", "mend": "mend_cd", "curse": "curse_cd", "blink": "blink_cd"}
+
+
+## The timers and state of elite i, made the first time he is asked for, each timer starting half way so a new boss acts soon.
+func boss_state(i: int) -> Dictionary:
+	var id := e_id[i]
+	if boss.has(id):
+		return boss[id]
+	var info: Dictionary = content.enemies[kind_ids[e_kind[i]]]
+	var st := {"hold": 0.0, "at": e_pos[i], "shield": 0.0, "shield_dir": Vector2.ZERO}
+	for key in ABILITY_TIMERS:
+		if info.has(key):
+			st[ABILITY_TIMERS[key]] = float(info[key].every) * 0.5
+	boss[id] = st
+	return st
+
+
+## Every elite's abilities on their own timers: the berserker's whirlwind and rage, the war band leader's shield and band, the war priest's mending, curse and blink.
+func _bosses(dt: float, sim: Sim) -> void:
+	curse_left = maxf(0.0, curse_left - dt)
+	var paced := dt * early_pace()
+	for id in elite_ids:
+		var i := e_id.find(id)
+		if i < 0:
+			continue
+		var info: Dictionary = content.enemies[kind_ids[e_kind[i]]]
+		var st := boss_state(i)
+		st.hold = maxf(0.0, st.hold - dt)
+		st.shield = maxf(0.0, st.shield - dt)
+		var p := e_pos[i]
+		var gap: float = (commander.pos - p).length()
+		if info.has("rage") and e_fury[i] == 1.0 and e_hp[i] < e_max[i] * float(info.rage.below):
+			e_fury[i] = float(info.rage.mult)
+			e_power[i] *= float(info.rage.mult)
+			sim.effects.append({"kind": "cry", "pos": p, "t": 0.0, "radius": 50.0})
+		if st.has("whirl_cd"):
+			st.whirl_cd -= paced
+			if st.whirl_cd <= 0.0 and st.hold <= 0.0:
+				st.whirl_cd = _whirl(i, info.whirlwind, sim)
+		if st.has("shield_cd"):
+			st.shield_cd -= paced
+			var cfg: Dictionary = info.shield_wall
+			if st.shield_cd <= 0.0 and st.hold <= 0.0 and gap < sim.legion_reach + float(cfg.range):
+				st.shield_cd = float(cfg.every)
+				st.shield = float(cfg.seconds)
+				st.shield_dir = (commander.pos - p).normalized()
+				_hold_boss(st, p, float(cfg.seconds))
+		if st.has("band_cd"):
+			st.band_cd -= paced
+			if st.band_cd <= 0.0:
+				st.band_cd = float(info.call_band.every)
+				war_band_at(sim, p, float(info.call_band.size_mult))
+		if st.has("mend_cd"):
+			st.mend_cd -= paced
+			var cfg: Dictionary = info.mend
+			if st.mend_cd <= 0.0 and st.hold <= 0.0:
+				st.mend_cd = float(cfg.every)
+				marks.append({"kind": "mend", "id": id, "pos": p, "t": 0.0, "dur": float(cfg.windup), "radius": float(cfg.radius), "share": float(cfg.share)})
+				_hold_boss(st, p, float(cfg.windup))
+		if st.has("curse_cd"):
+			st.curse_cd -= paced
+			var cfg: Dictionary = info.curse
+			if st.curse_cd <= 0.0 and gap < float(cfg.range):
+				st.curse_cd = float(cfg.every)
+				marks.append({"kind": "curse", "id": id, "pos": commander.pos, "t": 0.0, "dur": float(cfg.windup), "radius": float(cfg.radius), "seconds": float(cfg.seconds), "slow": float(cfg.slow)})
+				e_strike[i] = time
+		if st.has("blink_cd"):
+			st.blink_cd -= paced
+			if st.blink_cd <= 0.0 and _blink(i, info.blink, sim):
+				st.blink_cd = float(info.blink.every)
+
+
+## Starts the berserker's whirlwind when a Roman is in reach and returns the seconds until he tries again.
+func _whirl(i: int, cfg: Dictionary, sim: Sim) -> float:
+	var p := e_pos[i]
+	var r := float(cfg.radius)
+	var reach := (r + Sim.UNIT_RADIUS) * (r + Sim.UNIT_RADIUS)
+	for u in sim.units:
+		if (u.pos - p).length_squared() < reach:
+			var dur := float(cfg.windup)
+			foe_lobs.append({"from": p, "to": p, "t": 0.0, "dur": dur, "radius": r, "dmg": k_dps[e_kind[i]] * float(cfg.damage_mult) * e_power[i], "slam": true, "whirl": true})
+			_hold_boss(boss[e_id[i]], p, dur)
+			e_strike[i] = time + dur - Atlas.ATTACK_FRAMES / Atlas.ATTACK_FPS
+			return float(cfg.every)
+	return float(cfg.retry)
+
+
+## The war priest vanishes from a soldier at his elbow and comes out further from the legion; false when nobody is that close.
+func _blink(i: int, cfg: Dictionary, sim: Sim) -> bool:
+	var p := e_pos[i]
+	var near := float(cfg.near) + k_radius[e_kind[i]]
+	var close := false
+	for u in sim.units:
+		if (u.pos - p).length_squared() < near * near:
+			close = true
+			break
+	if not close:
+		return false
+	var cpos: Vector2 = commander.pos
+	var away := (p - cpos).normalized() if p != cpos else Vector2.RIGHT
+	var to := sim.terrain.push_out(p + away.rotated(rng.randf_range(-0.6, 0.6)) * float(cfg.distance), k_radius[e_kind[i]])
+	sim.effects.append({"kind": "smoke", "pos": p, "t": 0.0})
+	sim.effects.append({"kind": "smoke", "pos": to, "t": 0.0})
+	e_pos[i] = to
+	boss[e_id[i]].at = to
+	return true
+
+
+func _hold_boss(st: Dictionary, at: Vector2, seconds: float) -> void:
+	st.hold = maxf(st.hold, seconds)
+	st.at = at
+
+
+## Keeps an elite where he stands while he winds up or holds his shield, facing the way his shield points.
+func _bosses_after() -> void:
+	for id in elite_ids:
+		var st: Dictionary = boss.get(id, {})
+		if st.is_empty() or st.hold <= 0.0:
+			continue
+		var i := e_id.find(id)
+		if i < 0:
+			continue
+		e_pos[i] = st.at
+		if st.shield > 0.0:
+			e_face[i] = st.shield_dir
+
+
+## The share of a blow from `from` that reaches enemy i: a war band leader's raised shield stops most of a blow from in front.
+func guard_mult(i: int, from: Vector2) -> float:
+	if e_tag[i] != ELITE or not from.is_finite():
+		return 1.0
+	var st: Dictionary = boss.get(e_id[i], {})
+	if st.is_empty() or st.shield <= 0.0:
+		return 1.0
+	var cfg: Dictionary = content.enemies[kind_ids[e_kind[i]]].shield_wall
+	var to := from - e_pos[i]
+	if to.length_squared() < 0.0001 or absf(st.shield_dir.angle_to(to)) > float(cfg.arc) / 2.0:
+		return 1.0
+	return 1.0 - float(cfg.cut)
+
+
+## The war priests' green and purple rings: mending heals those round him, and a curse slows the legion if the commander is still in it.
+func _marks(dt: float, sim: Sim) -> void:
+	if marks.is_empty():
+		return
+	var left: Array = []
+	for m in marks:
+		m.t += dt
+		if m.t < m.dur:
+			left.append(m)
+			continue
+		if m.kind == "mend":
+			var pi := e_id.find(m.id)
+			if pi < 0:
+				continue
+			var c := e_pos[pi]
+			var r2: float = m.radius * m.radius
+			for j in e_pos.size():
+				if j != pi and (e_pos[j] - c).length_squared() <= r2:
+					e_hp[j] = minf(e_max[j], e_hp[j] + e_max[j] * m.share)
+			sim.effects.append({"kind": "mend", "pos": c, "t": 0.0, "radius": m.radius})
+		elif m.kind == "curse":
+			if (commander.pos - m.pos).length() < m.radius:
+				curse_left = m.seconds
+				curse_slow = m.slow
+			sim.effects.append({"kind": "curse", "pos": m.pos, "t": 0.0, "radius": m.radius})
+	marks = left
+
+
 ## A war priest throws a burning pot at the thickest knot of Romans and returns the seconds until his next throw.
 func _lob_at_ranks(i: int, sim: Sim) -> float:
 	var cfg: Dictionary = content.enemies[kind_ids[e_kind[i]]].lob
@@ -565,11 +800,11 @@ func _lob_at_ranks(i: int, sim: Sim) -> float:
 		if near > most:
 			most = near
 			best = u.pos
-	foe_lobs.append({"from": e_pos[i], "to": best, "t": 0.0, "dur": float(cfg.flight), "radius": float(cfg.radius), "dmg": float(cfg.damage)})
+	foe_lobs.append({"from": e_pos[i], "to": best, "t": 0.0, "dur": float(cfg.flight), "radius": float(cfg.radius), "dmg": float(cfg.damage) * e_power[i]})
 	e_strike[i] = time
 	if best != e_pos[i]:
 		e_face[i] = (best - e_pos[i]).normalized()
-	return float(cfg.every)
+	return float(cfg.every) / early_pace()
 
 
 func _foe_lobs(dt: float, sim: Sim) -> void:
@@ -586,7 +821,7 @@ func _foe_lobs(dt: float, sim: Sim) -> void:
 			if (u.pos - l.to).length() < l.radius + Sim.UNIT_RADIUS:
 				u.hp -= l.dmg * shield
 				u.flash = 0.12
-		sim.effects.append({"kind": "boom", "pos": l.to, "t": 0.0, "radius": l.radius})
+		sim.effects.append({"kind": "whirl" if l.get("whirl", false) else "boom", "pos": l.to, "t": 0.0, "radius": l.radius})
 		sim.shake = maxf(sim.shake, float(sim.b.shake.hurt))
 	foe_lobs = flying
 	sim.legion.remove_fallen(sim)
@@ -662,7 +897,8 @@ func _move(dt: float, sim: Sim) -> void:
 		var slow := e_slow[i]
 		if slow < 1.0:
 			e_slow[i] = minf(1.0, slow + dt * slow_recover)
-		var spd := k_speed[kind] * slow
+		var spd := k_speed[kind] * slow * e_fury[i]
+		var power := e_power[i]
 		if e_haste[i] > 0.0:
 			e_haste[i] -= dt
 			spd *= haste_mult
@@ -769,9 +1005,9 @@ func _move(dt: float, sim: Sim) -> void:
 			if target_unit >= 0:
 				var u: Dictionary = sim.legion.shield(units[target_unit])
 				var guard := shield * (wall if u.get("place", "") == "front" else 1.0)
-				u.hp -= k_dps[kind] * dt * guard
+				u.hp -= k_dps[kind] * dt * guard * power
 				if dashing:
-					u.hp -= k_burst[kind] * guard
+					u.hp -= k_burst[kind] * guard * power
 					e_dash[i] = 0.0
 				u.flash = 0.08
 				e_fighting[i] = 1
@@ -1038,6 +1274,8 @@ func remove_at(i: int) -> void:
 		e_guard.fill(Vector2.ZERO)
 	if e_tag[i] == ELITE:
 		elite_ids.erase(e_id[i])
+		boss.erase(e_id[i])
+		rally_cd.erase(e_id[i])
 	if k_radius[e_kind[i]] > Terrain.MAX_UNIT:
 		big_alive -= 1
 	var last := e_pos.size() - 1
@@ -1069,3 +1307,5 @@ func remove_at(i: int) -> void:
 	e_haste[i] = e_haste[last]; e_haste.resize(last)
 	e_guard[i] = e_guard[last]; e_guard.resize(last)
 	e_stuck[i] = e_stuck[last]; e_stuck.resize(last)
+	e_fury[i] = e_fury[last]; e_fury.resize(last)
+	e_power[i] = e_power[last]; e_power.resize(last)
