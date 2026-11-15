@@ -29,6 +29,8 @@ var _f_start := PackedInt32Array()
 var _f_count := PackedInt32Array()
 var _f_anchor := PackedVector2Array()
 var _f_rect: Array[Rect2] = []
+# Each prop kind's frame from the atlas, looked up once.
+var _prop_frames := {}
 # The rocky lip drawn along every ravine.
 var ravine_edge: Texture2D
 
@@ -123,23 +125,29 @@ func _draw() -> void:
 	var chops: Dictionary = sim.terrain.chops
 	var shaking := float(sim.b.felling.shake_seconds)
 	_felling.clear()
-	for pr in sim.terrain.props_in(view):
-		# A piece with no kind is an unseen blocker, such as the inside of the fort's gate towers.
-		if pr[0] == "":
-			continue
-		var f := atlas.prop_frame(pr[0])
-		var at: Vector2 = pr[1]
-		if not chops.is_empty() and chops.has(at) and sim.time - float(chops[at][1]) < shaking:
-			_felling.append([at, float(chops[at][0])])
-			at += Vector2(roundf(sin(sim.time * 45.0 + at.x) * 1.2), 0)
-		var mod := white
-		# A tree standing in front of the commander is seen through, so he is not lost once the legion cuts into a ridge.
-		if pr[2] > 0.0 and at.y > cam.y and Rect2(at - f[1], f[0].size).intersects(him):
-			mod = see_through
-		# The gate fades only half way, so the fort still reads while the commander walks under it.
-		elif pr[0] == "fort_gate" and at.y > cam.y and Rect2(at - f[1], f[0].size).intersects(him):
-			mod = Color(1, 1, 1, 0.55)
-		_add(pr[1].y, f[0], at - f[1], mod)
+	# The chunks are read in place, in the order props_in() would join them.
+	for cx in range(floori(view.position.x / Terrain.CHUNK), floori(view.end.x / Terrain.CHUNK) + 1):
+		for cy in range(floori(view.position.y / Terrain.CHUNK), floori(view.end.y / Terrain.CHUNK) + 1):
+			for pr in sim.terrain.chunk(cx, cy):
+				# A piece with no kind is an unseen blocker, such as the inside of the fort's gate towers.
+				if pr[0] == "":
+					continue
+				var f: Array = _prop_frames.get(pr[0], [])
+				if f.is_empty():
+					f = atlas.prop_frame(pr[0])
+					_prop_frames[pr[0]] = f
+				var at: Vector2 = pr[1]
+				if not chops.is_empty() and chops.has(at) and sim.time - float(chops[at][1]) < shaking:
+					_felling.append([at, float(chops[at][0])])
+					at += Vector2(roundf(sin(sim.time * 45.0 + at.x) * 1.2), 0)
+				var mod := white
+				# A tree standing in front of the commander is seen through, so he is not lost once the legion cuts into a ridge.
+				if pr[2] > 0.0 and at.y > cam.y and Rect2(at - f[1], f[0].size).intersects(him):
+					mod = see_through
+				# The gate fades only half way, so the fort still reads while the commander walks under it.
+				elif pr[0] == "fort_gate" and at.y > cam.y and Rect2(at - f[1], f[0].size).intersects(him):
+					mod = Color(1, 1, 1, 0.55)
+				_add(pr[1].y, f[0], at - f[1], mod)
 	if not sim.terrain.posts.is_empty():
 		var sf := atlas.prop_frame("stake")
 		var fade := float(sim.b.palisade.fade)
