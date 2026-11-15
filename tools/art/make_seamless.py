@@ -1,7 +1,7 @@
 """Makes a square ground texture repeat without seams: the texture is shifted half a tile so its edges meet in the
 middle, and a wavy band over that join is filled from the unshifted texture, whose middle has no seam.
 
-Usage: python tools/art/make_seamless.py ground.png --out ground_tile.png
+Usage: python tools/art/make_seamless.py ground.png --out ground_tile.png [--value 0.9 --saturation 0.95]
 """
 import argparse
 
@@ -11,6 +11,9 @@ from PIL import Image
 p = argparse.ArgumentParser()
 p.add_argument("image")
 p.add_argument("--out", required=True)
+# A ground that comes out brighter than Germania's is scaled down so the units on it stay easy to read.
+p.add_argument("--value", type=float, default=1.0)
+p.add_argument("--saturation", type=float, default=1.0)
 a = p.parse_args()
 
 orig = np.array(Image.open(a.image).convert("RGB"))
@@ -28,5 +31,8 @@ def band(across, along, seed):
 
 mask = band(yy, xx, 0.3) | band(xx, yy, 1.7)
 rolled[mask] = orig[mask]
-Image.fromarray(rolled).save(a.out)
+hsv = np.array(Image.fromarray(rolled).convert("HSV")).astype(float)
+hsv[..., 1] *= a.saturation
+hsv[..., 2] *= a.value
+Image.fromarray(np.clip(hsv, 0, 255).astype(np.uint8), "HSV").convert("RGB").save(a.out)
 print("saved", a.out)

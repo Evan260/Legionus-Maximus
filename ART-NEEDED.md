@@ -2,13 +2,13 @@
 
 Prices are in USD, with the CAD amount alongside (1 USD is about 1.39 CAD).
 
-Everything here is content that is built and tested but stays hidden in the game until its art exists, because an entry whose art keys are missing is not offered (`Content.ready()`). Germania is complete: its four extra enemies, every icon, the weapon props, the chest and the supply cart were made on 2026-11-14 for \$1.11 (about \$1.54 CAD). `python tools/art/pixellab.py balance` shows what is left on the PixelLab account.
+Everything here is content that is built and tested but stays hidden in the game until its art exists, because an entry whose art keys are missing is not offered (`Content.ready()`). Germania is complete: its four extra enemies, every icon, the weapon props, the chest and the supply cart were made on 2026-11-14 for \$1.11 (about \$1.54 CAD). Gaul is complete too: its ground, wheat, hedge and village, its four enemies, the champion and horn blower (80 px) and the king (112 px), each with running and an 8-frame attack in all 8 directions, were made on 2026-11-15 for \$2.02 (about \$2.81 CAD). `python tools/art/pixellab.py balance` shows what is left on the PixelLab account.
 
 ## How to make it
 
 Run every command from the repo root. Each one appends its real cost to `tools/art/ledger.csv`.
 
-Characters are 48 px (chieftains and the elephants 64 px), low top-down, selective outline, 8 directions. Walking and running use PixelLab's built-in loops through `--template-action`. Where a unit is an animal or a rider the character command passes `--template dog`, `bear` or `horse`; if PixelLab rejects one of those names, drop `--template` and describe the animal in the prompt. Define these once in the shell:
+Characters are 48 px (chieftains and the elephants 64 px), low top-down, selective outline, 8 directions. Walking and running use PixelLab's built-in loops through `--template-action`. Where a unit is an animal or a rider the character command passes `--template dog`, `bear` or `horse`; if PixelLab rejects one of those names, drop `--template` and describe the animal in the prompt. The `horse` and `bear` templates save each picture under the direction one step clockwise of the one drawn (`south.png` shows south-east, `south-west.png` south, and so on round), so look at all eight before animating, rename the stills to what they show and record PixelLab's own label for each in `character.json` as `pixellab_direction`; the Gaul horseman and boar are done this way. Define these once in the shell:
 
 ```bash
 PL="python tools/art/pixellab.py"; R=art_test/raw
@@ -211,75 +211,6 @@ anim warrior_queen running
 
 Subtotal: \$3.77 (about \$5.25 CAD).
 
-## Gaul enemies
-
-Ordinary enemies, two elites and the king who is the province's chieftain.
-
-### unit:gaul_swordsman
-
-Unlocks: enemy gaul_swordsman. Estimate \$0.53 (about \$0.74 CAD).
-
-```bash
-$PL character "Gaulish swordsman, bronze helmet, long moustache, oval shield, long iron sword, checked trousers, warm afternoon light" 48x48 --view "low top-down" --outline "selective outline" --out-dir $R/gaul_swordsman
-anim gaul_swordsman running
-```
-
-### unit:gaul_horseman
-
-Unlocks: enemy gaul_horseman. Estimate \$0.53 (about \$0.74 CAD).
-
-```bash
-$PL character "Gaulish horseman on a chestnut horse, mail shirt, oval shield, long lance, checked cloak, warm afternoon light" 48x48 --view "low top-down" --outline "selective outline" --template horse --out-dir $R/gaul_horseman
-anim gaul_horseman running
-```
-
-### unit:gaul_archer
-
-Unlocks: enemy gaul_archer. Estimate \$0.53 (about \$0.74 CAD).
-
-```bash
-$PL character "Gaulish archer, leather cap, tunic and checked trousers, a short bow drawn, warm afternoon light" 48x48 --view "low top-down" --outline "selective outline" --out-dir $R/gaul_archer
-anim gaul_archer running
-```
-
-### unit:boar
-
-Unlocks: enemy boar. Estimate \$0.53 (about \$0.74 CAD).
-
-```bash
-$PL character "wild boar with tusks, bristly brown fur, charging, warm afternoon light" 48x48 --view "low top-down" --outline "selective outline" --template dog --out-dir $R/boar
-anim boar running
-```
-
-### unit:champion
-
-Unlocks: enemy champion. Estimate \$0.53 (about \$0.74 CAD).
-
-```bash
-$PL character "Gaulish champion, gold torc, mail shirt, plumed bronze helmet, huge shield and long sword, warm afternoon light" 48x48 --view "low top-down" --outline "selective outline" --out-dir $R/champion
-anim champion running
-```
-
-### unit:horn_blower
-
-Unlocks: enemy horn_blower. Estimate \$0.53 (about \$0.74 CAD).
-
-```bash
-$PL character "Gaulish horn blower sounding a tall bronze carnyx war horn shaped like a boar's head, checked cloak, warm afternoon light" 48x48 --view "low top-down" --outline "selective outline" --out-dir $R/horn_blower
-anim horn_blower running
-```
-
-### unit:gaul_king
-
-Unlocks: enemy gaul_king. Estimate \$0.58 (about \$0.81 CAD).
-
-```bash
-$PL character "Gaulish king, golden helmet with wings, gold torc, mail shirt, red cloak, very long sword, an armoured bodyguard half-seen behind him, warm afternoon light" 64x64 --view "low top-down" --outline "selective outline" --out-dir $R/gaul_king
-anim gaul_king running
-```
-
-Subtotal: \$3.77 (about \$5.25 CAD).
-
 ## Dacia enemies
 
 Ordinary enemies, two elites and the king behind the shield wall.
@@ -454,22 +385,6 @@ Unlocks: province britannia. Estimate \$0.12 (about \$0.16 CAD).
 prop bog 64x32 "a dark boggy pool with reeds and moss"
 ```
 
-### prop:wheat
-
-Unlocks: province gaul. Estimate \$0.12 (about \$0.16 CAD).
-
-```bash
-prop wheat 32x32 "a patch of ripe golden wheat"
-```
-
-### prop:hedge
-
-Unlocks: province gaul. Estimate \$0.12 (about \$0.16 CAD).
-
-```bash
-prop hedge 64x32 "a thick green hedgerow"
-```
-
 ### prop:dune
 
 Unlocks: province parthia. Estimate \$0.12 (about \$0.16 CAD).
@@ -488,7 +403,7 @@ prop palm 64x96 "a date palm tree with a curved trunk"
 
 ## Grounds
 
-One seamless 256x256 tile per province, Pro Flash with the style image, then `tools/art/make_seamless.py`, then copy the tile to its place. Germania's ground exists.
+One seamless 256x256 tile per province, Pro Flash with the style image, then `tools/art/make_seamless.py`, then copy the tile to its place. Germania's and Gaul's grounds exist. A ground that comes out brighter than Germania's is darkened with `--value` and `--saturation` on `make_seamless.py`; Gaul's used `--value 0.82 --saturation 0.9`, and `build_atlas.py` copies it to `game/assets/grounds/gaul.png`.
 
 ### ground:britannia
 
@@ -498,16 +413,6 @@ Unlocks: province britannia. Estimate \$0.11 (about \$0.15 CAD).
 $PL proflash "seamless top-down ground texture of wet moorland: tussocky grass in dull green and brown, patches of dark peat, a few tiny purple heather sprigs, no leaves, no sticks, even lighting, no objects, fills the whole image" 256x256 --style $R/style_ref.png --style-use "match this art style, palette, shading and pixel density" --out $R/ground/britannia.png
 python tools/art/make_seamless.py $R/ground/britannia.png --out $R/ground/britannia_tile.png
 cp $R/ground/britannia_tile.png game/assets/grounds/britannia.png
-```
-
-### ground:gaul
-
-Unlocks: province gaul. Estimate \$0.11 (about \$0.15 CAD).
-
-```bash
-$PL proflash "seamless top-down ground texture of farmland: short green meadow grass with a few bare earth patches and tiny yellow wildflowers, no leaves, no sticks, even lighting, no objects, fills the whole image" 256x256 --style $R/style_ref.png --style-use "match this art style, palette, shading and pixel density" --out $R/ground/gaul.png
-python tools/art/make_seamless.py $R/ground/gaul.png --out $R/ground/gaul_tile.png
-cp $R/ground/gaul_tile.png game/assets/grounds/gaul.png
 ```
 
 ### ground:dacia
@@ -530,7 +435,7 @@ python tools/art/make_seamless.py $R/ground/parthia.png --out $R/ground/parthia_
 cp $R/ground/parthia_tile.png game/assets/grounds/parthia.png
 ```
 
-Subtotal: \$0.44 (about \$0.62 CAD).
+Subtotal: \$0.33 (about \$0.46 CAD).
 
 ## Optional: the camp scene
 
@@ -548,10 +453,9 @@ Estimate \$0.15 (about \$0.21 CAD).
 |---|---|
 | Recruits | \$3.19 (about \$4.44 CAD) |
 | Britannia enemies | \$3.77 (about \$5.25 CAD) |
-| Gaul enemies | \$3.77 (about \$5.25 CAD) |
 | Dacia enemies | \$3.77 (about \$5.25 CAD) |
 | Parthia enemies | \$3.82 (about \$5.32 CAD) |
-| Props | \$0.94 (about \$1.31 CAD) |
-| Grounds | \$0.44 (about \$0.62 CAD) |
-| **Everything above, camp scene left out** | **\$19.70 (about \$27.38 CAD)** |
+| Props | \$0.70 (about \$0.97 CAD) |
+| Grounds | \$0.33 (about \$0.46 CAD) |
+| **Everything above, camp scene left out** | **\$15.58 (about \$21.66 CAD)** |
 

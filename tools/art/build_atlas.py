@@ -6,7 +6,7 @@ position whatever the canvas PixelLab drew them on. A unit whose attack_<directi
 action, anchored on the standing pose its first frame repeats.
 
 Usage: python tools/art/build_atlas.py
-Writes game/assets/atlas.png, game/assets/atlas.json and game/assets/grounds/germania.png.
+Writes game/assets/atlas.png, game/assets/atlas.json and the province grounds in game/assets/grounds/.
 """
 import json
 import shutil
@@ -21,16 +21,19 @@ OUT = ROOT / "game" / "assets"
 DIRS = ["east", "south-east", "south", "south-west", "west", "north-west", "north", "north-east"]
 UNITS = {"commander": "walking", "legionary": "walking", "archer": "walking",
          "barbarian_club": "running", "barbarian_spear": "running", "chieftain": "running",
-         "berserker": "running", "war_band_leader": "running", "axe_thrower": "running", "wolf": "running", "war_dog": "running", "war_priest": "walking"}
+         "berserker": "running", "war_band_leader": "running", "axe_thrower": "running", "wolf": "running", "war_dog": "running", "war_priest": "walking",
+         "gaul_swordsman": "running", "gaul_horseman": "running", "gaul_archer": "running", "boar": "running",
+         "champion": "running", "horn_blower": "running", "gaul_king": "running"}
 PROPS = {"oak": "props2/oak.png", "fir": "props2/fir.png", "rock": "props2/rock.png", "log": "props2/log.png",
          "bush": "props/bush.png", "stones": "props/stones.png", "coin": "props/coin.png", "pilum": "props2/pilum.png",
          "stake": "props3/stake.png", "caltrops": "props3/caltrops.png", "fire_pot": "props3/fire_pot.png",
          "onager_stone": "props3/onager_stone.png", "chest": "props3/chest.png", "supply_cart": "props3/supply_cart.png",
          "fort_gate": "props3/fort_gate.png", "hut": "props3/hut.png", "eagle_standard": "props3/eagle_standard.png",
-         "altar": "props3/altar.png", "stump": "props3/stump.png", "timber": "props3/timber.png"}
+         "altar": "props3/altar.png", "stump": "props3/stump.png", "timber": "props3/timber.png",
+         "wheat": "props3/wheat.png", "hedge": "props3/hedge.png", "village": "props3/village.png"}
 # The bosses are drawn from their larger remakes; the small originals stay on disk.
 FOLDERS = {"berserker": "berserker_big", "war_band_leader": "war_band_leader_big", "war_priest": "war_priest_big",
-           "chieftain": "chieftain_big"}
+           "chieftain": "chieftain_big", "champion": "champion_big", "horn_blower": "horn_blower_big", "gaul_king": "gaul_king_big"}
 WIDTH = 4096
 # GL Compatibility on older GPUs guarantees 4096 px textures, so the atlas never grows past it.
 MAX_SIDE = 4096
@@ -109,6 +112,7 @@ def main():
     (OUT / "atlas.json").write_text(json.dumps(meta))
     (OUT / "grounds").mkdir(exist_ok=True)
     shutil.copy(RAW / "ground" / "grass_tile_b.png", OUT / "grounds" / "germania.png")
+    shutil.copy(RAW / "ground" / "gaul_tile.png", OUT / "grounds" / "gaul.png")
     print(f"atlas {atlas.size[0]}x{atlas.size[1]}, {len(flat)} sprites")
 
 
