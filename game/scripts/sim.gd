@@ -5,6 +5,8 @@ extends RefCounted
 const CELL := 32.0
 const GW := 48
 const UNIT_RADIUS := 7.0
+## The widest enemy that skips the search for a unit to strike when his cell is not marked in ug_near.
+const NEAR_RADIUS := 8.0
 ## Kinds that happen many times an update are counted and reported once per update; the rest are reported as they happen.
 const COUNTED := ["hit", "kill", "coin", "arrow", "pilum", "bolt"]
 const EVENT_CAP := 64
@@ -80,8 +82,16 @@ var testudo_left := 0.0
 var testudo_charge := 1.0
 
 var legion_reach := 0.0
-var u_grid := {}
 var units: Array = []
+# The units listed by cell on the horde's grid, built every update, and 1 in every cell an enemy up to NEAR_RADIUS wide could strike a unit from.
+var ug_start := PackedInt32Array()
+var ug_items := PackedInt32Array()
+var ug_near := PackedByteArray()
+## Whether every unit stands inside the horde's grid; when one does not, lookups go through unit_cells() instead.
+var ug_all_in := false
+var _u_cells := {}
+var _u_cells_ready := false
+var _ug_cell := PackedInt32Array()
 var content: Content
 var commander_id := "tribune"
 var hard := false
@@ -469,12 +479,52 @@ func _rebuild_grids() -> void:
 	legion_reach += 24.0
 	units = [commander]
 	units.append_array(soldiers)
-	u_grid.clear()
-	for i in units.size():
-		var k := _cell(units[i].pos)
-		if not u_grid.has(k):
-			u_grid[k] = []
-		u_grid[k].append(i)
+	_u_cells_ready = false
+	var gw := Horde.GW
+	var go := horde.g_origin
+	var n := units.size()
+	ug_start.resize(gw * gw + 1)
+	ug_start.fill(0)
+	ug_near.resize(gw * gw)
+	ug_near.fill(0)
+	_ug_cell.resize(n)
+	ug_all_in = true
+	for i in n:
+		var p: Vector2 = units[i].pos
+		var cx := floori(p.x / CELL) - go.x
+		var cy := floori(p.y / CELL) - go.y
+		if cx < 0 or cy < 0 or cx >= gw or cy >= gw:
+			ug_all_in = false
+			_ug_cell[i] = -1
+			continue
+		_ug_cell[i] = cx + cy * gw
+		ug_start[cx + cy * gw + 1] += 1
+		var reach := UNIT_RADIUS + 2.0 + NEAR_RADIUS
+		for y in range(maxi(0, floori((p.y - reach) / CELL) - go.y), mini(gw, floori((p.y + reach) / CELL) - go.y + 1)):
+			for x in range(maxi(0, floori((p.x - reach) / CELL) - go.x), mini(gw, floori((p.x + reach) / CELL) - go.x + 1)):
+				ug_near[x + y * gw] = 1
+	for c in range(1, gw * gw + 1):
+		ug_start[c] += ug_start[c - 1]
+	ug_items.resize(ug_start[gw * gw])
+	var fill := ug_start.duplicate()
+	for i in n:
+		var c := _ug_cell[i]
+		if c >= 0:
+			ug_items[fill[c]] = i
+			fill[c] += 1
+
+
+## The units by global cell, for a lookup the horde's grid cannot answer because a unit stands beyond it.
+func unit_cells() -> Dictionary:
+	if not _u_cells_ready:
+		_u_cells_ready = true
+		_u_cells.clear()
+		for i in units.size():
+			var k := _cell(units[i].pos)
+			if not _u_cells.has(k):
+				_u_cells[k] = []
+			_u_cells[k].append(i)
+	return _u_cells
 
 
 func _cidx(p: Vector2) -> int:
@@ -776,9 +826,21 @@ func _coins(dt: float) -> void:
 func _unit_near(p: Vector2, r2: float) -> bool:
 	var k := _cell(p)
 	var span := ceili(sqrt(r2) / CELL)
+	if ug_all_in:
+		var gw := Horde.GW
+		var kx := k.x - horde.g_origin.x
+		var ky := k.y - horde.g_origin.y
+		for cx in range(maxi(0, kx - span), mini(gw, kx + span + 1)):
+			for cy in range(maxi(0, ky - span), mini(gw, ky + span + 1)):
+				var cell := cx + cy * gw
+				for t in range(ug_start[cell], ug_start[cell + 1]):
+					if (units[ug_items[t]].pos - p).length_squared() < r2:
+						return true
+		return false
+	var cells := unit_cells()
 	for cx in range(k.x - span, k.x + span + 1):
 		for cy in range(k.y - span, k.y + span + 1):
-			var cell: Variant = u_grid.get(Vector2i(cx, cy))
+			var cell: Variant = cells.get(Vector2i(cx, cy))
 			if cell == null:
 				continue
 			for ui in cell:
@@ -857,5 +919,9 @@ func chieftain_index() -> int:
 
 
 static func dir_name(v: Vector2) -> String:
-	var idx := posmod(roundi(v.angle() / (PI / 4.0)), 8)
-	return DIRS[idx]
+	return DIRS[dir_index(v)]
+
+
+## The index in DIRS of the direction v points.
+static func dir_index(v: Vector2) -> int:
+	return posmod(roundi(v.angle() / (PI / 4.0)), 8)

@@ -81,6 +81,11 @@ var chieftain_id := -1
 var g_origin := Vector2i.ZERO
 var g_start := PackedInt32Array()
 var g_items := PackedInt32Array()
+# The radius of each enemy in g_items, in the same order, so spacing reads it without going through its kind.
+var g_rad := PackedFloat32Array()
+var g_rad_max := 0.0
+var _g_cell := PackedInt32Array()
+var _g_fill := PackedInt32Array()
 
 var ordinary: Array = []
 var elites: Array = []
@@ -329,25 +334,35 @@ func rebuild_grid() -> void:
 	frame += 1
 	var n := e_pos.size()
 	g_origin = Vector2i(floori(commander.pos.x / CELL) - GW / 2, floori(commander.pos.y / CELL) - GW / 2)
-	var counts := PackedInt32Array()
-	counts.resize(GW * GW + 1)
-	var cell_of := PackedInt32Array()
-	cell_of.resize(n)
+	g_start.resize(GW * GW + 1)
+	g_start.fill(0)
+	_g_cell.resize(n)
+	var ox := g_origin.x
+	var oy := g_origin.y
 	for i in n:
-		var c := cidx(e_pos[i])
-		cell_of[i] = c
+		var p := e_pos[i]
+		var cx := floori(p.x / CELL) - ox
+		var cy := floori(p.y / CELL) - oy
+		var c := cx + cy * GW if cx >= 0 and cy >= 0 and cx < GW and cy < GW else -1
+		_g_cell[i] = c
 		if c >= 0:
-			counts[c + 1] += 1
+			g_start[c + 1] += 1
 	for c in range(1, GW * GW + 1):
-		counts[c] += counts[c - 1]
-	g_items.resize(counts[GW * GW])
-	var fill := counts.duplicate()
+		g_start[c] += g_start[c - 1]
+	var total := g_start[GW * GW]
+	g_items.resize(total)
+	g_rad.resize(total)
+	_g_fill = g_start.duplicate()
+	g_rad_max = 0.0
 	for i in n:
-		var c := cell_of[i]
+		var c := _g_cell[i]
 		if c >= 0:
-			g_items[fill[c]] = i
-			fill[c] += 1
-	g_start = counts
+			var t := _g_fill[c]
+			g_items[t] = i
+			var rad := k_radius[e_kind[i]]
+			g_rad[t] = rad
+			g_rad_max = maxf(g_rad_max, rad)
+			_g_fill[c] = t + 1
 
 
 func update(dt: float, sim: Sim) -> void:
@@ -874,8 +889,9 @@ func _move(dt: float, sim: Sim) -> void:
 	var dash_min: float = b.charger.min_distance
 	var dash_max: float = b.charger.max_distance
 	var sep_range: float = b.separation_range
-	var u_grid := sim.u_grid
 	var units := sim.units
+	var ug_near := sim.ug_near
+	var ug_all_in := sim.ug_all_in
 	var t_origin := sim.terrain.origin
 	var t_start := sim.terrain.start
 	var t_items := sim.terrain.items
@@ -986,8 +1002,14 @@ func _move(dt: float, sim: Sim) -> void:
 				var seen := 0
 				# A boss wider than a grid square looks further for the barbarians he would overlap.
 				var ring := 1 if r + r <= CELL else 2
-				for cy in range(maxi(0, ky - ring), mini(GW, ky + ring + 1)):
-					for cx in range(maxi(0, kx - ring), mini(GW, kx + ring + 1)):
+				# Only the cells within reach of the widest neighbour on the field can hold one he overlaps.
+				var reach := r + g_rad_max
+				var x0 := maxi(maxi(0, kx - ring), floori((p.x - reach) / CELL) - g_origin.x)
+				var x1 := mini(mini(GW - 1, kx + ring), floori((p.x + reach) / CELL) - g_origin.x)
+				var y0 := maxi(maxi(0, ky - ring), floori((p.y - reach) / CELL) - g_origin.y)
+				var y1 := mini(mini(GW - 1, ky + ring), floori((p.y + reach) / CELL) - g_origin.y)
+				for cy in range(y0, y1 + 1):
+					for cx in range(x0, x1 + 1):
 						var cell := cx + cy * GW
 						for t in range(g_start[cell], g_start[cell + 1]):
 							var j := g_items[t]
@@ -995,13 +1017,17 @@ func _move(dt: float, sim: Sim) -> void:
 								continue
 							var away := p - e_pos[j]
 							var dd := away.length_squared()
-							var min_d := r + k_radius[e_kind[j]]
+							var min_d := r + g_rad[t]
 							if dd < min_d * min_d and dd > 0.0001:
 								var dl := sqrt(dd)
 								push += away / dl * (min_d - dl)
 								seen += 1
 								if seen > 5:
 									break
+						if seen > 5:
+							break
+					if seen > 5:
+						break
 			e_push[i] = push
 		elif i % 3 == phase:
 			# A push worked out earlier is dropped once the enemy is beyond the spacing range.
@@ -1009,20 +1035,12 @@ func _move(dt: float, sim: Sim) -> void:
 			push = Vector2.ZERO
 		e_fighting[i] = 0
 		if not throwing and i != through and d < legion_reach + r and (to.length_squared() < reach2 or e_tag[i] == CHIEF):
-			var k := Vector2i(floori(p.x / CELL), floori(p.y / CELL))
 			var target_unit := -1
-			var best := INF
 			var span := 1 if r + Sim.UNIT_RADIUS + 2.0 <= CELL else ceili((r + Sim.UNIT_RADIUS + 2.0) / CELL)
-			for cx in range(k.x - span, k.x + span + 1):
-				for cy in range(k.y - span, k.y + span + 1):
-					var ucell: Variant = u_grid.get(Vector2i(cx, cy))
-					if ucell == null:
-						continue
-					for ui in ucell:
-						var dd: float = (units[ui].pos - p).length()
-						if dd < Sim.UNIT_RADIUS + r + 2.0 and dd < best:
-							best = dd
-							target_unit = ui
+			var kx := floori(p.x / CELL) - g_origin.x
+			var ky := floori(p.y / CELL) - g_origin.y
+			if not ug_all_in or r > Sim.NEAR_RADIUS or kx < 0 or ky < 0 or kx >= GW or ky >= GW or ug_near[kx + ky * GW] == 1:
+				target_unit = _nearest_unit(p, r, span, sim)
 			if target_unit >= 0:
 				var u: Dictionary = sim.legion.shield(units[target_unit])
 				var guard := shield * (wall if u.get("place", "") == "front" else 1.0)
@@ -1106,6 +1124,40 @@ func _move(dt: float, sim: Sim) -> void:
 	sim.legion.remove_fallen(sim)
 
 
+## The index in sim.units of the nearest unit close enough for an enemy at p of radius r to strike, or -1.
+func _nearest_unit(p: Vector2, r: float, span: int, sim: Sim) -> int:
+	var units := sim.units
+	var target_unit := -1
+	var best := INF
+	var kx := floori(p.x / CELL) - g_origin.x
+	var ky := floori(p.y / CELL) - g_origin.y
+	if sim.ug_all_in:
+		var ug_start := sim.ug_start
+		var ug_items := sim.ug_items
+		for cx in range(maxi(0, kx - span), mini(GW, kx + span + 1)):
+			for cy in range(maxi(0, ky - span), mini(GW, ky + span + 1)):
+				var cell := cx + cy * GW
+				for t in range(ug_start[cell], ug_start[cell + 1]):
+					var ui := ug_items[t]
+					var dd: float = (units[ui].pos - p).length()
+					if dd < Sim.UNIT_RADIUS + r + 2.0 and dd < best:
+						best = dd
+						target_unit = ui
+		return target_unit
+	var cells := sim.unit_cells()
+	for cx in range(kx + g_origin.x - span, kx + g_origin.x + span + 1):
+		for cy in range(ky + g_origin.y - span, ky + g_origin.y + span + 1):
+			var ucell: Variant = cells.get(Vector2i(cx, cy))
+			if ucell == null:
+				continue
+			for ui in ucell:
+				var dd: float = (units[ui].pos - p).length()
+				if dd < Sim.UNIT_RADIUS + r + 2.0 and dd < best:
+					best = dd
+					target_unit = ui
+	return target_unit
+
+
 func _throw(from: Vector2, dir: Vector2, dmg: float) -> void:
 	var cfg: Dictionary = b.ranged
 	sp_pos.append(from + dir * 6.0)
@@ -1140,21 +1192,14 @@ func _spears(dt: float, sim: Sim) -> void:
 				sim.effects.append({"kind": "spark", "pos": p, "t": 0.0})
 				gone = true
 			else:
-				var k := Vector2i(floori(p.x / CELL), floori(p.y / CELL))
-				for cx in range(k.x - 1, k.x + 2):
-					for cy in range(k.y - 1, k.y + 2):
-						var ucell: Variant = sim.u_grid.get(Vector2i(cx, cy))
-						if ucell == null or gone:
-							continue
-						for ui in ucell:
-							var u: Dictionary = sim.units[ui]
-							if (u.pos - p).length() < hit_radius:
-								var target: Dictionary = sim.legion.shield(u)
-								target.hp -= sp_dmg[i] * sim.frenzy_guard()
-								u.flash = 0.08
-								gone = true
-								struck = true
-								break
+				var ui := _spear_target(p, hit_radius, sim)
+				if ui >= 0:
+					var u: Dictionary = sim.units[ui]
+					var target: Dictionary = sim.legion.shield(u)
+					target.hp -= sp_dmg[i] * sim.frenzy_guard()
+					u.flash = 0.08
+					gone = true
+					struck = true
 		if gone:
 			var last := sp_pos.size() - 1
 			sp_pos[i] = sp_pos[last]; sp_pos.resize(last)
@@ -1164,6 +1209,30 @@ func _spears(dt: float, sim: Sim) -> void:
 		i -= 1
 	if struck:
 		sim.legion.remove_fallen(sim)
+
+
+## The first unit, in grid order, within hit_radius of a spear at p, or -1.
+func _spear_target(p: Vector2, hit_radius: float, sim: Sim) -> int:
+	var kx := floori(p.x / CELL) - g_origin.x
+	var ky := floori(p.y / CELL) - g_origin.y
+	if sim.ug_all_in:
+		for cx in range(maxi(0, kx - 1), mini(GW, kx + 2)):
+			for cy in range(maxi(0, ky - 1), mini(GW, ky + 2)):
+				var cell := cx + cy * GW
+				for t in range(sim.ug_start[cell], sim.ug_start[cell + 1]):
+					if (sim.units[sim.ug_items[t]].pos - p).length() < hit_radius:
+						return sim.ug_items[t]
+		return -1
+	var cells := sim.unit_cells()
+	for cx in range(kx + g_origin.x - 1, kx + g_origin.x + 2):
+		for cy in range(ky + g_origin.y - 1, ky + g_origin.y + 2):
+			var ucell: Variant = cells.get(Vector2i(cx, cy))
+			if ucell == null:
+				continue
+			for ui in ucell:
+				if (sim.units[ui].pos - p).length() < hit_radius:
+					return ui
+	return -1
 
 
 ## A supply cart rolls across the field in a straight line, passing near the commander.
