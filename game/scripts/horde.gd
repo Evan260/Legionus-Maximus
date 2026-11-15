@@ -83,7 +83,6 @@ var g_start := PackedInt32Array()
 var g_items := PackedInt32Array()
 # The radius of each enemy in g_items, in the same order, so spacing reads it without going through its kind.
 var g_rad := PackedFloat32Array()
-var g_rad_max := 0.0
 var _g_cell := PackedInt32Array()
 var _g_fill := PackedInt32Array()
 
@@ -353,7 +352,6 @@ func rebuild_grid() -> void:
 	g_items.resize(total)
 	g_rad.resize(total)
 	_g_fill = g_start.duplicate()
-	g_rad_max = 0.0
 	for i in n:
 		var c := _g_cell[i]
 		if c >= 0:
@@ -361,7 +359,6 @@ func rebuild_grid() -> void:
 			g_items[t] = i
 			var rad := k_radius[e_kind[i]]
 			g_rad[t] = rad
-			g_rad_max = maxf(g_rad_max, rad)
 			_g_fill[c] = t + 1
 
 
@@ -1010,27 +1007,21 @@ func _move(dt: float, sim: Sim) -> void:
 				var seen := 0
 				# A boss wider than a grid square looks further for the barbarians he would overlap.
 				var ring := 1 if r + r <= CELL else 2
-				# Only the cells within reach of the widest neighbour on the field can hold one he overlaps.
-				var reach := r + g_rad_max
-				var x0 := maxi(maxi(0, kx - ring), floori((p.x - reach) / CELL) - g_origin.x)
-				var x1 := mini(mini(GW - 1, kx + ring), floori((p.x + reach) / CELL) - g_origin.x)
-				var y0 := maxi(maxi(0, ky - ring), floori((p.y - reach) / CELL) - g_origin.y)
-				var y1 := mini(mini(GW - 1, ky + ring), floori((p.y + reach) / CELL) - g_origin.y)
-				for cy in range(y0, y1 + 1):
-					# The cells of one row lie side by side in g_items, so a row is read as one run.
-					# The enemy himself is in the run too, but at no distance he fails the test below.
-					for t in range(gs[x0 + cy * GW], gs[x1 + 1 + cy * GW]):
-						var away := p - e_pos[gi[t]]
-						var dd := away.length_squared()
-						var min_d := r + gr[t]
-						if dd < min_d * min_d and dd > 0.0001:
-							var dl := sqrt(dd)
-							push += away / dl * (min_d - dl)
-							seen += 1
-							if seen > 5:
-								break
-					if seen > 5:
-						break
+				# Once six neighbours are counted, each further cell adds only its first; the bots are tuned on this spacing.
+				for cy in range(maxi(0, ky - ring), mini(GW, ky + ring + 1)):
+					for cx in range(maxi(0, kx - ring), mini(GW, kx + ring + 1)):
+						var cell := cx + cy * GW
+						# The enemy himself is in the list too, but at no distance he fails the test below.
+						for t in range(gs[cell], gs[cell + 1]):
+							var away := p - e_pos[gi[t]]
+							var dd := away.length_squared()
+							var min_d := r + gr[t]
+							if dd < min_d * min_d and dd > 0.0001:
+								var dl := sqrt(dd)
+								push += away / dl * (min_d - dl)
+								seen += 1
+								if seen > 5:
+									break
 			e_push[i] = push
 		elif i % 3 == phase:
 			# A push worked out earlier is dropped once the enemy is beyond the spacing range.
