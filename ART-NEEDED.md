@@ -439,7 +439,7 @@ Subtotal: \$0.33 (about \$0.46 CAD).
 
 ## Optional: the camp scene
 
-The camp screens draw on a plain backdrop today. If the Roman marching camp from Features.md is wanted as a picture, it is one Pro Flash image (not counted in the total below), saved as `game/assets/camp.png`, which the camp screen would need code to draw.
+The camp screens draw on a plain backdrop today. If a Roman marching camp is wanted as a picture, it is one Pro Flash image (not counted in the total below), saved as `game/assets/camp.png`, which the camp screen would need code to draw.
 
 ```bash
 $PL proflash "Roman marching camp seen from above at golden hour: rows of leather tents, a wooden palisade, a central standard with a gold eagle, campfires, a banner, no people" 256x144 --style $R/style_ref.png --style-use "match this art style, palette, shading and pixel density" --out game/assets/camp.png
