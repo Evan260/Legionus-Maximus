@@ -19,6 +19,7 @@ extends Node
 ##   --as-demo          play as the demo: Germania, three commanders and 15 minutes
 ##   --card=ID          show that achievement's card, for looking at it
 ##   --give=ID,ID:RANK  start the run with these arms or drills at the rank (default 1), for looking at them
+##   --god=ID           with --autoplay, call that god at --god-at seconds (default 2) of the look; --god=choose fills the favour and holds the choice open
 
 var balance: Dictionary
 var content: Content
@@ -36,6 +37,7 @@ var settings_from := "title"
 var swallow_input := false
 var check_clock := 0.0
 var opened_at := 0.0
+var god_at := -1.0
 var run_setup := {"province": "germania", "commander": "tribune", "hard": false, "endless": false, "decimatio": false}
 
 @onready var world: Node2D = $World
@@ -102,6 +104,8 @@ func _ready() -> void:
 		Steamworks.show_card(args.card)
 	if args.has("hold-choice"):
 		sim.gain(sim.xp_next - sim.xp)
+	if args.has("god"):
+		god_at = float(args.get("god-at", "2"))
 	if args.has("shot"):
 		shot_at = float(args.get("at", "3"))
 
@@ -277,6 +281,15 @@ func _process(dt: float) -> void:
 			if Input.is_action_just_pressed("pause"):
 				_pause()
 				return
+			if god_at >= 0.0 and clock >= god_at:
+				god_at = -1.0
+				_look_at_god(str(args.god))
+				if state != "play":
+					return
+			if Input.is_action_just_pressed("pray"):
+				_open_gods()
+				if state != "play":
+					return
 			var move := Input.get_vector("left", "right", "up", "down")
 			var testudo := Input.is_action_just_pressed("testudo")
 			var build := Input.is_action_just_pressed("build")
@@ -292,6 +305,19 @@ func _process(dt: float) -> void:
 				_finish_run()
 			elif sim.pending_levels > 0 or sim.free_choices > 0:
 				_open_choices()
+		"pray":
+			if args.has("autoplay") and clock - opened_at > 0.5 and args.get("god", "") != "choose":
+				_call_god(0)
+			elif Input.is_action_just_pressed("back") or Input.is_action_just_pressed("pray"):
+				Audio.play("back")
+				state = "play"
+			elif Input.is_action_just_pressed("left"):
+				selected = posmod(selected - 1, choices.size())
+			elif Input.is_action_just_pressed("right"):
+				selected = posmod(selected + 1, choices.size())
+			elif Input.is_action_just_pressed("confirm"):
+				if Game.confirm_allowed(state, opened_at, clock, balance):
+					_call_god(selected)
 		"choose":
 			if args.has("autoplay") and clock > 0.5 and not args.has("hold-choice"):
 				_take(0)
@@ -404,6 +430,34 @@ func _open_choices() -> void:
 	state = "choose"
 
 
+## Opens the choice of gods when the favour is full; the run waits while it is open.
+func _open_gods() -> void:
+	var offered := Gods.offers(sim)
+	if offered.is_empty():
+		return
+	choices = offered
+	selected = 0
+	opened_at = clock
+	state = "pray"
+
+
+func _call_god(i: int) -> void:
+	Audio.play("confirm")
+	sim.gods.invoke(sim, choices[i])
+	state = "play"
+	# The confirm key is also the testudo key, so the press that called the god must not raise the shields.
+	Input.action_release("testudo")
+
+
+## Calls a god for a look, or with "choose" fills the favour and opens the choice.
+func _look_at_god(id: String) -> void:
+	sim.gods.favour = sim.gods.need(balance)
+	if id == "choose":
+		_open_gods()
+	elif id in Gods.IDS:
+		sim.gods.invoke(sim, id)
+
+
 func _take(i: int) -> void:
 	Audio.play("confirm")
 	Upgrades.apply(sim, choices[i])
@@ -428,7 +482,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				ui.focus = id
 				_activate(id)
 		return
-	if state != "choose":
+	if state != "choose" and state != "pray":
 		return
 	if event is InputEventMouseMotion:
 		var i: int = hud.choice_at(hud.get_global_mouse_position() - Ui.offset)
@@ -437,7 +491,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		var i: int = hud.choice_at(hud.get_global_mouse_position() - Ui.offset)
 		if i >= 0:
-			_take(i)
+			if state == "pray":
+				_call_god(i)
+			else:
+				_take(i)
 
 
 func _bench() -> void:

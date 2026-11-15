@@ -5,13 +5,13 @@ extends RefCounted
 
 # The actions the settings screen lets the player rebind, with their names.
 const ACTIONS := [["up", "March up"], ["down", "March down"], ["left", "March left"], ["right", "March right"],
-	["testudo", "Testudo"], ["build", "Build a palisade"], ["pause", "Pause"], ["confirm", "Confirm"], ["back", "Back"]]
+	["testudo", "Testudo"], ["build", "Build a palisade"], ["pray", "Call the gods"], ["pause", "Pause"], ["confirm", "Confirm"], ["back", "Back"]]
 const KEYS := {
 	"left": [KEY_A, KEY_LEFT], "right": [KEY_D, KEY_RIGHT], "up": [KEY_W, KEY_UP], "down": [KEY_S, KEY_DOWN],
-	"testudo": [KEY_SPACE], "build": [KEY_E], "reroll": [KEY_R], "banish": [KEY_B], "confirm": [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER], "pause": [KEY_ESCAPE], "quit": [KEY_Q],
+	"testudo": [KEY_SPACE], "build": [KEY_E], "pray": [KEY_F], "reroll": [KEY_R], "banish": [KEY_B], "confirm": [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER], "pause": [KEY_ESCAPE], "quit": [KEY_Q],
 	"fullscreen": [KEY_F11], "back": [KEY_ESCAPE],
 }
-const PADS := {"back": JOY_BUTTON_B, "reroll": JOY_BUTTON_Y, "banish": JOY_BUTTON_X, "testudo": JOY_BUTTON_A, "build": JOY_BUTTON_X, "confirm": JOY_BUTTON_A, "pause": JOY_BUTTON_START,
+const PADS := {"back": JOY_BUTTON_B, "reroll": JOY_BUTTON_Y, "banish": JOY_BUTTON_X, "testudo": JOY_BUTTON_A, "build": JOY_BUTTON_X, "pray": JOY_BUTTON_Y, "confirm": JOY_BUTTON_A, "pause": JOY_BUTTON_START,
 	"left": JOY_BUTTON_DPAD_LEFT, "right": JOY_BUTTON_DPAD_RIGHT, "up": JOY_BUTTON_DPAD_UP, "down": JOY_BUTTON_DPAD_DOWN}
 const STICK := [["left", JOY_AXIS_LEFT_X, -1.0], ["right", JOY_AXIS_LEFT_X, 1.0], ["up", JOY_AXIS_LEFT_Y, -1.0], ["down", JOY_AXIS_LEFT_Y, 1.0]]
 const PAD_NAMES := {JOY_BUTTON_A: "A", JOY_BUTTON_B: "B", JOY_BUTTON_X: "X", JOY_BUTTON_Y: "Y", JOY_BUTTON_BACK: "Back", JOY_BUTTON_START: "Start",
@@ -139,4 +139,8 @@ static func hint(kind: String, count := 0) -> String:
 			return TranslationServer.translate("%s camp     %s title") % [key_of("confirm"), key_of("back")]
 		"title":
 			return TranslationServer.translate("%s  title") % key_of("back")
+		"pray":
+			return TranslationServer.translate("%s / %s  call the gods") % [key_of("pray"), pad_of("pray")]
+		"gods":
+			return TranslationServer.translate("%s / %s to choose     %s to call     %s not now") % [key_of("left"), key_of("right"), key_of("confirm"), key_of("back")]
 	return ""

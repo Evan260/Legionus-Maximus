@@ -41,7 +41,7 @@ static func run_cap(balance: Dictionary) -> float:
 
 ## Whether a confirm press counts. Space is also the testudo key, so a tap just as a choice or the summary opens must not take it.
 static func confirm_allowed(state: String, opened_at: float, now: float, balance: Dictionary) -> bool:
-	return not (state == "choose" or state == "over") or now - opened_at >= float(balance.confirm_delay)
+	return not (state == "choose" or state == "pray" or state == "over") or now - opened_at >= float(balance.confirm_delay)
 
 
 ## The title's goal line: the minutes to survive, and the fort in the full game; the demo ends at its time limit and has no chieftain.
@@ -53,7 +53,7 @@ static func goal_text(balance: Dictionary) -> String:
 
 ## Whether the run counts as under way: on the field, at a choice, paused, or in the settings opened from the pause.
 static func in_run(state: String, settings_from: String) -> bool:
-	return state in ["play", "choose", "pause"] or (state == "settings" and settings_from == "pause")
+	return state in ["play", "choose", "pray", "pause"] or (state == "settings" and settings_from == "pause")
 
 
 ## Losing the window's focus while playing pauses the run, but not an autoplay left to run for a look.

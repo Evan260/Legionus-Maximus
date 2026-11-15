@@ -1894,7 +1894,7 @@ func test_the_engineer_and_legate_unlocks(b: Dictionary) -> void:
 
 
 func test_every_entry_has_a_history_line(b: Dictionary) -> void:
-	for kind in ["recruits", "arms", "forged", "enemies", "commanders"]:
+	for kind in ["recruits", "arms", "forged", "enemies", "commanders", "gods"]:
 		for id in content.get(kind):
 			var line: String = str(content.get(kind)[id].get("history", ""))
 			check(line.length() > 0 and line.length() <= 110, "%s has a history line that fits" % id)
@@ -2384,7 +2384,7 @@ func _cuts_in(loc: String, scale: int, c: Content, sim: Sim, cuts: Array) -> voi
 			"Space change a key or button     Esc back"]:
 		_fit(cuts, loc, scale, "key hint", tr_.call(s), 624.0)
 	_fit(cuts, loc, scale, "give-up prompt", tr_.call("Give up the run? %s again to confirm") % "Q", 624.0)
-	for kind in ["pick", "buy", "look", "summary", "level"]:
+	for kind in ["pick", "buy", "look", "summary", "level", "gods"]:
 		_fit(cuts, loc, scale, "key hint " + kind, Controls.hint(kind), 624.0)
 	_fit(cuts, loc, scale, "level-up extras", Controls.hint("reroll", 9) + "     " + Controls.hint("banish", 9), 624.0)
 	_fit(cuts, loc, scale, "demo hint", tr_.call("The full game continues past %d minutes") % 15, 624.0)
@@ -2478,6 +2478,16 @@ func _cuts_in(loc: String, scale: int, c: Content, sim: Sim, cuts: Array) -> voi
 			_fit(cuts, loc, scale, "card level (%d across)" % n, Upgrades.level_text(sim, id), bw - 8.0)
 		for g in ["Recruit", "Arms", "Forged", "Drill"]:
 			_fit(cuts, loc, scale, "card group (%d across)" % n, tr_.call(g).to_upper(), bw - 8.0)
+	# God cards, the favour hint beside its meter and the god's name written across the screen at three times the size.
+	var god_w := minf(200.0 if big else 176.0, (616.0 - 2 * 12.0) / 3)
+	_fit(cuts, loc, scale, "god heading", tr_.call("The gods hear you").to_upper(), 624.0)
+	_fit(cuts, loc, scale, "god group", tr_.call("God").to_upper(), god_w - 8.0)
+	_fit(cuts, loc, scale, "favour hint", Controls.hint("pray").to_upper(), 624.0 * 0.45)
+	for id in c.gods:
+		_lines(cuts, loc, scale, "god name", str(c.gods[id].name).to_upper(), god_w - 8.0, 1)
+		_lines(cuts, loc, scale, "god text", str(c.gods[id].text), god_w - 18.0, 6 if big else 5)
+		if Ui.width_at(str(c.gods[id].name).to_upper(), Ui.px * 3) > 624.0:
+			cuts.append("%s x%d god banner %s does not fit" % [loc, scale, id])
 	# Achievement cards.
 	var room := 240.0 if big else 150.0
 	_fit(cuts, loc, scale, "card heading", tr_.call("Achievement").to_upper(), room)
@@ -3202,3 +3212,220 @@ func test_big_bosses_still_fight_and_collide(b: Dictionary) -> void:
 	_calm_chief(r)
 	_step_dt(r, 0.3)
 	check(r.horde.e_pos[k].distance_to(rock) >= Terrain.SOLID.rock + big - 0.5, "a big chieftain cannot walk through a rock")
+
+
+
+## A quiet sim with a sturdy commander and `n` club warriors spread over the screen, out of the legion's reach.
+func _god_sim(b: Dictionary, seed_value: int, n := 30) -> Sim:
+	var s := _quiet_sim(b, seed_value, Content.with_all_art())
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	for k in n:
+		var a := k * TAU / n
+		s.horde.spawn("barbarian_club", Vector2(cos(a) * 250.0, sin(a) * 140.0))
+	return s
+
+
+func _fill_favour(s: Sim) -> void:
+	s.gods.favour = s.gods.need(s.b)
+
+
+func test_favour_fills_as_barbarians_die(b: Dictionary) -> void:
+	var s := _god_sim(b, 500, 0)
+	var need := int(b.gods.favour_first)
+	check(s.gods.need(s.b) == need, "the first call needs %d kills" % need)
+	for k in need + 5:
+		var i := s.horde.spawn("barbarian_club", Vector2(250, 0))
+		s.hit(i, 1e6)
+		s._remove_dead()
+	check(s.gods.favour == need, "every kill adds favour, up to the full meter (%d)" % s.gods.favour)
+	check(s.gods.full(s.b), "the meter is full")
+	s.gods.invoke(s, "apollo")
+	check(s.gods.favour == 0, "a call spends the favour")
+	check(s.gods.need(s.b) == need + int(b.gods.favour_step), "and the next call needs more kills")
+
+
+func test_favour_does_not_fill_while_a_god_is_at_work(b: Dictionary) -> void:
+	var s := _god_sim(b, 501, 0)
+	s.gods.invoke(s, "mars")
+	var i := s.horde.spawn("barbarian_club", Vector2(250, 0))
+	s.hit(i, 1e6)
+	s._remove_dead()
+	check(s.gods.favour == 0, "a kill during the frenzy of Mars adds no favour")
+	_step_dt(s, float(b.gods.mars.seconds) + 0.5)
+	i = s.horde.spawn("barbarian_club", Vector2(250, 0))
+	s.hit(i, 1e6)
+	s._remove_dead()
+	check(s.gods.favour == 1, "once it ends kills count again")
+
+
+func test_the_gods_are_offered_only_with_full_favour(b: Dictionary) -> void:
+	var s := _god_sim(b, 502, 0)
+	check(Gods.offers(s).is_empty(), "no choice without full favour")
+	s.gods.favour = s.gods.need(s.b) - 1
+	check(Gods.offers(s).is_empty(), "nor one kill short")
+	_fill_favour(s)
+	var seen := {}
+	for k in 30:
+		var o := Gods.offers(s)
+		check(o.size() == 3 and o[0] != o[1] and o[1] != o[2] and o[0] != o[2], "three different gods")
+		for id in o:
+			seen[id] = true
+	check(seen.size() == 5, "all five gods turn up (%d)" % seen.size())
+	for id in Gods.IDS:
+		check(content.ready("gods", id), "%s has its art" % id)
+
+
+func test_jupiter_strikes_down_the_barbarians_on_screen(b: Dictionary) -> void:
+	var s := _god_sim(b, 503, 40)
+	var far := s.horde.e_id[s.horde.spawn("barbarian_club", Vector2(600, 0))]
+	s.gods.invoke(s, "jupiter")
+	_step_dt(s, 0.5)
+	check(not s.gods.bolts.is_empty(), "bolts are falling")
+	_step_dt(s, float(b.gods.jupiter.seconds))
+	var left_on_screen := 0
+	var far_alive := false
+	for i in s.horde.e_pos.size():
+		if s.horde.e_id[i] == far:
+			far_alive = true
+		elif Gods.on_screen(s, s.horde.e_pos[i]):
+			left_on_screen += 1
+	check(left_on_screen == 0, "every barbarian on screen is struck down (%d left)" % left_on_screen)
+	check(far_alive, "the one off screen is spared")
+	check(s.damage_by_source.get("jupiter", 0.0) > 0.0, "the damage is counted for Jupiter")
+
+
+func test_neptune_throws_back_and_stuns_the_barbarians(b: Dictionary) -> void:
+	var s := _god_sim(b, 504, 0)
+	for k in 12:
+		s.horde.spawn("barbarian_club", Vector2.from_angle(k * TAU / 12.0) * 70.0)
+	s.gods.invoke(s, "neptune")
+	check(s.shake > 0.0, "the ground shakes")
+	_step_dt(s, 1.2)
+	var nearest := INF
+	var stunned := true
+	for i in s.horde.e_pos.size():
+		nearest = minf(nearest, s.horde.e_pos[i].distance_to(s.commander.pos))
+		stunned = stunned and s.horde.e_stun[i] > 0.0
+	check(nearest > 70.0 + float(b.gods.neptune.throw) * 0.8, "they are thrown far back (nearest %.0f)" % nearest)
+	check(stunned and s.horde.e_pos.size() == 12, "and lie stunned")
+	var at: Vector2 = s.horde.e_pos[0]
+	_step_dt(s, 0.5)
+	check(s.horde.e_pos[0] == at, "a stunned barbarian does not move")
+	_step_dt(s, float(b.gods.neptune.stun))
+	check(s.horde.e_pos[0] != at, "and comes on again once the stun wears off")
+
+
+func test_mars_fills_the_legion_with_war_frenzy(b: Dictionary) -> void:
+	var s := _god_sim(b, 505, 0)
+	var rate := s.attack_rate()
+	var i := s.horde.spawn("barbarian_club", Vector2(250, 0))
+	s.horde.e_hp[i] = 1000.0
+	s.hit(i, 10.0)
+	var plain := 1000.0 - s.horde.e_hp[i]
+	s.gods.invoke(s, "mars")
+	s.horde.e_hp[i] = 1000.0
+	s.hit(i, 10.0)
+	check(is_equal_approx(1000.0 - s.horde.e_hp[i], plain * float(b.gods.mars.damage_mult)), "the legion strikes three times as hard")
+	check(is_equal_approx(s.attack_rate(), rate * float(b.gods.mars.rate_mult)), "and half again as fast")
+	var calm := _god_sim(b, 505, 0)
+	for t in [s, calm]:
+		for j in t.horde.e_pos.size():
+			t.horde.e_hp[j] = 0.0
+		t._remove_dead()
+		t.b.commander_regen = 0.0
+		t.commander.hp = 100.0
+		t.commander.max_hp = 100.0
+		t._last_hp = 100.0
+		t.soldiers.clear()
+		t.horde.spawn("barbarian_club", t.commander.pos + Vector2(10, 0))
+		t.horde.e_hp[0] = 1e9
+		t.horde.e_max[0] = 1e9
+		_step_dt(t, 1.0)
+	var lost_frenzy: float = 100.0 - s.commander.hp
+	var lost_calm: float = 100.0 - calm.commander.hp
+	check(lost_frenzy > 0.0 and absf(lost_frenzy - lost_calm * float(b.gods.mars.taken_mult)) < lost_calm * 0.1, "and takes half the harm (%.1f vs %.1f)" % [lost_frenzy, lost_calm])
+	_step_dt(s, float(b.gods.mars.seconds))
+	check(is_equal_approx(s.attack_rate(), rate), "the frenzy ends after %d seconds" % int(b.gods.mars.seconds))
+
+
+func test_vulcan_sets_the_screen_on_fire(b: Dictionary) -> void:
+	var s := _god_sim(b, 506, 30)
+	var far := s.horde.spawn("barbarian_club", Vector2(700, 0))
+	s.horde.e_stun[far] = 100.0
+	s.gods.invoke(s, "vulcan")
+	var all_burning := true
+	for i in s.horde.e_pos.size():
+		if i != far:
+			all_burning = all_burning and s.horde.e_burn[i] > 0.0
+	check(all_burning, "every barbarian on screen catches fire")
+	check(s.horde.e_burn[far] <= 0.0, "the one off screen does not")
+	_step_dt(s, 2.0)
+	var patches := 0
+	for z in s.arms.zones:
+		if z.kind == "fire" and z.src == "vulcan":
+			patches += 1
+	check(patches == int(b.gods.vulcan.patches), "burning ground lands on the screen (%d)" % patches)
+	_step_dt(s, float(b.gods.vulcan.burn_seconds))
+	var left := 0
+	for i in s.horde.e_pos.size():
+		if Gods.on_screen(s, s.horde.e_pos[i]):
+			left += 1
+	check(left == 0, "the burning barbarians fall (%d left)" % left)
+
+
+func test_apollo_heals_the_legion_and_brings_back_the_fallen(b: Dictionary) -> void:
+	var s := _god_sim(b, 507, 0)
+	for so in s.soldiers:
+		so.hp = 1.0
+	s.commander.hp = 5.0
+	for k in 15:
+		s.legion.fallen.append("legionary")
+	s.legion.reserves.append({"type": "legionary", "t": 50.0})
+	var before := s.soldiers.size()
+	s.gods.invoke(s, "apollo")
+	var full: bool = s.commander.hp == s.commander.max_hp
+	for so in s.soldiers:
+		full = full and so.hp == so.max_hp
+	check(full, "every man is healed to full")
+	var back := int(b.gods.apollo.revive)
+	check(s.soldiers.size() == before + back, "%d fallen soldiers come back (%d)" % [back, s.soldiers.size() - before])
+	check(s.legion.fallen.size() == 15 - back, "and leave the fallen list")
+	check(s.legion.reserves.is_empty(), "a man brought back is not sent again by the reserves")
+
+
+func test_the_gods_do_not_one_shot_a_boss(b: Dictionary) -> void:
+	var share := float(b.gods.boss_share)
+	for id in ["jupiter", "vulcan"]:
+		var s := _god_sim(b, 508, 0)
+		var e := s.horde.spawn("berserker", Vector2(200, 0), true)
+		s.horde.e_stun[e] = 100.0
+		var eid := s.horde.e_id[e]
+		s.gods.invoke(s, id)
+		_step_dt(s, 10.0)
+		var hp := -1.0
+		var max_hp := 0.0
+		for i in s.horde.e_pos.size():
+			if s.horde.e_id[i] == eid:
+				hp = s.horde.e_hp[i]
+				max_hp = s.horde.e_max[i]
+		check(hp > 0.0 and hp < max_hp, "%s hurts the elite but does not kill it" % id)
+		check(hp >= max_hp * (1.0 - share) - 1.0, "%s takes at most %d%% of its health (%.0f of %.0f)" % [id, int(share * 100.0), hp, max_hp])
+	var c := _god_sim(b, 509, 0)
+	var ci := c.horde.spawn_chieftain(Vector2(200, 0))
+	var cid := c.horde.e_id[ci]
+	c.gods.invoke(c, "jupiter")
+	_step_dt(c, 4.0)
+	ci = c.horde.chieftain_index()
+	check(ci >= 0 and c.horde.e_id[ci] == cid and c.horde.e_hp[ci] >= c.horde.e_max[ci] * (1.0 - share) - 1.0, "the chieftain survives the storm of Jupiter")
+
+
+func test_the_gods_have_their_own_key(b: Dictionary) -> void:
+	Controls.install({})
+	check(_has_key("pray", KEY_F) and _has_button("pray", JOY_BUTTON_Y), "F and the north face button call the gods")
+	check(Controls.ACTIONS.any(func(a: Array) -> bool: return a[0] == "pray"), "the settings let it be rebound")
+	check(Controls.hint("pray") == "F / Y  call the gods", "the hint names the keys (%s)" % Controls.hint("pray"))
+	for other in ["testudo", "build", "pause", "up", "down", "left", "right", "quit", "reroll", "banish", "fullscreen"]:
+		check(not _has_key(other, KEY_F), "F is not also %s" % other)
+	for other in ["testudo", "build", "pause", "back"]:
+		check(not _has_button(other, JOY_BUTTON_Y), "Y is not also %s" % other)

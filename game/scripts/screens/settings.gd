@@ -174,8 +174,9 @@ func _draw_controls(c: CanvasItem, ui: Ui) -> void:
 	var hint := tr("Press the new key or button     Esc cancel") if not waiting.is_empty() else tr("Space change a key or button     Esc back")
 	var r := ui.frame(c, tr("Keys and buttons").to_upper(), hint)
 	var saved: Dictionary = Profile.data.settings.get("bindings", {})
-	var h := 24.0 if Ui.scale > 1 else 18.0
-	var step := h + 3.0
+	# Large text uses slimmer rows so every action and the buttons below stay above the key hint.
+	var h := 22.0 if Ui.scale > 1 else 18.0
+	var step := h + (2.0 if Ui.scale > 1 else 3.0)
 	var metrics := controls_metrics(r.size.x)
 	var name_w: float = metrics.name_w
 	var bw: float = metrics.bw

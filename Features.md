@@ -58,8 +58,21 @@ The chieftain and the elites are meant to be fought with the whole formation: fa
 - Testudo: Space or the south face button.
 - Pause: Escape or Start.
 - Build a palisade: E or the west face button.
+- Call the gods: F or the north face button, once their favour is full.
 - Everything else, including every attack, happens on its own.
 - Mouse is used only in menus and choices, which also work fully from keyboard and pad.
+
+## Gods
+
+- Every barbarian killed adds to the favour of the gods, a meter at the bottom right. The first call needs 120 kills and each call after it 60 more. Kills made while a god's power is still at work add nothing.
+- When the meter is full it glows and shows the key. Pressing it pauses the run and offers three of the five gods, picked like a level-up. Taking one spends the favour and the god acts at once.
+- **Jupiter:** a storm of lightning for 3 seconds. Bolts fall from the sky on the barbarians on screen, each felling the one it strikes and those beside him, with a white flash.
+- **Neptune:** an earthquake. A wave runs out from the legion and throws every barbarian on screen far back, stunned for 3 seconds, while the screen shakes.
+- **Mars:** war frenzy for 10 seconds. The legion deals three times the damage, attacks half again as fast and takes half the harm, glowing red and gold.
+- **Vulcan:** fire rains on the screen. Every barbarian on it catches fire and burns down within 4 seconds, and burning ground lands where the fire falls.
+- **Apollo:** golden light heals the whole legion to full and brings back up to 10 fallen soldiers.
+- The chieftain and the elites take the gods' harm but lose at most 15% of their health to one call.
+- A god called in a run is shown in the tablinum with a line of history.
 
 ## The legion
 

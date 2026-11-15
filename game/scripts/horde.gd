@@ -489,7 +489,7 @@ func _chieftain_after(sim: Sim) -> void:
 		if off.length_squared() > reach * reach or u.get("thrown", -1) == charge_n:
 			continue
 		u.thrown = charge_n
-		u.hp -= k_burst[kind]
+		u.hp -= k_burst[kind] * sim.frenzy_guard()
 		u.flash = 0.12
 		hit_any = true
 		if not is_same(u, sim.commander):
@@ -513,7 +513,7 @@ func cleave(ci: int, sim: Sim) -> bool:
 		if to.length() > reach + 7.0 or absf(dir.angle_to(to)) > half:
 			continue
 		var target: Dictionary = sim.legion.shield(u)
-		target.hp -= dmg
+		target.hp -= dmg * sim.frenzy_guard()
 		u.flash = 0.12
 		hit_any = true
 	if hit_any:
@@ -567,7 +567,7 @@ func _foe_lobs(dt: float, sim: Sim) -> void:
 	if foe_lobs.is_empty():
 		return
 	var flying: Array = []
-	var shield: float = b.testudo_damage_taken if sim.testudo_left > 0.0 else 1.0
+	var shield: float = (b.testudo_damage_taken if sim.testudo_left > 0.0 else 1.0) * sim.frenzy_guard()
 	for l in foe_lobs:
 		l.t += dt
 		if l.t < l.dur:
@@ -602,7 +602,7 @@ func _move(dt: float, sim: Sim) -> void:
 	var cpos: Vector2 = commander.pos
 	var legion_reach := sim.legion_reach
 	var reach2 := legion_reach * legion_reach
-	var shield: float = b.testudo_damage_taken if sim.testudo_left > 0.0 else 1.0
+	var shield: float = (b.testudo_damage_taken if sim.testudo_left > 0.0 else 1.0) * sim.frenzy_guard()
 	var phase := frame % 3
 	var slow_recover: float = b.slow_recover
 	var wall := 1.0 - float(b.drills.shield_wall) * sim.rank("shield_wall")
@@ -867,7 +867,7 @@ func _spears(dt: float, sim: Sim) -> void:
 							var u: Dictionary = sim.units[ui]
 							if (u.pos - p).length() < hit_radius:
 								var target: Dictionary = sim.legion.shield(u)
-								target.hp -= sp_dmg[i]
+								target.hp -= sp_dmg[i] * sim.frenzy_guard()
 								u.flash = 0.08
 								gone = true
 								struck = true

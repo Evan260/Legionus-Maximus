@@ -2,7 +2,7 @@ class_name Content
 extends RefCounted
 ## Every recruit, weapon, drill, enemy and province, read from content.json. An entry whose art is not drawn yet stays hidden.
 
-const KINDS := ["recruits", "enemies", "arms", "forged", "drills", "provinces", "commanders", "quartermaster", "achievements"]
+const KINDS := ["recruits", "enemies", "arms", "forged", "drills", "provinces", "commanders", "quartermaster", "achievements", "gods"]
 const GROUPS := {"recruits": "Recruit", "arms": "Arms", "forged": "Forged", "drills": "Drill"}
 
 var recruits := {}
@@ -14,6 +14,7 @@ var provinces := {}
 var commanders := {}
 var quartermaster := {}
 var achievements := {}
+var gods := {}
 var base_commander := {}
 var available := {}
 # The English words as the file has them, which the translations are laid over by localize().
@@ -139,11 +140,13 @@ func group_of(id: String) -> String:
 func source_name(id: String) -> String:
 	if id == "commander":
 		return str(base_commander.get("name", ""))
+	if gods.has(id):
+		return str(gods[id].name)
 	return str(upgrade(id).get("name", ""))
 
 
 func icon_key(id: String) -> String:
-	for key in upgrade(id).get("art", []):
+	for key in (gods[id] if gods.has(id) else upgrade(id)).get("art", []):
 		if key.begins_with("icon:"):
 			return key.trim_prefix("icon:")
 	return ""

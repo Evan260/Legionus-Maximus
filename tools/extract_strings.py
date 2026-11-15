@@ -16,7 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1] / "game"
 OUT = ROOT / "translations" / "strings.csv"
 WORDS = ["name", "text", "history", "more"]
-KINDS = ["recruits", "enemies", "arms", "forged", "drills", "provinces", "commanders", "quartermaster", "achievements"]
+KINDS = ["recruits", "enemies", "arms", "forged", "drills", "provinces", "commanders", "quartermaster", "achievements", "gods"]
 # Tables of words that screens look up with tr(entry), as (script, constant name).
 TABLES = [("screens/camp.gd", "BOARDS"), ("screens/map.gd", "MODES"), ("screens/settings.gd", "VOLUME_NAMES"),
           ("screens/settings.gd", "TOGGLES"), ("screens/tablinum.gd", "KINDS"), ("controls.gd", "ACTIONS"),

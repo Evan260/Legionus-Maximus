@@ -15,6 +15,7 @@ Godot is `C:\Users\evand\AppData\Local\Microsoft\WinGet\Packages\GodotEngine.God
   - `--chieftain-at=S` brings the chieftain at that second; `--hold-choice` with `--autoplay` leaves a level-up open
   - `--hard`, `--endless`, `--decimatio` start the run in that mode
   - `--screen=camp|quartermaster|tablinum|map|commanders|settings|title|pause|summary` opens a screen with a sample profile (`--page=controls` for the key page of the settings)
+  - `--god=jupiter|neptune|mars|vulcan|apollo` with `--autoplay` calls that god at `--god-at=S` (default 2); `--god=choose` fills the favour and holds the choice of gods open
   - `--lang=CODE`, `--text-size=1|2`, `--commander=ID`, `--as-demo`, `--card=ID` (an achievement card), `--give=ID,ID:RANK` (arms and drills to start with)
 - Windows build: `godot --headless --path game --export-release "Windows"` writes `builds/windows/Legionus Maximus.exe` with the slim engine from Fishus. Run it with `-- --autoplay --shot=PATH --at=10` to check it.
 - Boot splash: `python tools/art/make_boot_splash.py` after the logo changes, then copy the colour it prints into `boot_splash/bg_color` in `project.godot`.
@@ -27,6 +28,7 @@ Godot is `C:\Users\evand\AppData\Local\Microsoft\WinGet\Packages\GodotEngine.God
 - `game/scripts/objectives.gd`: the camp, stranded column and sacred grove placed in clearings at the start, and the fort that appears with the chieftain at `chieftain_at`; their huts, oaks and walls are terrain props (`Terrain.add_clearing`). `--objectives-near` places them close and `--go-to=camp|column|grove|fort` starts beside one (inside the fort), and `--go-to=burning-camp` in the camp's ring so it burns at once, for a look.
 - `game/scripts/arms.gd`: the twelve weapons and six forged forms, on their timers, with burning ground, oil, caltrops and the stake ring as zones.
 - `game/scripts/upgrades.gd`: the level-up choices, rerolls and banishes.
+- `game/scripts/gods.gd`: the favour of the gods, which fills with kills, the choice of three of the five gods and what each one does, as plain data the sim updates; their numbers are under `gods` in balance.json.
 - `game/scripts/content.gd`: reads `game/data/content.json` (every recruit, arm, forged form, drill, enemy, province, commander, quartermaster upgrade and achievement, with its name, text, history and art keys). Grounds are `game/assets/grounds/<province>.png`, found by `available_art()` as `ground:<province>`, so a province turns on with no code change once its ground, props and enemies exist. An entry whose art keys are not in the atlas or the icons folder stays hidden, so content can be built before its art.
 - `game/data/balance.json`: every number. `credits.json` feeds the credits.
 - `game/scripts/world_view.gd`, `hud.gd`, `atlas.gd`: drawing. Every sprite is in one atlas so the horde draws in one batch.

@@ -69,6 +69,9 @@ var c_born := PackedFloat32Array()
 var effects: Array = []
 
 var arms: Arms
+var gods := Gods.new()
+# The first source id that is a god, so a god's harm is told apart with one comparison.
+var _god_src := 1 << 30
 var rerolls := 0
 var banishes := 0
 var banished: Array = []
@@ -214,7 +217,12 @@ func burn_seconds() -> float:
 
 
 func attack_rate() -> float:
-	return 1.0 + 0.12 * rank("discipline")
+	return (1.0 + 0.12 * rank("discipline")) * (float(b.gods.mars.rate_mult) if gods.frenzy_left > 0.0 else 1.0)
+
+
+## The share of harm the legion takes while Mars's frenzy is on it.
+func frenzy_guard() -> float:
+	return float(b.gods.mars.taken_mult) if gods.frenzy_left > 0.0 else 1.0
 
 
 func pickup_radius() -> float:
@@ -242,6 +250,7 @@ func update(dt: float, move: Vector2, testudo_pressed: bool) -> void:
 	objectives.update(dt, self)
 	_legion_attacks(dt)
 	arms.update(dt, self)
+	gods.update(dt, self)
 	_move_shots(dt)
 	_burns(dt)
 	_remove_dead()
@@ -290,6 +299,9 @@ func _build_sources() -> void:
 	var names: Array = ["commander"]
 	for kind in ["recruits", "arms", "forged"]:
 		names.append_array(content.get(kind).keys())
+	if not content.gods.is_empty():
+		_god_src = names.size()
+		names.append_array(content.gods.keys())
 	for n in names:
 		_src_ids[n] = _src_names.size()
 		_src_names.append(n)
@@ -419,6 +431,10 @@ func enemies_near(p: Vector2, r: float) -> Array:
 ## The health it took is added to `src`, the id of the weapon or soldier type that did it, and returned.
 func _harm(i: int, dmg: float, src: int) -> float:
 	var full := dmg * (1.0 + _bonus_amount("damage"))
+	if src >= _god_src:
+		full = gods.boss_cap(self, i, full)
+	elif gods.frenzy_left > 0.0:
+		full *= float(b.gods.mars.damage_mult)
 	var taken := minf(full, maxf(horde.e_hp[i], 0.0))
 	horde.e_hp[i] -= full
 	if src >= 0:
@@ -576,6 +592,7 @@ func _remove_dead() -> void:
 func _kill(i: int) -> void:
 	var id: String = horde.kind_ids[horde.e_kind[i]]
 	kills += 1
+	gods.on_kill(b)
 	tally(1, horde.e_pos[i])
 	killed_kinds[id] = true
 	var pay := float(content.enemies[id].coins) * (1.0 + float(b.drills.plunder) * rank("plunder") + _bonus_amount("denarii")) * (float(b.hard.denarii_mult) if hard else 1.0)

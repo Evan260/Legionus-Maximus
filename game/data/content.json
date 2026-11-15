@@ -1900,5 +1900,47 @@
    "target": 100
   }
  },
+ "gods": {
+  "jupiter": {
+   "name": "Jupiter",
+   "text": "A storm of lightning strikes down the barbarians on screen.",
+   "history": "Jupiter Optimus Maximus, king of the gods, held the thunderbolt and guarded Rome from the Capitol.",
+   "art": [
+    "icon:god_jupiter"
+   ]
+  },
+  "neptune": {
+   "name": "Neptune",
+   "text": "An earthquake throws every barbarian on screen back and stuns them.",
+   "history": "Neptune ruled the sea and was the earth-shaker, the god Romans blamed for earthquakes.",
+   "art": [
+    "icon:god_neptune"
+   ]
+  },
+  "mars": {
+   "name": "Mars",
+   "text": "War frenzy: triple damage, faster blows and half the harm for 10 seconds.",
+   "history": "Mars, father of Romulus, was the god of war; legions swore to him before a campaign.",
+   "art": [
+    "icon:god_mars"
+   ]
+  },
+  "vulcan": {
+   "name": "Vulcan",
+   "text": "Fire rains on the screen: every barbarian burns and the ground catches fire.",
+   "history": "Vulcan forged weapons in his fires under the mountains; his feast was kept against city fires.",
+   "art": [
+    "icon:god_vulcan"
+   ]
+  },
+  "apollo": {
+   "name": "Apollo",
+   "text": "Golden light heals the whole legion and brings back up to 10 fallen soldiers.",
+   "history": "Apollo, god of light and healing, was given a temple in Rome to end a plague in 433 BC.",
+   "art": [
+    "icon:god_apollo"
+   ]
+  }
+ },
  "free_choice_note": "A free choice from a chest or cart heals the legion instead when there is nothing left to offer."
 }

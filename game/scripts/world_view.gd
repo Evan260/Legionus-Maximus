@@ -50,10 +50,12 @@ func _process(dt: float) -> void:
 	if sim:
 		var jolt := Vector2.ZERO
 		if shake_on and sim.shake > 0.0:
-			var reach := int(sim.b.shake.pixels)
+			# Neptune's earthquake shakes the screen harder than any blow.
+			var reach := int(sim.b.gods.neptune.shake_pixels) if sim.gods.quake > 0.0 else int(sim.b.shake.pixels)
 			jolt = Vector2(_shake_rng.randi_range(-reach, reach), _shake_rng.randi_range(-reach, reach))
 		# The shake dies away here, not in the sim, so it still ends while the run is paused or over.
 		sim.shake = maxf(0.0, sim.shake - dt)
+		sim.gods.quake = maxf(0.0, sim.gods.quake - dt)
 		position = (get_viewport_rect().size / 2.0 - sim.commander.pos).round() + jolt
 		queue_redraw()
 
@@ -89,6 +91,7 @@ func _draw() -> void:
 			draw_texture(ground, Vector2(gx * gw, gy * gh))
 
 	_draw_ground_zones(view_for(top_left))
+	_draw_god_ground()
 	_draw_scorch(view_for(top_left))
 	_draw_warnings()
 	_keys.clear()
@@ -182,6 +185,7 @@ func _draw() -> void:
 	_draw_torches()
 	_draw_bars()
 	_draw_felling()
+	_draw_gods(top_left, screen)
 
 
 func view_for(top_left: Vector2) -> Rect2:
@@ -556,3 +560,115 @@ func _draw_felling() -> void:
 		var p: Vector2 = (f[0] + Vector2(-8, -30)).round()
 		draw_rect(Rect2(p - Vector2(1, 1), Vector2(18, 4)), Color(0.16, 0.1, 0.08))
 		draw_rect(Rect2(p, Vector2(16.0 * clampf(f[1] / secs, 0.0, 1.0), 2)), Color(0.91, 0.69, 0.25))
+
+
+## What the gods leave under the legion: the glow of Mars's frenzy and the pool of Apollo's light.
+func _draw_god_ground() -> void:
+	var gods := sim.gods
+	if gods.frenzy_left > 0.0:
+		var fade := clampf(gods.frenzy_left / 0.8, 0.0, 1.0)
+		var pulse := 0.5 + 0.5 * sin(sim.time * 9.0)
+		for u in [sim.commander] + sim.soldiers:
+			var p: Vector2 = u.pos + Vector2(0, -2)
+			draw_set_transform(p, 0.0, Vector2(1.0, 0.55))
+			draw_circle(Vector2.ZERO, 15.0 + 3.0 * pulse, Color(0.9, 0.15, 0.06, 0.5 * fade))
+			draw_circle(Vector2.ZERO, 9.0, Color(1.0, 0.75, 0.25, 0.6 * fade))
+		draw_set_transform(Vector2.ZERO)
+	if gods.light_left > 0.0:
+		var k := gods.light_left / float(sim.b.gods.apollo.light_seconds)
+		var r := sim.legion_reach + 40.0
+		draw_circle(sim.commander.pos, r * (1.2 - 0.2 * k), Color(1.0, 0.9, 0.45, 0.4 * k))
+		draw_circle(sim.commander.pos, r * 0.6, Color(1.0, 0.97, 0.75, 0.45 * k))
+
+
+## The gods' powers over the field: Jupiter's bolts, Neptune's wave, Vulcan's falling fire, Mars's embers, Apollo's beams and the white flash.
+func _draw_gods(top_left: Vector2, screen: Vector2) -> void:
+	var gods := sim.gods
+	var g: Dictionary = sim.b.gods
+	var whole := Rect2(top_left - Vector2(8, 8), screen + Vector2(16, 16))
+	if gods.storm_left > 0.0:
+		draw_rect(whole, Color(0.04, 0.05, 0.16, 0.4 * clampf(gods.storm_left / 0.5, 0.0, 1.0)))
+	if not gods.wave.is_empty():
+		var k := minf(1.0, float(gods.wave.t) / float(g.neptune.wave_seconds))
+		var r := float(g.neptune.radius) * k
+		var c: Vector2 = gods.wave.pos
+		draw_circle(c, r, Color(0.35, 0.6, 0.9, 0.16 * (1.0 - k)))
+		draw_arc(c, r - 6.0, 0.0, TAU, 96, Color(0.25, 0.18, 0.1, 0.6 * (1.0 - k * 0.5)), 20.0)
+		draw_arc(c, r, 0.0, TAU, 96, Color(0.45, 0.75, 1.0, 1.0 - k * 0.5), 9.0)
+		draw_arc(c, r + 2.0, 0.0, TAU, 96, Color(0.95, 1.0, 1.0, 1.0 - k * 0.5), 3.0)
+		draw_arc(c, r * 0.85, 0.0, TAU, 96, Color(0.85, 0.95, 1.0, 0.8 * (1.0 - k)), 2.0)
+		draw_arc(c, r * 0.6, 0.0, TAU, 96, Color(0.5, 0.75, 1.0, 0.5 * (1.0 - k)), 2.0)
+		# Cracks run out across the ground behind the wave.
+		for i in 14:
+			var dir := Vector2.from_angle(i * TAU / 14.0 + 0.3)
+			var side := dir.orthogonal() * (6.0 if i % 2 == 0 else -6.0)
+			var pts := PackedVector2Array([c + dir * 20.0, c + dir * r * 0.35 + side, c + dir * r * 0.65 - side, c + dir * r * 0.9])
+			draw_polyline(pts, Color(0.2, 0.13, 0.07, 0.7 * (1.0 - k * 0.5)), 2.0)
+	if gods.burn_left > 0.0:
+		var heat := clampf(gods.burn_left / 1.0, 0.0, 1.0) * 0.16
+		draw_rect(Rect2(top_left, screen), Color(1.0, 0.35, 0.05, heat))
+	for m in gods.meteors:
+		if m.t < 0.0:
+			continue
+		var k: float = m.t / float(g.vulcan.fall_seconds)
+		var from: Vector2 = m.to + Vector2(-90.0, -280.0)
+		var p: Vector2 = from.lerp(m.to, k)
+		var back: Vector2 = from.lerp(m.to, maxf(0.0, k - 0.35))
+		draw_line(back, p, Color(1.0, 0.45, 0.1, 0.7), 5.0)
+		draw_line(back.lerp(p, 0.5), p, Color(1.0, 0.85, 0.35, 0.9), 2.0)
+		draw_circle(p, 6.0, Color(1.0, 0.5, 0.12))
+		draw_circle(p, 3.0, Color(1.0, 0.95, 0.6))
+	if gods.frenzy_left > 0.0:
+		var fade := clampf(gods.frenzy_left / 0.8, 0.0, 1.0)
+		var pulse := 0.5 + 0.5 * sin(sim.time * 7.0)
+		draw_arc(sim.commander.pos, sim.legion_reach + 4.0 + 3.0 * pulse, 0.0, TAU, 64, Color(0.95, 0.2, 0.08, 0.7 * fade), 4.0)
+		draw_arc(sim.commander.pos, sim.legion_reach + 4.0 + 3.0 * pulse, 0.0, TAU, 64, Color(1.0, 0.8, 0.3, 0.9 * fade), 1.0)
+		# A red edge round the screen keeps the frenzy in sight wherever the eye is.
+		var edge := Rect2(top_left, screen)
+		for band in 4:
+			var w := 6.0 + band * 6.0
+			var col := Color(0.8, 0.08, 0.04, (0.22 - band * 0.05) * fade * (0.7 + 0.3 * pulse))
+			draw_rect(Rect2(edge.position, Vector2(edge.size.x, w)), col)
+			draw_rect(Rect2(edge.position + Vector2(0, edge.size.y - w), Vector2(edge.size.x, w)), col)
+			draw_rect(Rect2(edge.position, Vector2(w, edge.size.y)), col)
+			draw_rect(Rect2(edge.position + Vector2(edge.size.x - w, 0), Vector2(w, edge.size.y)), col)
+		var units: Array = [sim.commander] + sim.soldiers
+		for n in units.size():
+			var u: Dictionary = units[n]
+			for e in 2:
+				var life := fmod(sim.time * 1.3 + n * 0.37 + e * 0.5, 1.0)
+				var q: Vector2 = u.pos + Vector2(((n * 7 + e * 5) % 13) - 6.0, -8.0 - life * 26.0)
+				draw_rect(Rect2(q.round(), Vector2(2, 3)), Color(1.0, 0.45 + 0.45 * e, 0.12, (1.0 - life) * fade))
+	if gods.light_left > 0.0:
+		var k := gods.light_left / float(g.apollo.light_seconds)
+		draw_rect(whole, Color(1.0, 0.85, 0.4, 0.22 * k))
+		var units: Array = [sim.commander] + sim.soldiers
+		for n in mini(units.size(), 60):
+			var p: Vector2 = units[n].pos
+			draw_rect(Rect2(p.x - 3.0, top_left.y, 6.0, p.y - top_left.y), Color(1.0, 0.92, 0.55, 0.22 * k))
+			draw_rect(Rect2(p.x - 1.0, top_left.y, 2.0, p.y - top_left.y), Color(1.0, 1.0, 0.85, 0.4 * k))
+	var bolt_life := float(g.jupiter.bolt_seconds)
+	for bolt in gods.bolts:
+		var a := 1.0 - float(bolt.t) / bolt_life
+		var rng := RandomNumberGenerator.new()
+		rng.seed = int(bolt.seed)
+		var to: Vector2 = bolt.to
+		var start := Vector2(to.x + rng.randf_range(-60.0, 60.0), top_left.y - 8.0)
+		var pts := PackedVector2Array([start])
+		var steps := 9
+		for i in range(1, steps):
+			var t := float(i) / steps
+			pts.append(start.lerp(to, t) + Vector2(rng.randf_range(-16.0, 16.0), rng.randf_range(-4.0, 4.0)))
+		pts.append(to)
+		draw_polyline(pts, Color(0.55, 0.7, 1.0, 0.45 * a), 7.0)
+		draw_polyline(pts, Color(0.85, 0.92, 1.0, 0.9 * a), 3.0)
+		draw_polyline(pts, Color(1.0, 1.0, 1.0, a), 1.0)
+		var fork: int = 2 + rng.randi() % 5
+		var branch := PackedVector2Array([pts[fork]])
+		for i in 3:
+			branch.append(branch[-1] + Vector2(rng.randf_range(-22.0, 22.0), rng.randf_range(10.0, 26.0)))
+		draw_polyline(branch, Color(0.85, 0.92, 1.0, 0.7 * a), 1.0)
+		draw_circle(to, 14.0 * a + 4.0, Color(0.8, 0.9, 1.0, 0.45 * a))
+		draw_circle(to, 6.0, Color(1.0, 1.0, 1.0, a))
+	if gods.flash > 0.0:
+		draw_rect(whole, Color(1.0, 1.0, 1.0, minf(gods.flash, 0.85)))

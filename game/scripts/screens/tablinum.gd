@@ -1,8 +1,8 @@
 class_name TablinumScreen
 extends RefCounted
-## The tablinum: every recruit, weapon, forged form and enemy that is drawn. Found ones show their picture and a line of history, the rest a dark silhouette.
+## The tablinum: every recruit, weapon, forged form, enemy and god that is drawn. Found ones show their picture and a line of history, the rest a dark silhouette.
 
-const KINDS := [["recruits", "Recruit"], ["arms", "Arms"], ["forged", "Forged"], ["enemies", "Enemy"]]
+const KINDS := [["recruits", "Recruit"], ["arms", "Arms"], ["forged", "Forged"], ["enemies", "Enemy"], ["gods", "God"]]
 const CELL := 34.0
 const STEP := 38.0
 const COLS := 11

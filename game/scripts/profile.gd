@@ -263,6 +263,8 @@ func record_run(sim: Sim) -> void:
 		data.seen[u.type] = true
 	for id in sim.killed_kinds:
 		data.seen[id] = true
+	for id in sim.gods.called:
+		data.seen[id] = true
 	_unlock(sim)
 	save()
 

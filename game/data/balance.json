@@ -179,6 +179,18 @@
     "commanders": 3,
     "province": "germania"
   },
+  "gods": {
+    "favour_first": 120,
+    "favour_step": 60,
+    "view_half": [330, 190],
+    "boss_share": 0.15,
+    "banner_seconds": 2.5,
+    "jupiter": {"seconds": 3.0, "strikes_per_second": 40, "share": 3.0, "splash": 22, "bolt_seconds": 0.3, "flash": 0.7},
+    "neptune": {"radius": 420, "wave_seconds": 0.7, "throw": 130, "throw_drag": 6.0, "boss_throw_mult": 0.3, "stun": 3.0, "shake_seconds": 1.2, "shake_pixels": 6},
+    "mars": {"seconds": 10.0, "damage_mult": 3.0, "rate_mult": 1.5, "taken_mult": 0.5},
+    "vulcan": {"burn_seconds": 4.0, "burn_share": 1.2, "patches": 14, "patch_radius": 34, "patch_life": 8.0, "patch_dps": 60, "meteors": 30, "rain_seconds": 1.2, "fall_seconds": 0.35},
+    "apollo": {"revive": 10, "light_seconds": 1.6}
+  },
   "steam": {
     "card_hold": 5.0,
     "card_slide": 0.35,

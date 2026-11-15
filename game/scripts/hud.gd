@@ -1,6 +1,6 @@
 class_name Hud
 extends Node2D
-## Everything drawn over the field: the top bar, the testudo charge, the chieftain's health and the level-up choices.
+## Everything drawn over the field: the top bar, the testudo charge, the favour of the gods, the chieftain's health and the level-up and god choices.
 ## The title, pause, summary, settings and camp are screens drawn through the shared Ui.
 
 const W := 640.0
@@ -108,7 +108,8 @@ func _scene() -> void:
 		return
 	_top_bar(sim)
 	_objective_arrows(sim)
-	if main.state == "choose":
+	_god_banner(sim)
+	if main.state == "choose" or main.state == "pray":
 		_choices(sim)
 
 
@@ -137,6 +138,7 @@ func _top_bar(sim: Sim) -> void:
 	draw_rect(Rect2(9, H - 8, 32 * charge, 2), GOLD if ready or sim.testudo_left > 0.0 else PARCH_DARK)
 	text((tr("Testudo") if sim.testudo_left <= 0.0 else tr("Hold!")).to_upper(), Vector2(46, H - 6), GOLD_LIGHT if ready or sim.testudo_left > 0.0 else Color(0.7, 0.66, 0.6))
 	_timber(sim, H)
+	_favour(sim, W, H)
 	var ci := sim.horde.chieftain_index()
 	var y3 := y1 + (11.0 if not big else 22.0)
 	if ci >= 0:
@@ -164,6 +166,41 @@ func _timber(sim: Sim, H: float) -> void:
 	if sim.palisade_refused_at >= 0.0 and sim.time - sim.palisade_refused_at < float(sim.b.palisade.notice_seconds):
 		var line := (tr("Not enough timber: %d needed") % cost).to_upper()
 		text(line, Vector2(0, Ui.view.y * 0.7), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x)
+
+
+## The favour of the gods at the bottom right: a wreath over a bar that fills with kills, glowing with the key to call them once full.
+func _favour(sim: Sim, W: float, H: float) -> void:
+	var gods := sim.gods
+	var ready := gods.full(sim.b)
+	var share := clampf(float(gods.favour) / maxf(1.0, gods.need(sim.b)), 0.0, 1.0)
+	var c := Vector2(W - 25.0, H - 24.0)
+	if ready:
+		var pulse := 0.5 + 0.5 * sin(sim.time * 6.0)
+		draw_circle(c, 14.0 + 3.0 * pulse, Color(1.0, 0.85, 0.4, 0.18 + 0.2 * pulse))
+		draw_circle(c, 9.0, Color(1.0, 0.95, 0.7, 0.35 + 0.3 * pulse))
+	_laurel(c)
+	draw_rect(Rect2(W - 42, H - 9, 34, 4), INK)
+	draw_rect(Rect2(W - 41, H - 8, 32 * share, 2), GOLD_LIGHT if ready else GOLD)
+	text(tr("Favour").to_upper(), Vector2(0, H - 6), GOLD_LIGHT if ready else Color(0.7, 0.66, 0.6), HORIZONTAL_ALIGNMENT_RIGHT, W - 46)
+	if ready and main.state == "play":
+		text(Controls.hint("pray").to_upper(), Vector2(0, H - 6 - Ui.leading()), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_RIGHT, W - 46)
+
+
+## The name of the god just called, written large across the screen as his power lands.
+func _god_banner(sim: Sim) -> void:
+	var last: Dictionary = sim.gods.last
+	if last.is_empty() or main.state != "play":
+		return
+	var age := sim.time - float(last.at)
+	var secs := float(sim.b.gods.banner_seconds)
+	if age > secs or not sim.content.gods.has(last.id):
+		return
+	var a := clampf(minf(age * 4.0, (secs - age) * 2.0), 0.0, 1.0)
+	var size := Ui.px * 3
+	var name := str(sim.content.gods[last.id].name).to_upper()
+	var y := Ui.view.y * 0.24
+	draw_string(Ui.font(), Vector2(3, y + 3), name, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x, size, Color(INK, a))
+	draw_string(Ui.font(), Vector2(0, y), name, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x, size, Color(GOLD_LIGHT, a))
 
 
 ## The name of an objective or the fort, as the arrows and notices show it.
@@ -264,11 +301,14 @@ func _choices(sim: Sim) -> void:
 	draw_set_transform(Ui.offset)
 	Ui.veil(self, 0.5)
 	var head_y := 38.0 if big else 74.0
+	var praying: bool = main.state == "pray"
+	if praying:
+		text(tr("The gods hear you").to_upper(), Vector2(0, head_y), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
 	# With large text the top bar already says the level, so only the supplies heading is added.
-	if not big or sim.pending_levels == 0:
+	elif not big or sim.pending_levels == 0:
 		text((tr("Level %d") % sim.level if sim.pending_levels > 0 else tr("Supplies")).to_upper(), Vector2(0, head_y), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
 	if not big:
-		text(tr("Choose one"), Vector2(0, 86), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W)
+		text(tr("Call one") if praying else tr("Choose one"), Vector2(0, 86), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W)
 	choice_rects.clear()
 	var n: int = main.choices.size()
 	var gap := 8.0 if n > 3 else 12.0
@@ -286,19 +326,25 @@ func _choices(sim: Sim) -> void:
 		if picked:
 			draw_rect(r.grow(3), GOLD)
 		panel(r, CREAM if picked else PARCH)
-		var info: Dictionary = sim.content.upgrade(id)
+		var info: Dictionary = sim.content.gods[id] if praying else sim.content.upgrade(id)
 		var icon := icon_of(id)
 		if icon != null:
 			draw_texture_rect(icon, Rect2(r.position.x + bw / 2 - icon_px / 2, r.position.y + 8, icon_px, icon_px), false)
 		var y := r.position.y + (icon_px + 22.0 if big else 86.0)
-		ui.fit_text(self, tr(sim.content.group_of(id)).to_upper(), bw - 8, Vector2(r.position.x, y), Color(0.5, 0.36, 0.22), HORIZONTAL_ALIGNMENT_CENTER, bw)
+		ui.fit_text(self, (tr("God") if praying else tr(sim.content.group_of(id))).to_upper(), bw - 8, Vector2(r.position.x, y), Color(0.5, 0.36, 0.22), HORIZONTAL_ALIGNMENT_CENTER, bw)
 		# A long name takes two lines, and the level and description move down by the extra one.
 		var shown := mini(Ui.block(info.name.to_upper(), bw - 8, 2).lines, 2)
 		ui.wrap_fit(self, info.name.to_upper(), Vector2(r.position.x, y + step + 1), bw - 8, INK, 2, HORIZONTAL_ALIGNMENT_CENTER, bw)
 		var extra_y := (shown - 1) * step
+		if praying:
+			wrap_text(info.text, Vector2(r.position.x + 9, y + 2 * step + 6 + extra_y), bw - 18, INK)
+			continue
 		text(Upgrades.level_text(sim, id), Vector2(r.position.x, y + 2 * step + 2 + extra_y), RED, HORIZONTAL_ALIGNMENT_CENTER, bw, false)
 		wrap_text(Upgrades.describe(sim, id), Vector2(r.position.x + 9, y + 3 * step + 6 + extra_y), bw - 18, INK)
 	var hint_y := top + card_h + (22.0 if big else 16.0)
+	if praying:
+		ui.fit_text(self, Controls.hint("gods") if not big else tr("Call one"), W - 16.0, Vector2(0, hint_y), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W, true)
+		return
 	ui.fit_text(self, Controls.hint("level") if not big else tr("Take one"), W - 16.0, Vector2(0, hint_y), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W, true)
 	var extras: Array = []
 	if sim.rerolls > 0:
