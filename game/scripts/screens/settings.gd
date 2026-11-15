@@ -128,19 +128,19 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 
 
 func _draw_main(c: CanvasItem, ui: Ui) -> void:
-	var r := ui.frame(c, tr("Settings").to_upper(), tr("Arrows or WASD move     Left and right change a volume     Esc back"))
+	var r := ui.frame(c, tr("Settings").to_upper(), Controls.hint("volume"))
 	var h := 26.0 if Ui.scale > 1 else 21.0
 	var step := h + 1.0 if Ui.scale > 1 else h + 3.0
 	var w := 440.0
 	var x := (Ui.W - w) / 2.0
-	var y := r.position.y + 28.0
+	var y := r.position.y + Ui.below_title() + 4.0
 	for key in VOLUMES:
 		var rect := Rect2(x, y, w, h)
 		var v := float(Profile.setting(key))
 		var pct := "%d%%" % roundi(v * 100.0)
-		ui.button(c, rect, key, tr(VOLUME_NAMES[key]), pct)
 		var bar_w := 80.0
 		var bx := rect.end.x - 12.0 - ui.width_of("100%") - bar_w
+		ui.button(c, rect, key, tr(VOLUME_NAMES[key]), pct, true, null, false, Ui.RED, rect.end.x - bx - ui.width_of(pct) - 6.0)
 		c.draw_rect(Rect2(bx - 1, rect.position.y + h / 2 - 3, bar_w + 2, 7), Ui.INK)
 		c.draw_rect(Rect2(bx, rect.position.y + h / 2 - 2, bar_w, 5), Ui.PARCH_DARK)
 		c.draw_rect(Rect2(bx, rect.position.y + h / 2 - 2, bar_w * v, 5), Ui.GOLD)
@@ -161,6 +161,12 @@ func _draw_main(c: CanvasItem, ui: Ui) -> void:
 	ui.button(c, Rect2(x, y, w, h), "back", tr("Back").to_upper(), "", true, null, true)
 
 
+## The height of each row on the key page and the step between rows, so every action and the buttons below fit the room.
+static func controls_rows(room: float) -> Dictionary:
+	var step := minf(25.0 if Ui.scale > 1 else 21.0, floorf((room - 4.0) / (Controls.ACTIONS.size() + 1)))
+	return {"step": step, "h": step - 2.0}
+
+
 ## The width of the action names column, wide enough for the longest name in the language, and of each of the three buttons beside it.
 static func controls_metrics(frame_w: float) -> Dictionary:
 	var widest := 0.0
@@ -171,16 +177,16 @@ static func controls_metrics(frame_w: float) -> Dictionary:
 
 
 func _draw_controls(c: CanvasItem, ui: Ui) -> void:
-	var hint := tr("Press the new key or button     Esc cancel") if not waiting.is_empty() else tr("Space change a key or button     Esc back")
+	var hint := Controls.hint("press" if not waiting.is_empty() else "keys")
 	var r := ui.frame(c, tr("Keys and buttons").to_upper(), hint)
 	var saved: Dictionary = Profile.data.settings.get("bindings", {})
-	# Large text uses slimmer rows so every action and the buttons below stay above the key hint.
-	var h := 22.0 if Ui.scale > 1 else 18.0
-	var step := h + (2.0 if Ui.scale > 1 else 3.0)
 	var metrics := controls_metrics(r.size.x)
 	var name_w: float = metrics.name_w
 	var bw: float = metrics.bw
-	var y := r.position.y + 28.0
+	var y := r.position.y + Ui.below_title()
+	var rows := controls_rows(r.end.y - 4.0 - y)
+	var h: float = rows.h
+	var step: float = rows.step
 	var slots := [["keys", 0], ["keys", 1], ["pads", 0]]
 	for a in Controls.ACTIONS:
 		ui.text(c, tr(a[1]), Vector2(r.position.x + 12, y + h / 2 + Ui.px * 3 / 8), Ui.INK)
@@ -208,7 +214,7 @@ func _draw_language(c: CanvasItem, ui: Ui) -> void:
 	var current: String = Profile.setting("language")
 	for i in choices.size():
 		var loc: String = choices[i]
-		var rect := Rect2(r.position.x + 12.0 + (i / rows) * (w + 8.0), r.position.y + 28.0 + (i % rows) * step, w, h)
+		var rect := Rect2(r.position.x + 12.0 + (i / rows) * (w + 8.0), r.position.y + Ui.below_title() + (i % rows) * step, w, h)
 		var mark := "[x] " if loc == current else "[ ] "
 		if loc == "":
 			ui.button(c, rect, "lang:", mark + tr("Automatic"))

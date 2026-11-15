@@ -2384,9 +2384,10 @@ func _cuts_in(loc: String, scale: int, c: Content, sim: Sim, cuts: Array) -> voi
 	var commanders: Array = c.commanders.values().map(func(e): return str(e.name))
 	var tr_ := func(s: String) -> String: return TranslationServer.translate(s)
 	# The key hints at the foot of a screen, which lose their first parts when they do not fit.
-	for s in ["Arrows or WASD move     Left and right change a volume     Esc back", "Press the new key or button     Esc cancel",
-			"Space change a key or button     Esc back"]:
-		_fit(cuts, loc, scale, "key hint", tr_.call(s), 624.0)
+	for kind in ["volume", "keys", "press", "title"]:
+		_fit(cuts, loc, scale, "key hint " + kind, Controls.hint(kind), 624.0)
+	for line in TitleScreen.how_to_play(sim.b):
+		_fit(cuts, loc, scale, "how to play", line, TitleScreen.line_width())
 	_fit(cuts, loc, scale, "give-up prompt", tr_.call("Give up the run? %s again to confirm") % "Q", 624.0)
 	for kind in ["pick", "buy", "look", "summary", "level", "gods"]:
 		_fit(cuts, loc, scale, "key hint " + kind, Controls.hint(kind), 624.0)
@@ -2429,7 +2430,7 @@ func _cuts_in(loc: String, scale: int, c: Content, sim: Sim, cuts: Array) -> voi
 	# Settings.
 	var pct := Ui.width_at("100%", Ui.px)
 	for s in ["Master volume", "Music volume", "Effects volume"]:
-		_fit(cuts, loc, scale, "volume name", tr_.call(s), 440.0 - 12.0 - pct - 80.0 - 6.0)
+		_fit(cuts, loc, scale, "volume name", tr_.call(s), 440.0 - 6.0 - 12.0 - pct - 80.0 - 6.0)
 	for s in ["Full screen", "Screen shake", "Damage numbers"]:
 		_fit(cuts, loc, scale, "toggle name", tr_.call(s), 440.0 - 12.0 - maxf(Ui.width_at(tr_.call("On"), Ui.px), Ui.width_at(tr_.call("Off"), Ui.px)) - 6.0)
 	_fit(cuts, loc, scale, "text size", tr_.call("Text size"), 440.0 - 12.0 - maxf(Ui.width_at(tr_.call("Large"), Ui.px), Ui.width_at(tr_.call("Normal"), Ui.px)) - 6.0)
@@ -2518,14 +2519,72 @@ func test_hints_name_the_players_own_keys(_b: Dictionary) -> void:
 	var saved: Dictionary = Profile.data
 	Profile.data = Profile.defaults()
 	Profile.data.settings.bindings = {}
-	check(Controls.hint("level") == "A / D to choose     Space to take it", "the default level-up hint is unchanged")
+	check(Controls.hint("level") == "A / D  choose     Space  take it", "the default level-up hint is unchanged (%s)" % Controls.hint("level"))
 	Controls.rebind(Profile.data.settings.bindings, "left", "keys", 0, KEY_J)
 	Controls.rebind(Profile.data.settings.bindings, "confirm", "keys", 0, KEY_E)
-	check(Controls.hint("level") == "J / D to choose     E to take it", "the level-up hint shows the rebound keys")
-	check(Controls.hint("summary").begins_with("E camp"), "the summary hint shows the rebound confirm key")
-	check(Controls.hint("pick").begins_with("W J S D move"), "the move hint shows the rebound march keys")
+	check(Controls.hint("level") == "J / D  choose     E  take it", "the level-up hint shows the rebound keys")
+	check(Controls.hint("summary").begins_with("E  Camp"), "the summary hint shows the rebound confirm key")
+	check(Controls.hint("pick").begins_with("W J S D  move"), "the move hint shows the rebound march keys")
 	Controls.install({})
 	Profile.data = saved
+
+
+func test_hints_are_built_from_single_translated_words(_b: Dictionary) -> void:
+	var saved: Dictionary = Profile.data
+	Profile.data = Profile.defaults()
+	Profile.data.settings.bindings = {}
+	Controls.install({})
+	var before := TranslationServer.get_locale()
+	for loc in LANGUAGES:
+		TranslationServer.set_locale(loc)
+		for w in Controls.HINT_WORDS:
+			var said := TranslationServer.translate(w)
+			check(not said.contains("%"), "%s: the hint word '%s' carries no placeholder (%s)" % [loc, w, said])
+		# Every part starts with its keys, so the translation of a word can never move a key into another part.
+		var parts := Controls.hint("pick").split("     ")
+		check(parts.size() == 3, "%s: the pick hint has its three parts" % loc)
+		if parts.size() == 3:
+			check(parts[0].begins_with(Controls.march_keys() + "  "), "%s: the march keys lead the first part" % loc)
+			check(parts[1] == Controls.key_of("confirm") + "  " + TranslationServer.translate("choose"), "%s: confirm names choose" % loc)
+			check(parts[2] == Controls.key_of("back") + "  " + TranslationServer.translate("back"), "%s: back names back" % loc)
+		var gods := Controls.hint("gods").split("     ")
+		check(gods.size() == 3 and gods[2].begins_with(Controls.key_of("back")), "%s: the gods hint ends with the back key" % loc)
+	TranslationServer.set_locale("de")
+	check(Controls.key_name(KEY_SPACE) == "Leertaste", "key names are translated (%s)" % Controls.key_name(KEY_SPACE))
+	check(Controls.key_name(KEY_W) == "W", "a letter key keeps its letter")
+	TranslationServer.set_locale(before)
+	Profile.data = saved
+
+
+func test_reroll_and_banish_can_be_rebound(_b: Dictionary) -> void:
+	var saved: Dictionary = Profile.data
+	Profile.data = Profile.defaults()
+	Profile.data.settings.bindings = {}
+	var names: Array = Controls.ACTIONS.map(func(a: Array) -> String: return a[0])
+	check(names.has("reroll") and names.has("banish"), "the key page lists reroll and banish")
+	Controls.rebind(Profile.data.settings.bindings, "reroll", "keys", 0, KEY_T)
+	Controls.rebind(Profile.data.settings.bindings, "banish", "pads", 0, JOY_BUTTON_LEFT_SHOULDER)
+	var has_t := false
+	for e in InputMap.action_get_events("reroll"):
+		has_t = has_t or (e is InputEventKey and e.physical_keycode == KEY_T)
+	check(has_t, "the rebound reroll key is in the input map")
+	check(Controls.hint("reroll", 2) == "T / Y  reroll (2)", "the reroll hint names the new key (%s)" % Controls.hint("reroll", 2))
+	check(Controls.hint("banish", 1) == "B / LB  banish (1)", "the banish hint names the new button (%s)" % Controls.hint("banish", 1))
+	Controls.install({})
+	Profile.data = saved
+
+
+func test_a_word_too_long_for_a_line_is_broken(b: Dictionary) -> void:
+	var before: String = Lang.code
+	Lang.apply("de", false)
+	var lines := Ui.lines_of("Die Legion der BÜRGERSOLDATENVERSAMMLUNG kam", 60.0, 8)
+	var fits := true
+	for line in lines:
+		fits = fits and Ui.width_at(line, 8) <= 60.0
+	check(fits, "every line fits the width (%s)" % [lines])
+	check("".join(lines).replace("-", "").replace(" ", "") == "DieLegionderBÜRGERSOLDATENVERSAMMLUNGkam", "no letter is lost")
+	check(lines.any(func(l: String) -> bool: return l.ends_with("-")), "the broken word carries a hyphen")
+	Lang.apply(before, false)
 
 
 func test_title_goal_comes_from_the_balance(b: Dictionary) -> void:

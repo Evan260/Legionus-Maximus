@@ -107,7 +107,10 @@ func _scene() -> void:
 		ui.end()
 		return
 	_top_bar(sim)
-	_objective_arrows(sim)
+	var bosses := boss_names(sim)
+	for b in bosses:
+		text(b.name, Vector2(b.rect.position.x, b.rect.position.y + Ui.px), GOLD_LIGHT)
+	_objective_arrows(sim, bosses.map(func(b: Dictionary) -> Rect2: return b.rect))
 	_god_banner(sim)
 	if main.state == "choose" or main.state == "pray":
 		_choices(sim)
@@ -124,10 +127,18 @@ func _top_bar(sim: Sim) -> void:
 	var secs := int(sim.time)
 	var y1 := 16.0 + 8.0 * Ui.scale
 	var y2 := y1 + (11.0 if not big else 20.0)
+	# A choice on screen keeps only the level and the legion up here; its cards and heading take the rest.
+	var choosing: bool = main.state == "choose" or main.state == "pray"
 	text((tr("Level %d") % sim.level).to_upper(), Vector2(10, y1))
-	text("%02d:%02d" % [secs / 60, secs % 60], Vector2(0, y1), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W)
+	if not (choosing and big):
+		text("%02d:%02d" % [secs / 60, secs % 60], Vector2(0, y1), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W)
 	text((tr("Legion %d") % (sim.soldiers.size() + 1)).to_upper(), Vector2(0, y1), CREAM, HORIZONTAL_ALIGNMENT_RIGHT, W - 10)
-	text((tr("Kills %d") % sim.kills).to_upper(), Vector2(0, y2), CREAM, HORIZONTAL_ALIGNMENT_RIGHT, W - 10)
+	if not choosing:
+		text((tr("Kills %d") % sim.kills).to_upper(), Vector2(0, y2), CREAM, HORIZONTAL_ALIGNMENT_RIGHT, W - 10)
+	# The pause and summary screens write their key hints along the bottom, so the bottom row is left to them.
+	if main.screens.has(main.state):
+		_chieftain_line(sim, W, y1, big)
+		return
 	# The testudo charge sits bottom left, gold when it is ready.
 	var ready := sim.testudo_charge >= 1.0 and sim.testudo_left <= 0.0
 	var shield := icon_of("testudo")
@@ -139,9 +150,14 @@ func _top_bar(sim: Sim) -> void:
 	text((tr("Testudo") if sim.testudo_left <= 0.0 else tr("Hold!")).to_upper(), Vector2(46, H - 6), GOLD_LIGHT if ready or sim.testudo_left > 0.0 else Color(0.7, 0.66, 0.6))
 	_timber(sim, H)
 	_favour(sim, W, H)
-	# The pause and summary screens write their key hints along the bottom, where the health bar would stand.
-	if not main.screens.has(main.state):
-		_health(sim)
+	if choosing:
+		return
+	_health(sim)
+	_chieftain_line(sim, W, y1, big)
+
+
+## The chieftain's health under the clock, the time won in endless mode, or the warning that he is coming.
+func _chieftain_line(sim: Sim, W: float, y1: float, big: bool) -> void:
 	var ci := sim.horde.chieftain_index()
 	var y3 := y1 + (11.0 if not big else 22.0)
 	if ci >= 0:
@@ -255,6 +271,27 @@ func _health(sim: Sim) -> void:
 	text(label, Vector2(r.position.x, r.end.y - 2.0), CREAM, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
 
 
+## Each elite's name over his head, as {name, rect} in screen pixels, drawn here so it follows the text size.
+func boss_names(sim: Sim) -> Array:
+	var out: Array = []
+	var h: Horde = sim.horde
+	var atlas: Atlas = main.world.atlas
+	var screen := Rect2(Vector2.ZERO, Ui.view)
+	for id in h.elite_ids:
+		var i := h.e_id.find(id)
+		if i < 0 or h.e_tag[i] == Horde.CHIEF:
+			continue
+		var type: String = h.kind_ids[h.e_kind[i]]
+		var tall: float = atlas.units[type].idle.south.frames[0][3] if atlas != null and atlas.units.has(type) else 40.0
+		var p: Vector2 = h.e_pos[i] - sim.commander.pos + Ui.view / 2.0
+		var name := str(sim.content.enemies[type].name).to_upper()
+		var w := Ui.width_at(name, Ui.px)
+		var r := Rect2((p + Vector2(-w / 2.0, -tall - 6.0 - Ui.px)).round(), Vector2(w, Ui.leading()))
+		if screen.intersects(r):
+			out.append({"name": name, "rect": r})
+	return out
+
+
 ## The name of the god just called, written large across the screen as his power lands.
 func _god_banner(sim: Sim) -> void:
 	var last: Dictionary = sim.gods.last
@@ -319,13 +356,20 @@ static func tip_length() -> float:
 	return 14.0 if Ui.scale == 1 else 16.0
 
 
-## Where each target's edge badge and label go, or just its name over it when on screen, every one clear of the others.
-static func arrow_layout(targets: Array, cpos: Vector2, view: Vector2, top: float, metre := 16.0) -> Array:
+## The middle of the screen, where the legion stands, which the arrows' labels keep out of.
+static func centre_keep_out(view: Vector2) -> Rect2:
+	return Rect2(view / 2.0 - Vector2(60, 45), Vector2(120, 90))
+
+
+## Where each target's edge badge and label go, or just its name over it when on screen, every one clear of the others,
+## of the middle of the screen and of the `avoid` rects (the bosses' names).
+static func arrow_layout(targets: Array, cpos: Vector2, view: Vector2, top: float, metre := 16.0, avoid: Array = []) -> Array:
 	var radius := badge_radius()
 	var tip := tip_length()
 	var low := bottom_band(view)
 	var out: Array = []
-	var placed: Array = []
+	var placed: Array = avoid.duplicate()
+	placed.append(centre_keep_out(view))
 	# The badges go down first, so the labels written after them step round every badge.
 	for t in targets:
 		var off: Vector2 = t[1] - cpos
@@ -334,7 +378,8 @@ static func arrow_layout(targets: Array, cpos: Vector2, view: Vector2, top: floa
 			continue
 		var inset := radius + tip + 2.0
 		var high := top + radius + tip * 1.15 + 1.0
-		var room := Rect2(inset, high, view.x - 2.0 * inset, view.y - high - maxf(inset, low + radius))
+		# The pulsing point of a badge on the bottom edge stays above the bridge hint and the rest of the bottom row.
+		var room := Rect2(inset, high, view.x - 2.0 * inset, view.y - high - maxf(inset, low + radius + tip * 1.2))
 		var c := _on_room_edge(room, view / 2.0, off)
 		var box := Rect2(c - Vector2.ONE * radius, Vector2.ONE * radius * 2.0)
 		# A badge that would cover another slides along the edge of the screen, back and forth, until it is clear.
@@ -350,22 +395,60 @@ static func arrow_layout(targets: Array, cpos: Vector2, view: Vector2, top: floa
 			box.position = moved - Vector2.ONE * radius
 		c = box.get_center()
 		placed.append(box)
-		out.append({"kind": t[0], "off": off, "on_screen": false, "centre": c, "dir": off.normalized(), "badge": box})
+		out.append({"kind": t[0], "off": off, "on_screen": false, "centre": c, "dir": off.normalized(), "badge": box, "along": along})
 	for l in out:
 		var name := TranslationServer.translate(_name_key(l.kind)).to_upper()
 		var dist := "" if l.on_screen else TranslationServer.translate("%d m") % int(l.off.length() / metre)
-		var w := maxf(Ui.width_at(name, Ui.px), Ui.width_at(dist, Ui.px))
 		if l.on_screen:
-			l.label = _free_spot(Rect2(l.foot.x - w / 2.0, l.foot.y - Ui.px, w, Ui.leading()), placed, view, top, low)
+			var nw := Ui.width_at(name, Ui.px)
+			l.label = _free_spot(Rect2(l.foot.x - nw / 2.0, l.foot.y - Ui.px, nw, Ui.leading()), placed, view, top, low, 2)
 		else:
-			var h := Ui.leading() * 2.0
-			var dir: Vector2 = l.dir
-			var from: Vector2 = l.centre - dir * (radius + 4.0)
-			var centre := from - dir * (w / 2.0 * absf(dir.x) + h / 2.0 * absf(dir.y))
-			l.label = _free_spot(Rect2(centre - Vector2(w, h) / 2.0, Vector2(w, h)), placed, view, top, low)
+			var nw := Ui.width_at(name, Ui.px)
+			var spot := _beside_badge(l, maxf(nw, Ui.width_at(dist, Ui.px)), 2, placed, view, top, low)
+			if spot.is_empty():
+				# With no room for two lines beside the badge the name goes alone, as close to the badge as it fits.
+				dist = ""
+				spot = _beside_badge(l, nw, 1, placed, view, top, low)
+			if spot.is_empty():
+				var b: Rect2 = l.badge
+				l.label = _free_spot(Rect2(b.get_center() - Vector2(nw / 2.0, b.size.y / 2.0 + Ui.leading() + 2.0), Vector2(nw, Ui.leading())), placed, view, top, low)
+			else:
+				placed.append(spot.rect)
+				l.label = spot.rect
 		l.name = name
 		l.dist = dist
 	return out
+
+
+## A spot of `lines` lines right beside an edge badge, along the edge it stands on and on the side its point does not face
+## first; empty when no side of the badge is clear.
+static func _beside_badge(l: Dictionary, w: float, lines: int, placed: Array, view: Vector2, top: float, low: float) -> Dictionary:
+	var b: Rect2 = l.badge
+	var c := b.get_center()
+	var dir: Vector2 = l.dir
+	var h := Ui.leading() * lines
+	var gap := 4.0
+	var right := Rect2(b.end.x + gap, c.y - h / 2.0, w, h)
+	var left := Rect2(b.position.x - gap - w, c.y - h / 2.0, w, h)
+	var below := Rect2(c.x - w / 2.0, b.end.y + gap, w, h)
+	var above := Rect2(c.x - w / 2.0, b.position.y - gap - h, w, h)
+	var tries: Array
+	if l.along == Vector2(1, 0):
+		tries = [left, right] if dir.x > 0.0 else [right, left]
+		tries.append_array([below, above] if dir.y < 0.0 else [above, below])
+	else:
+		tries = [above, below] if dir.y > 0.0 else [below, above]
+		tries.append_array([left, right] if dir.x > 0.0 else [right, left])
+	for r in tries:
+		r.position.x = clampf(r.position.x, 4.0, view.x - r.size.x - 4.0)
+		if r.position.y < top or r.end.y > view.y - low:
+			continue
+		var clash := false
+		for p in placed:
+			clash = clash or p.intersects(r)
+		if not clash:
+			return {"rect": r}
+	return {}
 
 
 ## Where the line from the middle of the screen towards `off` meets the edge of `room`.
@@ -395,11 +478,11 @@ static func _name_key(kind: String) -> String:
 
 
 ## Badges at the screen's edge pointing to each objective not yet done and to the fort, and a notice when one is done.
-func _objective_arrows(sim: Sim) -> void:
+func _objective_arrows(sim: Sim, avoid: Array) -> void:
 	var view := Ui.view
 	var big := Ui.scale > 1
 	var top := 16.0 + 8.0 * Ui.scale + (22.0 if big else 11.0) + 14.0
-	var laid := arrow_layout(sim.objectives.targets(), sim.commander.pos, view, top, float(sim.b.objectives.metre_px))
+	var laid := arrow_layout(sim.objectives.targets(), sim.commander.pos, view, top, float(sim.b.objectives.metre_px), avoid)
 	var atlas: Atlas = main.world.atlas
 	var radius := badge_radius()
 	# The point pulses gently so it catches the eye at the edge of a busy screen.
@@ -444,14 +527,14 @@ func _objective_arrows(sim: Sim) -> void:
 		text(l.dist, Vector2(r.position.x, r.position.y + Ui.px + Ui.leading()), CREAM, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
 
 
-## Keeps a label on screen and moves it off every badge and label already placed, to the nearest free spot.
-static func _free_spot(r: Rect2, placed: Array, view: Vector2, top: float, low := 4.0) -> Rect2:
+## Keeps a label on screen and moves it off every badge and label already placed, to the nearest free spot no more than `reach` steps away.
+static func _free_spot(r: Rect2, placed: Array, view: Vector2, top: float, low := 4.0, reach := 6) -> Rect2:
 	r.position.x = clampf(r.position.x, 4.0, view.x - r.size.x - 4.0)
 	r.position.y = clampf(r.position.y, top, view.y - r.size.y - low)
 	var tries: Array = []
 	var step := Vector2(r.size.x / 2.0 + 4.0, r.size.y + 2.0)
-	for dx in range(-3, 4):
-		for dy in range(-6, 7):
+	for dx in range(-mini(reach, 3), mini(reach, 3) + 1):
+		for dy in range(-reach, reach + 1):
 			tries.append(Vector2(dx, dy))
 	tries.sort_custom(func(a: Vector2, b: Vector2) -> bool: return (a * step).length_squared() < (b * step).length_squared())
 	for d in tries:
@@ -475,13 +558,13 @@ func _choices(sim: Sim) -> void:
 	var big := Ui.scale > 1
 	draw_set_transform(Ui.offset)
 	Ui.veil(self, 0.5)
-	var head_y := 38.0 if big else 74.0
+	# With large text the heading takes the clock's place in the top bar, which already says the level.
+	var head_y := 16.0 + 8.0 * Ui.scale if big else 74.0
 	var praying: bool = main.state == "pray"
 	if praying:
-		text(tr("The gods hear you").to_upper(), Vector2(0, head_y), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
-	# With large text the top bar already says the level, so only the supplies heading is added.
+		ui.fit_text(self, tr("The gods hear you").to_upper(), 300.0 if big else W - 16.0, Vector2(0, head_y), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W, true)
 	elif not big or sim.pending_levels == 0:
-		text((tr("Level %d") % sim.level if sim.pending_levels > 0 else tr("Supplies")).to_upper(), Vector2(0, head_y), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
+		ui.fit_text(self, (tr("Level %d") % sim.level if sim.pending_levels > 0 else tr("Supplies")).to_upper(), 300.0 if big else W - 16.0, Vector2(0, head_y), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W, true)
 	if not big:
 		text(tr("Call one") if praying else tr("Choose one"), Vector2(0, 86), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W)
 	choice_rects.clear()
@@ -489,8 +572,8 @@ func _choices(sim: Sim) -> void:
 	var gap := 8.0 if n > 3 else 12.0
 	var bw := minf(176.0 if not big else 200.0, (W - 24.0 - (n - 1) * gap) / n)
 	var x0 := (W - n * bw - (n - 1) * gap) / 2.0
-	var top := 48.0 if big else 100.0
-	var card_h := 250.0 if big else 170.0
+	var top := 44.0 if big else 100.0
+	var card_h := 236.0 if big else 170.0
 	var icon_px := 40.0 if big else 64.0
 	var step := 20.0 if big else 11.0
 	for i in n:
@@ -516,11 +599,11 @@ func _choices(sim: Sim) -> void:
 			continue
 		text(Upgrades.level_text(sim, id), Vector2(r.position.x, y + 2 * step + 2 + extra_y), RED, HORIZONTAL_ALIGNMENT_CENTER, bw, false)
 		wrap_text(Upgrades.describe(sim, id), Vector2(r.position.x + 9, y + 3 * step + 6 + extra_y), bw - 18, INK)
-	var hint_y := top + card_h + (22.0 if big else 16.0)
+	var hint_y := top + card_h + (20.0 if big else 16.0)
 	if praying:
-		ui.fit_text(self, Controls.hint("gods") if not big else tr("Call one"), W - 16.0, Vector2(0, hint_y), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W, true)
+		ui.fit_text(self, Controls.hint("gods"), W - 16.0, Vector2(0, hint_y), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W, true)
 		return
-	ui.fit_text(self, Controls.hint("level") if not big else tr("Take one"), W - 16.0, Vector2(0, hint_y), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W, true)
+	ui.fit_text(self, Controls.hint("level"), W - 16.0, Vector2(0, hint_y), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W, true)
 	var extras: Array = []
 	if sim.rerolls > 0:
 		extras.append(Controls.hint("reroll", sim.rerolls))

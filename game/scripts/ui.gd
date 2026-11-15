@@ -82,7 +82,7 @@ static func fits(s: String, width: float) -> bool:
 	return width_at(s, fit_size(s, width)) <= width
 
 
-## Text cut into lines no wider than the width at a size (the text size when 0), breaking at spaces, or between any two letters in languages written without them.
+## Text cut into lines no wider than the width at a size (the text size when 0), breaking at spaces, or between any two letters in languages written without them or in a word too long for a line.
 static func lines_of(s: String, width: float, size := 0) -> Array:
 	var sz := size if size > 0 else px
 	var out: Array = []
@@ -103,6 +103,13 @@ static func lines_of(s: String, width: float, size := 0) -> Array:
 				line = w
 			else:
 				line = trial
+			# A word wider than the whole line is broken between letters, with a hyphen at each break.
+			while line.length() > 1 and f.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x > width:
+				var cut := line.length() - 1
+				while cut > 1 and f.get_string_size(line.left(cut) + "-", HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x > width:
+					cut -= 1
+				out.append(line.left(cut) + "-")
+				line = line.substr(cut)
 	if line != "":
 		out.append(line)
 	return out
@@ -230,6 +237,11 @@ static func veil(c: CanvasItem, alpha: float) -> void:
 	c.draw_rect(Rect2(-offset, view), Color(0, 0, 0, alpha))
 
 
+## The y, below a frame's top, where the first row under its title goes.
+static func below_title() -> float:
+	return 20.0 + 8.0 * scale
+
+
 ## A dimmed backdrop, a big panel, a title and a footer of key hints.
 func frame(c: CanvasItem, title: String, hint: String) -> Rect2:
 	veil(c, 0.5)
@@ -250,7 +262,7 @@ func register(r: Rect2, id: String, enabled := true) -> void:
 
 
 ## A button: a panel with a label on the left, an optional value on the right and an optional icon. Focus gets a gold frame.
-func button(c: CanvasItem, r: Rect2, id: String, label: String, right := "", enabled := true, icon: Texture2D = null, centered := false, right_col := RED) -> void:
+func button(c: CanvasItem, r: Rect2, id: String, label: String, right := "", enabled := true, icon: Texture2D = null, centered := false, right_col := RED, right_reserve := 0.0) -> void:
 	register(r, id, enabled)
 	var focused := id == focus
 	if focused:
@@ -263,9 +275,9 @@ func button(c: CanvasItem, r: Rect2, id: String, label: String, right := "", ena
 		c.draw_texture_rect(icon, Rect2(x - 2.0, r.position.y + (r.size.y - side) / 2.0, side, side), false)
 		x += side + 2.0
 	var y := r.position.y + r.size.y / 2.0 + px * 3 / 8
-	var right_w := width_of(right) + 6.0 if right != "" else 0.0
+	var right_w := (width_of(right) + 6.0 if right != "" else 0.0) + right_reserve
 	if right != "":
-		text(c, right, Vector2(r.end.x - 6.0 - right_w + 6.0, y), right_col if enabled else MUTED)
+		text(c, right, Vector2(r.end.x - width_of(right) - 6.0, y), right_col if enabled else MUTED)
 	if centered:
 		fit_text(c, label, r.size.x - 12.0, Vector2(r.position.x, y), ink, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
 	else:

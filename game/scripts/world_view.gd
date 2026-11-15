@@ -553,7 +553,7 @@ func _draw_spears() -> void:
 		draw_rect(Rect2(h.sp_pos[i].round(), Vector2(1, 1)), Color(0.85, 0.85, 0.8))
 
 
-## Over each boss: a raised shield in front of a war band leader, an elite's name, and a health bar under it.
+## Over each boss: a raised shield in front of a war band leader and a health bar; the HUD writes the elite's name over it.
 func _draw_boss_heads(view: Rect2) -> void:
 	var h: Horde = sim.horde
 	var ids: Array = h.elite_ids.duplicate()
@@ -580,12 +580,6 @@ func _draw_boss_heads(view: Rect2) -> void:
 		var bar: Vector2 = (p + Vector2(-w / 2.0, -tall - 3.0)).round()
 		draw_rect(Rect2(bar - Vector2(1, 1), Vector2(w + 2, 5)), Color(0.16, 0.1, 0.08))
 		draw_rect(Rect2(bar, Vector2(w * clampf(h.e_hp[i] / h.e_max[i], 0.0, 1.0), 3)), Color(0.85, 0.22, 0.18))
-		if h.e_tag[i] == Horde.CHIEF:
-			continue
-		var label: String = sim.content.enemies[type].name
-		var at: Vector2 = (p + Vector2(-60, -tall - 6.0)).round()
-		draw_string(Ui.font(), at + Vector2(1, 1), label, HORIZONTAL_ALIGNMENT_CENTER, 120, Lang.base_px(), Color(0.16, 0.1, 0.08))
-		draw_string(Ui.font(), at, label, HORIZONTAL_ALIGNMENT_CENTER, 120, Lang.base_px(), Color(1.0, 0.89, 0.59))
 
 
 func _draw_shots(tex: Texture2D) -> void:

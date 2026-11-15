@@ -29,7 +29,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	var big := Ui.scale > 1
 	ui.panel(c, Rect2(Ui.W / 2 - 80, 8, 160, 30 if big else 22))
 	ui.text(c, tr("The camp").to_upper(), Vector2(0, 31 if big else 23), Ui.BROWN, HORIZONTAL_ALIGNMENT_CENTER, Ui.W)
-	ui.text(c, (tr("%d denarii") % int(Profile.data.denarii)).to_upper(), Vector2(0, 28 if big else 20), Ui.GOLD_LIGHT, HORIZONTAL_ALIGNMENT_RIGHT, Ui.W - 12, true)
+	ui.text(c, (tr("%d denarii") % int(Profile.data.denarii)).to_upper(), Vector2(0, 28 if big else 20), Ui.GOLD_LIGHT, HORIZONTAL_ALIGNMENT_RIGHT, Ui.W - 20, true)
 	var setup: Dictionary = main.run_setup
 	var modes: Array = []
 	for key in ["hard", "endless", "decimatio"]:

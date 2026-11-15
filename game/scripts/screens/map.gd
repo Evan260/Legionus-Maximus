@@ -32,6 +32,20 @@ static func clock(seconds: float) -> String:
 	return "%d:%02d" % [int(seconds) / 60, int(seconds) % 60]
 
 
+## A province the legion can march to: drawn, and unlocked by winning the one before it.
+func is_open(id: String) -> bool:
+	return main.content.ready("provinces", id) and Profile.province_unlocked(id)
+
+
+## What opens a locked province: winning the one before it, or its art when that is all it waits for.
+func locked_text(id: String) -> String:
+	var ids: Array = main.content.provinces.keys()
+	var i := ids.find(id)
+	if i > 0 and not Profile.record_of(ids[i - 1]).won:
+		return tr("Locked: %s") % (tr("Win in %s") % main.content.provinces[ids[i - 1]].name)
+	return tr("Not ready yet")
+
+
 ## The longest each part of a province's results line can be, for sizing the rows.
 func worst_results() -> Array:
 	var out: Array = [tr("Best time %s") % "99:59"]
@@ -56,7 +70,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	var big := Ui.scale > 1
 	var ids: Array = []
 	for id in content.provinces:
-		if content.ready("provinces", id) and Profile.province_unlocked(id) and Game.province_allowed(id, main.balance):
+		if Game.province_allowed(id, main.balance):
 			ids.append(id)
 	var text_w := r.size.x - 40.0
 	# Rows are as tall as the longest description and results line need, so the list stays even.
@@ -80,8 +94,14 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 			continue
 		var chosen: bool = setup.province == id
 		var y := row.position.y + 8.0 + 8.0 * Ui.scale
-		ui.button(c, row, "prov:" + id, "")
-		ui.text(c, info.name.to_upper(), Vector2(row.position.x + 8, y), Ui.INK)
+		var open := is_open(id)
+		ui.button(c, row, "prov:" + id, "", "", open)
+		ui.text(c, info.name.to_upper(), Vector2(row.position.x + 8, y), Ui.INK if open else Ui.MUTED)
+		if not open:
+			y += Ui.leading() + 1.0
+			y = ui.wrap_fit(c, info.text, Vector2(row.position.x + 8, y), text_w, Ui.MUTED, 2) + 1.0
+			ui.fit_text(c, locked_text(id).to_upper(), text_w, Vector2(row.position.x + 8, y), Ui.BROWN)
+			continue
 		if chosen:
 			ui.text(c, tr("Marching here").to_upper(), Vector2(0, y), Ui.BROWN, HORIZONTAL_ALIGNMENT_RIGHT, row.end.x - 8)
 		y += Ui.leading() + 1.0

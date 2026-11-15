@@ -3,12 +3,15 @@ extends RefCounted
 ## The tablinum: every recruit, weapon, forged form, enemy and god that is drawn. Found ones show their picture and a line of history, the rest a dark silhouette.
 
 const KINDS := [["recruits", "Recruit"], ["arms", "Arms"], ["forged", "Forged"], ["enemies", "Enemy"], ["gods", "God"]]
-const CELL := 34.0
-const STEP := 38.0
-const COLS := 11
+const CELL := 40.0
+const STEP := 44.0
+const COLS := 9
+# The space between one group's rows and the next.
+const GROUP_GAP := 4.0
 const SILHOUETTE := Color(0.14, 0.1, 0.08)
 
 var main: Node
+var scroll := 0
 
 
 func _init(owner_node: Node) -> void:
@@ -37,13 +40,32 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 			found += 1
 	var r := ui.frame(c, tr("Tablinum").to_upper(), Controls.hint("look"))
 	ui.text(c, tr("%d of %d found") % [found, list.size()], Vector2(0, r.position.y + 16), Ui.INK, HORIZONTAL_ALIGNMENT_RIGHT, r.end.x - 12)
-	var origin := r.position + Vector2(12, 28)
-	for i in list.size():
-		var e: Array = list[i]
-		var rect := Rect2(origin + Vector2((i % COLS) * STEP, (i / COLS) * STEP), Vector2(CELL, CELL))
-		ui.button(c, rect, "e:" + e[0], "", "", true, null, true)
-		_picture(c, ui, e[0], e[2], Profile.data.seen.has(e[0]), rect.grow(-3))
-	var box := Rect2(r.position.x + 12 + COLS * STEP + 4, r.position.y + 28, r.size.x - 24 - COLS * STEP - 4, r.size.y - 40)
+	var origin := r.position + Vector2(12, Ui.below_title())
+	var rows := grid_rows(list)
+	var room := r.end.y - 6.0 - origin.y
+	var visible := maxi(1, int((room + GROUP_GAP) / (STEP + GROUP_GAP)))
+	var focus_row := 0
+	for k in rows.size():
+		for i in rows[k]:
+			if "e:" + list[i][0] == ui.focus:
+				focus_row = k
+	scroll = Ui.scroll_for(focus_row, rows.size(), visible, scroll)
+	var row_y := origin.y
+	var lifted := rows_height(rows, list, scroll)
+	for k in rows.size():
+		if k > 0 and list[rows[k][0]][1] != list[rows[k - 1][0]][1]:
+			row_y += GROUP_GAP
+		var shown := k >= scroll and k < scroll + visible
+		for col in rows[k].size():
+			var e: Array = list[rows[k][col]]
+			var rect := Rect2(origin.x + col * STEP, row_y - lifted, CELL, CELL)
+			if not shown:
+				ui.register(rect, "e:" + e[0])
+				continue
+			ui.button(c, rect, "e:" + e[0], "", "", true, null, true)
+			_picture(c, ui, e[0], e[2], Profile.data.seen.has(e[0]), rect.grow(-3))
+		row_y += STEP
+	var box := Rect2(r.position.x + 12 + COLS * STEP + 4, origin.y, r.size.x - 24 - COLS * STEP - 4, r.end.y - 6.0 - origin.y)
 	ui.panel(c, box, Ui.CREAM)
 	for e in list:
 		if "e:" + e[0] == ui.focus:
@@ -57,6 +79,26 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 				ui.wrap(c, e[2].history, Vector2(x, y), box.size.x - 16, Ui.INK)
 			else:
 				ui.wrap(c, tr("Meet it in a run to learn its history."), Vector2(x, y), box.size.x - 16, Ui.MUTED)
+
+
+## The entries cut into rows of the grid, as lists of indices, each group starting a row of its own.
+static func grid_rows(list: Array) -> Array:
+	var rows: Array = []
+	for i in list.size():
+		if rows.is_empty() or rows[-1].size() >= COLS or list[rows[-1][0]][1] != list[i][1]:
+			rows.append([])
+		rows[-1].append(i)
+	return rows
+
+
+## How far down the rows above the first one shown reach, gaps between groups included.
+static func rows_height(rows: Array, list: Array, first: int) -> float:
+	var h := 0.0
+	for k in first:
+		h += STEP
+		if list[rows[k + 1][0]][1] != list[rows[k][0]][1]:
+			h += GROUP_GAP
+	return h
 
 
 ## The icon of an entry, or its idle sprite; unseen ones are drawn as a dark shape.
