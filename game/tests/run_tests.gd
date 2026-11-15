@@ -4477,3 +4477,53 @@ func test_the_demo_hands_out_no_commander_achievement(_b: Dictionary) -> void:
 	Game.demo_forced = false
 	Game.demo_open = open
 	Profile.data = saved
+
+
+func _count_events(s: Sim, kind: String) -> int:
+	return s.events.filter(func(e: Dictionary) -> bool: return e.kind == kind).size()
+
+
+func test_building_and_objectives_sound_once_each(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 1510)
+	_gorge(s, -400, 400, 100, 50)
+	s.commander.pos = Vector2(0, -10)
+	s.facing_angle = PI / 2.0
+	s.legion.place_all(s.facing_angle)
+	s.timber = int(b.bridge.cost) + int(b.palisade.cost)
+	s.events.clear()
+	check(s.build_bridge(), "the bridge is laid")
+	check(_count_events(s, "bridge") == 1 and _count_events(s, "palisade") == 0, "a bridge sounds as a bridge and not as stakes")
+	s.events.clear()
+	s.facing_angle = -PI / 2.0
+	s.legion.place_all(s.facing_angle)
+	check(s.build_palisade(), "the palisade goes up")
+	check(_count_events(s, "palisade") == 1 and _count_events(s, "bridge") == 0, "the stakes sound once")
+	var f := _mode_sim(b, {"seed": 156})
+	f.objectives.list.clear()
+	f.commander.pos = Vector2(300, -200)
+	f.time = float(b.chieftain_at) - 0.01
+	f.update(1.0 / 60.0, Vector2.ZERO, false)
+	f.horde.e_pos[f.chieftain_index()] = f.commander.pos + Vector2(0, 2000)
+	f.commander.pos = f.objectives.fort.centre
+	f.events.clear()
+	_step_dt(f, 1.0)
+	check(_count_events(f, "fort") == 1, "entering the fort sounds once however long the legion stays (%d)" % _count_events(f, "fort"))
+	var o := _objective_sim(b, 151)
+	var camp: Dictionary = o.objectives.add(o, "camp", Vector2(600, 0))
+	o.soldiers[0].pos = camp.pos
+	o._rebuild_grids()
+	o.events.clear()
+	o.objectives.update(0.01, o)
+	o.objectives.update(0.01, o)
+	check(_count_events(o, "fire") == 1, "the camp catches fire with one sound")
+
+
+func test_the_gods_sound_ready_once_when_the_favour_fills(b: Dictionary) -> void:
+	var s := _god_sim(b, 502, 0)
+	s.gods.favour = s.gods.need(s.b) - 1
+	s.events.clear()
+	for k in 3:
+		var i := s.horde.spawn("barbarian_club", Vector2(250, 0))
+		s.hit(i, 1e6)
+		s._remove_dead()
+	check(_count_events(s, "godready") == 1, "the gods are ready once, when the meter fills (%d)" % _count_events(s, "godready"))

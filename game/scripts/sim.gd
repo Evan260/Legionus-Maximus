@@ -458,7 +458,7 @@ func build_bridge() -> bool:
 	terrain.refresh(commander.pos)
 	bridge_refused = {}
 	bridge_here = false
-	event("palisade", commander.pos)
+	event("bridge", commander.pos)
 	return true
 
 
@@ -724,7 +724,10 @@ func _remove_dead() -> void:
 func _kill(i: int) -> void:
 	var id: String = horde.kind_ids[horde.e_kind[i]]
 	kills += 1
+	var was_full := gods.full(b)
 	gods.on_kill(b)
+	if not was_full and gods.full(b):
+		event("godready", commander.pos)
 	tally(1, horde.e_pos[i])
 	killed_kinds[id] = true
 	var pay := float(content.enemies[id].coins) * (1.0 + float(b.drills.plunder) * rank("plunder") + _bonus_amount("denarii")) * (float(b.hard.denarii_mult) if hard else 1.0)

@@ -133,7 +133,7 @@ func raise_fort(sim: Sim) -> void:
 			if side == 2 and absf(at.x) < tx + 20.0 - 0.01 and at.y > 0.0:
 				continue
 			pieces.append(["stake", best + at, sr])
-	fort = {"pos": foot, "gate": foot + Vector2(0, -12), "centre": best, "hold": 0.0, "seen": false}
+	fort = {"pos": foot, "gate": foot + Vector2(0, -12), "centre": best, "hold": 0.0, "seen": false, "entered": false}
 	sim.terrain.add_clearing(best, room, pieces)
 	notice = {"kind": "fort", "at": sim.time}
 
@@ -184,6 +184,9 @@ func _fort(dt: float, sim: Sim) -> void:
 	if not fort.seen and absf(off.x) < float(cfg.seen_within[0]) and absf(off.y) < float(cfg.seen_within[1]):
 		fort.seen = true
 	if in_fort(sim.commander.pos, sim):
+		if not fort.entered:
+			fort.entered = true
+			sim.event("fort", fort.centre)
 		fort.hold += dt
 		if fort.hold >= float(cfg.hold):
 			fort_reached = true
@@ -221,6 +224,7 @@ func _camp(o: Dictionary, sim: Sim) -> void:
 func _take_eagle(o: Dictionary, sim: Sim) -> void:
 	sim.free_choices += 1
 	o.burnt_at = sim.time
+	sim.event("fire", o.pos)
 	_finish(o, sim)
 
 

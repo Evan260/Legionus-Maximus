@@ -26,6 +26,7 @@ var quake := 0.0
 ## The three gods drawn when the favour filled, kept until one is called so closing the choice draws none afresh.
 var offer: Array = []
 var _strike_acc := 0.0
+var _strikes := 0
 var _thrown := {}
 var _boss_taken := {}
 
@@ -100,24 +101,22 @@ func invoke(sim: Sim, id: String) -> void:
 			_strike_acc = 0.0
 			flash = float(g.jupiter.flash)
 			sim.shake = maxf(sim.shake, float(sim.b.shake.chieftain))
-			sim.event("chieftain", sim.commander.pos)
+			sim.event("thunder", sim.commander.pos)
 		"neptune":
 			wave = {"pos": sim.commander.pos, "t": 0.0}
 			_thrown.clear()
 			quake = float(g.neptune.shake_seconds)
 			sim.shake = maxf(sim.shake, quake)
-			sim.event("testudo", sim.commander.pos)
-			sim.event("roar", sim.commander.pos)
+			sim.event("wave", sim.commander.pos)
 		"mars":
 			frenzy_left = float(g.mars.seconds)
 			sim.event("victory", sim.commander.pos)
 			sim.event("drum", sim.commander.pos)
 		"vulcan":
 			_vulcan(sim, g.vulcan)
-			sim.event("surge", sim.commander.pos)
 		"apollo":
 			_apollo(sim, g.apollo)
-			sim.event("level", sim.commander.pos)
+			sim.event("apollo", sim.commander.pos)
 
 
 ## A god's damage to one barbarian, a share of its own health so it fells the toughest late barbarian too.
@@ -184,7 +183,10 @@ func _storm(dt: float, sim: Sim) -> void:
 		if i >= 0 and h.e_hp[i] > 0.0:
 			strike(sim, i, float(cfg.share), "jupiter")
 		bolts.append({"to": at, "t": 0.0, "seed": sim.rng.randi()})
-		sim.tally(5, at)
+		# Every fourth strike gets a quiet thunder so a storm does not drown the mix.
+		_strikes += 1
+		if _strikes % 4 == 0:
+			sim.event("thunder", at)
 	flash = maxf(flash, 0.25)
 
 
@@ -257,7 +259,7 @@ func _rain(dt: float, sim: Sim) -> void:
 			keep.append(m)
 			continue
 		sim.effects.append({"kind": "boom", "pos": m.to, "t": 0.0, "radius": float(cfg.patch_radius)})
-		sim.event("fell", m.to)
+		sim.event("boom", m.to)
 		if m.patch:
 			sim.arms.add_zone("fire", m.to, float(cfg.patch_radius), float(cfg.patch_life), float(cfg.patch_dps), {"tick": 0.2, "src": "vulcan"})
 	meteors = keep

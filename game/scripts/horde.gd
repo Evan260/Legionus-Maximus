@@ -448,7 +448,7 @@ func _boss_arrival(sim: Sim) -> void:
 		timed_ids.append(e_id[at])
 		came = true
 	if came:
-		sim.event("surge", commander.pos)
+		sim.event("boss", commander.pos)
 
 
 ## A tight band gathers in the legion's path or closes in from behind, so marching straight on is never safe for long.
@@ -511,6 +511,7 @@ func _chieftain(dt: float, sim: Sim) -> void:
 			e_dir[ci] = charge_dir
 			e_dash[ci] = k_dash_secs[e_kind[ci]]
 			charging = true
+			sim.event("charge", e_pos[ci])
 			charge_n += 1
 			chief_hold = 0.0
 	elif charge_cd <= 0.0 and chief_hold <= 0.0 and not charging and (commander.pos - e_pos[ci]).length() < sim.legion_reach + float(atk.charge.range):
@@ -528,7 +529,7 @@ func _roar(ci: int, sim: Sim) -> void:
 	chief_fury = true
 	sim.shake = maxf(sim.shake, float(sim.b.shake.roar))
 	sim.objectives.notice = {"kind": "roar", "at": time}
-	sim.event("chieftain", e_pos[ci])
+	sim.event("bellow", e_pos[ci])
 	sim.effects.append({"kind": "cry", "pos": e_pos[ci], "t": 0.0, "radius": 120.0})
 
 
@@ -682,6 +683,7 @@ func _bosses(dt: float, sim: Sim) -> void:
 		if info.has("rage") and e_fury[i] == 1.0 and e_hp[i] < e_max[i] * float(info.rage.below):
 			e_fury[i] = float(info.rage.mult)
 			e_power[i] *= float(info.rage.mult)
+			sim.event("rage", p)
 			sim.effects.append({"kind": "cry", "pos": p, "t": 0.0, "radius": 50.0})
 		if e_stun[i] > 0.0:
 			continue
@@ -697,6 +699,7 @@ func _bosses(dt: float, sim: Sim) -> void:
 				st.shield = float(cfg.seconds)
 				st.shield_dir = (commander.pos - p).normalized()
 				_hold_boss(st, p, float(cfg.seconds))
+				sim.event("shield", p)
 		if st.has("band_cd"):
 			st.band_cd -= paced
 			if st.band_cd <= 0.0:
@@ -733,6 +736,7 @@ func _whirl(i: int, cfg: Dictionary, sim: Sim) -> float:
 			foe_lobs.append({"from": p, "to": p, "t": 0.0, "dur": dur, "radius": r, "dmg": k_dps[e_kind[i]] * float(cfg.damage_mult) * e_power[i], "slam": true, "whirl": true})
 			_hold_boss(boss[e_id[i]], p, dur)
 			e_strike[i] = time + dur - Atlas.ATTACK_FRAMES / Atlas.ATTACK_FPS
+			sim.event("whirl", p)
 			return float(cfg.every)
 	return float(cfg.retry)
 
@@ -751,6 +755,8 @@ func _blink(i: int, cfg: Dictionary, sim: Sim) -> bool:
 	var cpos: Vector2 = commander.pos
 	var away := (p - cpos).normalized() if p != cpos else Vector2.RIGHT
 	var to := sim.terrain.push_out(p + away.rotated(rng.randf_range(-0.6, 0.6)) * float(cfg.distance), k_radius[e_kind[i]])
+	sim.event("blink", p)
+	sim.event("blink", to)
 	sim.effects.append({"kind": "smoke", "pos": p, "t": 0.0})
 	sim.effects.append({"kind": "smoke", "pos": to, "t": 0.0})
 	e_pos[i] = to
@@ -810,11 +816,13 @@ func _marks(dt: float, sim: Sim) -> void:
 			for j in e_pos.size():
 				if j != pi and (e_pos[j] - c).length_squared() <= r2:
 					e_hp[j] = minf(e_max[j], e_hp[j] + e_max[j] * m.share)
+			sim.event("mend", c)
 			sim.effects.append({"kind": "mend", "pos": c, "t": 0.0, "radius": m.radius})
 		elif m.kind == "curse":
 			if (commander.pos - m.pos).length() < m.radius:
 				curse_left = m.seconds
 				curse_slow = m.slow
+			sim.event("curse", m.pos)
 			sim.effects.append({"kind": "curse", "pos": m.pos, "t": 0.0, "radius": m.radius})
 	marks = left
 
@@ -835,6 +843,7 @@ func _lob_at_ranks(i: int, sim: Sim) -> float:
 			best = u.pos
 	foe_lobs.append({"from": e_pos[i], "to": best, "t": 0.0, "dur": float(cfg.flight), "radius": float(cfg.radius), "dmg": float(cfg.damage) * e_power[i]})
 	e_strike[i] = time
+	sim.event("potthrow", e_pos[i])
 	if best != e_pos[i]:
 		e_face[i] = (best - e_pos[i]).normalized()
 	return float(cfg.every) / early_pace()
@@ -854,6 +863,8 @@ func _foe_lobs(dt: float, sim: Sim) -> void:
 			if (u.pos - l.to).length() < l.radius + Sim.UNIT_RADIUS:
 				u.hp -= l.dmg * shield
 				u.flash = 0.12
+		if not l.get("whirl", false):
+			sim.event("slam" if l.get("slam", false) else "potland", l.to)
 		sim.effects.append({"kind": "whirl" if l.get("whirl", false) else "boom", "pos": l.to, "t": 0.0, "radius": l.radius})
 		sim.shake = maxf(sim.shake, float(sim.b.shake.hurt))
 	foe_lobs = flying
