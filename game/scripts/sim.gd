@@ -92,6 +92,7 @@ var ug_all_in := false
 var _u_cells := {}
 var _u_cells_ready := false
 var _ug_cell := PackedInt32Array()
+var _ug_pos := PackedVector2Array()
 var content: Content
 var commander_id := "tribune"
 var hard := false
@@ -488,9 +489,11 @@ func _rebuild_grids() -> void:
 	ug_near.resize(gw * gw)
 	ug_near.fill(0)
 	_ug_cell.resize(n)
+	_ug_pos.resize(n)
 	ug_all_in = true
 	for i in n:
 		var p: Vector2 = units[i].pos
+		_ug_pos[i] = p
 		var cx := floori(p.x / CELL) - go.x
 		var cy := floori(p.y / CELL) - go.y
 		if cx < 0 or cy < 0 or cx >= gw or cy >= gw:
@@ -514,17 +517,22 @@ func _rebuild_grids() -> void:
 			fill[c] += 1
 
 
-## The units by global cell, for a lookup the horde's grid cannot answer because a unit stands beyond it.
+## The units by global cell where they stood when the grids were built, for a lookup the horde's grid cannot answer.
 func unit_cells() -> Dictionary:
 	if not _u_cells_ready:
 		_u_cells_ready = true
 		_u_cells.clear()
-		for i in units.size():
-			var k := _cell(units[i].pos)
+		for i in _ug_pos.size():
+			var k := _cell(_ug_pos[i])
 			if not _u_cells.has(k):
 				_u_cells[k] = []
 			_u_cells[k].append(i)
 	return _u_cells
+
+
+## Something moved a unit after the grids were built, so lookups use unit_cells() for the rest of the update.
+func units_moved() -> void:
+	ug_all_in = false
 
 
 func _cidx(p: Vector2) -> int:

@@ -598,6 +598,7 @@ func _chieftain_after(sim: Sim) -> void:
 		hit_any = true
 		if not is_same(u, sim.commander):
 			u.pos += side * (throw if off.dot(side) >= 0.0 else -throw)
+			sim.units_moved()
 	if hit_any:
 		sim.shake = maxf(sim.shake, float(sim.b.shake.chieftain))
 		sim.legion.remove_fallen(sim)
@@ -891,7 +892,11 @@ func _move(dt: float, sim: Sim) -> void:
 	var sep_range: float = b.separation_range
 	var units := sim.units
 	var ug_near := sim.ug_near
+	var ug_start := sim.ug_start
+	var ug_items := sim.ug_items
 	var ug_all_in := sim.ug_all_in
+	var ox := g_origin.x
+	var oy := g_origin.y
 	var t_origin := sim.terrain.origin
 	var t_start := sim.terrain.start
 	var t_items := sim.terrain.items
@@ -1038,10 +1043,23 @@ func _move(dt: float, sim: Sim) -> void:
 		if not throwing and i != through and d < legion_reach + r and (to.length_squared() < reach2 or e_tag[i] == CHIEF):
 			var target_unit := -1
 			var span := 1 if r + Sim.UNIT_RADIUS + 2.0 <= CELL else ceili((r + Sim.UNIT_RADIUS + 2.0) / CELL)
-			var kx := floori(p.x / CELL) - g_origin.x
-			var ky := floori(p.y / CELL) - g_origin.y
-			if not ug_all_in or r > Sim.NEAR_RADIUS or kx < 0 or ky < 0 or kx >= GW or ky >= GW or ug_near[kx + ky * GW] == 1:
+			var kx := floori(p.x / CELL) - ox
+			var ky := floori(p.y / CELL) - oy
+			if not ug_all_in:
 				target_unit = _nearest_unit(p, r, span, sim)
+			elif r > Sim.NEAR_RADIUS or kx < 0 or ky < 0 or kx >= GW or ky >= GW or ug_near[kx + ky * GW] == 1:
+				# Only the cells within striking reach of p can hold the unit he strikes.
+				var hit_r := Sim.UNIT_RADIUS + r + 2.0
+				var best := INF
+				for cx in range(maxi(0, maxi(kx - span, floori((p.x - hit_r) / CELL) - ox)), mini(GW, mini(kx + span, floori((p.x + hit_r) / CELL) - ox) + 1)):
+					for cy in range(maxi(0, maxi(ky - span, floori((p.y - hit_r) / CELL) - oy)), mini(GW, mini(ky + span, floori((p.y + hit_r) / CELL) - oy) + 1)):
+						var cell := cx + cy * GW
+						for t in range(ug_start[cell], ug_start[cell + 1]):
+							var ui := ug_items[t]
+							var dd: float = (units[ui].pos - p).length()
+							if dd < hit_r and dd < best:
+								best = dd
+								target_unit = ui
 			if target_unit >= 0:
 				var u: Dictionary = sim.legion.shield(units[target_unit])
 				var guard := shield * (wall if u.get("place", "") == "front" else 1.0)
@@ -1125,29 +1143,15 @@ func _move(dt: float, sim: Sim) -> void:
 	sim.legion.remove_fallen(sim)
 
 
-## The index in sim.units of the nearest unit close enough for an enemy at p of radius r to strike, or -1.
+## The index in sim.units of the nearest unit close enough for an enemy at p of radius r to strike, or -1, from the cells the units stood in when the grids were built.
 func _nearest_unit(p: Vector2, r: float, span: int, sim: Sim) -> int:
 	var units := sim.units
 	var target_unit := -1
 	var best := INF
-	var kx := floori(p.x / CELL) - g_origin.x
-	var ky := floori(p.y / CELL) - g_origin.y
-	if sim.ug_all_in:
-		var ug_start := sim.ug_start
-		var ug_items := sim.ug_items
-		for cx in range(maxi(0, kx - span), mini(GW, kx + span + 1)):
-			for cy in range(maxi(0, ky - span), mini(GW, ky + span + 1)):
-				var cell := cx + cy * GW
-				for t in range(ug_start[cell], ug_start[cell + 1]):
-					var ui := ug_items[t]
-					var dd: float = (units[ui].pos - p).length()
-					if dd < Sim.UNIT_RADIUS + r + 2.0 and dd < best:
-						best = dd
-						target_unit = ui
-		return target_unit
+	var k := Vector2i(floori(p.x / CELL), floori(p.y / CELL))
 	var cells := sim.unit_cells()
-	for cx in range(kx + g_origin.x - span, kx + g_origin.x + span + 1):
-		for cy in range(ky + g_origin.y - span, ky + g_origin.y + span + 1):
+	for cx in range(k.x - span, k.x + span + 1):
+		for cy in range(k.y - span, k.y + span + 1):
 			var ucell: Variant = cells.get(Vector2i(cx, cy))
 			if ucell == null:
 				continue
