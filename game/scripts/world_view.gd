@@ -108,6 +108,7 @@ func _draw() -> void:
 			draw_texture(ground, Vector2(gx * gw, gy * gh))
 
 	_draw_ravines(view_for(top_left).grow(80.0))
+	_draw_fort_ring(view_for(top_left))
 	_draw_ground_zones(view_for(top_left))
 	_draw_god_ground()
 	_draw_scorch(view_for(top_left))
@@ -148,6 +149,10 @@ func _draw() -> void:
 				elif pr[0] == "fort_gate" and at.y > cam.y and Rect2(at - f[1], f[0].size).intersects(him):
 					mod = Color(1, 1, 1, 0.55)
 				_add(pr[1].y, f[0], at - f[1], mod)
+				if pr[0] == "stake" and _on_fort_side(at):
+					# The side walls are seen end on, so a second, staggered stake between each pair closes the gaps into a wall.
+					var mid: Vector2 = at + Vector2(2.0 if int(at.y) % 2 == 0 else -2.0, float(sim.b.fort.stake_gap) / 2.0)
+					_add(mid.y, f[0], mid - f[1], mod)
 	if not sim.terrain.posts.is_empty():
 		var sf := atlas.prop_frame("stake")
 		var fade := float(sim.b.palisade.fade)
@@ -221,6 +226,7 @@ func _draw() -> void:
 	_add_arm_sprites(view)
 	_add_chests_and_carts(view)
 	_add_objectives(view)
+	_add_flames(view)
 	_draw_coins(view)
 	_keys.sort()
 	var tex := atlas.texture
@@ -487,26 +493,29 @@ func _add_prop(key: String, pos: Vector2, mod: Color) -> void:
 		_add(pos.y, f[0], pos - f[1], mod)
 
 
-## The grove's and the fort's rings filling while the commander holds them, and the grove's oaks and the camp's huts burning.
+## The grove's ring filling while the commander holds it.
 func _draw_objective_marks(view: Rect2) -> void:
 	var cfg: Dictionary = sim.b.objectives.grove
+	for o in sim.objectives.list:
+		if o.kind == "grove" and not o.done and view.grow(120.0).has_point(o.pos):
+			_hold_ring(o.pos, float(cfg.inside), o.hold / float(cfg.hold))
+
+
+## The fort's ring on the ground of its yard, under the walls and towers, filling while the commander holds it.
+func _draw_fort_ring(view: Rect2) -> void:
 	var fort: Dictionary = sim.objectives.fort
 	if not fort.is_empty() and not sim.objectives.fort_reached and view.grow(120.0).has_point(fort.centre):
 		_hold_ring(fort.centre, float(sim.b.fort.half) * 0.7, float(fort.hold) / float(sim.b.fort.hold))
-	for o in sim.objectives.list:
-		if o.kind == "camp" and o.burnt_at >= 0.0 and not o.razed and view.grow(120.0).has_point(o.pos):
-			var left := float(sim.b.objectives.camp.burn_seconds) - (sim.time - float(o.burnt_at))
-			for i in o.huts.size():
-				_flames(o.huts[i] + Vector2(0, -18), i, clampf(left / 1.5, 0.0, 1.0), 2.0)
-		if o.kind != "grove" or not view.grow(120.0).has_point(o.pos):
-			continue
-		if not o.done:
-			_hold_ring(o.pos, float(cfg.inside), o.hold / float(cfg.hold))
-		elif sim.time - o.burnt_at < float(cfg.burn_seconds):
-			var fade := clampf((float(cfg.burn_seconds) - (sim.time - o.burnt_at)) / 2.0, 0.0, 1.0)
-			var spots: Array = o.oaks + [o.pos]
-			for i in spots.size():
-				_flames(spots[i] + Vector2(0, -30 if i < o.oaks.size() else -8), i, fade, 1.0)
+
+
+## True for a stake of the fort's east or west wall, below its north corner.
+func _on_fort_side(at: Vector2) -> bool:
+	var fort: Dictionary = sim.objectives.fort
+	if fort.is_empty():
+		return false
+	var half := float(sim.b.fort.half)
+	var d: Vector2 = at - fort.centre
+	return absf(absf(d.x) - half) < 0.5 and d.y < half - 0.5
 
 
 ## A faint ring round a place to hold, filling clockwise from the top as the hold goes on.
@@ -518,17 +527,32 @@ func _hold_ring(at: Vector2, radius: float, k: float) -> void:
 		draw_arc(at, radius, -PI / 2.0, -PI / 2.0 + TAU * k, 48, Color(1.0, 0.6, 0.18), 2.0)
 
 
-## Flickering pixel flames standing on base, `size` times the grove's, faded by `fade`.
-func _flames(base: Vector2, seed_i: int, fade: float, size: float) -> void:
-	var beat := int(sim.time * 12.0)
-	var n := 3 if size <= 1.0 else 5
-	var spread := maxf(1.0, size / 1.4)
-	var w := roundf(5.0 * spread)
-	for f in n:
-		var p: Vector2 = (base + Vector2((f - (n - 1) / 2.0) * 7.0 * spread + (beat + seed_i) % 3 - 1, -(f % 2) * 10.0 * spread)).round()
-		var h := roundf((5 + (beat + seed_i * 3 + f) % 5) * size)
-		draw_rect(Rect2(p + Vector2(-floorf(w / 2.0), -h), Vector2(w, h)), Color(1.0, 0.45, 0.1, 0.9 * fade))
-		draw_rect(Rect2(p + Vector2(-floorf(w / 2.0) + 1.0, -h + 2.0), Vector2(maxf(1.0, w - 2.0), maxf(1.0, h - 3.0))), Color(1.0, 0.85, 0.35, 0.9 * fade))
+## The flames on the camp's burning huts and the grove's burning oaks and altar, sorted with the sprites so soldiers in front stand over them.
+func _add_flames(view: Rect2) -> void:
+	if not atlas.props.has("flame"):
+		return
+	var cfg: Dictionary = sim.b.objectives.grove
+	for o in sim.objectives.list:
+		if not view.grow(120.0).has_point(o.pos):
+			continue
+		if o.kind == "camp" and o.burnt_at >= 0.0 and not o.razed:
+			var left := float(sim.b.objectives.camp.burn_seconds) - (sim.time - float(o.burnt_at))
+			for i in o.huts.size():
+				for k in 3:
+					_add_flame(o.huts[i], [Vector2(-12, -14), Vector2(0, -22), Vector2(12, -12)][k], i, k, clampf(left / 1.5, 0.0, 1.0))
+		elif o.kind == "grove" and o.done and sim.time - o.burnt_at < float(cfg.burn_seconds):
+			var fade := clampf((float(cfg.burn_seconds) - (sim.time - o.burnt_at)) / 2.0, 0.0, 1.0)
+			for i in o.oaks.size():
+				_add_flame(o.oaks[i], Vector2(0, -30), i, 0, fade)
+			_add_flame(o.pos, Vector2(0, -8), o.oaks.size(), 0, fade)
+
+
+## One flame of the atlas's flickering sheet at `ground` + `at`, sorted just in front of the thing standing at `ground`.
+func _add_flame(ground: Vector2, at: Vector2, seed_i: int, k: int, fade: float) -> void:
+	var fl: Dictionary = atlas.props.flame
+	var f: Array = fl.frames[(int(sim.time * 10.0) + seed_i * 3 + k) % fl.frames.size()]
+	var anchor := Vector2(fl.anchor[0], fl.anchor[1])
+	_add(ground.y + 1.0, Rect2(f[0], f[1], f[2], f[3]), ground + at - anchor, Color(1, 1, 1, fade))
 
 
 ## Scorched ground where a camp's huts burnt, drawn on the ground under everything else.

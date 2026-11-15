@@ -108,6 +108,9 @@ static func lines_of(s: String, width: float, size := 0) -> Array:
 				var cut := line.length() - 1
 				while cut > 1 and f.get_string_size(line.left(cut) + "-", HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x > width:
 					cut -= 1
+				# At least three letters go down to the next line, so no line holds a lone letter.
+				if line.length() >= 6:
+					cut = mini(cut, line.length() - 3)
 				out.append(line.left(cut) + "-")
 				line = line.substr(cut)
 	if line != "":
