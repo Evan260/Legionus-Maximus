@@ -7,7 +7,7 @@ extends Node
 ##   --shot=PATH        save a screenshot after --at seconds (default 3) and quit
 ##   --chieftain-at=S   bring the chieftain at this many seconds instead
 ##   --objectives-near  place the objectives close to the start, for looking at them
-##   --go-to=KIND       with --autoplay, start beside the camp, column or grove, or beside a fort raised at once
+##   --go-to=KIND       with --autoplay, start beside the camp, column or grove, inside a fort raised at once, or burning-camp
 ##   --hold-choice      with --autoplay, give a level at once and leave its choices open
 ##   --hard, --endless, --decimatio   start the run in that mode
 ##   --screen=NAME      open a screen (camp, quartermaster, tablinum, map, commanders, settings) with a sample profile, for screenshots;
@@ -106,12 +106,18 @@ func _ready() -> void:
 		shot_at = float(args.get("at", "3"))
 
 
-## Puts the legion just below an objective or a freshly raised fort, for a screenshot.
+## Puts the legion just below an objective or inside a freshly raised fort, for a screenshot.
 func _go_to(kind: String) -> void:
 	var at := Vector2.INF
+	var burn := kind == "burning-camp"
+	if burn:
+		kind = "camp"
 	if kind == "fort":
 		sim.objectives.raise_fort(sim)
-		at = sim.objectives.fort.pos
+		# The commander stands just inside the gate, where the whole fort is on screen.
+		sim.commander.pos = sim.objectives.fort.centre + Vector2(0, float(balance.fort.half) * 0.5)
+		sim.legion.place_all(sim.facing_angle)
+		return
 	for o in sim.objectives.list:
 		if o.kind == kind:
 			at = o.pos
@@ -120,6 +126,8 @@ func _go_to(kind: String) -> void:
 	if at == Vector2.INF:
 		return
 	sim.commander.pos = at + Vector2(0, 110)
+	if burn:
+		sim.commander.pos = at + Vector2(0, 30)
 	sim.legion.place_all(sim.facing_angle)
 
 

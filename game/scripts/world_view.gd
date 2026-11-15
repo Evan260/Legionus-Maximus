@@ -89,6 +89,7 @@ func _draw() -> void:
 			draw_texture(ground, Vector2(gx * gw, gy * gh))
 
 	_draw_ground_zones(view_for(top_left))
+	_draw_scorch(view_for(top_left))
 	_draw_warnings()
 	_keys.clear()
 	_rects.clear()
@@ -116,6 +117,9 @@ func _draw() -> void:
 		# A tree standing in front of the commander is seen through, so he is not lost once the legion cuts into a ridge.
 		if pr[2] > 0.0 and at.y > cam.y and Rect2(at - f[1], f[0].size).intersects(him):
 			mod = see_through
+		# The gate fades only half way, so the fort still reads while the commander walks under it.
+		elif pr[0] == "fort_gate" and at.y > cam.y and Rect2(at - f[1], f[0].size).intersects(him):
+			mod = Color(1, 1, 1, 0.55)
 		_add(pr[1].y, f[0], at - f[1], mod)
 	if not sim.terrain.posts.is_empty():
 		var sf := atlas.prop_frame("stake")
@@ -364,30 +368,61 @@ func _add_prop(key: String, pos: Vector2, mod: Color) -> void:
 		_add(pos.y, f[0], pos - f[1], mod)
 
 
-## The grove's ring filling while the commander holds it, and its oaks burning once it falls.
+## The grove's and the fort's rings filling while the commander holds them, and the grove's oaks and the camp's huts burning.
 func _draw_objective_marks(view: Rect2) -> void:
 	var cfg: Dictionary = sim.b.objectives.grove
+	var fort: Dictionary = sim.objectives.fort
+	if not fort.is_empty() and not sim.objectives.fort_reached and view.grow(120.0).has_point(fort.centre):
+		_hold_ring(fort.centre, float(sim.b.fort.half) * 0.7, float(fort.hold) / float(sim.b.fort.hold))
 	for o in sim.objectives.list:
+		if o.kind == "camp" and o.burnt_at >= 0.0 and not o.razed and view.grow(120.0).has_point(o.pos):
+			var left := float(sim.b.objectives.camp.burn_seconds) - (sim.time - float(o.burnt_at))
+			for i in o.huts.size():
+				_flames(o.huts[i] + Vector2(0, -18), i, clampf(left / 1.5, 0.0, 1.0), 2.0)
 		if o.kind != "grove" or not view.grow(120.0).has_point(o.pos):
 			continue
-		var inside := float(cfg.inside)
 		if not o.done:
-			draw_arc(o.pos, inside, 0.0, TAU, 48, Color(1.0, 0.89, 0.59, 0.35), 1.0)
-			if o.hold > 0.0:
-				var k: float = clampf(o.hold / float(cfg.hold), 0.0, 1.0)
-				draw_arc(o.pos, inside, -PI / 2.0, -PI / 2.0 + TAU * k, 48, Color(0.16, 0.1, 0.08, 0.8), 4.0)
-				draw_arc(o.pos, inside, -PI / 2.0, -PI / 2.0 + TAU * k, 48, Color(1.0, 0.6, 0.18), 2.0)
+			_hold_ring(o.pos, float(cfg.inside), o.hold / float(cfg.hold))
 		elif sim.time - o.burnt_at < float(cfg.burn_seconds):
 			var fade := clampf((float(cfg.burn_seconds) - (sim.time - o.burnt_at)) / 2.0, 0.0, 1.0)
-			var beat := int(sim.time * 12.0)
 			var spots: Array = o.oaks + [o.pos]
 			for i in spots.size():
-				var base: Vector2 = spots[i] + Vector2(0, -30 if i < o.oaks.size() else -8)
-				for f in 3:
-					var p: Vector2 = (base + Vector2((f - 1) * 7 + (beat + i) % 3 - 1, -(f % 2) * 10)).round()
-					var h := 5 + (beat + i * 3 + f) % 5
-					draw_rect(Rect2(p + Vector2(-2, -h), Vector2(5, h)), Color(1.0, 0.45, 0.1, 0.9 * fade))
-					draw_rect(Rect2(p + Vector2(-1, -h + 2), Vector2(3, maxi(1, h - 3))), Color(1.0, 0.85, 0.35, 0.9 * fade))
+				_flames(spots[i] + Vector2(0, -30 if i < o.oaks.size() else -8), i, fade, 1.0)
+
+
+## A faint ring round a place to hold, filling clockwise from the top as the hold goes on.
+func _hold_ring(at: Vector2, radius: float, k: float) -> void:
+	draw_arc(at, radius, 0.0, TAU, 48, Color(1.0, 0.89, 0.59, 0.35), 1.0)
+	if k > 0.0:
+		k = clampf(k, 0.0, 1.0)
+		draw_arc(at, radius, -PI / 2.0, -PI / 2.0 + TAU * k, 48, Color(0.16, 0.1, 0.08, 0.8), 4.0)
+		draw_arc(at, radius, -PI / 2.0, -PI / 2.0 + TAU * k, 48, Color(1.0, 0.6, 0.18), 2.0)
+
+
+## Flickering pixel flames standing on base, `size` times the grove's, faded by `fade`.
+func _flames(base: Vector2, seed_i: int, fade: float, size: float) -> void:
+	var beat := int(sim.time * 12.0)
+	var n := 3 if size <= 1.0 else 5
+	var spread := maxf(1.0, size / 1.4)
+	var w := roundf(5.0 * spread)
+	for f in n:
+		var p: Vector2 = (base + Vector2((f - (n - 1) / 2.0) * 7.0 * spread + (beat + seed_i) % 3 - 1, -(f % 2) * 10.0 * spread)).round()
+		var h := roundf((5 + (beat + seed_i * 3 + f) % 5) * size)
+		draw_rect(Rect2(p + Vector2(-floorf(w / 2.0), -h), Vector2(w, h)), Color(1.0, 0.45, 0.1, 0.9 * fade))
+		draw_rect(Rect2(p + Vector2(-floorf(w / 2.0) + 1.0, -h + 2.0), Vector2(maxf(1.0, w - 2.0), maxf(1.0, h - 3.0))), Color(1.0, 0.85, 0.35, 0.9 * fade))
+
+
+## Scorched ground where a camp's huts burnt, drawn on the ground under everything else.
+func _draw_scorch(view: Rect2) -> void:
+	for o in sim.objectives.list:
+		if o.kind != "camp" or o.burnt_at < 0.0 or not view.grow(60.0).has_point(o.pos):
+			continue
+		var k := clampf((sim.time - float(o.burnt_at)) / float(sim.b.objectives.camp.burn_seconds), 0.0, 1.0)
+		for h in o.huts:
+			draw_set_transform(h + Vector2(0, -4), 0.0, Vector2(1.0, 0.55))
+			draw_circle(Vector2.ZERO, 22.0, Color(0.12, 0.09, 0.07, 0.45 * k))
+			draw_circle(Vector2.ZERO, 14.0, Color(0.07, 0.05, 0.04, 0.6 * k))
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 ## Spears thrown by the horde are drawn as short pixel lines.

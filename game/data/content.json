@@ -633,10 +633,10 @@
    "text": "He fights in a rage and feels no wounds.",
    "history": "Germanic warriors who fought in a frenzy, in wolf and bear skins, were said to feel no pain.",
    "behaviour": "flanker",
-   "hp": 420,
+   "hp": 1260,
    "speed": 50,
    "dps": 14,
-   "radius": 9,
+   "radius": 15,
    "coins": 0,
    "art": [
     "unit:berserker"
@@ -660,10 +660,10 @@
    "text": "The leader of a raiding band, who never walks alone.",
    "history": "Germanic warriors fought in family groups behind a chosen leader, who shared the spoils.",
    "behaviour": "melee",
-   "hp": 520,
+   "hp": 1560,
    "speed": 42,
    "dps": 12,
-   "radius": 9,
+   "radius": 15,
    "coins": 0,
    "art": [
     "unit:war_band_leader"
@@ -681,10 +681,10 @@
    "text": "He stands back and hurls burning pots into the thickest ranks. A red ring shows where each will land.",
    "history": "Germanic priests went to war with the tribes and read the omens before a battle.",
    "behaviour": "lobber",
-   "hp": 380,
+   "hp": 1140,
    "speed": 38,
    "dps": 0,
-   "radius": 8,
+   "radius": 14,
    "coins": 0,
    "range": 170,
    "art": [
@@ -703,10 +703,10 @@
    "text": "The war chief who united the tribes against Rome, swinging a great axe.",
    "history": "In 9 AD Arminius led three Roman legions into a forest ambush at Teutoburg and destroyed them.",
    "behaviour": "melee",
-   "hp": 2600,
+   "hp": 7800,
    "speed": 27,
    "dps": 30,
-   "radius": 14,
+   "radius": 26,
    "coins": 0,
    "art": [
     "unit:chieftain"
@@ -811,10 +811,10 @@
    "text": "Several chariots drive in together.",
    "history": "British charioteers raced along the front line, throwing spears before dropping to fight on foot.",
    "behaviour": "charger",
-   "hp": 520,
+   "hp": 1560,
    "speed": 75,
    "dps": 16,
-   "radius": 10,
+   "radius": 17,
    "coins": 0,
    "art": [
     "unit:chariot_charge"
@@ -826,10 +826,10 @@
    "text": "An old priest of the oak groves, said to call down fire.",
    "history": "The druids were priests, judges and teachers, and Rome attacked their island stronghold at Mona.",
    "behaviour": "ranged",
-   "hp": 460,
+   "hp": 1380,
    "speed": 38,
    "dps": 14,
-   "radius": 8,
+   "radius": 14,
    "coins": 0,
    "art": [
     "unit:druid"
@@ -842,10 +842,10 @@
    "text": "A queen who rides a war chariot against Rome.",
    "history": "In 60 AD Boudica led the Iceni in a revolt that burned Londinium to the ground.",
    "behaviour": "charger",
-   "hp": 3000,
+   "hp": 9000,
    "speed": 40,
    "dps": 34,
-   "radius": 14,
+   "radius": 26,
    "coins": 0,
    "art": [
     "unit:warrior_queen"
@@ -948,10 +948,10 @@
    "text": "The best swordsman of his clan.",
    "history": "Celtic champions fought in front of the line, and challenged enemy heroes to single combat.",
    "behaviour": "melee",
-   "hp": 560,
+   "hp": 1680,
    "speed": 48,
    "dps": 16,
-   "radius": 9,
+   "radius": 15,
    "coins": 0,
    "art": [
     "unit:champion"
@@ -963,10 +963,10 @@
    "text": "His horn brings the whole host on faster.",
    "history": "The carnyx, a tall bronze horn with an animal head, was meant to terrify the foe.",
    "behaviour": "ranged",
-   "hp": 440,
+   "hp": 1320,
    "speed": 38,
    "dps": 12,
-   "radius": 8,
+   "radius": 14,
    "coins": 0,
    "art": [
     "unit:horn_blower"
@@ -979,10 +979,10 @@
    "text": "A king with a long sword and a bodyguard sworn to die for him.",
    "history": "Vercingetorix united the Gauls in 52 BC and held out against Caesar at the siege of Alesia.",
    "behaviour": "melee",
-   "hp": 3400,
+   "hp": 10200,
    "speed": 28,
    "dps": 36,
-   "radius": 14,
+   "radius": 26,
    "coins": 0,
    "art": [
     "unit:gaul_king"
@@ -1085,10 +1085,10 @@
    "text": "A band of falx warriors fighting as one.",
    "history": "After meeting the falx, Roman soldiers added extra armour to their arms and helmets.",
    "behaviour": "melee",
-   "hp": 620,
+   "hp": 1860,
    "speed": 45,
    "dps": 18,
-   "radius": 10,
+   "radius": 17,
    "coins": 0,
    "art": [
     "unit:falx_band"
@@ -1100,10 +1100,10 @@
    "text": "He speaks for Zalmoxis and heartens the host.",
    "history": "Dacian priests had great power at the court, and the king took their advice on war.",
    "behaviour": "ranged",
-   "hp": 480,
+   "hp": 1440,
    "speed": 35,
    "dps": 12,
-   "radius": 8,
+   "radius": 14,
    "coins": 0,
    "art": [
     "unit:priest"
@@ -1116,10 +1116,10 @@
    "text": "A king who advances behind a moving shield wall.",
    "history": "Decebalus held off Rome for years, until Trajan conquered Dacia in 106 AD.",
    "behaviour": "melee",
-   "hp": 3800,
+   "hp": 11400,
    "speed": 24,
    "dps": 38,
-   "radius": 15,
+   "radius": 28,
    "coins": 0,
    "art": [
     "unit:dacian_king"
@@ -1223,10 +1223,10 @@
    "text": "A wall of armoured horsemen at full gallop.",
    "history": "A cataphract charge could break an infantry line, as it did at Carrhae.",
    "behaviour": "charger",
-   "hp": 700,
+   "hp": 2100,
    "speed": 62,
    "dps": 20,
-   "radius": 11,
+   "radius": 19,
    "coins": 0,
    "art": [
     "unit:cataphract_charge"
@@ -1238,10 +1238,10 @@
    "text": "It tramples whatever stands before it.",
    "history": "Eastern kings used war elephants to scare horses and to break the ranks of foot soldiers.",
    "behaviour": "beast",
-   "hp": 1100,
+   "hp": 3300,
    "speed": 38,
    "dps": 26,
-   "radius": 14,
+   "radius": 24,
    "coins": 0,
    "art": [
     "unit:war_elephant"
@@ -1253,10 +1253,10 @@
    "text": "The shah of Parthia, riding into battle on an elephant.",
    "history": "In 53 BC at Carrhae, the Parthian army crushed seven Roman legions led by Crassus.",
    "behaviour": "beast",
-   "hp": 4400,
+   "hp": 13200,
    "speed": 26,
    "dps": 42,
-   "radius": 16,
+   "radius": 30,
    "coins": 0,
    "art": [
     "unit:shah"

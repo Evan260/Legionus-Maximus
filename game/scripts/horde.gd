@@ -36,6 +36,10 @@ var k_dash_secs := PackedFloat32Array()
 var k_burst := PackedFloat32Array()
 var k_flank_cos := PackedFloat32Array()
 var k_flank_gap := PackedFloat32Array()
+## The radius of the biggest kind of enemy, so searches by edge reach far enough while one that size is on the field.
+var max_radius := 0.0
+## How many enemies wider than Terrain.MAX_UNIT are on the field.
+var big_alive := 0
 
 # Per enemy.
 var e_id := PackedInt32Array()
@@ -129,6 +133,7 @@ func _init(balance: Dictionary, game_content: Content, random: RandomNumberGener
 		kind_ids.append(id)
 		var beh: int = BEHAVIOURS.get(info.behaviour, MELEE)
 		k_radius.append(float(info.radius))
+		max_radius = maxf(max_radius, float(info.radius))
 		k_speed.append(float(info.speed))
 		k_dps.append(float(info.dps))
 		k_beh.append(beh)
@@ -203,6 +208,8 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 	e_hp.append(hp)
 	e_max.append(hp)
 	e_kind.append(kind)
+	if k_radius[kind] > Terrain.MAX_UNIT:
+		big_alive += 1
 	e_burn.append(0.0)
 	e_burn_dps.append(0.0)
 	e_burn_src.append(-1)
@@ -609,6 +616,8 @@ func _move(dt: float, sim: Sim) -> void:
 	var t_start := sim.terrain.start
 	var t_items := sim.terrain.items
 	var t_solid := sim.terrain.solid
+	var t_tree := sim.terrain.solid_tree
+	var chop_rate: float = b.felling.barbarian_rate * dt
 	var t_cell := Terrain.CELL
 	var t_n := Terrain.GN
 	var f_dir := sim.terrain.flow_dir
@@ -707,8 +716,10 @@ func _move(dt: float, sim: Sim) -> void:
 				var kx := c % GW
 				var ky := c / GW
 				var seen := 0
-				for cy in range(maxi(0, ky - 1), mini(GW, ky + 2)):
-					for cx in range(maxi(0, kx - 1), mini(GW, kx + 2)):
+				# A boss wider than a grid square looks further for the barbarians he would overlap.
+				var ring := 1 if r + r <= CELL else 2
+				for cy in range(maxi(0, ky - ring), mini(GW, ky + ring + 1)):
+					for cx in range(maxi(0, kx - ring), mini(GW, kx + ring + 1)):
 						var cell := cx + cy * GW
 						for t in range(g_start[cell], g_start[cell + 1]):
 							var j := g_items[t]
@@ -733,8 +744,9 @@ func _move(dt: float, sim: Sim) -> void:
 			var k := Vector2i(floori(p.x / CELL), floori(p.y / CELL))
 			var target_unit := -1
 			var best := INF
-			for cx in range(k.x - 1, k.x + 2):
-				for cy in range(k.y - 1, k.y + 2):
+			var span := 1 if r + Sim.UNIT_RADIUS + 2.0 <= CELL else ceili((r + Sim.UNIT_RADIUS + 2.0) / CELL)
+			for cx in range(k.x - span, k.x + span + 1):
+				for cy in range(k.y - span, k.y + span + 1):
 					var ucell: Variant = u_grid.get(Vector2i(cx, cy))
 					if ucell == null:
 						continue
@@ -782,6 +794,8 @@ func _move(dt: float, sim: Sim) -> void:
 				if d2 < reach * reach and d2 > 0.000001:
 					var dl := sqrt(d2)
 					np = Vector2(so.x + ax / dl * reach, so.y + ay / dl * reach)
+					if v != Vector2.ZERO and t_tree[t_items[t]] == 1:
+						sim.terrain.horde_chop(Vector2(so.x, so.y), chop_rate)
 					# A barbarian walking into a tree or rock slides along it on the side that leads towards the legion, and keeps that side a while.
 					if v != Vector2.ZERO:
 						var along := Vector2(-ay, ax) / dl
@@ -789,6 +803,8 @@ func _move(dt: float, sim: Sim) -> void:
 							e_side[i] = 1 if along.dot(to) >= 0.0 else -1
 						e_way[i] = along * e_side[i]
 						e_detour[i] = detour_seconds
+			if r > Terrain.MAX_UNIT:
+				np = sim.terrain.push_out_wide(np, r)
 		# A barbarian wedged among trees who makes no headway for a while slips through them for a moment to get free.
 		if e_stuck[i] < 0.0:
 			e_stuck[i] = minf(0.0, e_stuck[i] + dt)
@@ -958,6 +974,29 @@ func nearest(p: Vector2, reach: float) -> int:
 	return best
 
 
+## The living enemy whose edge is nearest p within reach, so a soldier pressed against a big boss can strike him.
+func nearest_edge(p: Vector2, reach: float) -> int:
+	var c := cidx(p)
+	if c < 0:
+		return -1
+	var kx := c % GW
+	var ky := c / GW
+	# Melee soldiers search every update, so the wide search is kept for while a boss is on the field.
+	var rings := ceili((reach + (max_radius if big_alive > 0 else 6.0)) / CELL)
+	var best := -1
+	var best_d := reach
+	for cy in range(maxi(0, ky - rings), mini(GW, ky + rings + 1)):
+		for cx in range(maxi(0, kx - rings), mini(GW, kx + rings + 1)):
+			var cell := cx + cy * GW
+			for t in range(g_start[cell], g_start[cell + 1]):
+				var j := g_items[t]
+				var dd := (e_pos[j] - p).length() - k_radius[e_kind[j]]
+				if dd < best_d and e_hp[j] > 0.0:
+					best_d = dd
+					best = j
+	return best
+
+
 ## Indexes of the living enemies within r of p.
 func near(p: Vector2, r: float) -> Array:
 	var out: Array = []
@@ -985,6 +1024,8 @@ func remove_at(i: int) -> void:
 		e_guard.fill(Vector2.ZERO)
 	if e_tag[i] == ELITE:
 		elite_ids.erase(e_id[i])
+	if k_radius[e_kind[i]] > Terrain.MAX_UNIT:
+		big_alive -= 1
 	var last := e_pos.size() - 1
 	e_id[i] = e_id[last]; e_id.resize(last)
 	e_pos[i] = e_pos[last]; e_pos.resize(last)

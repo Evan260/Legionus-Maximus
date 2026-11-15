@@ -186,7 +186,9 @@ func _notice_text(kind: String) -> String:
 			return tr("The column joins the legion")
 		"grove":
 			return tr("The sacred grove burns")
-	return tr("A Roman fort is in sight")
+		"chieftain":
+			return tr("The chieftain falls: now hold the fort")
+	return tr("A Roman fort is in sight: hold it")
 
 
 ## Arrows at the edge of the screen to each objective not yet done and to the fort, with name and distance, and a notice when one is done.

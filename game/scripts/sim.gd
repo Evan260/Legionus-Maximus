@@ -333,7 +333,7 @@ func _move_legion(dt: float, move: Vector2) -> void:
 		so.pos = terrain.push_out(so.pos, UNIT_RADIUS, dt)
 	var fallen := terrain.fell_ready()
 	if fallen > 0:
-		timber += fallen * int(b.felling.timber)
+		timber += terrain.take_logs() * int(b.felling.timber)
 		event("fell", commander.pos)
 		terrain.refresh(commander.pos)
 
@@ -464,7 +464,7 @@ func melee(u: Dictionary, dmg: float, reach: float, cooldown: float, dt: float) 
 	u.cd -= dt * attack_rate() * u.haste
 	if u.cd > 0.0:
 		return
-	var t := nearest_enemy(u.pos, reach + 6.0)
+	var t := horde.nearest_edge(u.pos, reach)
 	if t < 0:
 		return
 	hit(t, dmg * (1.0 + 0.2 * rank("gladius")), 0.0, u.type)
@@ -587,11 +587,15 @@ func _kill(i: int) -> void:
 	if horde.e_tag[i] == Horde.ELITE:
 		horde.drop_chest(horde.e_pos[i])
 	if horde.e_id[i] == horde.chieftain_id:
-		win(horde.e_pos[i])
+		# His death wins only once the fort has been on screen; before that the legion still has to hold the fort.
+		if objectives.fort_seen():
+			win(horde.e_pos[i])
+		else:
+			objectives.notice = {"kind": "chieftain", "at": time}
 	horde.remove_at(i)
 
 
-## The chieftain's death or the fort's gate wins the run; an endless run keeps going and counts the win once.
+## The chieftain's death or holding the fort wins the run; an endless run keeps going and counts the win once.
 func win(pos: Vector2) -> void:
 	victory = true
 	event("victory", pos)

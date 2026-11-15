@@ -431,9 +431,10 @@ func test_the_chieftain_comes_and_his_death_wins(b: Dictionary) -> void:
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
 	var ci := s.chieftain_index()
 	check(ci >= 0, "the chieftain arrived")
+	s.objectives.fort.seen = true
 	s.hit(ci, 1e9)
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
-	check(s.over and s.victory, "his death ends the run in victory")
+	check(s.over and s.victory, "once the fort has been seen, his death ends the run in victory")
 
 
 func test_the_commanders_death_loses(b: Dictionary) -> void:
@@ -1559,6 +1560,7 @@ func test_endless_keeps_going_after_the_chieftain(b: Dictionary) -> void:
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
 	var ci := s.chieftain_index()
 	check(ci >= 0, "the chieftain arrived")
+	s.objectives.fort.seen = true
 	s.hit(ci, 1e9)
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
 	check(not s.over and s.victory, "his death does not end an endless run but wins it")
@@ -1584,6 +1586,7 @@ func test_endless_keeps_going_after_the_chieftain(b: Dictionary) -> void:
 	var normal := _mode_sim(b, {"seed": 111})
 	normal.time = float(b.chieftain_at) - 0.01
 	normal.update(1.0 / 60.0, Vector2.ZERO, false)
+	normal.objectives.fort.seen = true
 	normal.hit(normal.chieftain_index(), 1e9)
 	normal.update(1.0 / 60.0, Vector2.ZERO, false)
 	check(normal.over and normal.victory, "a normal run still ends with the chieftain")
@@ -2674,6 +2677,7 @@ func test_the_camp_pours_out_defenders_and_gives_back_the_eagle(b: Dictionary) -
 	s._rebuild_grids()
 	s.objectives.update(0.01, s)
 	check(camp.done and s.free_choices == choices + 1, "a soldier touching the eagle takes it back for a free choice")
+	check(camp.burnt_at >= 0.0, "and the camp is set alight")
 	check(s.objectives.purse == int(b.objectives.purse.camp), "and a purse of %d denarii (%d)" % [int(b.objectives.purse.camp), s.objectives.purse])
 	s.objectives.update(0.01, s)
 	check(s.free_choices == choices + 1, "the eagle is taken only once")
@@ -2768,7 +2772,7 @@ func test_objectives_raise_the_denarii_banked(b: Dictionary) -> void:
 	_cleanup_profile_files()
 
 
-func test_the_fort_appears_with_the_chieftain_and_its_gate_wins(b: Dictionary) -> void:
+func test_the_fort_appears_with_the_chieftain_and_holding_it_wins(b: Dictionary) -> void:
 	var cfg: Dictionary = b.fort
 	var s := _mode_sim(b, {"seed": 156})
 	s.objectives.list.clear()
@@ -2784,7 +2788,7 @@ func test_the_fort_appears_with_the_chieftain_and_its_gate_wins(b: Dictionary) -
 	check(d >= float(cfg.near) - 1.0 and d <= float(cfg.far) + 1.0, "%.0f from the commander" % d)
 	var stray := 0
 	for pr in s.terrain.props_in(Rect2(fort.pos - Vector2.ONE * 250.0, Vector2.ONE * 500.0)):
-		if pr[1].distance_to(fort.gate) < float(cfg.clearing) and not s.terrain.extras.has(pr):
+		if pr[1].distance_to(fort.centre) < float(cfg.clearing) and not s.terrain.extras.has(pr):
 			stray += 1
 	check(stray == 0, "in open ground (%d strays)" % stray)
 	var ci := s.chieftain_index()
@@ -2792,15 +2796,15 @@ func test_the_fort_appears_with_the_chieftain_and_its_gate_wins(b: Dictionary) -
 	var cp: Vector2 = s.horde.e_pos[ci]
 	check(cp.distance_to(fort.pos) < d and (cp - s.commander.pos).dot(fort.pos - s.commander.pos) > 0.0, "between the legion and the fort")
 	s.horde.e_pos[ci] = s.commander.pos + Vector2(0, 2000)
-	s.commander.pos = fort.gate
-	s.update(1.0 / 60.0, Vector2.ZERO, false)
-	check(s.over and s.victory, "marching into the gate wins the run")
+	s.commander.pos = fort.centre
+	_step_dt(s, float(cfg.hold) + 0.2)
+	check(s.over and s.victory, "holding the fort wins the run")
 	var e := _mode_sim(b, {"seed": 157, "endless": true})
 	e.objectives.list.clear()
 	e.time = float(b.chieftain_at) - 0.01
 	e.update(1.0 / 60.0, Vector2.ZERO, false)
-	e.commander.pos = e.objectives.fort.gate
-	e.update(1.0 / 60.0, Vector2.ZERO, false)
+	e.commander.pos = e.objectives.fort.centre
+	_step_dt(e, float(cfg.hold) + 0.2)
 	check(not e.over and e.victory and e.endless_since >= 0.0, "in an endless run the fort wins and the march goes on")
 	var since := e.endless_since
 	e.update(1.0 / 60.0, Vector2.ZERO, false)
@@ -2984,3 +2988,217 @@ func test_the_palisade_has_its_own_key(b: Dictionary) -> void:
 	Controls.install({})
 	check(_has_key("build", KEY_E) and _has_button("build", JOY_BUTTON_X), "E and the west face button build")
 	check(Controls.ACTIONS.any(func(a: Array) -> bool: return a[0] == "build"), "the settings let it be rebound")
+
+
+
+func _fort_sim(b: Dictionary, seed_value: int) -> Sim:
+	var s := _mode_sim(b, {"seed": seed_value})
+	s.objectives.list.clear()
+	s.terrain.clear()
+	s.horde.next_surge = 1e9
+	s.horde.next_band = 1e9
+	s.horde.next_cart = 1e9
+	s.objectives.raise_fort(s)
+	s.terrain.refresh(s.commander.pos)
+	return s
+
+
+func test_the_fort_is_a_walled_square_with_its_gate_towards_the_legion(b: Dictionary) -> void:
+	var cfg: Dictionary = b.fort
+	var s := _fort_sim(b, 400)
+	var fort: Dictionary = s.objectives.fort
+	var c: Vector2 = fort.centre
+	var half := float(cfg.half)
+	check(fort.pos.is_equal_approx(c + Vector2(0, half)), "the gate stands in the middle of the south wall")
+	check(c.y < s.commander.pos.y and absf(c.x - s.commander.pos.x) < c.distance_to(s.commander.pos), "the fort stands to the north, so the legion comes on its gate")
+	var gate := false
+	var stakes := 0
+	var on_wall := true
+	for pr in s.terrain.extras:
+		gate = gate or (pr[0] == "fort_gate" and pr[1] == fort.pos)
+		if pr[0] == "stake":
+			stakes += 1
+			on_wall = on_wall and pr[2] > 0.0 and absf(maxf(absf(pr[1].x - c.x), absf(pr[1].y - c.y)) - half) < 1.0
+	check(gate, "the gate is the fort's entrance")
+	s.terrain.refresh(c)
+	check(stakes > int(8.0 * half / float(cfg.stake_gap)) - 12 and on_wall, "solid stakes run along all four walls (%d)" % stakes)
+	var closed := true
+	for k in 41:
+		var t := -half + 2.0 * half * k / 40.0
+		for p in [c + Vector2(t, -half), c + Vector2(-half, t), c + Vector2(half, t)]:
+			closed = closed and s.terrain.push_out(p, 6.0) != p
+		if absf(t) > float(cfg.tower_x) + 6.0:
+			var q := c + Vector2(t, half)
+			closed = closed and s.terrain.push_out(q, 6.0) != q
+	check(closed, "a barbarian cannot slip between the stakes")
+	var way: Vector2 = fort.pos + Vector2(0, -4)
+	check(s.terrain.push_out(way, Sim.UNIT_RADIUS) == way, "but the gate is open")
+	check(2.0 * (half - float(cfg.stake_radius)) >= 150.0, "inside there is room for a legion of forty")
+	check(2.0 * half + 40.0 <= 360.0, "and the whole fort fits on the screen")
+
+
+func test_holding_the_fort_wins_the_run(b: Dictionary) -> void:
+	var hold := float(b.fort.hold)
+	var s := _fort_sim(b, 401)
+	var fort: Dictionary = s.objectives.fort
+	s.commander.pos = fort.pos + Vector2(0, 30)
+	_step_dt(s, hold + 0.5)
+	check(not s.over, "standing outside the gate does not win")
+	s.commander.pos = fort.centre
+	_step_dt(s, hold * 0.5)
+	check(not s.over and fort.hold > 0.0, "half the time inside the walls is not enough")
+	_step_dt(s, hold * 0.5 + 0.2)
+	check(s.over and s.victory, "holding the fort for %d seconds wins the run" % int(hold))
+	var l := _fort_sim(b, 402)
+	l.commander.pos = l.objectives.fort.centre
+	_step_dt(l, hold * 0.8)
+	l.commander.pos = l.objectives.fort.pos + Vector2(0, 200)
+	_step_dt(l, hold)
+	l.commander.pos = l.objectives.fort.centre
+	_step_dt(l, hold * 0.5)
+	check(not l.over, "time inside drains away when the commander leaves")
+
+
+func test_the_run_does_not_end_before_the_fort_is_seen(b: Dictionary) -> void:
+	var s := _fort_sim(b, 403)
+	var fort: Dictionary = s.objectives.fort
+	check(not fort.seen, "the fort starts out of sight")
+	s.time = float(b.chieftain_at)
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	var ci := s.chieftain_index()
+	check(ci >= 0, "the chieftain is out")
+	s.hit(ci, 1e9)
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(not s.over, "killing the chieftain before the fort is in sight does not end the run")
+	s.commander.pos = fort.pos + Vector2(0, 60)
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(fort.seen, "the fort counts as seen once it is on screen")
+
+
+func test_the_camp_burns_and_its_huts_go(b: Dictionary) -> void:
+	var cfg: Dictionary = b.objectives.camp
+	var s := _objective_sim(b, 410)
+	var camp: Dictionary = s.objectives.add(s, "camp", Vector2(600, 0))
+	var huts: Array = camp.huts
+	check(huts.size() == int(cfg.huts), "the camp has %d huts" % int(cfg.huts))
+	s.commander.pos = camp.pos + Vector2(float(cfg.hut_ring) - 20.0, 0)
+	s.terrain.refresh(s.commander.pos)
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(camp.done and camp.burnt_at >= 0.0, "the commander walking into the camp takes the eagle and sets the huts alight")
+	check(_solid_at(s, huts[0]), "the burning huts still stand at first")
+	_step_dt(s, float(cfg.burn_seconds) - 0.5)
+	check(_solid_at(s, huts[0]), "for %d seconds" % int(cfg.burn_seconds))
+	_step_dt(s, 1.0)
+	var gone := true
+	for h in huts:
+		gone = gone and not _solid_at(s, h) and _kinds_at(s, h).is_empty() and s.terrain.is_open(h)
+	check(gone, "then the huts are gone and the ground is open")
+	var e := _objective_sim(b, 411)
+	var c2: Dictionary = e.objectives.add(e, "camp", Vector2(600, 0))
+	e.soldiers[0].pos = c2.pos
+	e._rebuild_grids()
+	e.objectives.update(0.01, e)
+	check(c2.burnt_at >= 0.0, "taking the eagle sets the camp alight too")
+
+
+func _press_tree(s: Sim, i: int, tree: Vector2, seconds: float) -> void:
+	for f in int(seconds * 60.0):
+		s.horde.e_pos[i] = tree + Vector2(Terrain.SOLID.oak + 5.0, 0)
+		s.horde.e_stuck[i] = 0.0
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+
+
+func test_barbarians_chop_trees_slowly_and_leave_no_timber(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 412)
+	s.legion.soldiers.clear()
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	var at := Vector2(-60, 0)
+	_field(s, [["oak", at, Terrain.SOLID.oak]])
+	s.commander.pos = Vector2(-200, 0)
+	var i := s.horde.spawn("barbarian_club", at + Vector2(14, 0))
+	var rate := float(b.felling.barbarian_rate)
+	check(rate > 0.0 and rate <= 0.25, "a barbarian chops at a fraction of a soldier's pace (%.2f)" % rate)
+	_press_tree(s, i, at, 2.0)
+	var chop := s.terrain.chop_of(at)
+	check(chop > 2.0 * rate * 0.6 and chop < 2.0 * rate * 1.2, "two seconds against the tree give %.2f seconds of chopping (%.2f)" % [2.0 * rate, chop])
+	_press_tree(s, i, at, float(b.felling.seconds) / rate - 1.5)
+	check(not _solid_at(s, at) and _kinds_at(s, at) == ["stump"], "in the end the tree falls and leaves a stump")
+	check(s.timber == 0, "and the legion gains no timber (%d)" % s.timber)
+
+
+func test_barbarians_cannot_fell_the_runs_own_pieces(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 413)
+	s.legion.soldiers.clear()
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	_field(s, [])
+	var at := Vector2(-60, 0)
+	s.terrain.add_clearing(at, 30.0, [["oak", at, Terrain.SOLID.oak]])
+	s.commander.pos = Vector2(-200, 0)
+	s.terrain.refresh(s.commander.pos)
+	var i := s.horde.spawn("barbarian_club", at + Vector2(14, 0))
+	_press_tree(s, i, at, float(b.felling.seconds) / float(b.felling.barbarian_rate) + 1.0)
+	check(_solid_at(s, at) and s.terrain.chop_of(at) == 0.0, "a grove's oak stands however long barbarians press it")
+
+
+func test_bosses_are_big_and_sturdy(b: Dictionary) -> void:
+	var all := Content.with_all_art()
+	var elites := true
+	var chiefs := true
+	for id in all.enemies:
+		var e: Dictionary = all.enemies[id]
+		if e.get("elite", false):
+			elites = elites and float(e.hp) >= 1100.0 and float(e.radius) >= 14.0
+		if e.get("chieftain", false):
+			chiefs = chiefs and float(e.hp) >= 7800.0 and float(e.radius) >= 26.0
+	check(elites, "every elite has at least 1100 health and a radius of 14")
+	check(chiefs, "every chieftain has at least 7800 health and a radius of 26")
+
+
+func _calm_chief(s: Sim) -> void:
+	s.horde.cleave_cd = 1e9
+	s.horde.cry_cd = 1e9
+	s.horde.charge_cd = 1e9
+	s.horde.slam_cd = 1e9
+	s.horde.horn_cd = 1e9
+
+
+func test_big_bosses_still_fight_and_collide(b: Dictionary) -> void:
+	var s := _chief_sim(b, 414)
+	s.legion.soldiers.clear()
+	s.commander.pos = Vector2(31, 0)
+	var ci := s.horde.spawn("chieftain", Vector2(31 + Sim.UNIT_RADIUS + 41, 0))
+	s.horde.k_radius[s.horde.e_kind[ci]] = 40.0
+	s.horde.set("max_radius", 40.0)
+	s._rebuild_grids()
+	var hp0: float = s.horde.e_hp[ci]
+	s.commander.cd = 0.0
+	var cu: Dictionary = s.content.base_commander
+	s.melee(s.commander, float(cu.damage), float(cu.reach), float(cu.cooldown), 1.0 / 60.0)
+	check(s.horde.e_hp[ci] < hp0, "the commander strikes a big chieftain he stands against")
+	var before: float = s.commander.hp
+	s.horde.e_pos[ci] = s.commander.pos + Vector2(Sim.UNIT_RADIUS + 41, 0)
+	s._rebuild_grids()
+	s.horde._move(1.0 / 60.0, s)
+	check(s.commander.hp < before, "and the chieftain hurts the commander at the edge of his reach")
+	var g := _chief_sim(b, 415)
+	g.horde.spawn_chieftain(Vector2(300, 0))
+	var gc := g.horde.chieftain_index()
+	var clear := true
+	for j in g.horde.e_pos.size():
+		if g.horde.e_guard[j] != Vector2.ZERO:
+			clear = clear and g.horde.e_pos[j].distance_to(g.horde.e_pos[gc]) > g.horde.k_radius[g.horde.e_kind[j]] + g.horde.k_radius[g.horde.e_kind[gc]] + 2.0
+	check(clear, "his bodyguard stand clear of his bigger frame")
+	var r := _quiet_sim(b, 416, Content.with_all_art())
+	r.commander.hp = 1e9
+	r.commander.max_hp = 1e9
+	r.commander.pos = Vector2(-300, 0)
+	var rock := Vector2(-15, 0)
+	_field(r, [["rock", rock, Terrain.SOLID.rock]])
+	var k := r.horde.spawn("chieftain", Vector2(18, 0))
+	var big := r.horde.k_radius[r.horde.e_kind[k]]
+	r.horde.e_pos[k] = rock + Vector2(Terrain.SOLID.rock + big - 3.0, 0)
+	_calm_chief(r)
+	_step_dt(r, 0.3)
+	check(r.horde.e_pos[k].distance_to(rock) >= Terrain.SOLID.rock + big - 0.5, "a big chieftain cannot walk through a rock")

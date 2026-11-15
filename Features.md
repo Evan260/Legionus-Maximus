@@ -24,22 +24,24 @@ In 9 AD the Germans destroyed three legions in the Teutoburg Forest and carried 
 
 - Each run places two or three objectives in clearings some way off. Arrows at the edge of the screen point to each one that is not done yet, with its distance.
 - Objectives:
-  - **Barbarian camp:** huts round a captured eagle standard. Defenders pour out when the legion comes near. Reaching the eagle takes it back: a free choice and a large purse of denarii at the end of the run.
+  - **Barbarian camp:** huts round a captured eagle standard. Defenders pour out when the legion comes near. Reaching the eagle, or marching the commander in among the huts, takes it back: a free choice and a large purse of denarii at the end of the run. The huts then catch fire, burn for a few seconds and fall in, leaving scorched ground and an open way through.
   - **Stranded column:** a supply cart with a few Roman soldiers holding out against a war band. Reaching them adds the survivors to the legion and heals it.
   - **Sacred grove:** an altar among the oaks. Holding the legion in the grove for a few seconds while war bands come to defend it burns it: a free choice, and the barbarians lose heart, so the stream thins for a minute.
 - Objectives are optional. Each one done raises the denarii the run banks.
-- At 16 minutes a Roman fort appears some distance away, marked like the objectives. Marching the commander through its gate wins the run.
-- When the fort appears the chieftain comes out with his bodyguard to stop the legion reaching it. Killing him also wins.
+- At 16 minutes a Roman fort appears some distance ahead, to the north, marked like the objectives with the arrow pointing at its gate. It is a square palisade of solid stakes, big enough to hold a legion of forty, with the gate in the middle of its south wall. Holding the commander inside its walls for 4 seconds wins the run; a ring fills while he stands there, as in the grove, and drains if he leaves.
+- When the fort appears the chieftain comes out with his bodyguard to stop the legion reaching it. Killing him also wins once the fort has been on screen; if he falls before that, the legion still has to march in and hold the fort.
 
 ## Felling trees and the palisade
 
 - Legions cut roads through forests. Soldiers pressed against a tree fell it after a few seconds, leaving a stump, so the legion can cut its own way through a ridge, slowly.
 - Each felled tree gives a log of timber, counted on the screen.
+- Barbarians pressed against a tree chop at it too, each at a fifth of a soldier's pace, so a crowd held against a ridge slowly opens it. A tree they bring down leaves a stump but no timber; the legion gets the log only when its men did at least half the chopping.
+- The run's own pieces, such as the grove's oaks and the fort's walls, cannot be felled by anyone.
 - A button (E, or the west face button) spends timber to drive a line of stakes across the ground in front of the legion. The stakes are solid, so barbarians must go round them; they rot away after a while.
 
 ## Bosses
 
-The chieftain and the elites are meant to be fought with the whole formation: facing them, closing on the ones who stand back and stepping out of their big blows.
+The chieftain and the elites are meant to be fought with the whole formation: facing them, closing on the ones who stand back and stepping out of their big blows. They are big and very tough: each has three times the health it first had, an elite stands much bigger than a barbarian and the chieftain bigger still.
 
 - **The chieftain** comes with a bodyguard of spearmen who stay round him, so the front rank cannot reach him until they are broken; pila, the onager and fire reach past them. His attacks:
   - **Charge:** a red line on the ground shows his path for a second, then he charges along it and throws aside the soldiers in his way, hurting them and breaking the formation.

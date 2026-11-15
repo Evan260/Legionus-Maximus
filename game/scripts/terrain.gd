@@ -30,8 +30,10 @@ var extras: Array = []
 var posts: Array = []
 ## Trees cut down, by position; their stumps stand there whenever the chunk is built again.
 var felled := {}
-## Chopping done on each tree being cut, by position, as [seconds, clock of the last blow].
+## Chopping done on each tree being cut, by position, as [seconds, clock of the last blow, seconds of it by the legion].
 var chops := {}
+## Logs from trees the legion felled since the last take_logs().
+var logs := 0
 ## The run's time, set by the sim, so the drawing knows which trees are being cut right now.
 var clock := 0.0
 var fell_seconds := 3.0
@@ -84,15 +86,36 @@ func fell(p: Vector2) -> void:
 	_anchor = Vector2i(1 << 30, 0)
 
 
-## Fells every tree chopped long enough since the last call and returns how many fell.
+## Fells every tree chopped long enough and returns how many fell; one the legion did half the chopping on adds a log.
 func fell_ready() -> int:
 	var n := 0
 	for p in _ready_to_fall:
 		if not felled.has(p):
+			if chops.has(p) and chops[p][2] * 2.0 >= chops[p][0]:
+				logs += 1
 			fell(p)
 			n += 1
 	_ready_to_fall.clear()
 	return n
+
+
+## The logs gained since the last call.
+func take_logs() -> int:
+	var n := logs
+	logs = 0
+	return n
+
+
+## Takes the run's own pieces at these positions off the field, such as a camp's burnt huts.
+func remove_extras(at: Array) -> void:
+	var gone := {}
+	for p in at:
+		gone[p] = true
+		_extra_at.erase(p)
+	extras = extras.filter(func(pr: Array) -> bool: return not gone.has(pr[1]))
+	for p in at:
+		_chunks.erase(Vector2i(floori(p.x / CHUNK), floori(p.y / CHUNK)))
+	_anchor = Vector2i(1 << 30, 0)
 
 
 ## Drives a stake that rots at `until`; it is solid from the next refresh.
@@ -439,17 +462,47 @@ func push_out(p: Vector2, r: float, chop := 0.0) -> Vector2:
 		if d2 < reach * reach:
 			var d := sqrt(d2)
 			if chop > 0.0 and solid_tree[items[t]] == 1 and reach - d > 0.05:
-				_chop(Vector2(s.x, s.y), chop)
+				_chop(Vector2(s.x, s.y), chop, chop)
 			p = Vector2(s.x, s.y) + (away / d if d > 0.001 else Vector2.RIGHT) * reach
 	return p
 
 
-func _chop(at: Vector2, dt: float) -> void:
+## Chopping by a barbarian pressed against the tree at `at`, which never earns the legion a log.
+func horde_chop(at: Vector2, dt: float) -> void:
+	_chop(at, dt, 0.0)
+
+
+## Adds dt of chopping to the tree at at, `by_legion` of it done by the legion.
+## push_out for a circle wider than MAX_UNIT, such as a boss: it reads every grid cell the circle could reach.
+func push_out_wide(p: Vector2, r: float) -> Vector2:
+	var extra := r - MAX_UNIT
+	var x0 := floori((p.x - extra - origin.x) / CELL)
+	var y0 := floori((p.y - extra - origin.y) / CELL)
+	var x1 := floori((p.x + extra - origin.x) / CELL)
+	var y1 := floori((p.y + extra - origin.y) / CELL)
+	if x1 < 0 or y1 < 0 or x0 >= GN or y0 >= GN:
+		return p
+	for gx in range(maxi(x0, 0), mini(x1, GN - 1) + 1):
+		for gy in range(maxi(y0, 0), mini(y1, GN - 1) + 1):
+			var cell := gx + gy * GN
+			for t in range(start[cell], start[cell + 1]):
+				var s := solid[items[t]]
+				var away := Vector2(p.x - s.x, p.y - s.y)
+				var reach := s.z + r
+				var d2 := away.length_squared()
+				if d2 < reach * reach:
+					var d := sqrt(d2)
+					p = Vector2(s.x, s.y) + (away / d if d > 0.001 else Vector2.RIGHT) * reach
+	return p
+
+
+func _chop(at: Vector2, dt: float, by_legion: float) -> void:
 	var c: Array = chops.get(at, [])
 	if c.is_empty():
-		c = [0.0, 0.0]
+		c = [0.0, 0.0, 0.0]
 		chops[at] = c
 	c[0] += dt
 	c[1] = clock
+	c[2] += by_legion
 	if c[0] >= fell_seconds and not _ready_to_fall.has(at):
 		_ready_to_fall.append(at)

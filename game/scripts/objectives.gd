@@ -6,7 +6,7 @@ extends RefCounted
 const KINDS := ["camp", "column", "grove"]
 
 var list: Array = []
-## Empty until the fort appears; then {pos, gate}, where pos is the foot of the gate and gate the middle of its opening.
+## Empty until the fort appears; then {pos: foot of the gate, gate: its opening, centre, hold: seconds held, seen: been on screen}.
 var fort := {}
 var fort_reached := false
 ## Denarii the finished objectives add to what the run banks.
@@ -40,14 +40,16 @@ func place_start(sim: Sim, near := false) -> void:
 ## Sets one objective at pos, clears its ground and stands its huts, oaks or guards there.
 func add(sim: Sim, kind: String, pos: Vector2) -> Dictionary:
 	var cfg: Dictionary = sim.b.objectives
-	var o := {"kind": kind, "pos": pos, "done": false, "woken": false, "hold": 0.0, "band_cd": 0.0, "guards": [], "held": {}, "oaks": [], "burnt_at": -1.0}
+	var o := {"kind": kind, "pos": pos, "done": false, "woken": false, "hold": 0.0, "band_cd": 0.0, "guards": [], "held": {}, "oaks": [], "huts": [], "burnt_at": -1.0, "razed": false}
 	var pieces: Array = []
 	match kind:
 		"camp":
 			var c: Dictionary = cfg.camp
 			var n := int(c.huts)
 			for k in n:
-				pieces.append(["hut", pos + Vector2.from_angle(pos.angle() + TAU * (k + 0.5) / n) * float(c.hut_ring), float(c.hut_radius)])
+				var hut := ["hut", pos + Vector2.from_angle(pos.angle() + TAU * (k + 0.5) / n) * float(c.hut_ring), float(c.hut_radius)]
+				pieces.append(hut)
+				o.huts.append(hut[1])
 		"column":
 			var c: Dictionary = cfg.column
 			var info: Dictionary = sim.content.recruits.legionary
@@ -83,17 +85,18 @@ func before_horde(sim: Sim) -> void:
 		raise_fort(sim)
 
 
-## Stands the fort in the most open ground of a few places at the right distance and clears what grows there.
+## Stands a square of solid stakes, gated in its south wall, in the most open of a few places ahead to the north.
 func raise_fort(sim: Sim) -> void:
 	var cfg: Dictionary = sim.b.fort
 	var r := RandomNumberGenerator.new()
 	r.seed = hash([sim.rng.seed, "fort"])
 	var from: Vector2 = sim.commander.pos
-	var best := from + Vector2.RIGHT * float(cfg.near)
+	var best := from + Vector2.UP * float(cfg.near)
 	var fewest := INF
 	var room := float(cfg.clearing)
+	var arc := float(cfg.arc)
 	for k in int(cfg.tries):
-		var p := from + Vector2.from_angle(r.randf() * TAU) * r.randf_range(float(cfg.near), float(cfg.far))
+		var p := from + Vector2.from_angle(-PI / 2.0 + r.randf_range(-arc, arc)) * r.randf_range(float(cfg.near), float(cfg.far))
 		var n := 0.0
 		for pr in sim.terrain.props_in(Rect2(p - Vector2.ONE * room, Vector2.ONE * room * 2.0)):
 			if pr[2] > 0.0 and pr[1].distance_to(p) < room:
@@ -106,14 +109,34 @@ func raise_fort(sim: Sim) -> void:
 			best = p
 		if n == 0.0:
 			break
+	var half := float(cfg.half)
+	var foot := best + Vector2(0, half)
 	var tx := float(cfg.tower_x)
-	var pieces: Array = [["fort_gate", best, 0.0], ["", best + Vector2(-tx, -8), float(cfg.tower_radius)], ["", best + Vector2(tx, -8), float(cfg.tower_radius)]]
-	for side in [-1.0, 1.0]:
-		for k in int(cfg.stakes):
-			pieces.append(["stake", best + Vector2(side * (tx + 20.0 + k * float(cfg.stake_gap)), -4), float(cfg.stake_radius)])
-	fort = {"pos": best, "gate": best + Vector2(0, -12)}
-	sim.terrain.add_clearing(fort.gate, room, pieces)
+	var pieces: Array = [["fort_gate", foot, 0.0], ["", foot + Vector2(-tx, -8), float(cfg.tower_radius)], ["", foot + Vector2(tx, -8), float(cfg.tower_radius)]]
+	var sr := float(cfg.stake_radius)
+	var steps := int(ceilf(2.0 * half / float(cfg.stake_gap)))
+	var corners := [Vector2(-half, -half), Vector2(half, -half), Vector2(half, half), Vector2(-half, half)]
+	for side in 4:
+		var a: Vector2 = corners[side]
+		var to: Vector2 = corners[(side + 1) % 4]
+		for k in steps:
+			var at: Vector2 = a.lerp(to, float(k) / steps)
+			# The south wall leaves the gate's width open; its towers close the rest.
+			if side == 2 and absf(at.x) < tx + 20.0 - 0.01 and at.y > 0.0:
+				continue
+			pieces.append(["stake", best + at, sr])
+	fort = {"pos": foot, "gate": foot + Vector2(0, -12), "centre": best, "hold": 0.0, "seen": false}
+	sim.terrain.add_clearing(best, room, pieces)
 	notice = {"kind": "fort", "at": sim.time}
+
+
+## Whether p stands within the fort's walls, past the gate.
+func in_fort(p: Vector2, sim: Sim) -> bool:
+	if fort.is_empty():
+		return false
+	var inner := float(sim.b.fort.half) - float(sim.b.fort.inside_margin)
+	var off: Vector2 = p - fort.centre
+	return absf(off.x) < inner and absf(off.y) < inner
 
 
 ## Where the chieftain comes out: just off screen towards the fort, so he stands in the legion's way.
@@ -133,6 +156,8 @@ func spawn_mult(t: float) -> float:
 func update(dt: float, sim: Sim) -> void:
 	for o in list:
 		if o.done:
+			if o.kind == "camp" and not o.razed:
+				_burn_camp(o, sim)
 			continue
 		match o.kind:
 			"camp":
@@ -141,9 +166,27 @@ func update(dt: float, sim: Sim) -> void:
 				_column(o, dt, sim)
 			"grove":
 				_grove(o, dt, sim)
-	if not fort.is_empty() and not fort_reached and sim.commander.pos.distance_to(fort.gate) < float(sim.b.fort.gate_radius):
-		fort_reached = true
-		sim.win(fort.gate)
+	if not fort.is_empty() and not fort_reached:
+		_fort(dt, sim)
+
+
+func _fort(dt: float, sim: Sim) -> void:
+	var cfg: Dictionary = sim.b.fort
+	var off: Vector2 = fort.pos - sim.commander.pos
+	if not fort.seen and absf(off.x) < float(cfg.seen_within[0]) and absf(off.y) < float(cfg.seen_within[1]):
+		fort.seen = true
+	if in_fort(sim.commander.pos, sim):
+		fort.hold += dt
+		if fort.hold >= float(cfg.hold):
+			fort_reached = true
+			sim.win(fort.centre)
+	else:
+		fort.hold = maxf(0.0, fort.hold - dt)
+
+
+## Whether the run may end in victory: not before the fort has been on screen once it stands.
+func fort_seen() -> bool:
+	return fort.is_empty() or fort.seen
 
 
 func _camp(o: Dictionary, sim: Sim) -> void:
@@ -156,13 +199,30 @@ func _camp(o: Dictionary, sim: Sim) -> void:
 		if sim.content.ready("enemies", leader):
 			sim.horde.spawn(leader, o.pos + (sim.commander.pos - o.pos).normalized() * 20.0, true)
 	var touch := float(cfg.touch)
+	if d < float(cfg.hut_ring):
+		_take_eagle(o, sim)
+		return
 	if d > sim.legion_reach + touch:
 		return
 	for u in sim.units:
 		if (u.pos - o.pos).length_squared() < touch * touch:
-			sim.free_choices += 1
-			_finish(o, sim)
+			_take_eagle(o, sim)
 			return
+
+
+func _take_eagle(o: Dictionary, sim: Sim) -> void:
+	sim.free_choices += 1
+	o.burnt_at = sim.time
+	_finish(o, sim)
+
+
+## The huts burn for a while after the eagle is taken, then fall in, leaving open ground.
+func _burn_camp(o: Dictionary, sim: Sim) -> void:
+	if sim.time - float(o.burnt_at) < float(sim.b.objectives.camp.burn_seconds):
+		return
+	o.razed = true
+	sim.terrain.remove_extras(o.huts)
+	sim.terrain.refresh(sim.commander.pos)
 
 
 func _column(o: Dictionary, dt: float, sim: Sim) -> void:
