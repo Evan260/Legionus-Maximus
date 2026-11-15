@@ -569,18 +569,24 @@ func _bench() -> void:
 	var mix := ["legionary", "archer", "slinger", "cavalry", "standard_bearer", "medicus", "ballista", "centurion", "legionary", "archer"]
 	for i in 100:
 		s.add_soldier(mix[i % mix.size()])
-	var kinds := ["barbarian_club", "barbarian_spear", "axe_thrower", "wolf", "chariot", "berserker"]
+	var kinds := ["barbarian_club", "barbarian_spear", "axe_thrower", "wolf", "chariot", "barbarian_club"]
+	# A late run has at most bosses.max_alive elites on the field, so the bench brings that many beside the ordinary horde.
+	for e in ["berserker", "war_band_leader", "war_priest", "berserker"]:
+		s.horde.spawn(e, s.horde.ring_point() * 0.5)
 	for i in int(balance.max_enemies):
 		s.horde.spawn(kinds[i % kinds.size()], s.horde.ring_point() * randf_range(0.3, 1.0))
 	var frames := 300
 	var spent := 0
+	var worst := 0
 	for f in frames:
 		# The horde is topped back up so every measured update meets the full cap.
 		while s.horde.e_pos.size() < int(balance.max_enemies):
 			s.horde.spawn(kinds[randi() % kinds.size()], s.horde.ring_point() * randf_range(0.3, 1.0))
 		var start := Time.get_ticks_usec()
 		s.update(1.0 / 60.0, Vector2(1, 0.3), false)
-		spent += Time.get_ticks_usec() - start
+		var took := Time.get_ticks_usec() - start
+		spent += took
+		worst = maxi(worst, took)
 	var ms := spent / 1000.0 / frames
-	print("BENCH %d enemies, %d soldiers: %.2f ms per update" % [s.horde.e_pos.size(), s.soldiers.size(), ms])
+	print("BENCH %d enemies, %d soldiers: %.2f ms per update, worst %.2f ms" % [s.horde.e_pos.size(), s.soldiers.size(), ms, worst / 1000.0])
 	get_tree().quit()
