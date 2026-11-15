@@ -491,3 +491,8 @@ time,kind,name,cost_usd,cost_generations,usd_left
 2026-11-15T13:46:42,animate,art_test/raw/champion_big/redo_north,0.0056,0,16.1628
 2026-11-15T13:46:53,animate,art_test/raw/champion_big/redo_south-east,0.0260,0,16.1368
 2026-11-15T13:48:08,animate,art_test/raw/horn_blower_big/redo_east,0.0111,0,16.1257
+2026-11-15T13:54:42,proflash,art_test/raw/props3/flame_sheet.png,0.0289,0,16.0967
+2026-11-15T13:55:23,proflash,art_test/raw/props3/flame_sheet_b.png,0.0282,0,16.0686
+2026-11-15T13:57:29,animate,art_test/raw/chieftain_big/axe_run_north,0.0152,0,16.0534
+2026-11-15T13:58:52,animate,art_test/raw/chieftain_big/axe_run_north-west,0.0139,0,16.0395
+2026-11-15T14:06:34,proflash,art_test/raw/props3/fort_wall_side.png,0.0240,0,16.0155

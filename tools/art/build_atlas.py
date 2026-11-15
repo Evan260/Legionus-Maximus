@@ -3,7 +3,8 @@ texture in one batch.
 
 Each animation is cropped to the area its frames use and keeps an anchor at the unit's feet, so units stand on their
 position whatever the canvas PixelLab drew them on. A unit whose attack_<direction> folders exist also gets an "attack"
-action, anchored on the standing pose its first frame repeats.
+action, anchored on the standing pose its first frame repeats. A prop in SHEETS is several frames drawn side by side,
+such as the flame, and is packed as one prop with a frame per drawing.
 
 Usage: python tools/art/build_atlas.py
 Writes game/assets/atlas.png, game/assets/atlas.json and the province grounds in game/assets/grounds/.
@@ -12,6 +13,7 @@ import json
 import shutil
 from pathlib import Path
 
+import cv2
 import numpy as np
 from PIL import Image
 
@@ -25,12 +27,17 @@ UNITS = {"commander": "walking", "legionary": "walking", "archer": "walking",
          "gaul_swordsman": "running", "gaul_horseman": "running", "gaul_archer": "running", "boar": "running",
          "champion": "running", "horn_blower": "running", "gaul_king": "running"}
 PROPS = {"oak": "props2/oak.png", "fir": "props2/fir.png", "rock": "props2/rock.png", "log": "props2/log.png",
-         "bush": "props/bush.png", "stones": "props/stones.png", "coin": "props/coin.png", "pilum": "props2/pilum.png",
+         "stones": "props/stones.png", "coin": "props/coin.png", "pilum": "props2/pilum.png",
          "stake": "props3/stake.png", "caltrops": "props3/caltrops.png", "fire_pot": "props3/fire_pot.png",
          "onager_stone": "props3/onager_stone.png", "chest": "props3/chest.png", "supply_cart": "props3/supply_cart.png",
          "fort_gate": "props3/fort_gate.png", "hut": "props3/hut.png", "eagle_standard": "props3/eagle_standard.png",
          "altar": "props3/altar.png", "stump": "props3/stump.png", "timber": "props3/timber.png",
          "wheat": "props3/wheat.png", "hedge": "props3/hedge.png", "village": "props3/village.png"}
+# Props drawn as several frames side by side on one sheet, played in turn.
+SHEETS = {"flame": "props3/flame_sheet_b.png"}
+# Props toned down after drawing, as (how much the light parts darken, how much colour is taken out), so the
+# scattered stones and felled stumps do not shine like coins on the grass.
+TONE = {"stones": (0.4, 0.5), "stump": (0.4, 0.2)}
 # The bosses are drawn from their larger remakes; the small originals stay on disk.
 FOLDERS = {"berserker": "berserker_big", "war_band_leader": "war_band_leader_big", "war_priest": "war_priest_big",
            "chieftain": "chieftain_big", "champion": "champion_big", "horn_blower": "horn_blower_big", "gaul_king": "gaul_king_big"}
@@ -51,6 +58,46 @@ def feet(images):
     return max(int(np.nonzero(np.asarray(im)[..., 3].any(1))[0][-1]) for im in images)
 
 
+def tone(im, darken, grey):
+    a = np.asarray(im).astype(float)
+    rgb = a[..., :3] * (1 - darken * (a[..., :3] @ [0.299, 0.587, 0.114]) / 255)[..., None]
+    rgb = rgb * (1 - grey) + (rgb @ [0.299, 0.587, 0.114])[..., None] * grey
+    a[..., :3] = rgb
+    return Image.fromarray(a.clip(0, 255).astype(np.uint8))
+
+
+def sheet_frames(sheet):
+    """Splits a sheet into its separate drawings, left to right, on canvases of one size with the middle of each
+    drawing's base at the same point, so a flickering flame stays rooted where it stands."""
+    a = np.asarray(sheet)
+    n, labels, stats, _ = cv2.connectedComponentsWithStats((a[..., 3] > 0).astype(np.uint8), 8)
+    parts = sorted((stats[i] for i in range(1, n) if stats[i][4] >= 40), key=lambda st: st[0])
+    bases = []
+    for x, y, w, h, _ in parts:
+        rows = np.nonzero(a[y + h - 3:y + h, x:x + w, 3] > 0)[1]
+        bases.append(x + int(round(rows.mean())))
+    half = max(max(b - x, x + w - b) for (x, _, w, _, _), b in zip(parts, bases)) + 1
+    frames = []
+    for (x, y, w, h, _), b in zip(parts, bases):
+        im = Image.new("RGBA", (2 * half, sheet.height), (0, 0, 0, 0))
+        im.alpha_composite(sheet.crop((b - half, 0, b + half, sheet.height)))
+        frames.append(im)
+    return frames
+
+
+def torso_x(images, anchor, height):
+    """Mean x of the body from the hips to the head, against the anchor, over the frames."""
+    xs = []
+    for im in images:
+        drawn = np.asarray(im)[..., 3] > 0
+        top = max(0, int(anchor[1] - 0.97 * height))
+        bottom = max(top + 1, int(anchor[1] - 0.45 * height))
+        cols = np.nonzero(drawn[top:bottom])[1]
+        if len(cols):
+            xs.append(cols.mean() - anchor[0])
+    return float(np.mean(xs)) if xs else 0.0
+
+
 def main():
     sets = []
     for unit, action in UNITS.items():
@@ -63,11 +110,15 @@ def main():
                 raise SystemExit(f"missing {folder}")
             # The first frame is the standing pose itself, which the loop already passes through.
             loop = frames[1:] if len(frames) > 8 else frames
-            images, anchor = crop_set(loop, (loop[0].width / 2, feet(loop)))
-            sets.append((("units", unit, "move", d), images, anchor))
             still = Image.open(src / f"{d}.png").convert("RGBA")
-            images, anchor = crop_set([still], (still.width / 2, feet([still])))
-            sets.append((("units", unit, "idle", d), images, anchor))
+            idle, idle_anchor = crop_set([still], (still.width / 2, feet([still])))
+            images, anchor = crop_set(loop, (loop[0].width / 2, feet(loop)))
+            # The run leans the body ahead of the feet; taking half the lean back keeps a unit from hopping as it starts and stops.
+            lean = torso_x(images, anchor, idle_anchor[1]) - torso_x(idle, idle_anchor, idle_anchor[1])
+            if abs(lean) >= 3:
+                anchor[0] += round(lean / 2)
+            sets.append((("units", unit, "move", d), images, anchor))
+            sets.append((("units", unit, "idle", d), idle, idle_anchor))
             if attacks:
                 names = sorted(p.name for p in (src / f"attack_{d}").iterdir())
                 if names != [f"frame_{i:02d}.png" for i in range(9)]:
@@ -78,7 +129,13 @@ def main():
                 sets.append((("units", unit, "attack", d), images, anchor))
     for name, path in PROPS.items():
         im = Image.open(RAW / path).convert("RGBA")
+        if name in TONE:
+            im = tone(im, *TONE[name])
         images, anchor = crop_set([im], (im.width / 2, feet([im])))
+        sets.append((("props", name), images, anchor))
+    for name, path in SHEETS.items():
+        frames = sheet_frames(Image.open(RAW / path).convert("RGBA"))
+        images, anchor = crop_set(frames, (frames[0].width / 2, feet(frames)))
         sets.append((("props", name), images, anchor))
 
     # Shelf packing, tallest first, with a pixel of space so filtering never bleeds between sprites.
