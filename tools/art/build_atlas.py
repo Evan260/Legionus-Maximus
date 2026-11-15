@@ -18,7 +18,7 @@ import numpy as np
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[2]
-RAW = ROOT / "art_test" / "raw"
+RAW = ROOT / "tools" / "art" / "raw"
 OUT = ROOT / "game" / "assets"
 DIRS = ["east", "south-east", "south", "south-west", "west", "north-west", "north", "north-east"]
 UNITS = {"commander": "walking", "legionary": "walking", "archer": "walking",

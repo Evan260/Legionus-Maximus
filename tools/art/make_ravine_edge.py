@@ -1,4 +1,4 @@
-"""Turns the Pro Flash cliff strip in art_test/raw/ravine/ into the seamless ravine lip the game draws along each gorge.
+"""Turns the Pro Flash cliff strip in tools/art/raw/ravine/ into the seamless ravine lip the game draws along each gorge.
 
 The strip's two ends are blended with an ordered dither over BLEND columns so it repeats without a seam, and the empty
 rows above the rocks are cut off. Writes game/assets/ravine_edge.png.
@@ -8,7 +8,7 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = ROOT / "art_test/raw/ravine/edge_12.png"
+SOURCE = ROOT / "tools/art/raw/ravine/edge_12.png"
 OUT = ROOT / "game/assets/ravine_edge.png"
 BLEND = 32
 BAYER = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]

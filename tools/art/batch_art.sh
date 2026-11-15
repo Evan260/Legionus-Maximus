@@ -2,7 +2,7 @@
 # Generates the prototype's art in waves, since PixelLab runs at most 8 jobs at once on this plan.
 cd "$(dirname "$0")/../.."
 PL="python tools/art/pixellab.py"
-R=art_test/raw
+R=tools/art/raw
 id(){ python -c "import json;print(json.load(open('$R/$1/character.json'))['character_id'])"; }
 DIRS="south south-west west north-west north north-east east south-east"
 

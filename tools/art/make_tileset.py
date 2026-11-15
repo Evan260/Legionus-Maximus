@@ -1,6 +1,6 @@
 """Generate a PixelLab Wang tileset of two terrains and save each tile with its corner pattern.
 
-Usage: python tools/art/make_tileset.py "lower terrain" "upper terrain" --size 32 --out-dir art_test/raw/tiles
+Usage: python tools/art/make_tileset.py "lower terrain" "upper terrain" --size 32 --out-dir tools/art/raw/tiles
 """
 import argparse
 import json

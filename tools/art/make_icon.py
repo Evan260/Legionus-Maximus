@@ -8,7 +8,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parents[2]
-SRC = ROOT / "art_test" / "raw" / "commander" / "south.png"
+SRC = ROOT / "tools" / "art" / "raw" / "commander" / "south.png"
 RED = (150, 28, 24, 255)
 DARK = (60, 12, 10, 255)
 GOLD = (232, 176, 64, 255)

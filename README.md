@@ -24,7 +24,6 @@ Move with WASD, the arrow keys or the left stick. Space or the south face button
 | `game/data/` | Every number in `balance.json`, and every recruit, weapon, enemy, province and achievement in `content.json` |
 | `game/tests/` | Automated checks and the balance bots |
 | `tools/` | Scripts for art, sound, translations, exporting and Steam |
-| `art_test/` | The raw PixelLab art before it is packed into the atlas |
 | `docs/` | The build plans |
 | `builds/` | Exported builds (not kept in git) |
 
