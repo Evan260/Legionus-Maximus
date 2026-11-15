@@ -571,7 +571,7 @@
    "behaviour": "melee",
    "hp": 20,
    "speed": 44,
-   "dps": 3,
+   "dps": 2.5,
    "radius": 6,
    "coins": 1,
    "sprint": {
@@ -590,7 +590,7 @@
    "behaviour": "melee",
    "hp": 30,
    "speed": 40,
-   "dps": 4,
+   "dps": 3.5,
    "radius": 6,
    "coins": 2,
    "art": [
@@ -604,7 +604,7 @@
    "behaviour": "ranged",
    "hp": 24,
    "speed": 38,
-   "dps": 2,
+   "dps": 1,
    "radius": 6,
    "coins": 2,
    "arrives": 180,
@@ -620,7 +620,7 @@
    "behaviour": "beast",
    "hp": 14,
    "speed": 72,
-   "dps": 3,
+   "dps": 2.5,
    "radius": 5,
    "coins": 1,
    "arrives": 90,
@@ -714,10 +714,10 @@
    ],
    "elite": true,
    "lob": {
-    "every": 3.5,
+    "every": 4.5,
     "flight": 1.2,
     "radius": 28,
-    "damage": 22
+    "damage": 12
    },
    "mend": {
     "every": 12.0,

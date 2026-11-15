@@ -906,7 +906,7 @@ func test_fire_pots_light_the_ground_ahead(b: Dictionary) -> void:
 func test_trumpets_push_enemies_back(b: Dictionary) -> void:
 	var s := _arms_sim(b, 38, {"trumpets": 1})
 	s.horde.spawn("barbarian_club", Vector2(60, 0))
-	s.horde.spawn("barbarian_club", Vector2(500, 0))
+	s.horde.spawn("barbarian_club", Vector2(400, 0))
 	s.horde.e_stun[0] = 100.0
 	s.horde.e_stun[1] = 100.0
 	var far_before: Vector2 = s.horde.e_pos[1]
@@ -1269,8 +1269,8 @@ func test_chieftain_war_cry_speeds_the_horde(b: Dictionary) -> void:
 	var calm := Sim.new(b, Content.with_all_art(), {"seed": 97})
 	var cried := Sim.new(b, Content.with_all_art(), {"seed": 97})
 	for s in [calm, cried]:
-		s.horde.spawn("chieftain", Vector2(500, 0))
-		s.horde.spawn("barbarian_club", Vector2(450, 150))
+		s.horde.spawn("chieftain", Vector2(400, 0))
+		s.horde.spawn("barbarian_club", Vector2(350, 150))
 		s.horde.cry_cd = 1e9
 		s.horde.cleave_cd = 1e9
 	cried.horde.war_cry(cried.horde.chieftain_index(), cried)
@@ -3283,7 +3283,9 @@ func test_the_gods_are_offered_only_with_full_favour(b: Dictionary) -> void:
 
 func test_jupiter_strikes_down_the_barbarians_on_screen(b: Dictionary) -> void:
 	var s := _god_sim(b, 503, 40)
-	var far := s.horde.e_id[s.horde.spawn("barbarian_club", Vector2(600, 0))]
+	var far_i := s.horde.spawn("barbarian_club", Vector2(420, 0))
+	var far := s.horde.e_id[far_i]
+	s.horde.e_stun[far_i] = 100.0
 	s.gods.invoke(s, "jupiter")
 	_step_dt(s, 0.5)
 	check(not s.gods.bolts.is_empty(), "bolts are falling")
@@ -3537,9 +3539,10 @@ func test_bosses_arrive_on_their_own_timer(b: Dictionary) -> void:
 	_step_dt(s, 1.0)
 	check(_boss_count(s) == int(cfg.count_start), "the first boss arrives at %d s (%d)" % [int(cfg.first), _boss_count(s)])
 	check(is_equal_approx(s.horde.next_boss, float(cfg.first) + float(cfg.every)), "the next comes %d s later" % int(cfg.every))
+	var late_t := maxf((float(cfg.count_max) - float(cfg.count_start)) / float(cfg.count_growth), (float(cfg.max_alive) - float(cfg.max_alive_start)) / float(cfg.max_alive_growth)) + 1.0
 	var late := _quiet_sim(b, 702, Content.with_all_art())
-	late.time = 1100.0
-	late.horde.time = 1100.0
+	late.time = late_t
+	late.horde.time = late_t
 	late.horde._boss_arrival(late)
 	check(_boss_count(late) == int(cfg.count_max), "late in the run %d come at once (%d)" % [int(cfg.count_max), _boss_count(late)])
 	var kinds := {}
@@ -3548,7 +3551,7 @@ func test_bosses_arrive_on_their_own_timer(b: Dictionary) -> void:
 	for id in kinds:
 		check(late.horde.elites.has(id), "%s is one of the province's elites" % id)
 	var full := _quiet_sim(b, 703, Content.with_all_art())
-	full.horde.time = 1100.0
+	full.horde.time = late_t
 	for k in 3:
 		full.horde._boss_arrival(full)
 	check(_boss_count(full) == int(cfg.max_alive), "no more than %d bosses at once (%d)" % [int(cfg.max_alive), _boss_count(full)])
@@ -3796,8 +3799,10 @@ func test_early_bosses_come_weaker(b: Dictionary) -> void:
 	var first := s.horde.spawn("berserker", Vector2(300, 0), true)
 	s.horde.time = float(cfg.early_until)
 	var full := s.horde.spawn("berserker", Vector2(-300, 0), true)
-	var grown := 1.0 + float(cfg.health_growth) * float(cfg.early_until)
-	check(is_equal_approx(s.horde.e_max[first] / s.horde.e_max[full], float(cfg.early_mult) / grown), "a boss at the start has %d%% of the health of one at %d s" % [int(float(cfg.early_mult) * 100.0), int(cfg.early_until)])
+	s.horde.time = float(cfg.early_health_until)
+	var hale := s.horde.spawn("berserker", Vector2(0, -300), true)
+	var grown := 1.0 + float(cfg.health_growth) * float(cfg.early_health_until)
+	check(is_equal_approx(s.horde.e_max[first] / s.horde.e_max[hale], float(cfg.early_health) / grown), "a boss at the start has %d%% of the health of one at %d s" % [int(float(cfg.early_health) * 100.0), int(cfg.early_health_until)])
 	check(is_equal_approx(s.horde.e_power[first], float(cfg.early_mult)) and s.horde.e_power[full] == 1.0, "and hits that much softer")
 	var club := s.horde.spawn("barbarian_club", Vector2(0, 300))
 	check(s.horde.e_power[club] == 1.0, "an ordinary barbarian is not changed")

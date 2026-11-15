@@ -216,7 +216,7 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 	var power := 1.0
 	if tag == ELITE:
 		power = early_boss_mult()
-		hp *= power * (1.0 + float(b.bosses.health_growth) * time)
+		hp *= early_boss_health() * (1.0 + float(b.bosses.health_growth) * time)
 	if hard:
 		hp *= float(b.hard.health_mult)
 	var owner_sim: Sim = sim_ref.get_ref() if sim_ref != null else null
@@ -400,10 +400,16 @@ func _spawn(dt: float, sim: Sim) -> void:
 			spawn_cart()
 
 
-## Early bosses come with part of their health and strength, growing to the full by `early_until`, so the opening stays learnable.
+## Early bosses hit with part of their strength, growing to the full by `early_until`, so the opening stays learnable.
 func early_boss_mult() -> float:
 	var cfg: Dictionary = b.bosses
 	return lerpf(float(cfg.early_mult), 1.0, clampf(time / float(cfg.early_until), 0.0, 1.0))
+
+
+## Early bosses also come with part of their health, on their own curve so they stay tough while hitting softer.
+func early_boss_health() -> float:
+	var cfg: Dictionary = b.bosses
+	return lerpf(float(cfg.early_health), 1.0, clampf(time / float(cfg.early_health_until), 0.0, 1.0))
 
 
 ## How fast early bosses use their abilities, rising to full pace by `early_until`.
