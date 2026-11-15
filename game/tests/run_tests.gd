@@ -4626,6 +4626,12 @@ func test_winning_germania_opens_gaul_while_britannia_waits_for_art(b: Dictionar
 	s.victory = true
 	p.record_run(s)
 	check(p.province_unlocked("gaul"), "winning in Germania opens Gaul")
+	var old := _fresh_profile()
+	old.data.records["germania"] = {"best_time": 900.0, "longest": 900.0, "won": true, "hard_won": false}
+	check(not old.province_unlocked("gaul"), "a profile that won Germania before Gaul was drawn starts without it")
+	old.open_won_provinces(content)
+	check(old.province_unlocked("gaul"), "and finds it open once the game starts")
+	old.free()
 	_cleanup_profile_files()
 	p.free()
 

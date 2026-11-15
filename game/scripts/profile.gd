@@ -271,6 +271,15 @@ func record_run(sim: Sim) -> void:
 	save()
 
 
+## Opens every province whose drawn predecessor has been won. A province waiting for its art is passed over, so winning one opens
+## the next that can be played; it also runs at start, so a profile that won a province before the next was drawn finds it open.
+func open_won_provinces(content: Content) -> void:
+	for p in content.provinces:
+		var before: String = content.province_before(p)
+		if before != "" and bool(record_of(before).won) and not province_unlocked(p):
+			data.unlocked.provinces.append(p)
+
+
 func _unlock(sim: Sim) -> void:
 	var content: Content = sim.content
 	var provinces: Array = content.provinces.keys()
@@ -278,11 +287,7 @@ func _unlock(sim: Sim) -> void:
 	for p in provinces:
 		if not bool(record_of(p).won):
 			all_won = false
-	# A province waiting for its art is passed over, so winning one opens the next province that can be played.
-	for p in provinces:
-		var before: String = content.province_before(p)
-		if before != "" and bool(record_of(before).won) and not province_unlocked(p):
-			data.unlocked.provinces.append(p)
+	open_won_provinces(content)
 	for id in content.commanders:
 		if commander_unlocked(id):
 			continue

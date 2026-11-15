@@ -942,17 +942,17 @@
    "text": "A Gaulish warrior whose long sword cuts down two men at once.",
    "history": "Gaulish long swords were made for slashing, and bent so easily that warriors straightened them.",
    "behaviour": "melee",
-   "hp": 28,
+   "hp": 18,
    "speed": 42,
-   "dps": 4,
+   "dps": 1.5,
    "radius": 6,
    "coins": 1,
    "art": [
     "unit:gaul_swordsman"
    ],
    "slash": {
-    "every": 2.5,
-    "damage_mult": 2.0,
+    "every": 4.0,
+    "damage_mult": 1.0,
     "arc": 1.6,
     "reach": 14
    }
@@ -962,9 +962,9 @@
    "text": "He rides along the legion's flank, then rears and strikes with his horse's hooves.",
    "history": "Gaulish cavalry were among the best in Europe, and Caesar hired many into his own army.",
    "behaviour": "charger",
-   "hp": 38,
+   "hp": 30,
    "speed": 70,
-   "dps": 5,
+   "dps": 3,
    "radius": 8,
    "coins": 2,
    "art": [
@@ -972,16 +972,17 @@
    ],
    "flank_charge": {
     "offset": 0.7
-   }
+   },
+   "arrives": 120
   },
   "gaul_archer": {
    "name": "Archer",
    "text": "He shoots high over his own lines, and the arrows fall where a ring marks the ground.",
    "history": "Archers were rarer among the Gauls, who preferred to fight with sword and spear.",
    "behaviour": "ranged",
-   "hp": 20,
+   "hp": 22,
    "speed": 38,
-   "dps": 4,
+   "dps": 1.5,
    "radius": 6,
    "coins": 2,
    "art": [
@@ -989,19 +990,20 @@
    ],
    "range": 130,
    "volley": {
-    "radius": 16,
+    "radius": 14,
     "delay": 1.1,
-    "damage_mult": 0.7
-   }
+    "damage_mult": 0.33
+   },
+   "arrives": 180
   },
   "boar": {
    "name": "Boar",
    "text": "It charges in a straight line and cannot turn. A hedge or stake in its path stuns it.",
    "history": "The boar was a Gaulish sacred animal, and its image topped many a helmet and war standard.",
    "behaviour": "beast",
-   "hp": 26,
-   "speed": 62,
-   "dps": 5,
+   "hp": 16,
+   "speed": 64,
+   "dps": 2.5,
    "radius": 6,
    "coins": 1,
    "art": [
@@ -1013,16 +1015,17 @@
     "seconds": 1.1,
     "burst_mult": 1.5,
     "stun": 1.2
-   }
+   },
+   "arrives": 90
   },
   "champion": {
    "name": "Champion",
    "text": "He calls out the commander to a ring. Fight him inside it and he falls faster; walk away and he and the warriors round him grow fiercer.",
    "history": "Celtic champions fought in front of the line, and challenged enemy heroes to single combat.",
    "behaviour": "melee",
-   "hp": 6720,
+   "hp": 5600,
    "speed": 48,
-   "dps": 16,
+   "dps": 14,
    "radius": 15,
    "coins": 0,
    "art": [
@@ -1049,7 +1052,7 @@
    "text": "His carnyx speeds and heals the warriors round him, and its blast pushes the ranks back and slows their blows. He runs from soldiers who reach him.",
    "history": "The carnyx, a tall bronze horn with an animal head, was meant to terrify the foe.",
    "behaviour": "lobber",
-   "hp": 5280,
+   "hp": 4800,
    "speed": 38,
    "dps": 0,
    "radius": 14,
@@ -1084,9 +1087,9 @@
    "text": "A king with a long sword and a sworn bodyguard: while two of his guards live he takes little harm. He rings the legion with stakes and calls horsemen from the hills.",
    "history": "Vercingetorix united the Gauls in 52 BC and held out against Caesar at the siege of Alesia.",
    "behaviour": "melee",
-   "hp": 30600,
+   "hp": 24000,
    "speed": 28,
-   "dps": 36,
+   "dps": 30,
    "radius": 26,
    "coins": 0,
    "art": [

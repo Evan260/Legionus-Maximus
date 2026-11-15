@@ -59,6 +59,7 @@ func _ready() -> void:
 	balance = JSON.parse_string(FileAccess.get_file_as_string("res://data/balance.json"))
 	content = Content.load_all(Content.available_art())
 	Steamworks.content = content
+	Profile.open_won_provinces(content)
 	Lang.changed.connect(_language_changed)
 	if args.has("chieftain-at"):
 		balance.chieftain_at = float(args["chieftain-at"])
@@ -324,6 +325,7 @@ func _sample_profile() -> void:
 		"records": {"germania": {"best_time": 1110.0, "longest": 1200.0, "won": true, "hard_won": false}},
 		"seen": {"legionary": true, "archer": true, "pilum": true, "barbarian_club": true, "wolf": true, "berserker": true},
 		"totals": {"kills": 2400, "runs": 9, "wins": 1}, "unlocked": {"commanders": ["tribune", "archer_captain"]}})
+	Profile.open_won_provinces(content)
 
 
 ## Back to the camp, with the legion standing on the field as the chosen commander and the quartermaster's ranks would start it.
