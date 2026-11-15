@@ -37,12 +37,11 @@ func is_open(id: String) -> bool:
 	return main.content.ready("provinces", id) and Profile.province_unlocked(id)
 
 
-## What opens a locked province: winning the one before it, or its art when that is all it waits for.
+## What opens a locked province: winning the drawn one before it, or its art when that is all it waits for.
 func locked_text(id: String) -> String:
-	var ids: Array = main.content.provinces.keys()
-	var i := ids.find(id)
-	if i > 0 and not Profile.record_of(ids[i - 1]).won:
-		return tr("Locked: %s") % (tr("Win in %s") % main.content.provinces[ids[i - 1]].name)
+	var before: String = main.content.province_before(id)
+	if main.content.ready("provinces", id) and before != "" and not Profile.record_of(before).won:
+		return tr("Locked: %s") % (tr("Win in %s") % main.content.provinces[before].name)
 	return tr("Not ready yet")
 
 

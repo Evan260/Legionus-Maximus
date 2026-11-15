@@ -939,7 +939,7 @@
   },
   "gaul_swordsman": {
    "name": "Swordsman",
-   "text": "A Gaulish warrior with a long iron sword.",
+   "text": "A Gaulish warrior whose long sword cuts down two men at once.",
    "history": "Gaulish long swords were made for slashing, and bent so easily that warriors straightened them.",
    "behaviour": "melee",
    "hp": 28,
@@ -949,11 +949,17 @@
    "coins": 1,
    "art": [
     "unit:gaul_swordsman"
-   ]
+   ],
+   "slash": {
+    "every": 2.5,
+    "damage_mult": 2.0,
+    "arc": 1.6,
+    "reach": 14
+   }
   },
   "gaul_horseman": {
    "name": "Horseman",
-   "text": "A rider who charges the legion's flank.",
+   "text": "He rides along the legion's flank, then rears and strikes with his horse's hooves.",
    "history": "Gaulish cavalry were among the best in Europe, and Caesar hired many into his own army.",
    "behaviour": "charger",
    "hp": 38,
@@ -963,11 +969,14 @@
    "coins": 2,
    "art": [
     "unit:gaul_horseman"
-   ]
+   ],
+   "flank_charge": {
+    "offset": 0.7
+   }
   },
   "gaul_archer": {
    "name": "Archer",
-   "text": "He shoots from behind his own lines.",
+   "text": "He shoots high over his own lines, and the arrows fall where a ring marks the ground.",
    "history": "Archers were rarer among the Gauls, who preferred to fight with sword and spear.",
    "behaviour": "ranged",
    "hp": 20,
@@ -978,11 +987,16 @@
    "art": [
     "unit:gaul_archer"
    ],
-   "range": 130
+   "range": 130,
+   "volley": {
+    "radius": 16,
+    "delay": 1.1,
+    "damage_mult": 0.7
+   }
   },
   "boar": {
    "name": "Boar",
-   "text": "A wild boar, driven at the legion.",
+   "text": "It charges in a straight line and cannot turn. A hedge or stake in its path stuns it.",
    "history": "The boar was a Gaulish sacred animal, and its image topped many a helmet and war standard.",
    "behaviour": "beast",
    "hp": 26,
@@ -992,11 +1006,18 @@
    "coins": 1,
    "art": [
     "unit:boar"
-   ]
+   ],
+   "rush": {
+    "every": 5.0,
+    "speed_mult": 2.6,
+    "seconds": 1.1,
+    "burst_mult": 1.5,
+    "stun": 1.2
+   }
   },
   "champion": {
    "name": "Champion",
-   "text": "The best swordsman of his clan.",
+   "text": "He calls out the commander to a ring. Fight him inside it and he falls faster; walk away and he and the warriors round him grow fiercer.",
    "history": "Celtic champions fought in front of the line, and challenged enemy heroes to single combat.",
    "behaviour": "melee",
    "hp": 6720,
@@ -1007,27 +1028,60 @@
    "art": [
     "unit:champion"
    ],
-   "elite": true
+   "elite": true,
+   "duel": {
+    "every": 14.0,
+    "range": 150,
+    "radius": 100,
+    "seconds": 7.0,
+    "inside_mult": 1.5,
+    "cut": 0.75,
+    "scorn": {
+     "power_mult": 1.5,
+     "radius": 220,
+     "seconds": 5.0,
+     "speed_mult": 1.4
+    }
+   }
   },
   "horn_blower": {
    "name": "Horn blower",
-   "text": "His horn brings the whole host on faster.",
+   "text": "His carnyx speeds and heals the warriors round him, and its blast pushes the ranks back and slows their blows. He runs from soldiers who reach him.",
    "history": "The carnyx, a tall bronze horn with an animal head, was meant to terrify the foe.",
-   "behaviour": "ranged",
+   "behaviour": "lobber",
    "hp": 5280,
    "speed": 38,
-   "dps": 12,
+   "dps": 0,
    "radius": 14,
    "coins": 0,
    "art": [
     "unit:horn_blower"
    ],
    "elite": true,
-   "range": 100
+   "range": 120,
+   "rally": {
+    "every": 9.0,
+    "radius": 220,
+    "seconds": 4.0,
+    "speed_mult": 1.5,
+    "heal": 0.15
+   },
+   "blast": {
+    "every": 11.0,
+    "range": 160,
+    "push": 18,
+    "seconds": 4.0,
+    "slow": 0.35
+   },
+   "flee": {
+    "near": 60,
+    "seconds": 1.6,
+    "speed_mult": 1.4
+   }
   },
   "gaul_king": {
    "name": "Gaulish king",
-   "text": "A king with a long sword and a bodyguard sworn to die for him.",
+   "text": "A king with a long sword and a sworn bodyguard: while two of his guards live he takes little harm. He rings the legion with stakes and calls horsemen from the hills.",
    "history": "Vercingetorix united the Gauls in 52 BC and held out against Caesar at the siege of Alesia.",
    "behaviour": "melee",
    "hp": 30600,
@@ -1056,27 +1110,30 @@
      "range": 40,
      "throw": 26
     },
-    "war_cry": {
-     "every": 18.0,
-     "radius": 240,
-     "seconds": 4.0,
-     "speed_mult": 1.5
+    "summon": {
+     "every": 16.0,
+     "count": 5,
+     "fury_count": 8,
+     "kind": "gaul_horseman"
     },
-    "slam": {
-     "every": 9.0,
-     "windup": 1.2,
-     "radius": 56,
-     "damage_mult": 1.2,
-     "retry": 0.5
-    },
-    "horn": {
-     "every": 30.0
+    "siege": {
+     "every": 22.0,
+     "arc": 4.2,
+     "gap": 26,
+     "step": 13,
+     "radius": 6,
+     "seconds": 7.0
     }
    },
    "fury": {
     "below": 0.5,
-    "rate_mult": 1.4,
-    "bands": 2
+    "rate_mult": 1.3,
+    "release": true
+   },
+   "guard": "gaul_swordsman",
+   "sworn": {
+    "min": 2,
+    "cut": 0.6
    }
   },
   "falx_warrior": {
@@ -1442,6 +1499,7 @@
    "art": [
     "prop:wheat",
     "prop:hedge",
+    "prop:village",
     "ground:gaul"
    ]
   },

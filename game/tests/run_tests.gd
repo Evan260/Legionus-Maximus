@@ -1495,7 +1495,8 @@ func test_a_province_turns_on_with_its_ground_and_draws_it(b: Dictionary) -> voi
 	art.erase("ground:gaul")
 	check(not Content.load_all(art).ready("provinces", "gaul"), "without its ground it stays hidden")
 	var s := Sim.new(b, c, {"seed": 5, "province": "gaul"})
-	check(s.province == "gaul" and Content.ground_path("gaul") == "res://assets/grounds/germania.png", "a province without a file falls back to Germania's ground")
+	check(s.province == "gaul" and Content.ground_path("gaul") == "res://assets/grounds/gaul.png", "Gaul draws its own ground")
+	check(Content.ground_path("dacia") == "res://assets/grounds/germania.png", "a province without a file falls back to Germania's ground")
 
 
 func test_province_only_spawns_its_ready_enemies(b: Dictionary) -> void:
@@ -2193,7 +2194,10 @@ func test_demo_offers_three_commanders(b: Dictionary) -> void:
 		if content.ready("commanders", id) and (province == "" or content.ready("provinces", province)):
 			ready.append(id)
 	check(Game.commanders(content, b) == ready, "the full game lists every drawn commander whose unlock province is playable")
-	check(not "engineer" in Game.commanders(content, b), "the engineer waits for Gaul")
+	check("engineer" in Game.commanders(content, b), "the engineer is offered now that Gaul is drawn")
+	var later := Content.load_all(Content.available_art())
+	later.commanders.engineer.unlock = {"type": "win", "province": "dacia"}
+	check(not "engineer" in Game.commanders(later, b), "a commander won in a province not drawn yet, such as Dacia, waits for it")
 	check(Game.province_allowed("gaul", b), "the full game opens every province")
 	check(Game.run_cap(b) == 0.0, "the full game has no cap")
 	Game.demo_forced = true
@@ -4586,3 +4590,320 @@ func test_the_gods_sound_ready_once_when_the_favour_fills(b: Dictionary) -> void
 		s.hit(i, 1e6)
 		s._remove_dead()
 	check(_count_events(s, "godready") == 1, "the gods are ready once, when the meter fills (%d)" % _count_events(s, "godready"))
+
+
+## A quiet run in Gaul on open ground: no stream, surges or bosses on their own, a commander who cannot fall and eight legionaries round him.
+func _gaul_sim(b: Dictionary, seed_value: int) -> Sim:
+	var s := Sim.new(b, Content.with_all_art(), {"seed": seed_value, "province": "gaul"})
+	s.terrain.clear()
+	s.b = b.duplicate()
+	s.b.spawn_per_second_start = 0.0
+	s.b.spawn_per_second_growth = 0.0
+	s.horde.next_surge = 1e9
+	s.horde.next_band = 1e9
+	s.horde.next_cart = 1e9
+	s.horde.next_boss = 1e9
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	for k in 8:
+		s.add_soldier("legionary")
+	s.legion.place_all(s.facing_angle)
+	for t in ["cleave_cd", "cry_cd", "charge_cd", "slam_cd", "horn_cd", "summon_cd", "siege_cd"]:
+		s.horde.set(t, 1e9)
+	s._rebuild_grids()
+	return s
+
+
+func test_winning_germania_opens_gaul_while_britannia_waits_for_art(b: Dictionary) -> void:
+	check(content.ready("provinces", "gaul") and not content.ready("provinces", "britannia"), "Gaul is drawn and Britannia is not")
+	check(content.province_before("gaul") == "germania", "the drawn province before Gaul is Germania")
+	check(content.province_before("germania") == "", "nothing comes before Germania")
+	check(Content.with_all_art().province_before("gaul") == "britannia", "once Britannia is drawn it comes between them")
+	var p := _fresh_profile()
+	var s := Sim.new(b, content, {"seed": 901})
+	s.time = 900.0
+	s.over = true
+	s.victory = true
+	p.record_run(s)
+	check(p.province_unlocked("gaul"), "winning in Germania opens Gaul")
+	_cleanup_profile_files()
+	p.free()
+
+
+func test_gaul_is_farmland_with_villages_hedges_and_wheat(b: Dictionary) -> void:
+	var kinds := {}
+	var t := Terrain.new(902, b.forest, {})
+	t.field = b.fields.gaul
+	for pr in t.props_in(Rect2(-3000, -3000, 6000, 6000)):
+		kinds[pr[0]] = kinds.get(pr[0], 0) + 1
+	check(kinds.has("wheat") and kinds.has("hedge") and kinds.has("village"), "the fields hold wheat, hedges and villages (%s)" % str(kinds.keys()))
+	check(not kinds.has("oak") and not kinds.has("fir") and not kinds.has("log"), "and none of Germania's forest")
+	var g := Terrain.new(902, b.forest, {})
+	var forest := {}
+	for pr in g.props_in(Rect2(-3000, -3000, 6000, 6000)):
+		forest[pr[0]] = true
+	check(forest.has("oak") and not forest.has("wheat") and not forest.has("village"), "Germania keeps its forest")
+
+
+func test_hedges_and_villages_block_and_wheat_does_not(b: Dictionary) -> void:
+	var t := Terrain.new(903, b.forest, {})
+	t.field = b.fields.gaul
+	var hedge := Vector2.INF
+	var village := Vector2.INF
+	var wheat_solid := false
+	for pr in t.props_in(Rect2(-3000, -3000, 6000, 6000)):
+		if pr[0] == "hedge" and hedge == Vector2.INF:
+			hedge = pr[1]
+		elif pr[0] == "village" and village == Vector2.INF:
+			village = pr[1]
+		elif pr[0] == "wheat" and pr[2] > 0.0:
+			wheat_solid = true
+	check(not wheat_solid, "wheat never blocks")
+	check(hedge != Vector2.INF and village != Vector2.INF, "a hedge and a village were found")
+	t.refresh(hedge)
+	var at := hedge + Vector2(3, -6)
+	check(t.push_out(at, Sim.UNIT_RADIUS).distance_to(at) > 4.0, "a soldier cannot stand in a hedge")
+	t.refresh(village)
+	at = village + Vector2(0, -30)
+	check(t.push_out(at, Sim.UNIT_RADIUS).distance_to(at) > 4.0, "nor in a village's houses")
+
+
+func test_a_swordsman_slash_cuts_two_soldiers(b: Dictionary) -> void:
+	var s := _gaul_sim(b, 904)
+	var h := s.horde
+	var i := h.spawn("gaul_swordsman", Vector2(100, 0))
+	var cfg: Dictionary = content.enemies.gaul_swordsman.slash
+	var a: Dictionary = s.soldiers[0]
+	var c: Dictionary = s.soldiers[1]
+	var far: Dictionary = s.soldiers[2]
+	a.pos = Vector2(86, -6)
+	c.pos = Vector2(86, 8)
+	far.pos = Vector2(40, 0)
+	for u in [a, c, far]:
+		u.max_hp = 1e6
+		u.hp = 1e6
+	s._rebuild_grids()
+	h._slash(i, Vector2.LEFT, 1.0, s)
+	var want := float(content.enemies.gaul_swordsman.dps) * float(cfg.damage_mult)
+	check(is_equal_approx(1e6 - a.hp, want) and is_equal_approx(1e6 - c.hp, want), "one slash cuts both soldiers in front of him (%.0f each)" % want)
+	check(far.hp == 1e6, "and misses a soldier out of reach")
+	check(h.e_strike[i] == s.time, "and plays his swing")
+
+
+func test_a_horseman_charges_along_the_flank_then_rears(b: Dictionary) -> void:
+	var s := _gaul_sim(b, 905)
+	var h := s.horde
+	var i := h.spawn("gaul_horseman", s.commander.pos + Vector2(200, 0))
+	h.e_cd[i] = 0.0
+	s._rebuild_grids()
+	h._move(1.0 / 60.0, s)
+	var dir: Vector2 = h.e_dir[i]
+	check(h.e_dash[i] > 0.0, "he starts a charge")
+	# How close his line of charge passes the commander.
+	var to: Vector2 = s.commander.pos - h.e_pos[i]
+	var miss := absf(to.cross(dir))
+	check(miss > s.legion_reach * 0.4, "aimed beside the legion rather than at its middle (%.0f px off)" % miss)
+	h.e_pos[i] = s.soldiers[0].pos + Vector2(10, 0)
+	s._rebuild_grids()
+	h._move(1.0 / 60.0, s)
+	check(h.e_dash[i] == 0.0 and h.e_strike[i] == s.time, "riding into a soldier ends the charge as his horse rears")
+
+
+func test_an_archer_volley_falls_on_a_marked_ring(b: Dictionary) -> void:
+	var s := _gaul_sim(b, 906)
+	var h := s.horde
+	var i := h.spawn("gaul_archer", s.commander.pos + Vector2(140, 0))
+	var target: Dictionary = s.commander
+	for u in s.units:
+		if u.pos.distance_to(h.e_pos[i]) < target.pos.distance_to(h.e_pos[i]):
+			target = u
+	h.e_cd[i] = 0.0
+	s._rebuild_grids()
+	h._move(1.0 / 60.0, s)
+	var volley: Dictionary = {}
+	for l in h.foe_lobs:
+		if l.get("volley", false):
+			volley = l
+	check(not volley.is_empty(), "he looses a volley instead of a straight shot")
+	check(h.sp_pos.is_empty(), "nothing flies straight at the legion")
+	check(volley.get("to", Vector2.INF).distance_to(target.pos) < float(content.enemies.gaul_archer.volley.radius), "it falls by the nearest soldier")
+	for u in [s.commander] + s.soldiers:
+		u.max_hp = 1e6
+		u.hp = 1e6
+	h._foe_lobs(0.01, s)
+	check(target.hp == 1e6, "nobody is hurt while the ring fills")
+	volley.t = volley.dur
+	h._foe_lobs(0.01, s)
+	var hurt := 0
+	for u in [s.commander] + s.soldiers:
+		if u.hp < 1e6 and u.pos.distance_to(volley.to) < volley.radius + Sim.UNIT_RADIUS:
+			hurt += 1
+	check(hurt >= 1, "then it hurts the soldiers in the ring")
+
+
+func test_a_boar_rushes_straight_and_a_stake_stuns_it(b: Dictionary) -> void:
+	var s := _gaul_sim(b, 907)
+	var h := s.horde
+	var i := h.spawn("boar", s.commander.pos + Vector2(180, 0))
+	h.e_cd[i] = 0.0
+	s._rebuild_grids()
+	h._move(1.0 / 60.0, s)
+	check(h.e_dash[i] > 0.0, "the boar starts its rush")
+	var dir: Vector2 = h.e_dir[i]
+	s.commander.pos += Vector2(0, 120)
+	s._rebuild_grids()
+	h._move(1.0 / 60.0, s)
+	check(h.e_dir[i] == dir, "and cannot turn while it runs")
+	s.terrain.add_post(h.e_pos[i] + dir * 12.0, 6.0, 1e9)
+	s.terrain.refresh(s.commander.pos)
+	var stunned := false
+	for k in 30:
+		s._rebuild_grids()
+		h._move(1.0 / 60.0, s)
+		stunned = stunned or h.e_stun[i] > 0.0
+	check(stunned, "running into a stake stuns it")
+
+
+func test_the_champion_calls_a_duel(b: Dictionary) -> void:
+	var cfg: Dictionary = content.enemies.champion.duel
+	var s := _gaul_sim(b, 908)
+	var h := s.horde
+	s.commander.pos = Vector2.ZERO
+	var i := h.spawn("champion", Vector2(90, 0), true)
+	var st: Dictionary = h.boss_state(i)
+	for key in st:
+		if str(key).ends_with("_cd"):
+			st[key] = 1e9
+	st.duel_cd = 0.0
+	s._rebuild_grids()
+	h._bosses(1.0 / 60.0, s)
+	check(st.duel > 0.0, "he calls the commander out")
+	check(st.duel_at.distance_to(Vector2.ZERO) <= st.duel_r and st.duel_at.distance_to(h.e_pos[i]) <= st.duel_r, "the ring holds them both")
+	var hp0: float = h.e_hp[i]
+	s.hit(i, 100.0, 0.0, "", Vector2(40, 0))
+	check(is_equal_approx(hp0 - h.e_hp[i], 100.0 * float(cfg.inside_mult)), "a blow from inside the ring lands harder")
+	hp0 = h.e_hp[i]
+	s.hit(i, 100.0, 0.0, "", Vector2(400, 0))
+	check(is_equal_approx(hp0 - h.e_hp[i], 100.0 * (1.0 - float(cfg.cut))), "a blow from outside it is mostly turned")
+	var power: float = h.e_power[i]
+	s.commander.pos = Vector2(-400, 0)
+	h._bosses(1.0 / 60.0, s)
+	check(st.duel == 0.0, "walking out of the ring ends the duel")
+	check(is_equal_approx(h.e_power[i], power * float(cfg.scorn.power_mult)), "and shames him into hitting harder")
+	h._bosses(1.0 / 60.0, s)
+	check(is_equal_approx(h.e_power[i], power * float(cfg.scorn.power_mult)), "only once")
+
+
+func test_the_horn_blower_rallies_blasts_and_runs(b: Dictionary) -> void:
+	var cfg: Dictionary = content.enemies.horn_blower
+	var s := _gaul_sim(b, 909)
+	var h := s.horde
+	s.commander.pos = Vector2.ZERO
+	s.legion.place_all(s.facing_angle)
+	var i := h.spawn("horn_blower", Vector2(150, 0), true)
+	var st: Dictionary = h.boss_state(i)
+	for key in st:
+		if str(key).ends_with("_cd"):
+			st[key] = 1e9
+	var j := h.spawn("gaul_swordsman", Vector2(170, 20))
+	h.e_hp[j] = h.e_max[j] * 0.5
+	h.rally_cd[h.e_id[i]] = 0.0
+	s._rebuild_grids()
+	h._rally(1.0 / 60.0, s)
+	check(h.e_hp[j] > h.e_max[j] * 0.5 and h.e_haste[j] > 0.0, "his rally heals and speeds the warriors round him")
+	var rate := s.attack_rate()
+	var soldier: Dictionary = s.soldiers[0]
+	var before: float = soldier.pos.distance_to(h.e_pos[i])
+	st.blast_cd = 0.0
+	h._bosses(1.0 / 60.0, s)
+	check(h.blast_left > 0.0 and s.attack_rate() < rate, "his blast slows the legion's blows")
+	check(soldier.pos.distance_to(h.e_pos[i]) > before, "and pushes the soldiers back")
+	check(h.k_beh[h.e_kind[i]] == Horde.LOBBER and h.k_lob[h.e_kind[i]] == 0, "he stands off and throws nothing")
+	soldier.pos = h.e_pos[i] + Vector2(-20, 0)
+	s._rebuild_grids()
+	h._bosses(1.0 / 60.0, s)
+	check(h.e_flee[i] > 0.0, "a soldier at his elbow sends him running")
+	var gap := h.e_pos[i].length()
+	h._move(0.1, s)
+	check(h.e_pos[i].length() > gap, "away from the legion")
+	check(float(cfg.flee.speed_mult) > 1.0, "faster than he walks")
+
+
+func test_the_gaulish_king_and_his_sworn_guard(b: Dictionary) -> void:
+	var s := _gaul_sim(b, 910)
+	var h := s.horde
+	var cfg: Dictionary = content.enemies.gaul_king
+	var ci := h.spawn_chieftain(Vector2(300, 0))
+	var guards := 0
+	for k in h.e_pos.size():
+		if h.e_guard[k] != Vector2.ZERO:
+			guards += 1
+			check(h.kind_ids[h.e_kind[k]] == "gaul_swordsman", "his guards are swordsmen")
+	check(guards == h.guards_alive and guards == int(b.chieftain_guard.count), "he comes with his ring of guards")
+	var hp0: float = h.e_hp[ci]
+	s.hit(ci, 100.0)
+	check(is_equal_approx(hp0 - h.e_hp[ci], 100.0 * (1.0 - float(cfg.sworn.cut))), "while they stand he takes little harm")
+	while h.guards_alive >= int(cfg.sworn.min):
+		for k in h.e_pos.size():
+			if h.e_guard[k] != Vector2.ZERO:
+				h.remove_at(k)
+				break
+	ci = h.chieftain_index()
+	hp0 = h.e_hp[ci]
+	s.hit(ci, 100.0)
+	check(is_equal_approx(hp0 - h.e_hp[ci], 100.0), "with fewer than %d left he takes full harm" % int(cfg.sworn.min))
+
+
+func test_the_gaulish_king_rings_the_legion_with_stakes(b: Dictionary) -> void:
+	var s := _gaul_sim(b, 911)
+	var h := s.horde
+	var siege: Dictionary = content.enemies.gaul_king.attacks.siege
+	var ci := h.spawn_chieftain(Vector2(300, 0))
+	var before := s.terrain.posts.size()
+	h.siege(ci, s)
+	var added := s.terrain.posts.size() - before
+	check(added > 10, "he drives a ring of stakes (%d)" % added)
+	var ahead := Vector2.from_angle(s.facing_angle)
+	var front := 0
+	var outside := true
+	for post in s.terrain.posts:
+		var off: Vector2 = post[1] - s.commander.pos
+		outside = outside and off.length() > s.legion_reach
+		if off.normalized().dot(ahead) > 0.9:
+			front += 1
+	check(outside, "every stake stands outside the legion")
+	check(front > 0, "and some across its front")
+	s.terrain.refresh(s.commander.pos)
+	var at: Vector2 = s.commander.pos + ahead * (s.legion_reach + float(siege.gap))
+	check(s.terrain.push_out(at, Sim.UNIT_RADIUS).distance_to(at) > 2.0, "nobody walks through them")
+	s.terrain.rot_posts(s.time + float(siege.seconds) + 0.1)
+	check(s.terrain.posts.size() == before, "they rot after %d seconds" % int(siege.seconds))
+
+
+func test_the_gaulish_king_summons_horsemen_and_frees_his_guard(b: Dictionary) -> void:
+	var s := _gaul_sim(b, 912)
+	var h := s.horde
+	var cfg: Dictionary = content.enemies.gaul_king.attacks.summon
+	var ci := h.spawn_chieftain(Vector2(300, 0))
+	var n0 := h.e_pos.size()
+	h.summon(ci, s)
+	var riders := 0
+	for k in range(n0, h.e_pos.size()):
+		if h.kind_ids[h.e_kind[k]] == "gaul_horseman":
+			riders += 1
+	check(riders == int(cfg.count), "he calls %d horsemen from the edge of the field" % int(cfg.count))
+	h.e_hp[ci] = h.e_max[ci] * 0.49
+	h.siege_cd = 0.0
+	var posts := s.terrain.posts.size()
+	h._chieftain(1.0 / 60.0, s)
+	check(h.chief_fury, "below half health he enters his second phase")
+	check(h.guards_alive == 0, "his guards leave their places")
+	var placed := 0
+	for k in h.e_pos.size():
+		if h.e_guard[k] != Vector2.ZERO:
+			placed += 1
+	check(placed == 0, "and run at the legion")
+	check(s.terrain.posts.size() == posts, "and he stops driving stakes")
+	n0 = h.e_pos.size()
+	h.summon(ci, s)
+	check(h.e_pos.size() - n0 == int(cfg.fury_count), "his summons bring %d riders now" % int(cfg.fury_count))

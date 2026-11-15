@@ -278,9 +278,11 @@ func _unlock(sim: Sim) -> void:
 	for p in provinces:
 		if not bool(record_of(p).won):
 			all_won = false
-	for i in provinces.size() - 1:
-		if bool(record_of(provinces[i]).won) and not province_unlocked(provinces[i + 1]):
-			data.unlocked.provinces.append(provinces[i + 1])
+	# A province waiting for its art is passed over, so winning one opens the next province that can be played.
+	for p in provinces:
+		var before: String = content.province_before(p)
+		if before != "" and bool(record_of(before).won) and not province_unlocked(p):
+			data.unlocked.provinces.append(p)
 	for id in content.commanders:
 		if commander_unlocked(id):
 			continue

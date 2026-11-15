@@ -17,6 +17,7 @@
   "fort": {"near": 900, "far": 1200, "arc": 0.9, "clearing": 200, "half": 90, "hold": 4.0, "inside_margin": 8, "seen_within": [290, 150], "tries": 16, "tower_x": 34, "tower_radius": 12, "stake_gap": 12, "stake_radius": 6},
   "forest": {"ridge_chance": 0.55, "line_chance": 0.25, "width": [60, 110], "length": [600, 1400], "tree_step": 22, "jitter": 3, "turn": 0.006, "wander": 0.0009, "end_taper": 80, "pass_chance": 0.5, "pass_width": 70, "fir_share": 0.55},
   "ravines": {"region": 1800, "chance": 0.6, "inset": 170, "width": [80, 160], "length": [640, 1280], "step": 16, "turn": 0.0035, "wander": 0.00008, "end_taper": 140, "end_width": 0.3, "land_bridge_chance": 0.5, "land_bridge": [56, 84], "band": 90, "start_clear": 380, "tries": 8},
+  "fields": {"gaul": {"scatter": ["wheat", "wheat", "wheat", "stones"], "village_chance": 0.4, "hedge_chance": 0.35, "wheat_chance": 0.15, "villages": [2, 3], "village_gap": [150, 190], "village_hedge": 0.6, "village_blockers": [[-34, -24, 22], [0, -30, 26], [34, -24, 22], [0, -10, 20]], "hedge_length": [220, 460], "hedge_span": 56, "hedge_blockers": 4, "hedge_radius": 9, "gate_chance": 0.6, "wheat_size": [50, 90], "wheat_step": 16}},
   "bridge": {"cost": 8, "width": 60, "reach": 56, "longest": 360, "overhang": 18, "notice_seconds": 1.5, "look_every": 0.25},
   "felling": {"seconds": 3.0, "timber": 1, "shake_seconds": 0.25, "barbarian_rate": 0.2},
   "palisade": {"cost": 4, "stakes": 7, "ahead": 50, "gap": 14, "bow": 8, "radius": 6, "seconds": 40, "fade": 3, "notice_seconds": 1.5},
@@ -190,6 +191,10 @@
       "wave": {"set": "wave", "max": 1, "db": -4.0, "spread": 0.0, "pitch": 1.0, "priority": 2},
       "boom": {"set": "boom", "max": 2, "db": -5.0, "spread": 0.08, "pitch": 1.0, "priority": 1},
       "apollo": {"set": "apollo", "max": 1, "db": -6.0, "spread": 0.0, "pitch": 1.0, "priority": 2},
+      "carnyx": {"set": "horn", "max": 1, "db": -5.0, "spread": 0.05, "pitch": 0.85, "priority": 2},
+      "duel": {"set": "bellow", "max": 1, "db": -5.0, "spread": 0.05, "pitch": 1.1, "priority": 2},
+      "summon": {"set": "horn_1", "max": 1, "db": -6.0, "spread": 0.0, "pitch": 0.8, "priority": 2},
+      "siege": {"set": "stake", "max": 1, "db": -4.0, "spread": 0.06, "pitch": 0.85, "priority": 1},
       "boss": {"set": "boss", "max": 1, "db": -4.0, "spread": 0.0, "pitch": 0.9, "priority": 2},
       "back": {"set": "click", "max": 2, "db": -8.0, "spread": 0.0, "pitch": 0.75, "priority": 1}
     }

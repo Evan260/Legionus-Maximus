@@ -2,8 +2,8 @@ extends SceneTree
 ## Plays whole runs headless with four bots (standing still, marching straight, circling, turning to face the crowd, and facing with recruits first until the legion has 30)
 ## and prints when each dies, for tuning balance.json. Optional overrides go in tests/balance_overrides.json.
 
-func run(balance: Dictionary, content: Content, seed: int, mode: String) -> String:
-	var sim := Sim.new(balance, content, {"seed": seed})
+func run(balance: Dictionary, content: Content, seed: int, mode: String, province := "germania") -> String:
+	var sim := Sim.new(balance, content, {"seed": seed, "province": province})
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
 	var dt := 1.0 / 30.0
@@ -57,5 +57,5 @@ func _init() -> void:
 		content.enemies[k].merge(over.enemies[k], true)
 	for mode in over.get("modes", ["idle", "straight", "circle", "face", "smart"]):
 		for seed in over.get("seeds", [1, 2, 3, 4, 5]):
-			print(run(balance, content, seed, mode))
+			print(run(balance, content, seed, mode, str(over.get("province", "germania"))))
 	quit()

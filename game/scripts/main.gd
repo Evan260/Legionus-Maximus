@@ -20,8 +20,10 @@ extends Node
 ##   --as-demo          play as the demo: Germania, three commanders and 15 minutes
 ##   --card=ID          show that achievement's card, for looking at it
 ##   --give=ID,ID:RANK  start the run with these arms or drills at the rank (default 1), for looking at them
-##   --boss=ID          with --autoplay, bring that elite or the chieftain beside the legion; --boss-act=whirl|shield|band|mend|curse|blink|rage|roar
-##                      makes him use that ability at once and holds his others back
+##   --boss=ID          with --autoplay, bring that elite or the chieftain beside the legion; --boss-act=whirl|shield|band|mend|curse|blink|rage|roar,
+##                      duel|rally|blast|flee for the Gaulish elites and siege|summon for the Gaulish king, makes him use that ability at once and
+##                      holds his others back; an ordinary enemy comes as a small group, and slash|rear|volley|rush has them use theirs
+##   --province=ID      start the run in that province, for looking at it
 ##   --god=ID           with --autoplay, call that god at --god-at seconds (default 2) of the look; --god=choose fills the favour and holds the choice open
 
 var balance: Dictionary
@@ -127,10 +129,18 @@ func _bring_boss(kind: String, act: String) -> void:
 		var ci := h.spawn_chieftain(at)
 		if act == "roar":
 			h.e_hp[ci] = h.e_max[ci] * 0.5 + 1.0
+		elif act == "siege" or act == "summon":
+			h.siege_cd = 0.0 if act == "siege" else 1e9
+			h.summon_cd = 0.0 if act == "summon" else 1e9
+			h.charge_cd = 1e9
 		return
-	var i := h.spawn(kind, at, true)
+	if not content.enemies[kind].get("elite", false):
+		_bring_group(kind, act)
+		return
+	var i := h.spawn(kind, at + (Vector2(-30, -20) if act == "flee" else Vector2.ZERO), true)
 	var st := h.boss_state(i)
-	var timers := {"whirl": "whirl_cd", "shield": "shield_cd", "band": "band_cd", "mend": "mend_cd", "curse": "curse_cd", "blink": "blink_cd"}
+	var timers := {"whirl": "whirl_cd", "shield": "shield_cd", "band": "band_cd", "mend": "mend_cd", "curse": "curse_cd", "blink": "blink_cd",
+		"duel": "duel_cd", "blast": "blast_cd"}
 	for key in timers.values():
 		if st.has(key):
 			st[key] = 1e9
@@ -138,10 +148,22 @@ func _bring_boss(kind: String, act: String) -> void:
 		st[timers[act]] = 0.0
 	if act == "rage":
 		h.e_hp[i] = h.e_max[i] * 0.45
-	if act == "mend":
+	h.rally_cd[h.e_id[i]] = 0.0 if act == "rally" else 1e9
+	if act == "mend" or act == "rally":
 		for k in 6:
 			var j := h.spawn(h.ordinary[0], at + Vector2.from_angle(k * TAU / 6.0) * 60.0)
 			h.e_hp[j] = h.e_max[j] * 0.4
+
+
+## Brings a small group of an ordinary enemy at the distance their ability needs, ready to use it at once.
+func _bring_group(kind: String, act: String) -> void:
+	var h := sim.horde
+	var away := {"slash": 26.0, "rear": 170.0, "volley": 150.0, "rush": 170.0}
+	var r: float = away.get(act, 90.0)
+	var ahead := Vector2.from_angle(sim.facing_angle)
+	for k in 4:
+		var j := h.spawn(kind, sim.commander.pos + ahead.rotated((k - 1.5) * 0.35) * r)
+		h.e_cd[j] = 0.0
 
 
 ## Puts the legion just below an objective or inside a freshly raised fort, for a screenshot.
@@ -273,6 +295,8 @@ func _load_run_setup() -> void:
 		run_setup.commander = args.commander
 	for mode in ["hard", "endless", "decimatio"]:
 		run_setup[mode] = args.has(mode)
+	if args.has("province") and content.provinces.has(args.province):
+		run_setup.province = args.province
 
 
 ## The run's options: what was chosen in the camp and the quartermaster's ranks.

@@ -42,6 +42,8 @@ var clock := 0.0
 var fell_seconds := 3.0
 ## The ridge numbers from balance.json.
 var forest: Dictionary
+## The province's own scatter and features from balance.json `fields`; empty for Germania's forest.
+var field: Dictionary
 # The way round obstacles towards the commander: one step direction per FLOW_CELL square, or none where no way exists.
 const FLOW_CELL := 32.0
 const FN := 56
@@ -193,7 +195,11 @@ func remove_extras(at: Array) -> void:
 
 ## Drives a stake that rots at `until`; it is solid from the next refresh.
 func add_post(p: Vector2, radius: float, until: float) -> void:
-	posts.append(["stake", p, radius, until])
+	# The list stays in rotting order, since stakes driven later can rot sooner than a palisade's.
+	var at := posts.size()
+	while at > 0 and posts[at - 1][3] > until:
+		at -= 1
+	posts.insert(at, ["stake", p, radius, until])
 	_anchor = Vector2i(1 << 30, 0)
 
 
@@ -234,10 +240,11 @@ func chunk(cx: int, cy: int) -> Array:
 		return out
 	var r := RandomNumberGenerator.new()
 	r.seed = hash([seed_value, key])
+	var scatter: Array = field.get("scatter", SCATTER)
 	for i in r.randi_range(0, 2):
 		var p := Vector2((cx + r.randf()) * CHUNK, (cy + r.randf()) * CHUNK)
 		if p.length() > 90.0:
-			var kind: String = SCATTER[r.randi_range(0, SCATTER.size() - 1)]
+			var kind: String = scatter[r.randi_range(0, scatter.size() - 1)]
 			if not _in_clearing(p) and not _by_ravine(p):
 				out.append(_standing(kind, p))
 	var rx := floori(box.position.x / REGION)
@@ -249,7 +256,7 @@ func chunk(cx: int, cy: int) -> Array:
 			for p in _bucket(x, y).get(key, []):
 				if not seen.has(p[1]):
 					seen[p[1]] = true
-					out.append(_standing(p[0], p[1]))
+					out.append(_standing(p[0], p[1]) if TREES.has(p[0]) else p)
 	_chunks[key] = out
 	return out
 
@@ -286,6 +293,9 @@ func _region(rx: int, ry: int) -> Array:
 	var out: Array = []
 	var roll := r.randf()
 	var centre := (Vector2(rx, ry) + Vector2(r.randf_range(0.25, 0.75), r.randf_range(0.25, 0.75))) * REGION
+	if not field.is_empty():
+		_regions[key] = _farmland(r, roll, centre)
+		return _regions[key]
 	if roll < float(forest.ridge_chance):
 		out = _ridge(r, centre)
 	elif roll < float(forest.ridge_chance) + float(forest.line_chance):
@@ -358,6 +368,82 @@ func _ridge(r: RandomNumberGenerator, centre: Vector2) -> Array:
 		var kind := "fir" if ((h >> 16) & 255) / 255.0 < firs else "oak"
 		out.append([kind, at, SOLID[kind]])
 	return out
+
+
+## A farmland region holds a few villages with hedges off their sides, a hedgerow running east and west, or a field of wheat.
+## A piece of a feature that falls in a clearing or by a ravine takes its whole village or hedge bush with it, so nothing is left half solid.
+func _farmland(r: RandomNumberGenerator, roll: float, centre: Vector2) -> Array:
+	var f := field
+	var groups: Array = []
+	if roll < float(f.village_chance):
+		var n := r.randi_range(int(f.villages[0]), int(f.villages[1]))
+		var a0 := r.randf() * TAU
+		for k in n:
+			var at := centre
+			if k > 0:
+				at += Vector2.from_angle(a0 + TAU * (k - 1) / maxf(n - 1, 1)) * r.randf_range(float(f.village_gap[0]), float(f.village_gap[1]))
+			groups.append(_village(at))
+			if r.randf() < float(f.village_hedge):
+				var side := 1.0 if r.randf() < 0.5 else -1.0
+				groups.append_array(_hedge_line(r, at + Vector2(side * 60.0, 0.0), side, r.randi_range(2, 4), false))
+		for k in r.randi_range(1, 2):
+			groups.append(_wheat_field(r, centre + Vector2.from_angle(r.randf() * TAU) * r.randf_range(110.0, 170.0), r.randf_range(30.0, 50.0)))
+	elif roll < float(f.village_chance) + float(f.hedge_chance):
+		var length := r.randf_range(float(f.hedge_length[0]), float(f.hedge_length[1]))
+		groups.append_array(_hedge_line(r, centre - Vector2(length / 2.0, 0.0), 1.0, int(length / float(f.hedge_span)), r.randf() < float(f.gate_chance)))
+	elif roll < float(f.village_chance) + float(f.hedge_chance) + float(f.wheat_chance):
+		groups.append(_wheat_field(r, centre, r.randf_range(float(f.wheat_size[0]), float(f.wheat_size[1]))))
+	var kept: Array = []
+	for g in groups:
+		var ok := true
+		for p in g:
+			if p[1].length() <= clear_radius or _in_clearing(p[1]) or _by_ravine(p[1]):
+				ok = false
+				break
+		if ok:
+			kept.append_array(g)
+	return kept
+
+
+## One village: its picture, standing at its feet with no solid of its own, and unseen circles over its houses and fence.
+func _village(at: Vector2) -> Array:
+	var g: Array = [["village", at, 0.0]]
+	for c in field.village_blockers:
+		g.append(["", at + Vector2(float(c[0]), float(c[1])), float(c[2])])
+	return g
+
+
+## A hedgerow running east (dir 1) or west (dir -1) from `from`: bushes side by side, each with a row of unseen circles so nothing slips through, and with `gate` one bush left out.
+func _hedge_line(r: RandomNumberGenerator, from: Vector2, dir: float, count: int, gate: bool) -> Array:
+	var span := float(field.hedge_span)
+	var n := int(field.hedge_blockers)
+	var gap_at := r.randi_range(1, count - 2) if gate and count > 3 else -1
+	var groups: Array = []
+	for k in count:
+		if k == gap_at:
+			continue
+		var at := from + Vector2(dir * span * (k + 0.5), 0.0)
+		var g: Array = [["hedge", at, 0.0]]
+		for j in n:
+			g.append(["", at + Vector2(-span / 2.0 + span * (j + 0.5) / n, -6.0), float(field.hedge_radius)])
+		groups.append(g)
+	return groups
+
+
+## A field of wheat: stalks on a loose grid inside a circle, which anyone can walk through.
+func _wheat_field(r: RandomNumberGenerator, at: Vector2, radius: float) -> Array:
+	var step := float(field.wheat_step)
+	var g: Array = []
+	var y := -radius
+	while y <= radius:
+		var x := -radius
+		while x <= radius:
+			var q := Vector2(x + r.randf_range(-3.0, 3.0), y + r.randf_range(-2.0, 2.0))
+			if q.length() < radius:
+				g.append(["wheat", at + q, 0.0])
+			x += step
+		y += step * 0.6
+	return g
 
 
 ## Clears a circle of ground that may already be built and stands the run's own pieces in it.

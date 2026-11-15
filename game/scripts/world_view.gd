@@ -163,6 +163,7 @@ func _draw() -> void:
 
 	var gold := Color(1.0, 0.92, 0.7)
 	var cursed := Color(0.78, 0.55, 1.0)
+	var stunned := Color(0.78, 0.74, 0.62)
 	for u in [sim.commander] + sim.soldiers:
 		var f := _legion_frame(u)
 		var mod := white
@@ -170,6 +171,8 @@ func _draw() -> void:
 			mod = Color(1.0, 0.55, 0.55)
 		elif sim.horde.curse_left > 0.0:
 			mod = cursed
+		elif sim.horde.blast_left > 0.0:
+			mod = stunned
 		elif sim.testudo_left > 0.0:
 			mod = gold
 		draw_texture(shadow, _snap(u.pos - Vector2(8, 3)))
@@ -369,6 +372,15 @@ func _draw_lobs(tex: Texture2D) -> void:
 			continue
 		var k: float = l.t / l.dur
 		var ground: Vector2 = l.from.lerp(l.to, k)
+		if l.get("volley", false):
+			# A volley is three arrows flying high, each pointing along its arc.
+			var dark := Color(0.2, 0.13, 0.08)
+			for n in 3:
+				var g2: Vector2 = ground + Vector2((n - 1) * 4.0, (n % 2) * 3.0)
+				var at: Vector2 = g2 + Vector2(0, -sin(k * PI) * 60.0)
+				var ahead: Vector2 = (l.to - l.from).normalized() + Vector2(0, -cos(k * PI) * 2.0)
+				draw_line(at, at + ahead.normalized() * 6.0, dark, 1.0)
+			continue
 		_lob_sprite(tex, "fire_pot", ground + Vector2(0, -sin(k * PI) * 40.0))
 
 
@@ -592,6 +604,16 @@ func _draw_boss_heads(view: Rect2) -> void:
 		var p: Vector2 = h.e_pos[i]
 		var tall: float = atlas.units[type].idle.south.frames[0][3] if atlas.units.has(type) else 40.0
 		var st: Dictionary = h.boss.get(id, {})
+		if not st.is_empty() and st.duel > 0.0:
+			# The champion's ring, with an arc that shrinks as the duel runs out.
+			var left: float = st.duel / float(sim.content.enemies[type].duel.seconds)
+			draw_arc(st.duel_at, st.duel_r, 0.0, TAU, 64, Color(0.16, 0.1, 0.08, 0.8), 4.0)
+			draw_arc(st.duel_at, st.duel_r, 0.0, TAU, 64, Color(1.0, 0.82, 0.3, 0.9), 2.0)
+			draw_arc(st.duel_at, st.duel_r - 4.0, -PI / 2.0, -PI / 2.0 + TAU * left, 48, Color(1.0, 0.95, 0.7, 0.8), 1.0)
+		if h.e_tag[i] == Horde.CHIEF and h.sworn_cut > 0.0 and h.guards_alive >= h.sworn_min:
+			# While the sworn guard stands the king is wrapped in a pale golden ring.
+			var r0 := h.k_radius[h.e_kind[i]] + 10.0
+			draw_arc(p + Vector2(0, -tall * 0.35), r0, 0.0, TAU, 40, Color(1.0, 0.85, 0.4, 0.35 + 0.2 * sin(sim.time * 4.0)), 2.0)
 		if not st.is_empty() and st.shield > 0.0:
 			var a: float = st.shield_dir.angle()
 			var half := float(sim.content.enemies[type].shield_wall.arc) / 2.0
@@ -674,6 +696,13 @@ func _draw_effects() -> void:
 		elif e.kind == "curse":
 			var k: float = e.t / 0.45
 			draw_circle(e.pos, e.radius * (0.6 + 0.6 * k), Color(0.65, 0.3, 0.95, 0.45 * (1.0 - k)))
+		elif e.kind == "volley":
+			# Arrows stand in the ground where a volley fell, then fade.
+			var k: float = e.t / 0.45
+			var col := Color(0.2, 0.13, 0.08, 1.0 - k)
+			for n in 5:
+				var at: Vector2 = e.pos + Vector2.from_angle(n * 2.4) * e.radius * 0.6 * float(n % 3) / 2.0
+				draw_line(at, at + Vector2(1, -5), col, 1.0)
 		elif e.kind == "smoke":
 			var k: float = e.t / 0.45
 			for n in 6:

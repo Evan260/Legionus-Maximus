@@ -155,6 +155,7 @@ func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
 	legion.commander.hp = legion.commander.max_hp
 	horde = Horde.new(b, content, rng, legion.commander, province)
 	terrain = Terrain.new(rng.seed, b.forest, b.get("ravines", {}))
+	terrain.field = b.get("fields", {}).get(province, {})
 	terrain.clear_radius = float(b.get("terrain_clear_radius", 200.0))
 	terrain.fell_seconds = float(b.felling.seconds)
 	objectives.place_start(self, options.get("objectives_near", false))
@@ -236,7 +237,7 @@ func burn_seconds() -> float:
 
 
 func attack_rate() -> float:
-	return (1.0 + 0.12 * rank("discipline")) * (float(b.gods.mars.rate_mult) if gods.frenzy_left > 0.0 else 1.0)
+	return (1.0 + 0.12 * rank("discipline")) * (float(b.gods.mars.rate_mult) if gods.frenzy_left > 0.0 else 1.0) * (1.0 - horde.blast_slow if horde.blast_left > 0.0 else 1.0)
 
 
 ## The share of harm the legion takes while Mars's frenzy is on it.
