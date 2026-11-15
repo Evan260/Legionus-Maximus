@@ -397,37 +397,44 @@ func refresh(p: Vector2) -> void:
 	origin = (Vector2(c) + Vector2(0.5, 0.5)) * CHUNK - Vector2(GN, GN) * CELL / 2.0
 	solid.clear()
 	solid_tree.clear()
-	var cells: Array = []
-	cells.resize(GN * GN)
-	for i in cells.size():
-		cells[i] = PackedInt32Array()
 	var area := Rect2(origin, Vector2(GN, GN) * CELL)
 	var all := props_in(area)
 	for post in posts:
 		if area.has_point(post[1]):
 			all.append(post)
+	# Each prop is listed in every cell it could touch a unit from, so a lookup reads one cell only.
+	# The cells are counted first and then filled in prop order, which keeps every cell's list in that order.
+	var box := PackedInt32Array()
+	start.resize(GN * GN + 1)
+	start.fill(0)
 	for pr in all:
 		var r: float = pr[2]
 		if r <= 0.0:
 			continue
-		var idx := solid.size()
 		solid.append(Vector3(pr[1].x, pr[1].y, r))
 		solid_tree.append(1 if TREES.has(pr[0]) and not _extra_at.has(pr[1]) else 0)
-		# Each prop is listed in every cell it could touch a unit from, so a lookup reads one cell only.
 		var reach := r + MAX_UNIT
 		var x0 := clampi(floori((pr[1].x - reach - origin.x) / CELL), 0, GN - 1)
 		var x1 := clampi(floori((pr[1].x + reach - origin.x) / CELL), 0, GN - 1)
 		var y0 := clampi(floori((pr[1].y - reach - origin.y) / CELL), 0, GN - 1)
 		var y1 := clampi(floori((pr[1].y + reach - origin.y) / CELL), 0, GN - 1)
+		box.append(x0)
+		box.append(x1)
+		box.append(y0)
+		box.append(y1)
 		for gx in range(x0, x1 + 1):
 			for gy in range(y0, y1 + 1):
-				cells[gx + gy * GN].append(idx)
-	start.resize(GN * GN + 1)
-	items.clear()
-	for i in cells.size():
-		start[i] = items.size()
-		items.append_array(cells[i])
-	start[GN * GN] = items.size()
+				start[gx + gy * GN + 1] += 1
+	for i in range(1, GN * GN + 1):
+		start[i] += start[i - 1]
+	items.resize(start[GN * GN])
+	var fill := start.duplicate()
+	for idx in solid.size():
+		for gx in range(box[idx * 4], box[idx * 4 + 1] + 1):
+			for gy in range(box[idx * 4 + 2], box[idx * 4 + 3] + 1):
+				var cell := gx + gy * GN
+				items[fill[cell]] = idx
+				fill[cell] += 1
 	_grid_ravines(area)
 	_mark_blocked()
 
@@ -437,16 +444,25 @@ func _mark_blocked() -> void:
 	flow_origin = origin + (Vector2(GN, GN) * CELL - Vector2(FN, FN) * FLOW_CELL) / 2.0
 	_blocked.resize(FN * FN)
 	_blocked.fill(0)
+	var cxs := PackedFloat32Array()
+	var cys := PackedFloat32Array()
+	cxs.resize(FN)
+	cys.resize(FN)
+	for k in FN:
+		var centre := flow_origin + (Vector2(k, k) + Vector2(0.5, 0.5)) * FLOW_CELL
+		cxs[k] = centre.x
+		cys[k] = centre.y
 	for sv in solid:
 		var reach := sv.z + 8.0
+		var at := Vector2(sv.x, sv.y)
 		var x0 := clampi(floori((sv.x - reach - flow_origin.x) / FLOW_CELL), 0, FN - 1)
 		var x1 := clampi(floori((sv.x + reach - flow_origin.x) / FLOW_CELL), 0, FN - 1)
 		var y0 := clampi(floori((sv.y - reach - flow_origin.y) / FLOW_CELL), 0, FN - 1)
 		var y1 := clampi(floori((sv.y + reach - flow_origin.y) / FLOW_CELL), 0, FN - 1)
 		for gx in range(x0, x1 + 1):
+			var cx := cxs[gx]
 			for gy in range(y0, y1 + 1):
-				var centre := flow_origin + (Vector2(gx, gy) + Vector2(0.5, 0.5)) * FLOW_CELL
-				if centre.distance_to(Vector2(sv.x, sv.y)) < reach:
+				if Vector2(cx, cys[gy]).distance_to(at) < reach:
 					_blocked[gx + gy * FN] = 1
 	for k in rv_seg.size():
 		var sg := rv_seg[k]
