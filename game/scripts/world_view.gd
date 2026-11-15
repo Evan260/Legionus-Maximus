@@ -893,8 +893,21 @@ func _draw_ravines(view: Rect2) -> void:
 
 ## The triangles of one ravine piece: the dark fill of its whole outline, and the strip of rocky lip along it.
 func _gorge_mesh(piece: Dictionary) -> Array:
-	var pts: PackedVector2Array = piece.pts
-	var half: PackedFloat32Array = piece.half
+	var pts: PackedVector2Array = piece.pts.duplicate()
+	var half: PackedFloat32Array = piece.half.duplicate()
+	# Each end runs on as a narrowing crack, so a gorge closes to a point instead of stopping in a blunt round end.
+	for end in 2:
+		var k := 0 if end == 0 else pts.size() - 1
+		var dir := (pts[k] - pts[1 if end == 0 else k - 1]).normalized()
+		var w := half[k]
+		for j in range(1, 4):
+			var at := pts[k] + dir * w * 0.4 * j
+			if end == 0:
+				pts.insert(0, at)
+				half.insert(0, w * (1.0 - j / 3.5))
+			else:
+				pts.append(at)
+				half.append(w * (1.0 - j / 3.5))
 	var n := pts.size()
 	# The outline runs down one side, round the far end, back up the other side and round the near end.
 	var centres := PackedVector2Array()

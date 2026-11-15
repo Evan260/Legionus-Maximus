@@ -442,7 +442,7 @@ func _wheat_field(r: RandomNumberGenerator, at: Vector2, radius: float) -> Array
 			if q.length() < radius:
 				g.append(["wheat", at + q, 0.0])
 			x += step
-		y += step * 0.6
+		y += step * 0.7
 	return g
 
 

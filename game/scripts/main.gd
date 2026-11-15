@@ -8,7 +8,8 @@ extends Node
 ##   --chieftain-at=S   bring the chieftain at this many seconds instead
 ##   --objectives-near  place the objectives close to the start, for looking at them
 ##   --go-to=KIND       with --autoplay, start beside the camp, column or grove, inside a fort raised at once, or burning-camp;
-##                      ravine stands the legion at the lip of the nearest ravine, bridge lays a bridge there and marches onto it
+##                      ravine stands the legion at the lip of the nearest ravine, bridge lays a bridge there and marches onto it,
+##                      ravine-end stands it just past one end of the nearest ravine
 ##   --hold-choice      with --autoplay, give a level at once and leave its choices open
 ##   --hard, --endless, --decimatio   start the run in that mode
 ##   --screen=NAME      open a screen (camp, quartermaster, tablinum, map, commanders, settings) with a sample profile, for screenshots;
@@ -169,8 +170,8 @@ func _bring_group(kind: String, act: String) -> void:
 ## Puts the legion just below an objective or inside a freshly raised fort, for a screenshot.
 func _go_to(kind: String) -> void:
 	var at := Vector2.INF
-	if kind == "ravine" or kind == "bridge":
-		_go_to_ravine(kind == "bridge")
+	if kind == "ravine" or kind == "bridge" or kind == "ravine-end":
+		_go_to_ravine(kind == "bridge", kind == "ravine-end")
 		return
 	var burn := kind == "burning-camp"
 	if burn:
@@ -195,12 +196,21 @@ func _go_to(kind: String) -> void:
 
 
 ## Stands the legion at the lip of the ravine nearest the start, facing across; with `bridge` it lays a bridge and marches onto it.
-func _go_to_ravine(bridge: bool) -> void:
+func _go_to_ravine(bridge: bool, at_end := false) -> void:
 	var list: Array = sim.terrain.ravines_in(Rect2(-4000, -4000, 8000, 8000))
 	if list.is_empty():
 		return
 	list.sort_custom(func(a: Dictionary, z: Dictionary) -> bool: return a.box.get_center().length() < z.box.get_center().length())
 	var piece: Dictionary = list[0].pieces[0]
+	if at_end:
+		var tip: Vector2 = piece.pts[0]
+		var back: Vector2 = (piece.pts[0] - piece.pts[6]).normalized()
+		sim.commander.pos = tip + back * 70.0 + back.orthogonal() * 40.0
+		sim.legion.place_all(sim.facing_angle)
+		sim.terrain.refresh(sim.commander.pos)
+		sim.horde.next_band = 1e9
+		look_march = Vector2.ZERO
+		return
 	var i: int = piece.pts.size() / 2
 	var along: Vector2 = (piece.pts[i + 1] - piece.pts[i - 1]).normalized()
 	var out := along.orthogonal()
