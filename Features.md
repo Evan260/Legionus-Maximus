@@ -8,6 +8,10 @@ Everything the finished game has. [Plan.md](Plan.md) has why the game exists and
 - The camera follows the commander over an endless field. Trees, rocks, rivers and ruins are scattered on it.
 - Trees, rocks and logs are solid for the legion and the barbarians alike. Barbarians find their way round them.
 - The forest grows in long winding ridges, too thick to pass, with clearings and paths between them, so there are only certain ways to go and a legion can be cornered against the trees. Lines of rocks and logs cross the open ground.
+- Ravines cut across the field: deep winding gorges 80 to 160 px wide and one to two screens long, a rocky lip falling away into blackness. Nobody can cross one, legion or barbarian, and they cannot be felled, so they split the field into regions joined at chokepoints. About half have a narrow natural land bridge partway along. Barbarians find their way round the ends, over a land bridge or over a bridge the legion has laid.
+- Ravines and the forest share the field without closing it into a maze. Each ravine keeps to its own large square of the field, well inside its edges, so two ravines never come near each other, and no tree, rock or log grows within a strip of open ground round every ravine. So there is always a way round the end of a gorge.
+- No ravine comes near the start, the objectives' clearings or the fort, and from the start the legion can always reach every objective and the fort without crossing one.
+- A barbarian thrown over the edge by Neptune's wave falls to his death and drops nothing. Bosses are too heavy and stop at the lip.
 - Barbarians arrive from beyond the edges of the screen in a steady stream that thickens over the 20 minutes, with a surge every 2 minutes. The stream is kept a little thinner so the bosses have room.
 - Bosses come on their own: the first at 1:15, then one every minute, two at a time from about 7:30 and three from about 15:00. Only one is on the field at once for the first 4 minutes, one more every 4 minutes after, up to four.
 - War bands of half a dozen or more, growing through the run, gather in a tight group every 35 seconds, either in the legion's path or closing in from behind.
@@ -23,7 +27,7 @@ Everything the finished game has. [Plan.md](Plan.md) has why the game exists and
 
 In 9 AD the Germans destroyed three legions in the Teutoburg Forest and carried off their eagle standards. A Germania run is a mission to win them back.
 
-- Each run places two or three objectives in clearings some way off. Arrows at the edge of the screen point to each one that is not done yet, with its distance.
+- Each run places two or three objectives in clearings some way off. Big arrows at the edge of the screen point to each one that is not done yet: a dark disc holding the objective's picture (the eagle standard, the altar, the supply cart, the fort's gate), with its name and distance beside it.
 - Objectives:
   - **Barbarian camp:** huts round a captured eagle standard. Defenders pour out when the legion comes near. Reaching the eagle, or marching the commander in among the huts, takes it back: a free choice and a large purse of denarii at the end of the run. The huts then catch fire, burn for a few seconds and fall in, leaving scorched ground and an open way through.
   - **Stranded column:** a supply cart with a few Roman soldiers holding out against a war band. Reaching them adds the survivors to the legion and heals it.
@@ -39,6 +43,8 @@ In 9 AD the Germans destroyed three legions in the Teutoburg Forest and carried 
 - Barbarians pressed against a tree chop at it too, each at a fifth of a soldier's pace, so a crowd held against a ridge slowly opens it. A tree they bring down leaves a stump but no timber; the legion gets the log only when its men did at least half the chopping.
 - The run's own pieces, such as the grove's oaks and the fort's walls, cannot be felled by anyone.
 - A button (E, or the west face button) spends timber to drive a line of stakes across the ground in front of the legion. The stakes are solid, so barbarians must go round them; they rot away after a while.
+- Timber also builds bridges. Standing at the edge of a ravine and facing across it, another button (C, or the right shoulder button) spends 8 timber to lay a plank bridge over the gorge in the legion's facing, wide enough for the formation. Bridges last the whole run and barbarians cross them too. With too little timber, or no ravine ahead, a notice says so. A hint at the bottom of the screen shows when a bridge can be laid.
+- The title screen names both uses of timber: 4 for a palisade, 8 for a bridge.
 
 ## Bosses
 
@@ -69,6 +75,7 @@ Every boss has a health bar over his head, under an elite's name. Each ability i
 - Testudo: Space or the south face button.
 - Pause: Escape or Start.
 - Build a palisade: E or the west face button.
+- Lay a bridge over a ravine: C or the right shoulder button.
 - Call the gods: F or the north face button, once their favour is full.
 - Everything else, including every attack, happens on its own.
 - Mouse is used only in menus and choices, which also work fully from keyboard and pad.
@@ -90,7 +97,7 @@ Every boss has a health bar over his head, under an elite's name. Each ability i
 - The commander is the only unit the player moves. Every soldier keeps a place in a formation around him and follows it.
 - The formation faces the way the commander walks: shields in front, missile troops behind, cavalry on the flanks. It turns as he turns, so soldiers swing round through the ranks.
 - Each soldier has his own health. A soldier at zero falls out and the formation closes the gap.
-- The commander has his own health bar. The run ends when it empties.
+- The commander has his own health bar, shown large along the bottom of the screen with his health in numbers. It flashes red when he is hit and turns red below a quarter. The run ends when it empties.
 - Soldiers in the front rank take hits meant for the men behind them, so a deep formation protects its archers.
 - The legion is capped at 100 soldiers.
 

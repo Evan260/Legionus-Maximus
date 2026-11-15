@@ -861,6 +861,7 @@ func _move(dt: float, sim: Sim) -> void:
 	var t_items := sim.terrain.items
 	var t_solid := sim.terrain.solid
 	var t_tree := sim.terrain.solid_tree
+	var rv_start := sim.terrain.rv_start
 	var chop_rate: float = b.felling.barbarian_rate * dt
 	var t_cell := Terrain.CELL
 	var t_n := Terrain.GN
@@ -1055,6 +1056,18 @@ func _move(dt: float, sim: Sim) -> void:
 						e_detour[i] = detour_seconds
 			if r > Terrain.MAX_UNIT:
 				np = sim.terrain.push_out_wide(np, r)
+		# Every barbarian in the grid is held at a ravine's lip every other update, which is enough since one step is shorter than his radius.
+		if (i + frame) % 2 == 0 and gx >= 0 and gy >= 0 and gx < t_n and gy < t_n and rv_start[gx + gy * t_n] < rv_start[gx + gy * t_n + 1]:
+			var kept := sim.terrain.ravine_push(np, r, r > Terrain.MAX_UNIT)
+			if kept != np:
+				if v != Vector2.ZERO:
+					var out_of := (kept - np).normalized()
+					var along := Vector2(-out_of.y, out_of.x)
+					if e_detour[i] <= 0.0:
+						e_side[i] = 1 if along.dot(to) >= 0.0 else -1
+					e_way[i] = along * e_side[i]
+					e_detour[i] = detour_seconds
+				np = kept
 		# A barbarian wedged among trees who makes no headway for a while slips through them for a moment to get free.
 		if e_stuck[i] < 0.0:
 			e_stuck[i] = minf(0.0, e_stuck[i] + dt)

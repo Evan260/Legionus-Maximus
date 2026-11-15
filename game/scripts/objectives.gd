@@ -34,7 +34,13 @@ func place_start(sim: Sim, near := false) -> void:
 	var spread := float(cfg.spread)
 	for i in n:
 		var a := base + TAU * i / n + r.randf_range(-spread, spread)
-		add(sim, kinds[i], Vector2.from_angle(a) * r.randf_range(float(span[0]), float(span[1])))
+		var at := Vector2.from_angle(a) * r.randf_range(float(span[0]), float(span[1]))
+		# A spot by a ravine is moved round a little at a time until the ravine is well clear of the clearing.
+		for k in 12:
+			if sim.terrain.ravine_edge(at) >= float(cfg.clearing) + 40.0:
+				break
+			at = Vector2.from_angle(a + r.randf_range(-spread, spread)) * r.randf_range(float(span[0]), float(span[1]))
+		add(sim, kinds[i], at)
 
 
 ## Sets one objective at pos, clears its ground and stands its huts, oaks or guards there.
@@ -104,6 +110,8 @@ func raise_fort(sim: Sim) -> void:
 		for o in list:
 			if o.pos.distance_to(p) < room + float(sim.b.objectives.clearing):
 				n += 100.0
+		if sim.terrain.ravine_edge(p) < room + 40.0:
+			n += 1000.0
 		if n < fewest:
 			fewest = n
 			best = p

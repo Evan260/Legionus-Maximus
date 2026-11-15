@@ -139,6 +139,9 @@ func _top_bar(sim: Sim) -> void:
 	text((tr("Testudo") if sim.testudo_left <= 0.0 else tr("Hold!")).to_upper(), Vector2(46, H - 6), GOLD_LIGHT if ready or sim.testudo_left > 0.0 else Color(0.7, 0.66, 0.6))
 	_timber(sim, H)
 	_favour(sim, W, H)
+	# The pause and summary screens write their key hints along the bottom, where the health bar would stand.
+	if not main.screens.has(main.state):
+		_health(sim)
 	var ci := sim.horde.chieftain_index()
 	var y3 := y1 + (11.0 if not big else 22.0)
 	if ci >= 0:
@@ -163,9 +166,18 @@ func _timber(sim: Sim, H: float) -> void:
 		var r: Rect2 = f[0]
 		draw_texture_rect_region(atlas.texture, Rect2(Vector2(46, y - r.size.y + 2.0), r.size), r, Color.WHITE if enough else Color(0.75, 0.72, 0.68))
 	text(str(sim.timber), Vector2(66, y), GOLD_LIGHT if enough else CREAM)
-	if sim.palisade_refused_at >= 0.0 and sim.time - sim.palisade_refused_at < float(sim.b.palisade.notice_seconds):
-		var line := (tr("Not enough timber: %d needed") % cost).to_upper()
-		text(line, Vector2(0, Ui.view.y * 0.7), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x)
+	var line := ""
+	var refused: Dictionary = sim.bridge_refused
+	if not refused.is_empty() and sim.time - float(refused.at) < float(sim.b.bridge.notice_seconds) and float(refused.at) >= sim.palisade_refused_at:
+		line = tr("No ravine ahead to bridge") if refused.why == "ravine" else tr("Not enough timber: %d needed") % int(sim.b.bridge.cost)
+	elif sim.palisade_refused_at >= 0.0 and sim.time - sim.palisade_refused_at < float(sim.b.palisade.notice_seconds):
+		line = tr("Not enough timber: %d needed") % cost
+	if line != "":
+		text(line.to_upper(), Vector2(0, Ui.view.y * 0.7), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x)
+	if sim.bridge_here and main.state == "play":
+		var hint := Controls.hint("bridge") + "  " + tr("(%d timber)") % int(sim.b.bridge.cost)
+		var r: Rect2 = bottom_layout(Ui.view).bridge
+		text(hint.to_upper(), Vector2(0, r.position.y + Ui.px), GOLD_LIGHT if sim.timber >= int(sim.b.bridge.cost) else CREAM, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x)
 
 
 ## The favour of the gods at the bottom right: a wreath over a bar that fills with kills, glowing with the key to call them once full.
@@ -184,6 +196,63 @@ func _favour(sim: Sim, W: float, H: float) -> void:
 	text(tr("Favour").to_upper(), Vector2(0, H - 6), GOLD_LIGHT if ready else Color(0.7, 0.66, 0.6), HORIZONTAL_ALIGNMENT_RIGHT, W - 46)
 	if ready and main.state == "play":
 		text(Controls.hint("pray").to_upper(), Vector2(0, H - 6 - Ui.leading()), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_RIGHT, W - 46)
+
+
+## Where each thing along the bottom of the screen stands, with the commander's health bar between them all.
+static func bottom_layout(view: Vector2) -> Dictionary:
+	var W := view.x
+	var H := view.y
+	var px := float(Ui.px)
+	var lead := Ui.leading()
+	var testudo_w := maxf(Ui.width_at(TranslationServer.translate("Testudo").to_upper(), Ui.px), Ui.width_at(TranslationServer.translate("Hold!").to_upper(), Ui.px))
+	var testudo := Rect2(8, H - 42, 38 + testudo_w, 42)
+	var timber_y := H - 8.0 - lead - 4.0
+	var timber := Rect2(46, timber_y - 14.0, 20 + Ui.width_at("999", Ui.px), 16)
+	var favour_w := Ui.width_at(TranslationServer.translate("Favour").to_upper(), Ui.px)
+	var favour := Rect2(W - 46 - favour_w, H - 42, 38 + favour_w, 42)
+	var pray_w := Ui.width_at(Controls.hint("pray").to_upper(), Ui.px)
+	var pray := Rect2(W - 46 - pray_w, H - 6 - lead - px, pray_w, px + 2)
+	var notice := Rect2(0, H * 0.7 - px, W, lead)
+	var left_end := maxf(testudo.end.x, timber.end.x)
+	var room := minf(W / 2.0 - left_end, favour.position.x - W / 2.0) - 10.0
+	var half := minf(110.0 if Ui.scale == 1 else 150.0, room)
+	var bar_h := px + 2.0
+	var health := Rect2(W / 2.0 - half, H - 3.0 - bar_h, half * 2.0, bar_h)
+	var bridge := Rect2(0, pray.position.y - lead - 2.0, W, px + 2)
+	return {"health": health, "testudo": testudo, "timber": timber, "favour": favour, "pray": pray, "notice": notice, "bridge": bridge}
+
+
+## The colour of the health bar: a flash of bright red just after a blow, red below a quarter of his health, green otherwise.
+static func health_colour(share: float, since_hit: float) -> Color:
+	if since_hit < 0.2:
+		return Color(1.0, 0.42, 0.36)
+	if share < 0.25:
+		return RED
+	return Color(0.42, 0.66, 0.28)
+
+
+var _last_hp := -1.0
+var _hit_at := -1e9
+
+
+## The commander's health in a big bar along the bottom of the screen, with the numbers on it.
+func _health(sim: Sim) -> void:
+	var c: Dictionary = sim.commander
+	if c.hp < _last_hp:
+		_hit_at = sim.time
+	_last_hp = c.hp
+	var since := sim.time - _hit_at
+	var share := clampf(c.hp / maxf(1.0, c.max_hp), 0.0, 1.0)
+	var r: Rect2 = bottom_layout(Ui.view).health
+	var low := share < 0.25
+	var flashing := since < 0.2
+	draw_rect(r.grow(1), RED if flashing or (low and fmod(sim.time, 0.8) < 0.4) else INK)
+	draw_rect(r, Color(0.2, 0.08, 0.06))
+	var fill := health_colour(share, since)
+	draw_rect(Rect2(r.position, Vector2(roundf(r.size.x * share), r.size.y)), fill)
+	draw_rect(Rect2(r.position, Vector2(roundf(r.size.x * share), 1)), fill.lightened(0.35))
+	var label := "%d / %d" % [ceili(c.hp), ceili(c.max_hp)]
+	text(label, Vector2(r.position.x, r.end.y - 2.0), CREAM, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
 
 
 ## The name of the god just called, written large across the screen as his power lands.
@@ -230,68 +299,172 @@ func _notice_text(kind: String) -> String:
 	return tr("A Roman fort is in sight: hold it")
 
 
-## Arrows at the edge of the screen to each objective not yet done and to the fort, with name and distance, and a notice when one is done.
+## The sprite drawn inside each target's badge.
+const BADGE_ICON := {"camp": "eagle_standard", "grove": "altar", "column": "supply_cart", "fort": "fort_gate"}
+
+
+## The radius of the dark disc an edge arrow carries its target's picture on.
+static func badge_radius() -> float:
+	return 20.0 if Ui.scale == 1 else 24.0
+
+
+## The strip along the bottom of the screen that the arrows keep out of, for the testudo, timber, favour and health bar.
+static func bottom_band(view: Vector2) -> float:
+	var parts := bottom_layout(view)
+	return view.y - minf(parts.bridge.position.y, minf(parts.testudo.position.y, parts.favour.position.y)) + 2.0
+
+
+## How far an edge arrow's point stands out from its disc.
+static func tip_length() -> float:
+	return 14.0 if Ui.scale == 1 else 16.0
+
+
+## Where each target's edge badge and label go, or just its name over it when on screen, every one clear of the others.
+static func arrow_layout(targets: Array, cpos: Vector2, view: Vector2, top: float, metre := 16.0) -> Array:
+	var radius := badge_radius()
+	var tip := tip_length()
+	var low := bottom_band(view)
+	var out: Array = []
+	var placed: Array = []
+	# The badges go down first, so the labels written after them step round every badge.
+	for t in targets:
+		var off: Vector2 = t[1] - cpos
+		if Rect2(Vector2.ZERO, view).grow(-EDGE).has_point(view / 2.0 + off):
+			out.append({"kind": t[0], "off": off, "on_screen": true, "badge": Rect2(), "foot": view / 2.0 + off - Vector2(0, LABEL_RISE.get(t[0], 50.0))})
+			continue
+		var inset := radius + tip + 2.0
+		var high := top + radius + tip * 1.15 + 1.0
+		var room := Rect2(inset, high, view.x - 2.0 * inset, view.y - high - maxf(inset, low + radius))
+		var c := _on_room_edge(room, view / 2.0, off)
+		var box := Rect2(c - Vector2.ONE * radius, Vector2.ONE * radius * 2.0)
+		# A badge that would cover another slides along the edge of the screen, back and forth, until it is clear.
+		var along := Vector2(0, 1) if absf(c.x - view.x / 2.0) >= room.size.x / 2.0 - 0.5 else Vector2(1, 0)
+		for k in 12:
+			var clash := false
+			for p in placed:
+				clash = clash or p.grow(2.0).intersects(box)
+			if not clash:
+				break
+			var step := (k / 2 + 1) * (2.0 * radius + 6.0) * (1.0 if k % 2 == 0 else -1.0)
+			var moved := (c + along * step).clamp(room.position, room.end)
+			box.position = moved - Vector2.ONE * radius
+		c = box.get_center()
+		placed.append(box)
+		out.append({"kind": t[0], "off": off, "on_screen": false, "centre": c, "dir": off.normalized(), "badge": box})
+	for l in out:
+		var name := TranslationServer.translate(_name_key(l.kind)).to_upper()
+		var dist := "" if l.on_screen else TranslationServer.translate("%d m") % int(l.off.length() / metre)
+		var w := maxf(Ui.width_at(name, Ui.px), Ui.width_at(dist, Ui.px))
+		if l.on_screen:
+			l.label = _free_spot(Rect2(l.foot.x - w / 2.0, l.foot.y - Ui.px, w, Ui.leading()), placed, view, top, low)
+		else:
+			var h := Ui.leading() * 2.0
+			var dir: Vector2 = l.dir
+			var from: Vector2 = l.centre - dir * (radius + 4.0)
+			var centre := from - dir * (w / 2.0 * absf(dir.x) + h / 2.0 * absf(dir.y))
+			l.label = _free_spot(Rect2(centre - Vector2(w, h) / 2.0, Vector2(w, h)), placed, view, top, low)
+		l.name = name
+		l.dist = dist
+	return out
+
+
+## Where the line from the middle of the screen towards `off` meets the edge of `room`.
+static func _on_room_edge(room: Rect2, centre: Vector2, off: Vector2) -> Vector2:
+	var t := INF
+	if off.x > 0.0:
+		t = (room.end.x - centre.x) / off.x
+	elif off.x < 0.0:
+		t = (room.position.x - centre.x) / off.x
+	if off.y > 0.0:
+		t = minf(t, (room.end.y - centre.y) / off.y)
+	elif off.y < 0.0:
+		t = minf(t, (room.position.y - centre.y) / off.y)
+	return (centre + off * t).clamp(room.position, room.end)
+
+
+## The English name of an objective or the fort, translated where it is drawn.
+static func _name_key(kind: String) -> String:
+	match kind:
+		"camp":
+			return "Barbarian camp"
+		"column":
+			return "Stranded column"
+		"grove":
+			return "Sacred grove"
+	return "Roman fort"
+
+
+## Badges at the screen's edge pointing to each objective not yet done and to the fort, and a notice when one is done.
 func _objective_arrows(sim: Sim) -> void:
 	var view := Ui.view
 	var big := Ui.scale > 1
 	var top := 16.0 + 8.0 * Ui.scale + (22.0 if big else 11.0) + 14.0
-	var metre := float(sim.b.objectives.metre_px)
+	var laid := arrow_layout(sim.objectives.targets(), sim.commander.pos, view, top, float(sim.b.objectives.metre_px))
+	var atlas: Atlas = main.world.atlas
+	var radius := badge_radius()
+	# The point pulses gently so it catches the eye at the edge of a busy screen.
+	var reach := tip_length() * (1.0 + 0.15 * sin(sim.time * 5.0))
 	var placed: Array = []
-	var labels: Array = []
-	# The arrows go down first, so the labels written after them step round every arrow.
-	for t in sim.objectives.targets():
-		var off: Vector2 = t[1] - sim.commander.pos
-		if Rect2(Vector2.ZERO, view).grow(-EDGE).has_point(view / 2.0 + off):
-			labels.append([t[0], view / 2.0 + off - Vector2(0, LABEL_RISE.get(t[0], 50.0)), ""])
+	for l in laid:
+		placed.append(l.label)
+		if l.on_screen:
 			continue
-		var at := edge_point(view, off, top)
-		var dir := off.normalized()
-		# The arrow pulses gently so it catches the eye at the edge of a busy screen.
-		var pulse := 1.0 + 0.12 * sin(sim.time * 5.0)
-		var side := dir.orthogonal() * (10.0 + 3.0 * Ui.scale) * pulse
-		var back := at - dir * (22.0 + 6.0 * Ui.scale) * pulse
-		var tip := PackedVector2Array([at + dir * 3.0, back + side * 1.35 - dir * 3.0, back - side * 1.35 - dir * 3.0])
-		draw_colored_polygon(tip, INK)
-		draw_colored_polygon(PackedVector2Array([at, back + side, back - side]), RED if t[0] == "fort" else GOLD)
-		draw_colored_polygon(PackedVector2Array([at - dir * 3.0, back + side * 0.45, back]), GOLD_LIGHT if t[0] != "fort" else Color(0.95, 0.45, 0.35))
-		var box := Rect2(tip[0], Vector2.ZERO)
-		for q in tip:
-			box = box.expand(q)
-		placed.append(box)
-		labels.append([t[0], back - dir * 8.0, tr("%d m") % int(off.length() / metre), dir])
+		placed.append(l.badge)
+		var c: Vector2 = l.centre
+		var dir: Vector2 = l.dir
+		var fort: bool = l.kind == "fort"
+		var rim := RED if fort else GOLD
+		var side := dir.orthogonal() * radius * 0.55
+		var base := c + dir * (radius - 4.0)
+		draw_colored_polygon(PackedVector2Array([c + dir * (radius + reach + 2.0), base + side * 1.25, base - side * 1.25]), INK)
+		draw_colored_polygon(PackedVector2Array([c + dir * (radius + reach), base + side, base - side]), rim)
+		draw_colored_polygon(PackedVector2Array([c + dir * (radius + reach - 3.0), base + side * 0.4, base]), GOLD_LIGHT if not fort else Color(0.95, 0.45, 0.35))
+		draw_circle(c, radius + 1.0, INK)
+		draw_circle(c, radius - 1.0, rim)
+		draw_circle(c, radius - 3.0, Color(0.13, 0.09, 0.07))
+		var key: String = BADGE_ICON.get(l.kind, "")
+		if atlas != null and atlas.props.has(key):
+			var f: Rect2 = atlas.prop_frame(key)[0]
+			var inner := (radius - 5.0) * 2.0
+			var k := minf(inner / f.size.x, inner / f.size.y)
+			var size := (f.size * k).round()
+			draw_texture_rect_region(atlas.texture, Rect2((c - size / 2.0).round(), size), f)
 	var note: Dictionary = sim.objectives.notice
 	if not note.is_empty() and sim.time - float(note.at) < float(sim.b.objectives.notice_seconds):
 		var line := _notice_text(note.kind).to_upper()
 		var nw := Ui.width_at(line, Ui.px)
 		var r := _free_spot(Rect2((view.x - nw) / 2.0, view.y * 0.7 - Ui.px, nw, Ui.leading()), placed, view, top)
 		text(line, Vector2(r.position.x, r.position.y + Ui.px), GOLD_LIGHT)
-	for l in labels:
-		var name := objective_name(l[0]).to_upper()
-		var w := maxf(Ui.width_at(name, Ui.px), Ui.width_at(l[2], Ui.px))
-		if l[2] == "":
-			var r := _free_spot(Rect2(l[1].x - w / 2.0, l[1].y - Ui.px, w, Ui.leading()), placed, view, top)
-			text(name, Vector2(r.position.x, r.position.y + Ui.px), GOLD_LIGHT)
+	for l in laid:
+		var r: Rect2 = l.label
+		if l.on_screen:
+			text(l.name, Vector2(r.position.x, r.position.y + Ui.px), GOLD_LIGHT)
 			continue
-		var h := Ui.leading() * 2.0
-		var dir: Vector2 = l[3]
-		var centre: Vector2 = l[1] - dir * (w / 2.0 * absf(dir.x) + h / 2.0 * absf(dir.y))
-		var r := _free_spot(Rect2(centre - Vector2(w, h) / 2.0, Vector2(w, h)), placed, view, top)
-		text(name, Vector2(r.position.x, r.position.y + Ui.px), GOLD_LIGHT if l[0] != "fort" else CREAM, HORIZONTAL_ALIGNMENT_CENTER, w)
-		text(l[2], Vector2(r.position.x, r.position.y + Ui.px + Ui.leading()), CREAM, HORIZONTAL_ALIGNMENT_CENTER, w)
+		text(l.name, Vector2(r.position.x, r.position.y + Ui.px), GOLD_LIGHT if l.kind != "fort" else CREAM, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
+		text(l.dist, Vector2(r.position.x, r.position.y + Ui.px + Ui.leading()), CREAM, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
 
 
-## Keeps a label on screen and moves it off any label already written, towards the middle of the screen.
-static func _free_spot(r: Rect2, placed: Array, view: Vector2, top: float) -> Rect2:
+## Keeps a label on screen and moves it off every badge and label already placed, to the nearest free spot.
+static func _free_spot(r: Rect2, placed: Array, view: Vector2, top: float, low := 4.0) -> Rect2:
 	r.position.x = clampf(r.position.x, 4.0, view.x - r.size.x - 4.0)
-	r.position.y = clampf(r.position.y, top, view.y - r.size.y - 4.0)
-	var step := (r.size.y + 2.0) * (1.0 if r.get_center().y < view.y / 2.0 else -1.0)
-	for i in placed.size() + 1:
+	r.position.y = clampf(r.position.y, top, view.y - r.size.y - low)
+	var tries: Array = []
+	var step := Vector2(r.size.x / 2.0 + 4.0, r.size.y + 2.0)
+	for dx in range(-3, 4):
+		for dy in range(-6, 7):
+			tries.append(Vector2(dx, dy))
+	tries.sort_custom(func(a: Vector2, b: Vector2) -> bool: return (a * step).length_squared() < (b * step).length_squared())
+	for d in tries:
+		var tried := r
+		tried.position += d * step
+		if tried.position.x < 4.0 or tried.end.x > view.x - 4.0 or tried.position.y < top or tried.end.y > view.y - low:
+			continue
 		var clash := false
 		for p in placed:
-			clash = clash or p.intersects(r)
+			clash = clash or p.intersects(tried)
 		if not clash:
-			break
-		r.position.y += step
+			placed.append(tried)
+			return tried
 	placed.append(r)
 	return r
 

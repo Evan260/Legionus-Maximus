@@ -216,6 +216,10 @@ func _escape(t: Terrain, reach: float) -> Dictionary:
 			for gy in range(maxi(0, floori((pr[1].y - r - corner.y) / cell)), mini(n, ceili((pr[1].y + r - corner.y) / cell))):
 				if (corner + (Vector2(gx, gy) + Vector2(0.5, 0.5)) * cell).distance_to(pr[1]) < r:
 					blocked[gx + gy * n] = 1
+	if not t.ravines_in(Rect2(corner, Vector2.ONE * reach * 2.0)).is_empty():
+		for c in n * n:
+			if t.ravine_edge(corner + (Vector2(c % n, c / n) + Vector2(0.5, 0.5)) * cell) < Sim.UNIT_RADIUS:
+				blocked[c] = 1
 	var seen := PackedByteArray()
 	seen.resize(n * n)
 	var queue := PackedInt32Array([n / 2 + (n / 2) * n])
@@ -241,7 +245,7 @@ func _escape(t: Terrain, reach: float) -> Dictionary:
 func test_the_legion_can_always_march_out_of_the_start(b: Dictionary) -> void:
 	var fewest := 8
 	for k in 24:
-		var t := Terrain.new(1000 + k * 37, b.forest)
+		var t := Terrain.new(1000 + k * 37, b.forest, b.ravines)
 		fewest = mini(fewest, _escape(t, 900.0).octants)
 	check(fewest >= 3, "from every start the open ground reaches the far ring in several directions (fewest %d of 8)" % fewest)
 
@@ -3826,3 +3830,365 @@ func test_early_bosses_act_less_often(b: Dictionary) -> void:
 	s.horde.time = 0.0
 	var wait := s.horde._lob_at_ranks(made[1], s)
 	check(is_equal_approx(wait, float(content.enemies.war_priest.lob.every) / float(cfg.early_pace)), "his pots come less often early on (%.1f s)" % wait)
+
+
+## A straight gorge from x0 to x1 along the line y, `half` px either side of its middle, laid on the run's field.
+func _gorge(s: Sim, x0: float, x1: float, y: float, half: float) -> void:
+	var pts := PackedVector2Array()
+	var halves := PackedFloat32Array()
+	var x := x0
+	while x <= x1 + 0.01:
+		pts.append(Vector2(x, y))
+		halves.append(half)
+		x += 20.0
+	s.terrain.add_ravine([{"pts": pts, "half": halves}])
+	s.terrain.refresh(s.commander.pos)
+	s.terrain.update_flow(s.commander.pos)
+
+
+func test_ravines_wind_across_the_field_in_long_wide_gorges(b: Dictionary) -> void:
+	var cfg: Dictionary = b.ravines
+	var found := 0
+	var land_bridges := 0
+	var sizes_ok := true
+	var lengths_ok := true
+	var bridge_ok := true
+	for k in 6:
+		var t := Terrain.new(300 + k, b.forest, cfg)
+		for rx in range(-2, 3):
+			for ry in range(-2, 3):
+				var rv: Dictionary = t.ravine(rx, ry)
+				if rv.is_empty():
+					continue
+				found += 1
+				var length := 0.0
+				var widest := 0.0
+				for piece in rv.pieces:
+					var pts: PackedVector2Array = piece.pts
+					for i in pts.size() - 1:
+						length += pts[i].distance_to(pts[i + 1])
+					for h in piece.half:
+						widest = maxf(widest, h * 2.0)
+				sizes_ok = sizes_ok and widest >= float(cfg.width[0]) and widest <= float(cfg.width[1]) + 0.01
+				lengths_ok = lengths_ok and length >= float(cfg.length[0]) * 0.7 and length <= float(cfg.length[1]) + 1.0
+				if rv.pieces.size() == 2:
+					land_bridges += 1
+					var a: Dictionary = rv.pieces[0]
+					var c: Dictionary = rv.pieces[1]
+					var gap := INF
+					for i in a.pts.size():
+						for j in c.pts.size():
+							gap = minf(gap, a.pts[i].distance_to(c.pts[j]) - a.half[i] - c.half[j])
+					bridge_ok = bridge_ok and gap >= float(cfg.land_bridge[0]) - 1.0
+	check(found >= 20, "ravines appear across the field (%d in six fields)" % found)
+	check(sizes_ok, "each gorge is %d to %d px across at its widest" % [int(cfg.width[0]), int(cfg.width[1])])
+	check(lengths_ok, "each runs one to two screens long")
+	check(land_bridges >= 3, "some keep a natural land bridge partway (%d)" % land_bridges)
+	check(bridge_ok, "and that land bridge is wide enough to march over")
+
+
+func test_ravines_keep_apart_from_each_other_and_the_trees(b: Dictionary) -> void:
+	var cfg: Dictionary = b.ravines
+	var t := Terrain.new(41, b.forest, cfg)
+	var area := Rect2(-3600, -3600, 7200, 7200)
+	var list: Array = t.ravines_in(area)
+	check(list.size() >= 4, "a large stretch holds several ravines (%d)" % list.size())
+	var apart := true
+	for i in list.size():
+		for j in range(i + 1, list.size()):
+			for pa in list[i].pieces:
+				for p in pa.pts:
+					apart = apart and t.edge_of(list[j], p) >= 2.0 * float(cfg.band)
+	check(apart, "no two ravines come within two bands of each other, so a walkable strip runs right round each")
+	var near := 0
+	for pr in t.props_in(area):
+		if pr[2] > 0.0 and t.ravine_edge(pr[1]) < float(cfg.band):
+			near += 1
+	check(near == 0, "no tree, rock or log stands in the band round a ravine (%d do)" % near)
+
+
+func test_the_start_objectives_and_fort_stay_clear_of_ravines(b: Dictionary) -> void:
+	var clear_start := true
+	var clear_objectives := true
+	var clear_fort := true
+	for k in 20:
+		var s := Sim.new(b, content, {"seed": 500 + k})
+		clear_start = clear_start and s.terrain.ravine_edge(Vector2.ZERO) >= float(b.ravines.start_clear)
+		for o in s.objectives.list:
+			clear_objectives = clear_objectives and s.terrain.ravine_edge(o.pos) >= float(b.objectives.clearing)
+		s.commander.pos = Vector2.from_angle(k * 0.7) * 1500.0
+		s.objectives.raise_fort(s)
+		clear_fort = clear_fort and s.terrain.ravine_edge(s.objectives.fort.centre) >= float(b.fort.clearing)
+	check(clear_start, "no ravine comes near the start")
+	check(clear_objectives, "no ravine cuts into an objective's clearing")
+	check(clear_fort, "no ravine cuts into the fort's clearing")
+
+
+## Whether a soldier can walk from the start to every objective and the fort without crossing a ravine or a rock, cutting through trees as the legion can.
+func _reaches_everything(s: Sim) -> bool:
+	var goals: Array = []
+	for o in s.objectives.list:
+		goals.append([o.pos, float(s.b.objectives.clearing) * 0.5])
+	goals.append([s.objectives.fort.centre, float(s.b.fort.half) * 0.5])
+	var box := Rect2(Vector2.ZERO, Vector2.ZERO)
+	for g in goals:
+		box = box.expand(g[0])
+	box = box.grow(400.0)
+	var cell := 24.0
+	var nx := int(box.size.x / cell) + 1
+	var ny := int(box.size.y / cell) + 1
+	var blocked := PackedByteArray()
+	blocked.resize(nx * ny)
+	for rv in s.terrain.ravines_in(box):
+		for piece in rv.pieces:
+			var pts: PackedVector2Array = piece.pts
+			for i in pts.size():
+				var r: float = piece.half[i] + Sim.UNIT_RADIUS + 10.0
+				for gx in range(maxi(0, floori((pts[i].x - r - box.position.x) / cell)), mini(nx, ceili((pts[i].x + r - box.position.x) / cell))):
+					for gy in range(maxi(0, floori((pts[i].y - r - box.position.y) / cell)), mini(ny, ceili((pts[i].y + r - box.position.y) / cell))):
+						var c := box.position + (Vector2(gx, gy) + Vector2(0.5, 0.5)) * cell
+						if s.terrain.ravine_edge(c) < Sim.UNIT_RADIUS:
+							blocked[gx + gy * nx] = 1
+	for pr in s.terrain.props_in(box):
+		if pr[2] <= 0.0 or Terrain.TREES.has(pr[0]):
+			continue
+		var r: float = pr[2] + Sim.UNIT_RADIUS
+		for gx in range(maxi(0, floori((pr[1].x - r - box.position.x) / cell)), mini(nx, ceili((pr[1].x + r - box.position.x) / cell))):
+			for gy in range(maxi(0, floori((pr[1].y - r - box.position.y) / cell)), mini(ny, ceili((pr[1].y + r - box.position.y) / cell))):
+				if (box.position + (Vector2(gx, gy) + Vector2(0.5, 0.5)) * cell).distance_to(pr[1]) < r:
+					blocked[gx + gy * nx] = 1
+	var seen := PackedByteArray()
+	seen.resize(nx * ny)
+	var start := floori(-box.position.x / cell) + floori(-box.position.y / cell) * nx
+	var queue := PackedInt32Array([start])
+	seen[start] = 1
+	var head := 0
+	while head < queue.size():
+		var c := queue[head]
+		head += 1
+		for st in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var x: int = c % nx + st.x
+			var y: int = c / nx + st.y
+			if x < 0 or y < 0 or x >= nx or y >= ny or seen[x + y * nx] == 1 or blocked[x + y * nx] == 1:
+				continue
+			seen[x + y * nx] = 1
+			queue.append(x + y * nx)
+	for g in goals:
+		var reached := false
+		for i in queue:
+			var p := box.position + (Vector2(i % nx, i / nx) + Vector2(0.5, 0.5)) * cell
+			if p.distance_to(g[0]) < g[1]:
+				reached = true
+				break
+		if not reached:
+			return false
+	return true
+
+
+func test_the_legion_can_reach_every_objective_and_the_fort_past_the_ravines(b: Dictionary) -> void:
+	var stuck: Array = []
+	var ravines := 0
+	for k in 30:
+		var s := Sim.new(b, content, {"seed": 900 + k})
+		s.objectives.raise_fort(s)
+		ravines += s.terrain.ravines_in(Rect2(-2400, -2400, 4800, 4800)).size()
+		if not _reaches_everything(s):
+			stuck.append(900 + k)
+	check(ravines >= 30, "the runs tried have ravines round their objectives (%d)" % ravines)
+	check(stuck.is_empty(), "from the start the legion reaches every objective and the fort in every run (cut off in %s)" % str(stuck))
+
+
+func test_the_legion_cannot_walk_into_a_ravine(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 1500)
+	Upgrades.apply(s, "legionary")
+	_gorge(s, -400, 400, 100, 50)
+	_step_dt(s, 4.0, Vector2.DOWN)
+	check(s.commander.pos.y <= 50.0 - Sim.UNIT_RADIUS + 0.5, "the commander stops at the lip (%.1f)" % s.commander.pos.y)
+	var dry := true
+	for so in s.soldiers:
+		dry = dry and s.terrain.ravine_edge(so.pos) >= Sim.UNIT_RADIUS - 0.5
+	check(dry, "and no soldier stands over the drop")
+	check(s.timber == 0 and s.terrain.chops.is_empty(), "nobody can fell a ravine")
+	check(not s.terrain.is_open(Vector2(0, 100)), "the route map counts the gorge as closed")
+
+
+func test_barbarians_go_round_a_ravine(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 1501)
+	_gorge(s, -160, 160, 100, 45)
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	for i in 8:
+		s.horde.spawn("barbarian_spear", Vector2(-40 + i * 10, 220))
+	var fell_in := false
+	var reached := {}
+	for f in 25 * 60:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+		for i in s.horde.e_pos.size():
+			fell_in = fell_in or s.terrain.ravine_edge(s.horde.e_pos[i]) < 0.0
+			if s.horde.e_pos[i].y < 40.0:
+				reached[s.horde.e_id[i]] = true
+	var across := reached.size()
+	check(not fell_in, "no barbarian walks into the gorge")
+	check(across >= 6, "they find the way round its end to the legion (%d of 8)" % across)
+
+
+func test_a_bridge_needs_timber_and_a_ravine_ahead(b: Dictionary) -> void:
+	var cfg: Dictionary = b.bridge
+	var s := _quiet_sim(b, 1502)
+	_gorge(s, -400, 400, 100, 50)
+	s.commander.pos = Vector2(0, -10)
+	s.facing_angle = PI / 2.0
+	s.legion.place_all(s.facing_angle)
+	s.timber = int(cfg.cost) - 1
+	s.events.clear()
+	check(not s.build_bridge(), "with too little timber no bridge is laid")
+	check(s.timber == int(cfg.cost) - 1 and s.terrain.bridges.is_empty(), "and nothing is spent")
+	check(s.events.any(func(e: Dictionary) -> bool: return e.kind == "back"), "the refusal sounds")
+	check(s.bridge_refused.get("why", "") == "timber", "and the notice says timber is short")
+	s.timber = int(cfg.cost)
+	check(s.build_bridge(), "with %d timber a bridge is laid" % int(cfg.cost))
+	check(s.timber == 0 and s.terrain.bridges.size() == 1, "the timber is spent on one bridge")
+	if s.terrain.bridges.size() == 1:
+		var deck: Dictionary = s.terrain.bridges[0]
+		var a: Vector2 = deck.pos - deck.dir * deck.half_len
+		var z: Vector2 = deck.pos + deck.dir * deck.half_len
+		check(minf(a.y, z.y) < 50.0 and maxf(a.y, z.y) > 150.0, "it spans the gorge in the legion's facing")
+		check(deck.half_w * 2.0 >= float(cfg.width) - 0.01, "and is wide enough for the formation")
+	s.facing_angle = -PI / 2.0
+	s.timber = int(cfg.cost)
+	s.events.clear()
+	check(not s.build_bridge(), "facing away from the gorge, no bridge")
+	check(s.timber == int(cfg.cost) and s.bridge_refused.get("why", "") == "ravine", "nothing is spent and the notice says there is no ravine ahead")
+
+
+func test_the_legion_marches_over_its_bridge(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 1503)
+	for k in 6:
+		Upgrades.apply(s, "legionary" if k % 2 == 0 else "archer")
+	_gorge(s, -600, 600, 100, 60)
+	s.commander.pos = Vector2(0, -10)
+	s.facing_angle = PI / 2.0
+	s.legion.place_all(s.facing_angle)
+	s.timber = int(b.bridge.cost)
+	check(s.build_bridge(), "the bridge is laid")
+	_step_dt(s, 6.0, Vector2.DOWN)
+	check(s.commander.pos.y > 200.0, "the commander walks over it (%.0f)" % s.commander.pos.y)
+	_step_dt(s, 4.0, Vector2.ZERO)
+	var over := 0
+	for so in s.soldiers:
+		if so.pos.y > 160.0:
+			over += 1
+	check(over == s.soldiers.size(), "every soldier follows him across (%d of %d)" % [over, s.soldiers.size()])
+
+
+func test_barbarians_cross_a_bridge(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 1504)
+	_gorge(s, -1400, 1400, 100, 50)
+	s.commander.pos = Vector2(0, -10)
+	s.facing_angle = PI / 2.0
+	s.legion.place_all(s.facing_angle)
+	s.timber = int(b.bridge.cost)
+	s.build_bridge()
+	s.terrain.refresh(s.commander.pos)
+	s.terrain.update_flow(s.commander.pos)
+	check(s.terrain.is_open(Vector2(0, 100)), "the route map opens the bridge's deck")
+	check(not s.terrain.is_open(Vector2(200, 100)), "but not the gorge beside it")
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	for i in 6:
+		s.horde.spawn("barbarian_spear", Vector2(250 + i * 12, 230))
+	var reached := {}
+	for f in 20 * 60:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+		for i in s.horde.e_pos.size():
+			if s.horde.e_pos[i].y < 40.0:
+				reached[s.horde.e_id[i]] = true
+	var across := reached.size()
+	check(across >= 4, "barbarians find the bridge and cross to the legion (%d of 6)" % across)
+
+
+func test_neptune_throws_barbarians_into_a_ravine(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 1505, Content.with_all_art())
+	_gorge(s, -400, 400, 100, 50)
+	s.commander.pos = Vector2(0, -10)
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	for i in 3:
+		s.horde.spawn("barbarian_spear", Vector2(-20 + i * 20, 35))
+	var beside := s.horde.e_id[s.horde.spawn("barbarian_spear", Vector2(-70, -10))]
+	var kills := s.kills
+	s.gods.invoke(s, "neptune")
+	_step_dt(s, 1.5)
+	check(s.kills - kills == 3, "the three thrown towards the gorge fall in (%d)" % (s.kills - kills))
+	check(s.horde.e_pos.size() == 1 and s.horde.e_id[0] == beside, "the one thrown over open ground lives")
+	check(s.c_pos.is_empty(), "nothing is dropped into the gorge")
+
+
+func test_the_bridge_has_its_own_key_and_button(b: Dictionary) -> void:
+	var names: Array = Controls.ACTIONS.map(func(a: Array) -> String: return a[0])
+	check(names.has("bridge"), "the bridge is on the key page")
+	check(Controls.KEYS.get("bridge", []) == [KEY_C], "it is on C by default")
+	check(Controls.PADS.get("bridge", -1) == JOY_BUTTON_RIGHT_SHOULDER, "and the right shoulder button")
+	var keys := {}
+	var pads := {}
+	var shared := false
+	for a in ["up", "down", "left", "right", "testudo", "build", "pray", "pause", "bridge"]:
+		for k in Controls.KEYS.get(a, []):
+			shared = shared or keys.has(k)
+			keys[k] = true
+		if Controls.PADS.has(a):
+			shared = shared or pads.has(Controls.PADS[a])
+			pads[Controls.PADS[a]] = true
+	check(not shared, "no key or button used while marching does two things")
+	check(Controls.hint("bridge").contains(Controls.key_of("bridge")), "the bridge hint names its key")
+
+
+func test_the_health_bar_keeps_clear_of_the_corners(b: Dictionary) -> void:
+	var before := Ui.scale
+	for scale in [1, 2]:
+		Ui.set_text_size(scale, b)
+		var view := Vector2(640, 360)
+		var parts := Hud.bottom_layout(view)
+		var bar: Rect2 = parts.health
+		check(bar.size.x >= 160.0 and absf(bar.get_center().x - view.x / 2.0) < 1.0, "the health bar is big and centred at text size %d (%.0f px)" % [scale, bar.size.x])
+		check(bar.end.y <= view.y and bar.position.y > view.y * 0.8, "and sits along the bottom")
+		for key in parts:
+			if key != "health":
+				check(not bar.intersects(parts[key]), "it keeps clear of the %s at text size %d" % [key, scale])
+	Ui.set_text_size(before, b)
+
+
+func test_the_health_bar_flashes_and_reddens(b: Dictionary) -> void:
+	check(Hud.health_colour(0.9, 10.0) != Hud.health_colour(0.9, 0.05), "it flashes just after a blow")
+	check(Hud.health_colour(0.2, 10.0) == Hud.RED, "below a quarter it is red")
+	check(Hud.health_colour(0.5, 10.0) != Hud.RED, "above it, not")
+
+
+func test_the_arrows_are_big_badges_whose_labels_never_overlap(b: Dictionary) -> void:
+	var before := Ui.scale
+	var view := Vector2(640, 360)
+	for scale in [1, 2]:
+		Ui.set_text_size(scale, b)
+		check(Hud.badge_radius() >= 18.0, "an arrow's badge is big at text size %d" % scale)
+		for k in 12:
+			var a := k * TAU / 12.0
+			var targets := [["camp", Vector2.from_angle(a) * 900.0], ["grove", Vector2.from_angle(a + 0.3) * 1200.0], ["column", Vector2.from_angle(a + 2.5) * 800.0], ["fort", Vector2.from_angle(a - 0.25) * 1000.0]]
+			var laid: Array = Hud.arrow_layout(targets, Vector2.ZERO, view, 40.0)
+			var boxes: Array = []
+			for l in laid:
+				boxes.append(l.badge)
+				boxes.append(l.label)
+			var clash := false
+			for i in boxes.size():
+				for j in range(i + 1, boxes.size()):
+					clash = clash or boxes[i].intersects(boxes[j])
+			var inside := true
+			for r in boxes:
+				inside = inside and Rect2(Vector2.ZERO, view).encloses(r)
+			var bottom: Dictionary = Hud.bottom_layout(view)
+			for r in boxes:
+				for key in ["health", "testudo", "favour", "timber", "bridge"]:
+					clash = clash or r.intersects(bottom[key])
+			check(not clash, "badges and labels overlap neither each other nor the bottom of the screen (text size %d, turn %d)" % [scale, k])
+			check(inside, "and stay on screen (text size %d, turn %d)" % [scale, k])
+	Ui.set_text_size(before, b)

@@ -24,6 +24,8 @@ var _kinds_of: Sim
 var _k_type := PackedStringArray()
 var _k_attack := PackedByteArray()
 var _k_shadow := PackedFloat32Array()
+# The rocky lip drawn along every ravine.
+var ravine_edge: Texture2D
 
 
 func _ready() -> void:
@@ -37,6 +39,9 @@ func _ready() -> void:
 				img.set_pixel(x, y, Color(0.08, 0.06, 0.03, 0.38))
 	shadow = ImageTexture.create_from_image(img)
 	digits = _digit_texture()
+	ravine_edge = load("res://assets/ravine_edge.png")
+	# The ravine lip repeats along each gorge; every other picture is drawn inside its own rectangle, so repeating changes nothing for it.
+	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 
 
 ## The ten digits as 3 by 5 pixel shapes in one strip, four pixels apart.
@@ -95,6 +100,7 @@ func _draw() -> void:
 		for gy in range(gy0, gy0 + ceili(screen.y / gh) + 2):
 			draw_texture(ground, Vector2(gx * gw, gy * gh))
 
+	_draw_ravines(view_for(top_left).grow(80.0))
 	_draw_ground_zones(view_for(top_left))
 	_draw_god_ground()
 	_draw_scorch(view_for(top_left))
@@ -191,6 +197,10 @@ func _draw() -> void:
 			var f := atlas.unit_frame(e.type, "idle", Sim.dir_name(e.facing), 0.0)
 			var a: float = 1.0 - e.t / 0.45
 			_add(e.pos.y, f[0], e.pos - f[1] + Vector2(0, e.t * 8.0), Color(0.75, 0.35, 0.3, a))
+		elif e.kind == "plunge":
+			var f := atlas.unit_frame(e.type, "idle", Sim.dir_name(e.facing), 0.0)
+			var k: float = e.t / 0.45
+			_add(e.pos.y, f[0], e.pos - f[1] + Vector2(0, k * k * 40.0), Color(0.45 - 0.4 * k, 0.4 - 0.36 * k, 0.38 - 0.34 * k, 1.0 - k * k))
 
 	_add_arm_sprites(view)
 	_add_chests_and_carts(view)
@@ -779,3 +789,122 @@ func _draw_gods(top_left: Vector2, screen: Vector2) -> void:
 		draw_circle(to, 6.0, Color(1.0, 1.0, 1.0, a))
 	if gods.flash > 0.0:
 		draw_rect(whole, Color(1.0, 1.0, 1.0, minf(gods.flash, 0.85)))
+
+
+## Every ravine in view: black depths under a rocky lip that falls away into them, then the bridges laid over them.
+func _draw_ravines(view: Rect2) -> void:
+	var item := get_canvas_item()
+	var empty_uv := PackedVector2Array()
+	for rv in sim.terrain.ravines_in(view):
+		for piece in rv.pieces:
+			# Each piece keeps its triangles once worked out, since a ravine never changes.
+			if not piece.has("mesh"):
+				piece.mesh = _gorge_mesh(piece)
+			var g: Array = piece.mesh
+			RenderingServer.canvas_item_add_triangle_array(item, g[0], g[1], g[2], empty_uv)
+			RenderingServer.canvas_item_add_triangle_array(item, g[3], g[4], g[5], g[6], PackedInt32Array(), PackedFloat32Array(), ravine_edge.get_rid())
+	for br in sim.terrain.bridges:
+		if view.has_point(br.pos):
+			_draw_bridge(br)
+
+
+## The triangles of one ravine piece: the dark fill of its whole outline, and the strip of rocky lip along it.
+func _gorge_mesh(piece: Dictionary) -> Array:
+	var pts: PackedVector2Array = piece.pts
+	var half: PackedFloat32Array = piece.half
+	var n := pts.size()
+	# The outline runs down one side, round the far end, back up the other side and round the near end.
+	var centres := PackedVector2Array()
+	var outs := PackedVector2Array()
+	var widths := PackedFloat32Array()
+	var normals := PackedVector2Array()
+	for i in n:
+		var along := (pts[mini(i + 1, n - 1)] - pts[maxi(i - 1, 0)]).normalized()
+		normals.append(along.orthogonal())
+	var cap := 8
+	for i in n:
+		centres.append(pts[i])
+		outs.append(normals[i])
+		widths.append(half[i])
+	for k in range(1, cap):
+		centres.append(pts[n - 1])
+		outs.append(normals[n - 1].rotated(-PI * k / cap))
+		widths.append(half[n - 1])
+	for i in range(n - 1, -1, -1):
+		centres.append(pts[i])
+		outs.append(-normals[i])
+		widths.append(half[i])
+	for k in range(1, cap):
+		centres.append(pts[0])
+		outs.append(-normals[0].rotated(-PI * k / cap))
+		widths.append(half[0])
+	var m := centres.size()
+	var dark := Color(0.035, 0.025, 0.03)
+	var fill_pts := PackedVector2Array()
+	var fill_cols := PackedColorArray()
+	var fill_idx := PackedInt32Array()
+	fill_pts.append(pts[0])
+	fill_cols.append(dark)
+	for k in m:
+		fill_pts.append(centres[k] + outs[k] * (widths[k] + 2.0))
+		fill_cols.append(dark)
+	# The fill is laid in quads from the middle line out to the outline, so a bent gorge never folds its own polygon over itself.
+	for k in m:
+		fill_pts.append(centres[k])
+		fill_cols.append(dark)
+	for k in m:
+		var j := (k + 1) % m
+		fill_idx.append_array([m + 1 + k, k + 1, j + 1, m + 1 + k, j + 1, m + 1 + j])
+	var tex_w := float(ravine_edge.get_width())
+	var lip_pts := PackedVector2Array()
+	var lip_cols := PackedColorArray()
+	var lip_uvs := PackedVector2Array()
+	var lip_idx := PackedInt32Array()
+	var s := 0.0
+	var last := Vector2.ZERO
+	for k in m + 1:
+		var c := k % m
+		var w := widths[c]
+		var outer := centres[c] + outs[c] * (w + 12.0 * minf(1.0, w / 30.0))
+		var inner := centres[c] + outs[c] * maxf(w - 48.0, 0.0)
+		if k > 0:
+			s += outer.distance_to(last)
+		last = outer
+		lip_pts.append_array([outer, inner])
+		lip_cols.append_array([Color.WHITE, Color.WHITE])
+		lip_uvs.append_array([Vector2(s / tex_w, 0.0), Vector2(s / tex_w, 1.0)])
+		if k > 0:
+			var b := lip_pts.size() - 4
+			lip_idx.append_array([b, b + 2, b + 1, b + 1, b + 2, b + 3])
+	return [fill_idx, fill_pts, fill_cols, lip_idx, lip_pts, lip_cols, lip_uvs]
+
+
+## A plank bridge: two side beams with planks laid across them and a post at each corner.
+func _draw_bridge(br: Dictionary) -> void:
+	var d: Vector2 = br.dir
+	var side := d.orthogonal()
+	var hl: float = br.half_len
+	var hw: float = br.half_w
+	var c: Vector2 = br.pos
+	var ink := Color(0.16, 0.1, 0.08)
+	var beam := Color(0.33, 0.21, 0.11)
+	var planks := [Color(0.62, 0.43, 0.24), Color(0.55, 0.37, 0.2), Color(0.66, 0.47, 0.27)]
+	draw_colored_polygon(PackedVector2Array([c - d * hl + side * (hw + 2), c + d * hl + side * (hw + 2), c + d * hl - side * (hw + 2), c - d * hl - side * (hw + 2)]), ink)
+	var t := -hl + 1.0
+	var k := 0
+	while t < hl - 1.0:
+		var a := c + d * t
+		var z := c + d * minf(t + 4.0, hl - 1.0)
+		var jag := float((k * 7) % 3) - 1.0
+		var col: Color = planks[(k * 5) % 3]
+		draw_colored_polygon(PackedVector2Array([a + side * (hw + jag), z + side * (hw + jag), z - side * (hw - jag), a - side * (hw - jag)]), col)
+		draw_line(z + side * (hw - 1), z - side * (hw - 1), Color(0.3, 0.19, 0.1), 1.0)
+		t += 5.0
+		k += 1
+	for edge in [-1.0, 1.0]:
+		var e: Vector2 = side * edge * (hw - 1.5)
+		draw_line(c - d * hl + e, c + d * hl + e, beam, 3.0)
+		for end in [-1.0, 1.0]:
+			var post: Vector2 = (c + d * (hl - 3.0) * end + side * edge * (hw + 1.0)).round()
+			draw_rect(Rect2(post - Vector2(3, 3), Vector2(6, 6)), ink)
+			draw_rect(Rect2(post - Vector2(2, 2), Vector2(4, 4)), beam)

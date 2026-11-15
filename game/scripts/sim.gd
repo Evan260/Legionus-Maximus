@@ -112,6 +112,13 @@ var _chieftain_heard := false
 var timber := 0
 ## When a palisade was last asked for without the timber for it, for the notice.
 var palisade_refused_at := -1.0
+## The last bridge asked for that could not be laid, {at, why} with why "timber" or "ravine".
+var bridge_refused := {}
+## Whether the legion faces a ravine it could bridge, looked at a few times a second for the hint.
+var bridge_here := false
+var _bridge_look := 0.0
+# Barbarians thrown into a ravine, by id, who fall without dropping coins.
+var _plunged := {}
 
 
 func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
@@ -136,7 +143,7 @@ func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
 	legion.commander.max_hp = legion.max_hp_of("commander")
 	legion.commander.hp = legion.commander.max_hp
 	horde = Horde.new(b, content, rng, legion.commander, province)
-	terrain = Terrain.new(rng.seed, b.forest)
+	terrain = Terrain.new(rng.seed, b.forest, b.get("ravines", {}))
 	terrain.clear_radius = float(b.get("terrain_clear_radius", 200.0))
 	terrain.fell_seconds = float(b.felling.seconds)
 	objectives.place_start(self, options.get("objectives_near", false))
@@ -245,6 +252,10 @@ func update(dt: float, move: Vector2, testudo_pressed: bool) -> void:
 	else:
 		testudo_charge = minf(1.0, testudo_charge + dt / maxf(5.0, b.testudo_recharge - 2.0 * rank("testudo") - _bonus_amount("testudo_charge")))
 	_move_legion(dt, move)
+	_bridge_look -= dt
+	if _bridge_look <= 0.0:
+		_bridge_look = float(b.bridge.look_every)
+		bridge_here = not terrain.rv_items.is_empty() and not bridge_span().is_empty()
 	_rebuild_grids()
 	objectives.before_horde(self)
 	horde.update(dt, self)
@@ -393,6 +404,47 @@ func build_palisade() -> bool:
 	terrain.refresh(commander.pos)
 	event("palisade", commander.pos)
 	return true
+
+
+## How far ahead of the commander the legion's front rank stands, along its facing.
+func _front() -> float:
+	var dir := Vector2.from_angle(facing_angle)
+	var front := 0.0
+	for u in units_in_formation():
+		front = maxf(front, (u.pos - commander.pos).dot(dir))
+	return front
+
+
+## The ravine straight ahead of the legion that a bridge would cross, as [near, far] distances from the commander, or [].
+func bridge_span() -> Array:
+	var cfg: Dictionary = b.bridge
+	return terrain.span_ahead(commander.pos, Vector2.from_angle(facing_angle), _front() + float(cfg.reach), float(cfg.longest))
+
+
+## Spends timber on a plank bridge across the ravine ahead; with no ravine ahead or too little timber it is refused.
+func build_bridge() -> bool:
+	var cfg: Dictionary = b.bridge
+	var span := bridge_span()
+	var why := "ravine" if span.is_empty() else ("timber" if timber < int(cfg.cost) else "")
+	if why != "":
+		event("back", commander.pos)
+		bridge_refused = {"at": time, "why": why}
+		return false
+	timber -= int(cfg.cost)
+	var dir := Vector2.from_angle(facing_angle)
+	var over := float(cfg.overhang)
+	terrain.add_bridge(commander.pos + dir * (span[0] - over), commander.pos + dir * (span[1] + over), float(cfg.width) / 2.0)
+	terrain.refresh(commander.pos)
+	bridge_refused = {}
+	bridge_here = false
+	event("palisade", commander.pos)
+	return true
+
+
+## A barbarian thrown over a ravine's drop falls to his death.
+func plunge(i: int) -> void:
+	_plunged[horde.e_id[i]] = true
+	horde.e_hp[i] = 0.0
 
 
 func _cell(p: Vector2) -> Vector2i:
@@ -608,9 +660,10 @@ func _kill(i: int) -> void:
 	var pay := float(content.enemies[id].coins) * (1.0 + float(b.drills.plunder) * rank("plunder") + _bonus_amount("denarii")) * (float(b.hard.denarii_mult) if hard else 1.0)
 	# A fraction of a coin is paid as the same chance of one more.
 	var value := int(pay) + (1 if pay > floorf(pay) and rng.randf() < pay - floorf(pay) else 0)
-	if value > 0:
+	var fell := _plunged.erase(horde.e_id[i])
+	if value > 0 and not fell:
 		drop_coin(horde.e_pos[i], value)
-	effects.append({"kind": "death", "pos": horde.e_pos[i], "t": 0.0, "type": id, "facing": horde.e_face[i]})
+	effects.append({"kind": "plunge" if fell else "death", "pos": horde.e_pos[i], "t": 0.0, "type": id, "facing": horde.e_face[i]})
 	if horde.e_tag[i] == Horde.ELITE:
 		horde.drop_chest(horde.e_pos[i])
 	if horde.e_id[i] == horde.chieftain_id:

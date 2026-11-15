@@ -48,8 +48,8 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 			tr("%s  march") % _march_keys(),
 			tr("%s  testudo: shields up, 80%% less harm") % Controls.slot_text(saved, "testudo", "keys", 0),
 			tr("%s  palisade: %d timber from felled trees") % [Controls.slot_text(saved, "build", "keys", 0), int(main.balance.palisade.cost)],
+			tr("%s  bridge over a ravine: %d timber") % [Controls.slot_text(saved, "bridge", "keys", 0), int(main.balance.bridge.cost)],
 			tr("%s  pause") % Controls.slot_text(saved, "pause", "keys", 0),
-			"",
 			tr("Your soldiers fight on their own."),
 			Game.goal_text(main.balance),
 		]

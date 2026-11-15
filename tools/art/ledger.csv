@@ -350,3 +350,5 @@ time,kind,name,cost_usd,cost_generations,usd_left
 2026-11-14T20:35:24,animate,art_test/raw/chieftain_big/attack_north-west,0.0335,0,18.2304
 2026-11-14T20:36:01,animate,art_test/raw/chieftain_big/attack_east,0.0087,0,18.2218
 2026-11-14T20:36:12,animate,art_test/raw/chieftain_big/attack_south-east,0.0192,0,18.2113
+2026-11-14T22:11:30,proflash,art_test/raw/ravine/edge_11.png,0.0314,0,18.1799
+2026-11-14T22:11:43,proflash,art_test/raw/ravine/edge_12.png,0.0646,0,18.1467

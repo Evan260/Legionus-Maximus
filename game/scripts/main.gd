@@ -7,7 +7,8 @@ extends Node
 ##   --shot=PATH        save a screenshot after --at seconds (default 3) and quit
 ##   --chieftain-at=S   bring the chieftain at this many seconds instead
 ##   --objectives-near  place the objectives close to the start, for looking at them
-##   --go-to=KIND       with --autoplay, start beside the camp, column or grove, inside a fort raised at once, or burning-camp
+##   --go-to=KIND       with --autoplay, start beside the camp, column or grove, inside a fort raised at once, or burning-camp;
+##                      ravine stands the legion at the lip of the nearest ravine, bridge lays a bridge there and marches onto it
 ##   --hold-choice      with --autoplay, give a level at once and leave its choices open
 ##   --hard, --endless, --decimatio   start the run in that mode
 ##   --screen=NAME      open a screen (camp, quartermaster, tablinum, map, commanders, settings) with a sample profile, for screenshots;
@@ -29,6 +30,8 @@ var sim: Sim
 var state := "title"
 var choices: Array = []
 var selected := 0
+## The march an autoplay look holds to instead of circling, or INF.
+var look_march := Vector2.INF
 var args := {}
 var shot_at := -1.0
 var clock := 0.0
@@ -144,6 +147,9 @@ func _bring_boss(kind: String, act: String) -> void:
 ## Puts the legion just below an objective or inside a freshly raised fort, for a screenshot.
 func _go_to(kind: String) -> void:
 	var at := Vector2.INF
+	if kind == "ravine" or kind == "bridge":
+		_go_to_ravine(kind == "bridge")
+		return
 	var burn := kind == "burning-camp"
 	if burn:
 		kind = "camp"
@@ -164,6 +170,30 @@ func _go_to(kind: String) -> void:
 	if burn:
 		sim.commander.pos = at + Vector2(0, 30)
 	sim.legion.place_all(sim.facing_angle)
+
+
+## Stands the legion at the lip of the ravine nearest the start, facing across; with `bridge` it lays a bridge and marches onto it.
+func _go_to_ravine(bridge: bool) -> void:
+	var list: Array = sim.terrain.ravines_in(Rect2(-4000, -4000, 8000, 8000))
+	if list.is_empty():
+		return
+	list.sort_custom(func(a: Dictionary, z: Dictionary) -> bool: return a.box.get_center().length() < z.box.get_center().length())
+	var piece: Dictionary = list[0].pieces[0]
+	var i: int = piece.pts.size() / 2
+	var along: Vector2 = (piece.pts[i + 1] - piece.pts[i - 1]).normalized()
+	var out := along.orthogonal()
+	sim.commander.pos = piece.pts[i] + out * (piece.half[i] + 40.0)
+	sim.facing_angle = (-out).angle()
+	sim.commander.facing = -out
+	sim.legion.place_all(sim.facing_angle)
+	sim.terrain.refresh(sim.commander.pos)
+	sim.horde.next_band = 1e9
+	if bridge:
+		sim.timber = int(balance.bridge.cost)
+		sim.build_bridge()
+		look_march = -out * 0.6
+	else:
+		look_march = Vector2.ZERO
 
 
 ## Runs an autoplay to its end and shows the summary, for a screenshot.
@@ -325,11 +355,13 @@ func _process(dt: float) -> void:
 			var testudo := Input.is_action_just_pressed("testudo")
 			var build := Input.is_action_just_pressed("build")
 			if args.has("autoplay"):
-				move = Vector2(cos(sim.time * 0.4), sin(sim.time * 0.4))
+				move = Vector2(cos(sim.time * 0.4), sin(sim.time * 0.4)) if look_march == Vector2.INF else look_march
 				testudo = int(sim.time) % 20 == 5
-				build = sim.timber >= int(balance.palisade.cost)
+				build = sim.timber >= int(balance.palisade.cost) and look_march == Vector2.INF
 			if build:
 				sim.build_palisade()
+			if Input.is_action_just_pressed("bridge"):
+				sim.build_bridge()
 			sim.update(minf(dt, 1.0 / 30.0), move, testudo)
 			Audio.drain(sim)
 			if sim.over:

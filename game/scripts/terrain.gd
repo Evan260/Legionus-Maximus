@@ -2,6 +2,7 @@ class_name Terrain
 extends RefCounted
 ## The props on the field as plain data. Trees, rocks and logs are solid, so forest ridges and stone lines block the march
 ## and the legion has to steer round them or fell its way through; stumps and small stones are only drawn.
+## Ravines are winding gorges nobody can cross except over a land bridge or a bridge the legion lays.
 
 const CHUNK := 160.0
 const REGION := 480.0
@@ -53,11 +54,26 @@ var _regions := {}
 var _buckets := {}
 var _extra_at := {}
 var _ready_to_fall: Array = []
+## The ravine numbers from balance.json; with none the field has no ravines.
+var ravine_cfg: Dictionary
+## Bridges laid by the legion, as {pos: middle, dir: along the deck, half_len, half_w}; they last the whole run.
+var bridges: Array = []
+# The ravine of each ravine region once worked out, {} for a region without one.
+var _ravines := {}
+# Ravines laid by hand, for tests and looks.
+var _laid: Array = []
+# The ravine segments near the commander as (ax, ay, bx, by) with the half widths at each end, and the grid cells listing them.
+const RAVINE_REACH := 40.0
+var rv_seg := PackedVector4Array()
+var rv_half := PackedVector2Array()
+var rv_start := PackedInt32Array()
+var rv_items := PackedInt32Array()
 
 
-func _init(run_seed: int, forest_cfg: Dictionary) -> void:
+func _init(run_seed: int, forest_cfg: Dictionary, ravines_cfg := {}) -> void:
 	seed_value = run_seed
 	forest = forest_cfg
+	ravine_cfg = ravines_cfg
 
 
 ## Empties the field, for tests that need open ground.
@@ -67,6 +83,8 @@ func clear() -> void:
 	_extra_at.clear()
 	posts.clear()
 	_chunks.clear()
+	_laid.clear()
+	bridges.clear()
 	_anchor = Vector2i(1 << 30, 0)
 
 
@@ -162,7 +180,7 @@ func chunk(cx: int, cy: int) -> Array:
 		var p := Vector2((cx + r.randf()) * CHUNK, (cy + r.randf()) * CHUNK)
 		if p.length() > 90.0:
 			var kind: String = SCATTER[r.randi_range(0, SCATTER.size() - 1)]
-			if not _in_clearing(p):
+			if not _in_clearing(p) and not _by_ravine(p):
 				out.append(_standing(kind, p))
 	var rx := floori(box.position.x / REGION)
 	var ry := floori(box.position.y / REGION)
@@ -223,7 +241,7 @@ func _region(rx: int, ry: int) -> Array:
 			t += 20.0
 	var kept: Array = []
 	for p in out:
-		if p[1].length() > clear_radius and not _in_clearing(p[1]):
+		if p[1].length() > clear_radius and not _in_clearing(p[1]) and not _by_ravine(p[1]):
 			kept.append(p)
 	_regions[key] = kept
 	return kept
@@ -287,6 +305,9 @@ func _ridge(r: RandomNumberGenerator, centre: Vector2) -> Array:
 ## Clears a circle of ground that may already be built and stands the run's own pieces in it.
 func add_clearing(centre: Vector2, radius: float, pieces: Array) -> void:
 	clearings.append([centre, radius])
+	for key in _ravines:
+		if not _ravines[key].is_empty() and edge_of(_ravines[key], centre) < radius:
+			_ravines[key] = {}
 	extras.append_array(pieces)
 	for pr in pieces:
 		_extra_at[pr[1]] = true
@@ -349,6 +370,7 @@ func refresh(p: Vector2) -> void:
 		start[i] = items.size()
 		items.append_array(cells[i])
 	start[GN * GN] = items.size()
+	_grid_ravines(area)
 	_mark_blocked()
 
 
@@ -367,6 +389,18 @@ func _mark_blocked() -> void:
 			for gy in range(y0, y1 + 1):
 				var centre := flow_origin + (Vector2(gx, gy) + Vector2(0.5, 0.5)) * FLOW_CELL
 				if centre.distance_to(Vector2(sv.x, sv.y)) < reach:
+					_blocked[gx + gy * FN] = 1
+	for k in rv_seg.size():
+		var sg := rv_seg[k]
+		var reach := maxf(rv_half[k].x, rv_half[k].y) + 8.0
+		var x0 := clampi(floori((minf(sg.x, sg.z) - reach - flow_origin.x) / FLOW_CELL), 0, FN - 1)
+		var x1 := clampi(floori((maxf(sg.x, sg.z) + reach - flow_origin.x) / FLOW_CELL), 0, FN - 1)
+		var y0 := clampi(floori((minf(sg.y, sg.w) - reach - flow_origin.y) / FLOW_CELL), 0, FN - 1)
+		var y1 := clampi(floori((maxf(sg.y, sg.w) + reach - flow_origin.y) / FLOW_CELL), 0, FN - 1)
+		for gx in range(x0, x1 + 1):
+			for gy in range(y0, y1 + 1):
+				var centre := flow_origin + (Vector2(gx, gy) + Vector2(0.5, 0.5)) * FLOW_CELL
+				if _blocked[gx + gy * FN] == 0 and _seg_edge(k, centre) < 8.0 and on_bridge(centre) < 0:
 					_blocked[gx + gy * FN] = 1
 	_flow_goal = Vector2i(1 << 30, 0)
 
@@ -464,6 +498,8 @@ func push_out(p: Vector2, r: float, chop := 0.0) -> Vector2:
 			if chop > 0.0 and solid_tree[items[t]] == 1 and reach - d > 0.05:
 				_chop(Vector2(s.x, s.y), chop, chop)
 			p = Vector2(s.x, s.y) + (away / d if d > 0.001 else Vector2.RIGHT) * reach
+	if rv_start[cell] < rv_start[cell + 1]:
+		p = ravine_push(p, r)
 	return p
 
 
@@ -472,7 +508,6 @@ func horde_chop(at: Vector2, dt: float) -> void:
 	_chop(at, dt, 0.0)
 
 
-## Adds dt of chopping to the tree at at, `by_legion` of it done by the legion.
 ## push_out for a circle wider than MAX_UNIT, such as a boss: it reads every grid cell the circle could reach.
 func push_out_wide(p: Vector2, r: float) -> Vector2:
 	var extra := r - MAX_UNIT
@@ -493,9 +528,10 @@ func push_out_wide(p: Vector2, r: float) -> Vector2:
 				if d2 < reach * reach:
 					var d := sqrt(d2)
 					p = Vector2(s.x, s.y) + (away / d if d > 0.001 else Vector2.RIGHT) * reach
-	return p
+	return ravine_push(p, r, true)
 
 
+## Adds dt of chopping to the tree at at, `by_legion` of it done by the legion.
 func _chop(at: Vector2, dt: float, by_legion: float) -> void:
 	var c: Array = chops.get(at, [])
 	if c.is_empty():
@@ -506,3 +542,312 @@ func _chop(at: Vector2, dt: float, by_legion: float) -> void:
 	c[2] += by_legion
 	if c[0] >= fell_seconds and not _ready_to_fall.has(at):
 		_ready_to_fall.append(at)
+
+
+## The ravine of a region, kept `inset` inside it so two never come close: {pieces: [{pts, half}], box}, or {} for none.
+func ravine(rx: int, ry: int) -> Dictionary:
+	var key := Vector2i(rx, ry)
+	if _ravines.has(key):
+		return _ravines[key]
+	var out := {}
+	if not ravine_cfg.is_empty() and not empty:
+		var r := RandomNumberGenerator.new()
+		r.seed = hash([seed_value, "ravine", key])
+		if r.randf() < float(ravine_cfg.chance):
+			var size := float(ravine_cfg.region)
+			var inner := Rect2(Vector2(rx, ry) * size, Vector2.ONE * size).grow(-float(ravine_cfg.inset) - float(ravine_cfg.width[1]) / 2.0)
+			for k in int(ravine_cfg.tries):
+				var made := _gorge_line(r, inner)
+				if _fits(made, inner):
+					out = made
+					break
+	_ravines[key] = out
+	return out
+
+
+## A winding gorge centred somewhere in `inner`, narrowing at its ends, sometimes broken by a natural land bridge.
+func _gorge_line(r: RandomNumberGenerator, inner: Rect2) -> Dictionary:
+	var cfg := ravine_cfg
+	var ds := float(cfg.step)
+	var length := r.randf_range(float(cfg.length[0]), float(cfg.length[1]))
+	var w_lo := float(cfg.width[0]) / 2.0
+	var w_hi := float(cfg.width[1]) / 2.0
+	var max_turn := float(cfg.turn)
+	var heading := r.randf() * TAU
+	var turn := r.randf_range(-1.0, 1.0) * max_turn
+	var line := PackedVector2Array([Vector2.ZERO])
+	var p := Vector2.ZERO
+	for i in int(length / ds):
+		turn = clampf(turn + r.randf_range(-1.0, 1.0) * float(cfg.wander) * ds, -max_turn, max_turn)
+		heading += turn * ds
+		p += Vector2.from_angle(heading) * ds
+		line.append(p)
+	var centre := Vector2(r.randf_range(inner.position.x, inner.end.x), r.randf_range(inner.position.y, inner.end.y))
+	var shift := centre - (line[0] + line[line.size() - 1]) / 2.0
+	var taper := float(cfg.end_taper)
+	var end_w := float(cfg.end_width)
+	var cut_from := INF
+	var cut_to := -INF
+	if r.randf() < float(cfg.land_bridge_chance):
+		var mid := r.randf_range(0.35, 0.65) * length
+		# The narrowed ends on either side reach into the gap, so the gap in the line is wider than the ground left between them.
+		var gap := r.randf_range(float(cfg.land_bridge[0]), float(cfg.land_bridge[1])) + 2.0 * w_hi * end_w
+		cut_from = mid - gap / 2.0
+		cut_to = mid + gap / 2.0
+	var width := r.randf_range(w_lo, w_hi)
+	var drift := 0.0
+	var pieces: Array = []
+	var pts := PackedVector2Array()
+	var half := PackedFloat32Array()
+	for i in line.size():
+		drift = clampf(drift + r.randf_range(-0.6, 0.6), -1.5, 1.5)
+		width = clampf(width + drift, w_lo, w_hi)
+		var along := i * ds
+		if along > cut_from and along < cut_to:
+			if pts.size() > 1:
+				pieces.append({"pts": pts, "half": half})
+			pts = PackedVector2Array()
+			half = PackedFloat32Array()
+			continue
+		var to_end := minf(along, length - along)
+		if cut_to > cut_from:
+			to_end = minf(to_end, absf(along - (cut_from if along <= cut_from else cut_to)))
+		pts.append(line[i] + shift)
+		half.append(width * clampf(end_w + (1.0 - end_w) * to_end / taper, end_w, 1.0))
+	if pts.size() > 1:
+		pieces.append({"pts": pts, "half": half})
+	return _with_box({"pieces": pieces})
+
+
+func _with_box(rv: Dictionary) -> Dictionary:
+	var box := Rect2(rv.pieces[0].pts[0], Vector2.ZERO)
+	var widest := 0.0
+	for piece in rv.pieces:
+		for q in piece.pts:
+			box = box.expand(q)
+		for h in piece.half:
+			widest = maxf(widest, h)
+	rv.box = box.grow(widest)
+	return rv
+
+
+## Whether a gorge stays inside its room, clear of the start and of every clearing.
+func _fits(rv: Dictionary, inner: Rect2) -> bool:
+	var start_clear := float(ravine_cfg.start_clear)
+	for piece in rv.pieces:
+		for i in piece.pts.size():
+			var q: Vector2 = piece.pts[i]
+			if not inner.has_point(q) or q.length() < start_clear + piece.half[i]:
+				return false
+	for c in clearings:
+		if edge_of(rv, c[0]) < c[1]:
+			return false
+	return true
+
+
+## Lays a ravine by hand, given as pieces of {pts, half}, for tests and looks.
+func add_ravine(pieces: Array) -> void:
+	_laid.append(_with_box({"pieces": pieces}))
+	_anchor = Vector2i(1 << 30, 0)
+
+
+## Every ravine whose ground reaches into the rectangle.
+func ravines_in(rect: Rect2) -> Array:
+	var out: Array = []
+	for rv in _laid:
+		if rv.box.intersects(rect):
+			out.append(rv)
+	if ravine_cfg.is_empty() or empty:
+		return out
+	var size := float(ravine_cfg.region)
+	for rx in range(floori(rect.position.x / size), floori(rect.end.x / size) + 1):
+		for ry in range(floori(rect.position.y / size), floori(rect.end.y / size) + 1):
+			var rv := ravine(rx, ry)
+			if not rv.is_empty() and rv.box.intersects(rect):
+				out.append(rv)
+	return out
+
+
+## How far p is from the nearest ravine's lip, negative over the drop, ignoring bridges; INF when none is within `within`.
+func ravine_edge(p: Vector2, within := 600.0) -> float:
+	var best := INF
+	for rv in ravines_in(Rect2(p - Vector2.ONE * within, Vector2.ONE * within * 2.0)):
+		best = minf(best, edge_of(rv, p))
+	return best
+
+
+## How far p is from one ravine's lip, negative over the drop.
+static func edge_of(rv: Dictionary, p: Vector2) -> float:
+	var best := INF
+	for piece in rv.pieces:
+		var pts: PackedVector2Array = piece.pts
+		var half: PackedFloat32Array = piece.half
+		for i in pts.size() - 1:
+			var a := pts[i]
+			var ab := pts[i + 1] - a
+			var t := clampf((p - a).dot(ab) / maxf(ab.length_squared(), 0.0001), 0.0, 1.0)
+			best = minf(best, p.distance_to(a + ab * t) - lerpf(half[i], half[i + 1], t))
+	return best
+
+
+## Whether p is in the band of open ground kept round every ravine.
+func _by_ravine(p: Vector2) -> bool:
+	if ravine_cfg.is_empty():
+		return false
+	var band := float(ravine_cfg.band)
+	return ravine_edge(p, band + float(ravine_cfg.width[1])) < band
+
+
+## Lists the ravine segments near the commander in every grid cell they could touch a unit from, as the solid props are.
+func _grid_ravines(area: Rect2) -> void:
+	rv_seg.clear()
+	rv_half.clear()
+	var cells: Array = []
+	cells.resize(GN * GN)
+	for i in cells.size():
+		cells[i] = PackedInt32Array()
+	for rv in ravines_in(area):
+		for piece in rv.pieces:
+			var pts: PackedVector2Array = piece.pts
+			# Collision reads every third point of the line, which strays under a pixel from the curve and lists a third as many segments per cell.
+			for i in range(0, pts.size() - 1, 3):
+				var j := mini(i + 3, pts.size() - 1)
+				var a := pts[i]
+				var z := pts[j]
+				var reach := maxf(piece.half[i], piece.half[j]) + RAVINE_REACH
+				var x0 := floori((minf(a.x, z.x) - reach - origin.x) / CELL)
+				var x1 := floori((maxf(a.x, z.x) + reach - origin.x) / CELL)
+				var y0 := floori((minf(a.y, z.y) - reach - origin.y) / CELL)
+				var y1 := floori((maxf(a.y, z.y) + reach - origin.y) / CELL)
+				if x1 < 0 or y1 < 0 or x0 >= GN or y0 >= GN:
+					continue
+				var idx := rv_seg.size()
+				rv_seg.append(Vector4(a.x, a.y, z.x, z.y))
+				rv_half.append(Vector2(piece.half[i], piece.half[j]))
+				for gx in range(maxi(x0, 0), mini(x1, GN - 1) + 1):
+					for gy in range(maxi(y0, 0), mini(y1, GN - 1) + 1):
+						cells[gx + gy * GN].append(idx)
+	rv_start.resize(GN * GN + 1)
+	rv_items.clear()
+	for i in cells.size():
+		rv_start[i] = rv_items.size()
+		rv_items.append_array(cells[i])
+	rv_start[GN * GN] = rv_items.size()
+
+
+## How far p is from the lip along one listed ravine segment, negative over the drop.
+func _seg_edge(k: int, p: Vector2) -> float:
+	var sg := rv_seg[k]
+	var a := Vector2(sg.x, sg.y)
+	var ab := Vector2(sg.z, sg.w) - a
+	var t := clampf((p - a).dot(ab) / maxf(ab.length_squared(), 0.0001), 0.0, 1.0)
+	return p.distance_to(a + ab * t) - lerpf(rv_half[k].x, rv_half[k].y, t)
+
+
+## Moves a circle out of the ravines near the commander, or keeps it between a bridge's sides; `wide` is for the bosses.
+func ravine_push(p: Vector2, r: float, wide := false) -> Vector2:
+	if rv_start.is_empty():
+		return p
+	var gx := floori((p.x - origin.x) / CELL)
+	var gy := floori((p.y - origin.y) / CELL)
+	var span := ceili(maxf(0.0, r - RAVINE_REACH) / CELL) if wide else 0
+	if gx + span < 0 or gy + span < 0 or gx - span >= GN or gy - span >= GN:
+		return p
+	var deck := -2
+	for cx in range(maxi(gx - span, 0), mini(gx + span, GN - 1) + 1):
+		for cy in range(maxi(gy - span, 0), mini(gy + span, GN - 1) + 1):
+			var cell := cx + cy * GN
+			for t in range(rv_start[cell], rv_start[cell + 1]):
+				var k := rv_items[t]
+				var sg := rv_seg[k]
+				var a := Vector2(sg.x, sg.y)
+				var ab := Vector2(sg.z, sg.w) - a
+				var u := clampf((p - a).dot(ab) / maxf(ab.length_squared(), 0.0001), 0.0, 1.0)
+				var q := a + ab * u
+				var reach := lerpf(rv_half[k].x, rv_half[k].y, u) + r
+				var away := p - q
+				var d2 := away.length_squared()
+				if d2 >= reach * reach:
+					continue
+				if deck == -2:
+					deck = on_bridge(p)
+				if deck >= 0:
+					return _keep_on(bridges[deck], p, r)
+				var d := sqrt(d2)
+				p = q + (away / d if d > 0.001 else ab.orthogonal().normalized()) * reach
+	return p
+
+
+## The bridge whose deck p stands on, or -1.
+func on_bridge(p: Vector2) -> int:
+	for i in bridges.size():
+		var br: Dictionary = bridges[i]
+		var off: Vector2 = p - br.pos
+		if absf(off.dot(br.dir)) <= br.half_len and absf(off.dot(br.dir.orthogonal())) <= br.half_w:
+			return i
+	return -1
+
+
+## Keeps a circle on a bridge's deck, between its sides.
+func _keep_on(br: Dictionary, p: Vector2, r: float) -> Vector2:
+	var side: Vector2 = br.dir.orthogonal()
+	var across: float = (p - br.pos).dot(side)
+	var room := maxf(0.0, br.half_w - r)
+	return p - side * (across - clampf(across, -room, room))
+
+
+## Whether p is over the drop of a ravine near the commander, by more than `depth`, and not on a bridge.
+func over_ravine(p: Vector2, depth := 0.0) -> bool:
+	if rv_start.is_empty():
+		return false
+	var gx := floori((p.x - origin.x) / CELL)
+	var gy := floori((p.y - origin.y) / CELL)
+	if gx < 0 or gy < 0 or gx >= GN or gy >= GN:
+		return false
+	var cell := gx + gy * GN
+	for t in range(rv_start[cell], rv_start[cell + 1]):
+		if _seg_edge(rv_items[t], p) < -depth:
+			return on_bridge(p) < 0
+	return false
+
+
+## Whether the straight walk from a to b passes over a ravine's drop near the commander.
+func crosses_ravine(a: Vector2, b: Vector2) -> bool:
+	if rv_items.is_empty():
+		return false
+	var n := ceili(a.distance_to(b) / 10.0)
+	for i in range(1, n + 1):
+		var p := a.lerp(b, float(i) / n)
+		var gx := floori((p.x - origin.x) / CELL)
+		var gy := floori((p.y - origin.y) / CELL)
+		if gx < 0 or gy < 0 or gx >= GN or gy >= GN:
+			continue
+		var cell := gx + gy * GN
+		if rv_start[cell] < rv_start[cell + 1] and over_ravine(p):
+			return true
+	return false
+
+
+## The ravine straight ahead along `dir` as [distance to the drop, distance to the far lip], or [] when none is in reach.
+func span_ahead(from: Vector2, dir: Vector2, reach: float, longest: float) -> Array:
+	var near := -1.0
+	var t := 0.0
+	while t <= reach:
+		if ravine_edge(from + dir * t) < 0.0:
+			near = t
+			break
+		t += 4.0
+	if near < 0.0:
+		return []
+	t = near
+	while t <= near + longest:
+		if ravine_edge(from + dir * t) >= 0.0:
+			return [near, t]
+		t += 4.0
+	return []
+
+
+## Lays a bridge with its deck from a to b, `half_w` either side of the line between them.
+func add_bridge(a: Vector2, b: Vector2, half_w: float) -> void:
+	bridges.append({"pos": (a + b) / 2.0, "dir": (b - a).normalized(), "half_len": a.distance_to(b) / 2.0, "half_w": half_w})
+	_anchor = Vector2i(1 << 30, 0)

@@ -169,7 +169,15 @@ func follow(dt: float, sim: Sim) -> void:
 		var d := to.length()
 		s.moving = d > 1.5 or sim.moving
 		if d > 0.01:
-			s.pos += to / d * minf(d, step)
+			var way := to / d
+			# A soldier whose place lies across a ravine follows the route map round it or over a bridge; each looks every fourth update.
+			if (i + sim.horde.frame) % 4 == 0:
+				s.across = sim.terrain.crosses_ravine(s.pos, target)
+			if s.get("across", false):
+				var f := sim.terrain.flow_at(s.pos)
+				if f != Vector2.ZERO:
+					way = f
+			s.pos += way * minf(d, step)
 		s.facing = to.normalized() if d > 3.0 else commander.facing
 	assign_guards()
 

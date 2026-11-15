@@ -210,8 +210,16 @@ func _quake(dt: float, sim: Sim) -> void:
 		return
 	for i in h.e_pos.size():
 		var v: Variant = _thrown.get(h.e_id[i])
-		if v != null:
-			h.e_pos[i] += v * dt
+		if v == null:
+			continue
+		var to: Vector2 = h.e_pos[i] + v * dt
+		# A barbarian thrown over a ravine falls in; a boss is too heavy and stops at the lip.
+		if sim.terrain.over_ravine(to, 4.0):
+			_thrown.erase(h.e_id[i])
+			if h.e_tag[i] != Horde.ORDINARY:
+				continue
+			sim.plunge(i)
+		h.e_pos[i] = to
 
 
 ## Vulcan sets every barbarian on screen alight and sends fire falling, some of it leaving burning ground.
