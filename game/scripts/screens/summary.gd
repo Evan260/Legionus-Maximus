@@ -24,6 +24,16 @@ static func clock(seconds: float) -> String:
 	return "%d:%02d" % [int(seconds) / 60, int(seconds) % 60]
 
 
+## The line on how long an endless run lasted after it was won, or "" for any other run.
+static func held_line(sim: Sim) -> String:
+	if not sim.endless or sim.endless_since < 0.0:
+		return ""
+	if sim.horde.chief_dead:
+		return TranslationServer.translate("Held out %s after the chieftain") % clock(sim.endless_seconds())
+	var extra := int(sim.endless_seconds())
+	return TranslationServer.translate("Endless  +%d:%02d") % [extra / 60, extra % 60]
+
+
 static func short(n: float) -> String:
 	return "%.1fk" % (n / 1000.0) if n >= 10000.0 else str(roundi(n))
 
@@ -81,9 +91,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	for mode in ["hard", "endless", "decimatio"]:
 		if sim.get(mode):
 			modes.append(tr(mode.capitalize()))
-	var held := ""
-	if sim.endless and sim.endless_since >= 0.0:
-		held = tr("Held out %s after the chieftain") % clock(sim.endless_seconds())
+	var held := held_line(sim)
 	var hint := held if held != "" else Controls.hint("summary")
 	if sim.demo_over:
 		hint = tr("The full game continues past %d minutes") % (int(main.balance.demo.seconds) / 60)

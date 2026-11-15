@@ -127,7 +127,12 @@ func _pilum(dt: float, sim: Sim) -> void:
 	var throwers := int(lv(p, "throwers", pr))
 	var thrown := 0
 	var order := sim.soldiers.duplicate()
-	order.shuffle()
+	# Shuffled with the run's own dice so a seed always plays the same run.
+	for k in range(order.size() - 1, 0, -1):
+		var j := _rng.randi_range(0, k)
+		var t: Variant = order[k]
+		order[k] = order[j]
+		order[j] = t
 	order.push_front(sim.commander)
 	for s in order:
 		if thrown >= throwers:

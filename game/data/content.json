@@ -1571,7 +1571,7 @@
    },
    "unlock": {
     "type": "survive",
-    "seconds": 1200,
+    "seconds": 960,
     "max_soldiers": 10
    },
    "art": [

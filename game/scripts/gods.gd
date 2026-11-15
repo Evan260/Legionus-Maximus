@@ -14,6 +14,8 @@ var last := {}
 var storm_left := 0.0
 var frenzy_left := 0.0
 var burn_left := 0.0
+## Seconds until Vulcan's burning ground has gone out.
+var patches_left := 0.0
 var light_left := 0.0
 var wave := {}
 var bolts: Array = []
@@ -21,6 +23,8 @@ var meteors: Array = []
 var flash := 0.0
 var quake := 0.0
 
+## The three gods drawn when the favour filled, kept until one is called so closing the choice draws none afresh.
+var offer: Array = []
 var _strike_acc := 0.0
 var _thrown := {}
 var _boss_taken := {}
@@ -37,7 +41,7 @@ func full(b: Dictionary) -> bool:
 
 ## Whether a god's power is still at work, when kills add no favour so one call cannot pay for the next.
 func busy() -> bool:
-	return storm_left > 0.0 or frenzy_left > 0.0 or burn_left > 0.0 or not wave.is_empty()
+	return storm_left > 0.0 or frenzy_left > 0.0 or burn_left > 0.0 or patches_left > 0.0 or not meteors.is_empty() or not wave.is_empty() or not _thrown.is_empty()
 
 
 func on_kill(b: Dictionary) -> void:
@@ -49,6 +53,8 @@ func on_kill(b: Dictionary) -> void:
 static func offers(sim: Sim) -> Array:
 	if not sim.gods.full(sim.b):
 		return []
+	if not sim.gods.offer.is_empty():
+		return sim.gods.offer
 	var pool: Array = []
 	for id in IDS:
 		if sim.content.ready("gods", id):
@@ -58,7 +64,8 @@ static func offers(sim: Sim) -> Array:
 		var t: Variant = pool[i]
 		pool[i] = pool[j]
 		pool[j] = t
-	return pool.slice(0, 3)
+	sim.gods.offer = pool.slice(0, 3)
+	return sim.gods.offer
 
 
 ## Whether a point on the field is on the screen round the commander.
@@ -82,6 +89,7 @@ static func targets(sim: Sim) -> Array:
 func invoke(sim: Sim, id: String) -> void:
 	var g: Dictionary = sim.b.gods
 	favour = 0
+	offer = []
 	calls += 1
 	called[id] = true
 	last = {"id": id, "at": sim.time}
@@ -134,6 +142,7 @@ func update(dt: float, sim: Sim) -> void:
 	light_left = maxf(0.0, light_left - dt)
 	frenzy_left = maxf(0.0, frenzy_left - dt)
 	burn_left = maxf(0.0, burn_left - dt)
+	patches_left = maxf(0.0, patches_left - dt)
 	if not bolts.is_empty():
 		var keep: Array = []
 		for bolt in bolts:
@@ -229,6 +238,7 @@ func _vulcan(sim: Sim, cfg: Dictionary) -> void:
 	for i in targets(sim):
 		sim.ignite(i, float(cfg.burn_share) * h.e_max[i] / secs, secs, "vulcan")
 	burn_left = secs
+	patches_left = float(cfg.rain_seconds) + float(cfg.fall_seconds) + float(cfg.patch_life)
 	var half: Array = sim.b.gods.view_half
 	var c: Vector2 = sim.commander.pos
 	var n := int(cfg.meteors)
@@ -265,9 +275,5 @@ func _apollo(sim: Sim, cfg: Dictionary) -> void:
 			break
 		var type: String = legion.fallen.pop_back()
 		legion.soldiers[-1].pos = sim.commander.pos
-		# A man brought back must not also return later as a reserve.
-		for r in legion.reserves:
-			if r.type == type:
-				legion.reserves.erase(r)
-				break
+		legion.drop_reserve(type)
 	light_left = float(cfg.light_seconds)

@@ -210,9 +210,9 @@ func slot_of(soldier: Dictionary) -> Vector2:
 func speed() -> float:
 	var v: float = content.base_commander.speed * (1.0 + 0.08 * rank("march") + _bonus_amount("move_speed")) * float(content.commanders[commander_id].get("speed_mult", 1.0))
 	# Barbarians locked in melee hold the legion back, so marching into a crowd bogs it down instead of passing through.
-	var held := maxf(float(b.press.slowest), 1.0 - float(b.press.per_enemy) * pressing)
+	var held := 1.0 - float(b.press.per_enemy) * pressing
 	var cursed := 1.0 - horde.curse_slow if horde.curse_left > 0.0 else 1.0
-	return v * held * cursed * (b.testudo_speed if testudo_left > 0.0 else 1.0)
+	return v * maxf(float(b.press.slowest), held * cursed * (b.testudo_speed if testudo_left > 0.0 else 1.0))
 
 
 func range_mult() -> float:
@@ -393,14 +393,20 @@ func build_palisade() -> bool:
 		event("back", commander.pos)
 		palisade_refused_at = time
 		return false
-	timber -= int(cfg.cost)
 	var radius := float(cfg.radius)
+	var spots: Array = []
 	for p in palisade_points():
-		var free := true
+		var free := not terrain.over_ravine(p, -radius)
 		for u in [commander] + soldiers:
 			free = free and u.pos.distance_to(p) >= radius + UNIT_RADIUS
 		if free:
-			terrain.add_post(p, radius, time + float(cfg.seconds))
+			spots.append(p)
+	if spots.is_empty():
+		event("back", commander.pos)
+		return false
+	timber -= int(cfg.cost)
+	for p in spots:
+		terrain.add_post(p, radius, time + float(cfg.seconds))
 	terrain.refresh(commander.pos)
 	event("palisade", commander.pos)
 	return true
@@ -418,7 +424,11 @@ func _front() -> float:
 ## The ravine straight ahead of the legion that a bridge would cross, as [near, far] distances from the commander, or [].
 func bridge_span() -> Array:
 	var cfg: Dictionary = b.bridge
-	return terrain.span_ahead(commander.pos, Vector2.from_angle(facing_angle), _front() + float(cfg.reach), float(cfg.longest))
+	var dir := Vector2.from_angle(facing_angle)
+	var span := terrain.span_ahead(commander.pos, dir, _front() + float(cfg.reach), float(cfg.longest))
+	if span.is_empty() or terrain.on_bridge(commander.pos) >= 0 or terrain.on_bridge(commander.pos + dir * (float(span[0]) + float(span[1])) / 2.0) >= 0:
+		return []
+	return span
 
 
 ## Spends timber on a plank bridge across the ravine ahead; with no ravine ahead or too little timber it is refused.
@@ -519,8 +529,11 @@ func hit(i: int, dmg: float, burn_dps: float = 0.0, src := "", from := Vector2.I
 
 ## Sets an enemy alight; the burn takes its health on the next update and is counted for `src`.
 func ignite(i: int, dps: float, seconds: float, src := "") -> void:
+	# The hotter fire keeps its own source, so a god's capped burn is never handed to an uncapped weapon.
+	if dps < horde.e_burn_dps[i] and horde.e_burn[i] > 0.0:
+		return
 	horde.e_burn[i] = maxf(horde.e_burn[i], seconds)
-	horde.e_burn_dps[i] = maxf(horde.e_burn_dps[i], dps)
+	horde.e_burn_dps[i] = dps
 	horde.e_burn_src[i] = src_id(src)
 
 
@@ -638,6 +651,9 @@ func _burns(dt: float) -> void:
 		if horde.e_burn[i] > 0.0:
 			horde.e_burn[i] -= dt
 			_harm(i, horde.e_burn_dps[i] * dt, horde.e_burn_src[i])
+			if horde.e_burn[i] <= 0.0:
+				horde.e_burn_dps[i] = 0.0
+				horde.e_burn_src[i] = -1
 
 
 func _remove_dead() -> void:
@@ -679,6 +695,7 @@ func _kill(i: int) -> void:
 func win(pos: Vector2) -> void:
 	victory = true
 	event("victory", pos)
+	objectives.fort_reached = true
 	if not endless:
 		over = true
 	elif endless_since < 0.0:

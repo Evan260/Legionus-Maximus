@@ -103,7 +103,8 @@ func met(info: Dictionary, sim: Sim, banked: bool) -> bool:
 		"province":
 			return bool(Profile.record_of(str(target)).won)
 		"commander":
-			return Profile.commander_unlocked(str(target))
+			# The demo lends some commanders without unlocking them, so only a real unlock counts.
+			return Profile.data.unlocked.commanders.has(str(target))
 		"commander_win":
 			return sim.victory and not sim.demo_over and sim.commander_id == str(target)
 		"forged":

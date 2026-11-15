@@ -3271,6 +3271,7 @@ func test_the_gods_are_offered_only_with_full_favour(b: Dictionary) -> void:
 	_fill_favour(s)
 	var seen := {}
 	for k in 30:
+		s.gods.offer = []
 		var o := Gods.offers(s)
 		check(o.size() == 3 and o[0] != o[1] and o[1] != o[2] and o[0] != o[2], "three different gods")
 		for id in o:
@@ -4192,3 +4193,252 @@ func test_the_arrows_are_big_badges_whose_labels_never_overlap(b: Dictionary) ->
 			check(not clash, "badges and labels overlap neither each other nor the bottom of the screen (text size %d, turn %d)" % [scale, k])
 			check(inside, "and stay on screen (text size %d, turn %d)" % [scale, k])
 	Ui.set_text_size(before, b)
+
+
+func _find(s: Sim, id: int) -> int:
+	return s.horde.e_id.find(id)
+
+
+func test_a_gods_burn_is_not_carried_on_by_a_later_fire(b: Dictionary) -> void:
+	var share := float(b.gods.boss_share)
+	for kind in ["berserker", "chieftain"]:
+		for follow in ["fire_arrows", "torches", "scorch"]:
+			var s := _god_sim(b, 1601, 0)
+			s.soldiers.clear()
+			var i := s.horde.spawn(kind, Vector2(150, 0), kind != "chieftain")
+			var id := s.horde.e_id[i]
+			var max_hp: float = s.horde.e_max[i]
+			s.horde.e_stun[i] = 1e9
+			_fill_favour(s)
+			s.gods.invoke(s, "vulcan")
+			s.ignite(i, 5.0, 2.0, "torches")
+			check(s.horde.e_burn_src[i] == s.src_id("vulcan"), "a smaller fire does not take over a god's burn (%s)" % kind)
+			_step_dt(s, 10.0)
+			i = _find(s, id)
+			check(i >= 0 and s.horde.e_burn_dps[i] == 0.0 and s.horde.e_burn_src[i] == -1, "a burn that has gone out leaves nothing behind (%s)" % kind)
+			if i < 0:
+				continue
+			var hp_after_god: float = s.horde.e_hp[i]
+			match follow:
+				"fire_arrows":
+					s.hit(i, 1.0, 4.0, "archer")
+				"torches":
+					s.ignite(i, 5.0, 2.0, "torches")
+				"scorch":
+					s.scorch(i, 1.0, "fire_pots")
+			_step_dt(s, 10.0)
+			i = _find(s, id)
+			check(i >= 0 and hp_after_god - s.horde.e_hp[i] < max_hp * 0.02, "a %s after Vulcan only does its own small harm to the %s" % [follow, kind])
+			check(i >= 0 and s.horde.e_hp[i] >= max_hp * (1.0 - share) - 60.0, "and he keeps the health the god's cap left him")
+
+
+func test_a_stunned_boss_uses_no_ability(b: Dictionary) -> void:
+	var s := _chief_sim(b, 1602)
+	var ci := s.horde.spawn("chieftain", s.commander.pos + Vector2(40, 0))
+	var cid := s.horde.e_id[ci]
+	s.horde.cleave_cd = 0.0
+	s.horde.cry_cd = 0.0
+	s.horde.charge_cd = 0.0
+	s.horde.slam_cd = 0.0
+	s.horde.horn_cd = 1e9
+	var lobs := 0
+	var warned := false
+	var men := s.soldiers.size()
+	for f in 120:
+		ci = _find(s, cid)
+		s.horde.e_stun[ci] = 5.0
+		var n := s.horde.foe_lobs.size()
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+		lobs += maxi(0, s.horde.foe_lobs.size() - n)
+		warned = warned or s.horde.charge_warn > 0.0 or s.horde.charging
+	check(lobs == 0 and not warned, "a stunned chieftain neither slams nor charges")
+	check(s.soldiers.size() == men, "nor cleaves a soldier (%d of %d left)" % [s.soldiers.size(), men])
+	var c := _chief_sim(b, 1603)
+	var k := c.horde.spawn("chieftain", c.commander.pos + Vector2(200, 0))
+	c.horde.e_dash[k] = 0.5
+	c.horde.charging = true
+	c.horde.e_stun[k] = 1.0
+	_step_dt(c, 1.5)
+	check(not c.horde.charging, "a charge cut short by a stun ends")
+	var made := _boss_sim(b, 1604, "berserker", Vector2(30, 0))
+	var bs: Sim = made[0]
+	var st: Dictionary = made[2]
+	st.whirl_cd = 0.0
+	bs.horde.e_stun[made[1]] = 2.0
+	bs.horde._bosses(1.0 / 60.0, bs)
+	check(bs.horde.foe_lobs.is_empty(), "a stunned berserker does not whirl")
+	var pm := _boss_sim(b, 1605, "war_priest", Vector2(120, 0))
+	var ps: Sim = pm[0]
+	var pst: Dictionary = pm[2]
+	pst.mend_cd = 0.0
+	pst.curse_cd = 0.0
+	ps.horde.e_stun[pm[1]] = 2.0
+	ps.horde._bosses(1.0 / 60.0, ps)
+	check(ps.horde.marks.is_empty(), "a stunned war priest neither mends nor curses")
+
+
+func test_the_pilum_keeps_a_seed_repeatable(b: Dictionary) -> void:
+	var out: Array = []
+	for global_seed in [1, 2]:
+		seed(global_seed)
+		var s := Sim.new(b, content, {"seed": 1606})
+		s.commander.hp = 1e9
+		s.commander.max_hp = 1e9
+		for k in 12:
+			s.add_soldier("legionary")
+		s.ranks["pilum"] = 1
+		while s.time < 60.0:
+			s.update(1.0 / 30.0, Vector2(cos(s.time * 0.4), sin(s.time * 0.4)), false)
+			s.pending_levels = 0
+		out.append([s.kills, s.horde.e_pos.size(), Array(s.horde.e_hp)])
+	check(out[0] == out[1], "the same seed plays the same run whatever the engine's own dice say")
+
+
+func test_closing_the_gods_keeps_the_same_offer(b: Dictionary) -> void:
+	var s := _god_sim(b, 1607, 0)
+	_fill_favour(s)
+	var first := Gods.offers(s)
+	var state := s.rng.state
+	check(Gods.offers(s) == first, "opening the gods again shows the same three")
+	check(s.rng.state == state, "and draws nothing from the run's dice")
+	var seen := {}
+	for k in 20:
+		s.gods.invoke(s, "apollo")
+		_fill_favour(s)
+		for id in Gods.offers(s):
+			seen[id] = true
+	check(seen.size() == 5, "each new fill draws afresh (%d gods seen)" % seen.size())
+
+
+func test_a_man_brought_back_by_the_medicus_is_not_also_a_reserve(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 1608, Content.with_all_art())
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	for k in 5:
+		s.legion.pick("medicus")
+	s.ranks["reserves"] = 1
+	var before := s.soldiers.size()
+	s.legion.revive_timer = float(b.legion.revive_interval) - 1.0
+	s.soldiers[0].hp = 0.0
+	s.legion.remove_fallen(s)
+	_step_dt(s, 25.0)
+	check(s.soldiers.size() == before, "one man falls and one comes back (%d of %d)" % [s.soldiers.size(), before])
+
+
+func test_no_favour_while_vulcans_fire_or_neptunes_throw_is_at_work(b: Dictionary) -> void:
+	var cfg: Dictionary = b.gods.vulcan
+	var s := _god_sim(b, 1609, 0)
+	s.gods.invoke(s, "vulcan")
+	_step_dt(s, float(cfg.burn_seconds) + 0.5)
+	check(s.gods.busy(), "Vulcan is still at work while his burning ground lasts")
+	_step_dt(s, float(cfg.patch_life) + float(cfg.rain_seconds) + float(cfg.fall_seconds))
+	check(not s.gods.busy(), "and done once it has burnt out")
+	var n := _god_sim(b, 1610, 20)
+	n.gods.invoke(n, "neptune")
+	_step_dt(n, float(b.gods.neptune.wave_seconds) + 0.05)
+	check(n.gods.busy(), "Neptune is still at work while the thrown are flying")
+
+
+func test_nothing_slows_the_march_below_the_floor(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 1611)
+	var free := s.speed()
+	s.pressing = 1000
+	s.horde.curse_left = 5.0
+	s.horde.curse_slow = 0.4
+	s.testudo_left = 2.0
+	check(s.speed() >= free * float(b.press.slowest) - 0.01, "a crowd, a curse and the testudo together keep a fifth of the march (%.1f of %.1f)" % [s.speed(), free])
+
+
+func test_an_endless_run_keeps_the_moment_it_was_won(b: Dictionary) -> void:
+	var saved: Dictionary = Profile.data
+	Profile.data = Profile.defaults()
+	var s := Sim.new(b, Content.with_all_art(), {"seed": 1612, "endless": true})
+	s.time = 1000.0
+	s.horde.time = 1000.0
+	s.objectives.raise_fort(s)
+	s.win(s.commander.pos)
+	check(s.objectives.targets().all(func(t: Array) -> bool: return t[0] != "fort"), "once won, the fort's arrow goes")
+	s.events.clear()
+	s.commander.pos = s.objectives.fort.centre
+	for k in 300:
+		s.objectives.update(1.0 / 60.0, s)
+	check(not s.events.any(func(e: Dictionary) -> bool: return e.kind == "victory"), "and holding it does not win a second time")
+	check(SummaryScreen.held_line(s) != TranslationServer.translate("Held out %s after the chieftain") % SummaryScreen.clock(s.endless_seconds()), "the summary does not say the chieftain fell while he lives")
+	s.time = 1500.0
+	s.over = true
+	Profile.record_run(s)
+	check(is_equal_approx(float(Profile.record_of(s.province).best_time), 1000.0), "the best time is when the run was won (%.0f)" % float(Profile.record_of(s.province).best_time))
+	Profile.data = saved
+
+
+func test_the_old_centurion_can_be_earned_in_a_run_that_ends_at_the_fort(b: Dictionary) -> void:
+	var rule: Dictionary = content.commanders.old_centurion.unlock
+	check(float(rule.seconds) <= float(b.chieftain_at), "the time to survive is reached before the fort ends the run")
+	check(not b.has("run_seconds"), "no unused run length is left in the data")
+	var died := _fresh_profile()
+	var s := Sim.new(b, Content.with_all_art(), {"seed": 1613})
+	s.time = float(rule.seconds) + 1.0
+	s.peak_soldiers = int(rule.max_soldiers)
+	s.over = true
+	died.record_run(s)
+	check(died.commander_unlocked("old_centurion"), "falling after the time with a small legion still earns him")
+	died.free()
+
+
+func test_every_look_flag_keeps_the_profile_unsaved(_b: Dictionary) -> void:
+	for flag in ["hard", "endless", "decimatio", "commander=legate", "chieftain-at=60", "as-demo", "objectives-near", "boss=berserker", "boss-act=whirl", "god=vulcan", "god-at=3", "give=pilum:3", "go-to=fort", "hold-choice", "lang=fr", "card=kills_1000", "page=controls"]:
+		check(Profile.blocks_saving(PackedStringArray(["--" + flag])), "--%s is not saved" % flag)
+
+
+func test_no_timber_is_spent_on_stakes_over_a_ravine_or_a_second_deck(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 1614)
+	_gorge(s, -400, 400, 100, 50)
+	s.commander.pos = Vector2(0, 30)
+	s.facing_angle = PI / 2.0
+	s.legion.place_all(s.facing_angle)
+	s.terrain.refresh(s.commander.pos)
+	s.timber = int(b.palisade.cost)
+	s.build_palisade()
+	var over := 0
+	for p in s.terrain.posts:
+		if s.terrain.ravine_edge(p[1]) < float(b.palisade.radius):
+			over += 1
+	check(over == 0, "no stake stands over the drop (%d)" % over)
+	check(not s.terrain.posts.is_empty() or s.timber == int(b.palisade.cost), "and with no room for any the timber is kept")
+	var r := _quiet_sim(b, 1615)
+	_gorge(r, -400, 400, 100, 50)
+	r.commander.pos = Vector2(0, -10)
+	r.facing_angle = PI / 2.0
+	r.legion.place_all(r.facing_angle)
+	r.timber = int(b.bridge.cost) * 2
+	check(r.build_bridge(), "a first bridge is laid")
+	r.commander.pos = Vector2(0, 100)
+	r.terrain.refresh(r.commander.pos)
+	check(r.bridge_span().is_empty(), "standing on it, no second bridge is offered")
+	check(not r.build_bridge() and r.timber == int(b.bridge.cost) and r.terrain.bridges.size() == 1, "and none is laid")
+	r.commander.pos = Vector2(0, -10)
+	r.terrain.refresh(r.commander.pos)
+	check(r.bridge_span().is_empty(), "nor facing the one already laid")
+
+
+func test_an_objectives_leader_takes_no_boss_slot(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 1616, Content.with_all_art())
+	s.horde.time = 100.0
+	s.time = 100.0
+	s.horde.spawn("war_band_leader", Vector2(300, 0), true)
+	s.horde._boss_arrival(s)
+	check(_boss_count(s) == 2, "the timed boss still comes while the camp's leader lives (%d)" % _boss_count(s))
+	s.horde._boss_arrival(s)
+	check(_boss_count(s) == 2, "but only one timed boss at a time this early (%d)" % _boss_count(s))
+
+
+func test_the_demo_hands_out_no_commander_achievement(_b: Dictionary) -> void:
+	var saved: Dictionary = Profile.data
+	var open := Game.demo_open
+	Profile.data = Profile.defaults()
+	Game.demo_forced = true
+	Game.demo_open = ["tribune", "archer_captain", "cavalry_prefect"]
+	check(not Steamworks.met({"kind": "commander", "target": "cavalry_prefect"}, null, false), "a commander the demo lends is not earned")
+	Game.demo_forced = false
+	Game.demo_open = open
+	Profile.data = saved

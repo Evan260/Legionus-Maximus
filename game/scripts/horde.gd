@@ -112,6 +112,8 @@ var sp_dmg := PackedFloat32Array()
 var sp_life := PackedFloat32Array()
 var chests: Array = []
 var elite_ids: Array = []
+## The elites that came on the boss timer, as opposed to an objective's defenders.
+var timed_ids: Array = []
 var chief_dead := false
 var hard := false
 var sim_ref: WeakRef
@@ -418,11 +420,14 @@ func _boss_arrival(sim: Sim) -> void:
 	var n := mini(int(cfg.count_max), int(float(cfg.count_start) + float(cfg.count_growth) * time))
 	var side := rng.randf() * TAU
 	var came := false
+	# Only the bosses that came on this timer count against its limit, not an objective's defender.
+	timed_ids = timed_ids.filter(func(id: int) -> bool: return elite_ids.has(id))
 	for k in n:
-		if elite_ids.size() >= mini(int(cfg.max_alive), int(float(cfg.max_alive_start) + float(cfg.max_alive_growth) * time)):
+		if timed_ids.size() >= mini(int(cfg.max_alive), int(float(cfg.max_alive_start) + float(cfg.max_alive_growth) * time)):
 			break
 		var a := side + rng.randf_range(-0.5, 0.5)
-		spawn(elites[rng.randi_range(0, elites.size() - 1)], open_point(commander.pos + Vector2(cos(a) * 1.15, sin(a) * 0.75) * b.spawn_radius), true)
+		var at := spawn(elites[rng.randi_range(0, elites.size() - 1)], open_point(commander.pos + Vector2(cos(a) * 1.15, sin(a) * 0.75) * b.spawn_radius), true)
+		timed_ids.append(e_id[at])
 		came = true
 	if came:
 		sim.event("surge", commander.pos)
@@ -463,6 +468,13 @@ func _chieftain(dt: float, sim: Sim) -> void:
 	var fury: Dictionary = content.enemies[kind_ids[e_kind[ci]]].get("fury", {})
 	if not fury.is_empty() and not chief_fury and e_hp[ci] < e_max[ci] * float(fury.below):
 		_roar(ci, sim)
+	if e_stun[ci] > 0.0:
+		# A stun holds his timers and calls off a charge he was warning of or running.
+		charge_warn = 0.0
+		charging = false
+		chief_hold = 0.0
+		e_dash[ci] = 0.0
+		return
 	var rate := float(fury.rate_mult) if chief_fury else 1.0
 	cleave_cd -= dt * rate
 	cry_cd -= dt * rate
@@ -599,7 +611,7 @@ func cleave(ci: int, sim: Sim) -> bool:
 func _rally(dt: float, sim: Sim) -> void:
 	for id in elite_ids:
 		var i := e_id.find(id)
-		if i < 0:
+		if i < 0 or e_stun[i] > 0.0:
 			continue
 		var info: Dictionary = content.enemies[kind_ids[e_kind[i]]]
 		if not info.has("rally"):
@@ -652,6 +664,8 @@ func _bosses(dt: float, sim: Sim) -> void:
 			e_fury[i] = float(info.rage.mult)
 			e_power[i] *= float(info.rage.mult)
 			sim.effects.append({"kind": "cry", "pos": p, "t": 0.0, "radius": 50.0})
+		if e_stun[i] > 0.0:
+			continue
 		if st.has("whirl_cd"):
 			st.whirl_cd -= paced
 			if st.whirl_cd <= 0.0 and st.hold <= 0.0:

@@ -263,6 +263,14 @@ func _reserves(dt: float) -> void:
 	reserves = waiting
 
 
+## A man brought back must not also return later as a reserve.
+func drop_reserve(type: String) -> void:
+	for r in reserves:
+		if r.type == type:
+			reserves.erase(r)
+			return
+
+
 ## Every soldier grows a little tougher when the legion kills, up to a cap.
 func veterans(n: int, sim: Sim) -> void:
 	var rank := sim.rank("veterans")
@@ -377,7 +385,7 @@ func _revive(medici: Array, dt: float, sim: Sim) -> void:
 	revive_timer = 0.0
 	var m: Dictionary = medici[0]
 	if add(fallen[-1]):
-		fallen.pop_back()
+		drop_reserve(fallen.pop_back())
 		soldiers[-1].pos = m.pos
 		sim.effects.append({"kind": "heal", "pos": m.pos, "t": 0.0})
 

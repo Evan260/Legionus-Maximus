@@ -3,7 +3,8 @@ extends Node
 ## It is an autoload named Profile. Tests and screenshots never touch the real file, since `disabled` is set before anything loads.
 
 const DEFAULT_PATH := "user://profile.json"
-const NO_SAVE_FLAGS := ["run-tests", "bench", "autoplay", "skip", "shot", "screen", "text-size"]
+const NO_SAVE_FLAGS := ["run-tests", "bench", "autoplay", "skip", "shot", "at", "screen", "page", "text-size", "lang", "card", "hard", "endless", "decimatio",
+	"commander", "chieftain-at", "as-demo", "objectives-near", "boss", "boss-act", "god", "god-at", "give", "go-to", "hold-choice"]
 
 const SETTING_DEFAULTS := {"master": 0.8, "music": 0.8, "effects": 0.8, "fullscreen": false, "shake": true, "numbers": true,
 	"text_size": 1, "bindings": {}, "language": ""}
@@ -249,8 +250,9 @@ func record_run(sim: Sim) -> void:
 			rec.hard_won = true
 		else:
 			rec.won = true
-		if float(rec.best_time) <= 0.0 or sim.time < float(rec.best_time):
-			rec.best_time = sim.time
+		var won_at: float = sim.endless_since if sim.endless and sim.endless_since >= 0.0 else sim.time
+		if float(rec.best_time) <= 0.0 or won_at < float(rec.best_time):
+			rec.best_time = won_at
 	if sim.endless:
 		rec.endless_best = maxf(float(rec.endless_best), sim.time)
 	data.records[sim.province] = rec
@@ -292,7 +294,7 @@ func _unlock(sim: Sim) -> void:
 			"kills":
 				earned = int(data.totals.kills) >= int(rule.get("count", 0))
 			"survive":
-				earned = sim.victory and not sim.demo_over and sim.time >= float(rule.get("seconds", 0)) and sim.peak_soldiers <= int(rule.get("max_soldiers", 0))
+				earned = not sim.demo_over and sim.time >= float(rule.get("seconds", 0)) and sim.peak_soldiers <= int(rule.get("max_soldiers", 0))
 			"win_all":
 				earned = all_won
 		if earned:
