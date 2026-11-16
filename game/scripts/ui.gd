@@ -27,7 +27,10 @@ static var offset := Vector2.ZERO
 
 var items: Array = []
 var focus := ""
+## Where a key moves focus from a button when the screen sets it, in place of the nearest button that way.
+var links := {}
 var _next: Array = []
+var _next_links := {}
 var _icons := {}
 
 
@@ -152,11 +155,13 @@ static func scroll_for(index: int, count: int, visible: int, current: int) -> in
 
 func begin() -> void:
 	_next = []
+	_next_links = {}
 
 
 ## Ends a frame; focus falls back to the first button when its own has gone.
 func end() -> void:
 	items = _next
+	links = _next_links
 	if not items.is_empty() and not has_item(focus):
 		focus = items[0].id
 
@@ -297,8 +302,17 @@ func icon(key: String) -> Texture2D:
 	return _icons[key]
 
 
-## Moves focus to the nearest button in the direction, preferring ones that line up with the current one.
+## Sends focus from the button `id` to `to` when the key for `dir` is pressed.
+func link(id: String, dir: Vector2, to: String) -> void:
+	_next_links["%s|%s" % [id, dir]] = to
+
+
+## Moves focus where the screen linked it, or to the nearest button in the direction, preferring ones that line up with the current one.
 func move(dir: Vector2) -> void:
+	var linked: String = links.get("%s|%s" % [focus, dir], "")
+	if linked != "" and has_item(linked):
+		focus = linked
+		return
 	var cur := Rect2()
 	var found := false
 	for it in items:

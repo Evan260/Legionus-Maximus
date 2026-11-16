@@ -496,3 +496,4 @@ time,kind,name,cost_usd,cost_generations,usd_left
 2026-11-15T13:57:29,animate,art_test/raw/chieftain_big/axe_run_north,0.0152,0,16.0534
 2026-11-15T13:58:52,animate,art_test/raw/chieftain_big/axe_run_north-west,0.0139,0,16.0395
 2026-11-15T14:06:34,proflash,art_test/raw/props3/fort_wall_side.png,0.0240,0,16.0155
+2026-11-15T18:39:17,proflash,tools/art/raw/map/map_a.png,0.0331,0,15.9824
