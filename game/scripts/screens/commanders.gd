@@ -1,6 +1,6 @@
 class_name CommandersScreen
 extends RefCounted
-## The commanders: pick an unlocked one, and see how to unlock the rest. A commander whose art is not drawn is not listed.
+## The commanders: pick an unlocked one, and see how to unlock the rest or buy them with denarii. A commander whose art is not drawn is not listed.
 
 var main: Node
 var scroll := 0
@@ -15,6 +15,18 @@ func activate(id: String) -> void:
 		main.run_setup.commander = id.trim_prefix("pick:")
 		Profile.data.settings.commander = main.run_setup.commander
 		Profile.save()
+	elif id.begins_with("see:") and Profile.buy_commander(id.trim_prefix("see:"), main.content):
+		main.ui.focus = "pick:" + id.trim_prefix("see:")
+		activate(main.ui.focus)
+
+
+## The tag of a locked commander: how he is earned, and his price when he can be bought.
+static func locked_tag(info: Dictionary, content: Content) -> String:
+	var how := Profile.unlock_text(info, content)
+	var price := Profile.commander_price(info)
+	if price > 0:
+		how = TranslationServer.translate("%s, or %d denarii") % [how, price]
+	return TranslationServer.translate("Locked: %s") % how
 
 
 func draw(c: CanvasItem, ui: Ui) -> void:
@@ -38,16 +50,18 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 		var open := Profile.commander_unlocked(id)
 		var rect := Rect2(r.position.x + 12, r.position.y + 28 + (i - scroll) * step, r.size.x - 24, h)
 		var button_id := ("pick:" if open else "see:") + id
+		var price := Profile.commander_price(info)
+		var affordable := not open and price > 0 and price <= int(Profile.data.denarii)
 		if i < scroll or i >= scroll + visible:
-			ui.register(rect, button_id, open)
+			ui.register(rect, button_id, open or affordable)
 			continue
-		ui.button(c, rect, button_id, "", "", open)
+		ui.button(c, rect, button_id, "", "", open or affordable)
 		var tone := Ui.INK if open else Ui.MUTED
 		ui.text(c, info.name.to_upper(), Vector2(rect.position.x + 8, rect.position.y + 8 + 8 * Ui.scale), tone)
 		var b: Dictionary = Ui.block(info.text, text_w, 2)
 		ui.wrap_fit(c, info.text, Vector2(rect.position.x + 8, rect.end.y - 8 - (mini(b.lines, 2) - 1) * Ui.lead_for(b.size)), text_w, tone, 2)
-		var tag := (tr("Locked: %s") % Profile.unlock_text(info, content)).to_upper()
+		var tag := locked_tag(info, content).to_upper()
 		if open:
 			tag = tr("Chosen").to_upper() if main.run_setup.commander == id else ""
 		if tag != "":
-			ui.fit_text(c, tag, rect.size.x - 150, Vector2(0, rect.position.y + 8 + 8 * Ui.scale), Ui.RED if not open else Ui.BROWN, HORIZONTAL_ALIGNMENT_RIGHT, rect.end.x - 8)
+			ui.fit_text(c, tag, rect.size.x - 150, Vector2(0, rect.position.y + 8 + 8 * Ui.scale), (Color(0.2, 0.45, 0.15) if affordable else Ui.RED) if not open else Ui.BROWN, HORIZONTAL_ALIGNMENT_RIGHT, rect.end.x - 8)

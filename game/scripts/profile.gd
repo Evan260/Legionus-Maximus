@@ -186,15 +186,34 @@ func rank(id: String) -> int:
 	return int(data.ranks.get(id, 0))
 
 
-## What the next rank costs, or -1 when the upgrade is unknown or at its last rank.
+## What the next rank costs, or -1 when the upgrade is unknown, at its last rank, or waiting for the one it needs.
 func next_cost(id: String, content: Content) -> int:
 	if not content.quartermaster.has(id):
 		return -1
 	var info: Dictionary = content.quartermaster[id]
 	var r := rank(id)
+	if waiting_for(id, content) != "":
+		return -1
+	if info.get("repeat", false):
+		return repeat_cost(float(info.costs[0]), float(info.get("growth", 1.0)), r)
 	if r >= int(info.ranks):
 		return -1
 	return int(info.costs[r])
+
+
+## The cost of a repeating purchase after `bought` of them, each `growth` times the last, rounded to a tidy sum.
+static func repeat_cost(first: float, growth: float, bought: int) -> int:
+	var raw := first * pow(growth, bought)
+	var step := 10.0 if raw < 1000.0 else (50.0 if raw < 10000.0 else 500.0)
+	return int(roundf(raw / step) * step)
+
+
+## The upgrade that must be finished before this one can be bought, or "" when none is waited for.
+func waiting_for(id: String, content: Content) -> String:
+	var needs: String = content.quartermaster.get(id, {}).get("needs", "")
+	if needs == "" or not content.quartermaster.has(needs):
+		return ""
+	return "" if rank(needs) >= int(content.quartermaster[needs].ranks) else needs
 
 
 ## Buys the next rank when it exists and the denarii cover it.
@@ -214,6 +233,24 @@ func record_of(province: String) -> Dictionary:
 
 func commander_unlocked(id: String) -> bool:
 	return data.unlocked.commanders.has(id) or (Game.is_demo() and Game.demo_open.has(id))
+
+
+## The denarii that unlock a commander without earning him, or 0 when he cannot be bought.
+static func commander_price(info: Dictionary) -> int:
+	return int(info.get("price", 0))
+
+
+## Buys a locked commander for his price when the denarii cover it.
+func buy_commander(id: String, content: Content) -> bool:
+	if not content.commanders.has(id) or commander_unlocked(id):
+		return false
+	var price := commander_price(content.commanders[id])
+	if price <= 0 or price > int(data.denarii):
+		return false
+	data.denarii = int(data.denarii) - price
+	data.unlocked.commanders.append(id)
+	save()
+	return true
 
 
 func province_unlocked(id: String) -> bool:

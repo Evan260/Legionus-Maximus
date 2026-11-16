@@ -4,7 +4,12 @@ extends RefCounted
 
 const BOARDS := [["quartermaster", "Quartermaster"], ["tablinum", "Tablinum"], ["map", "Map"], ["commanders", "Commanders"]]
 
+## Where the gilded statues of the triumphs stand: on the arch's top in the arch picture's pixels, then on the ground to its left.
+const STATUE_SPOTS := [Vector2(30, 22), Vector2(52, 18), Vector2(74, 22), Vector2(-16, 117), Vector2(-40, 117), Vector2(-28, 100), Vector2(-52, 100)]
+
 var main: Node
+var _arch: Texture2D
+var _statue: Texture2D
 
 
 func _init(owner_node: Node) -> void:
@@ -27,6 +32,7 @@ func sub_line(id: String) -> String:
 
 func draw(c: CanvasItem, ui: Ui) -> void:
 	var big := Ui.scale > 1
+	_monument(c, Vector2(96, 192 if not big else 186))
 	ui.panel(c, Rect2(Ui.W / 2 - 80, 8, 160, 30 if big else 22))
 	ui.text(c, tr("The camp").to_upper(), Vector2(0, 31 if big else 23), Ui.BROWN, HORIZONTAL_ALIGNMENT_CENTER, Ui.W)
 	ui.text(c, (tr("%d denarii") % int(Profile.data.denarii)).to_upper(), Vector2(0, 28 if big else 20), Ui.GOLD_LIGHT, HORIZONTAL_ALIGNMENT_RIGHT, Ui.W - 20, true)
@@ -65,3 +71,33 @@ func _boards_large(c: CanvasItem, ui: Ui) -> void:
 		ui.text(c, tr(BOARDS[i][1]).to_upper(), Vector2(r.position.x, r.position.y + 18), Ui.INK, HORIZONTAL_ALIGNMENT_CENTER, bw)
 		ui.fit_text(c, sub_line(id), bw - 12, Vector2(r.position.x, r.position.y + 38), Ui.BROWN, HORIZONTAL_ALIGNMENT_CENTER, bw)
 	ui.text(c, Controls.hint("title"), Vector2(10, Ui.H - 4), Ui.CREAM, HORIZONTAL_ALIGNMENT_LEFT, -1, true)
+
+
+## The triumphal arch risen as far as its bought stages, scaffolded until done, with a gilded statue per triumph; `foot` is its bottom left.
+func _monument(c: CanvasItem, foot: Vector2) -> void:
+	var info: Dictionary = main.content.quartermaster.get("triumphal_arch", {})
+	var stages := Profile.rank("triumphal_arch")
+	if info.is_empty() or stages <= 0:
+		return
+	if _arch == null:
+		_arch = load("res://assets/arch.png")
+		_statue = load("res://assets/statue.png")
+	var size := _arch.get_size()
+	var share := clampf(float(stages) / float(info.ranks), 0.0, 1.0)
+	var built := roundf(size.y * share)
+	var top := foot + Vector2(0, -size.y)
+	c.draw_texture_rect_region(_arch, Rect2(top + Vector2(0, size.y - built), Vector2(size.x, built)), Rect2(0, size.y - built, size.x, built))
+	if share < 1.0:
+		var y := top.y + size.y - built
+		var wood := Color(0.45, 0.3, 0.16)
+		for x in [6.0, size.x / 2.0, size.x - 6.0]:
+			c.draw_line(Vector2(top.x + x, y - 14.0), Vector2(top.x + x, y + 10.0), Ui.INK, 3.0)
+			c.draw_line(Vector2(top.x + x, y - 14.0), Vector2(top.x + x, y + 10.0), wood, 1.0)
+		c.draw_line(Vector2(top.x + 2.0, y - 10.0), Vector2(top.x + size.x - 2.0, y - 10.0), Ui.INK, 3.0)
+		c.draw_line(Vector2(top.x + 2.0, y - 10.0), Vector2(top.x + size.x - 2.0, y - 10.0), wood, 1.0)
+		return
+	var shown := mini(Profile.rank("triumph"), STATUE_SPOTS.size())
+	var s_size := _statue.get_size()
+	for k in shown:
+		var at: Vector2 = top + STATUE_SPOTS[k]
+		c.draw_texture(_statue, (at - Vector2(s_size.x / 2.0, s_size.y)).round())

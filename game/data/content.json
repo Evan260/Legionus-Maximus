@@ -1588,7 +1588,8 @@
    "art": [
     "unit:commander",
     "unit:archer"
-   ]
+   ],
+   "price": 20000
   },
   "cavalry_prefect": {
    "name": "Cavalry prefect",
@@ -1605,7 +1606,8 @@
     "unit:commander",
     "unit:cavalry"
    ],
-   "speed_mult": 1.1
+   "speed_mult": 1.1,
+   "price": 40000
   },
   "engineer": {
    "name": "Engineer",
@@ -1621,7 +1623,8 @@
    "art": [
     "unit:commander",
     "icon:scorpio"
-   ]
+   ],
+   "price": 60000
   },
   "old_centurion": {
    "name": "Old centurion",
@@ -1640,7 +1643,8 @@
     "unit:centurion"
    ],
    "hp_mult": 1.5,
-   "speed_mult": 0.9
+   "speed_mult": 0.9,
+   "price": 80000
   },
   "legate": {
    "name": "Legate",
@@ -1656,20 +1660,24 @@
     "unit:commander",
     "unit:standard_bearer"
    ],
-   "rerolls": 1
+   "rerolls": 1,
+   "price": 150000
   }
  },
  "quartermaster": {
   "start_health": {
    "name": "Starting health",
    "text": "The commander begins with more health.",
-   "ranks": 5,
+   "ranks": 8,
    "costs": [
-    30,
-    60,
-    120,
-    240,
-    480
+    480,
+    840,
+    1450,
+    2550,
+    4500,
+    7900,
+    14000,
+    24000
    ],
    "per_rank": 20
   },
@@ -1678,9 +1686,9 @@
    "text": "The legion begins with more soldiers.",
    "ranks": 3,
    "costs": [
-    100,
-    250,
-    600
+    2400,
+    5750,
+    14000
    ],
    "per_rank": 1
   },
@@ -1689,23 +1697,26 @@
    "text": "The legion moves faster.",
    "ranks": 4,
    "costs": [
-    40,
-    90,
-    180,
-    360
+    960,
+    2100,
+    4650,
+    10000
    ],
    "per_rank": 0.03
   },
   "damage": {
    "name": "Damage",
    "text": "Every soldier hits harder.",
-   "ranks": 5,
+   "ranks": 8,
    "costs": [
-    60,
-    140,
-    300,
-    600,
-    1200
+    800,
+    1450,
+    2600,
+    4650,
+    8400,
+    15000,
+    27000,
+    49000
    ],
    "per_rank": 0.05
   },
@@ -1714,9 +1725,9 @@
    "text": "Coins are picked up from further away.",
    "ranks": 3,
    "costs": [
-    30,
-    70,
-    150
+    640,
+    1400,
+    3100
    ],
    "per_rank": 0.1
   },
@@ -1725,9 +1736,9 @@
    "text": "More rerolls of the level-up choices in each run.",
    "ranks": 3,
    "costs": [
-    80,
-    200,
-    500
+    1600,
+    3850,
+    9200
    ],
    "per_rank": 1
   },
@@ -1736,9 +1747,9 @@
    "text": "Remove a choice from the run's pool for good.",
    "ranks": 3,
    "costs": [
-    100,
-    250,
-    600
+    1900,
+    4600,
+    11000
    ],
    "per_rank": 1
   },
@@ -1747,10 +1758,10 @@
    "text": "The testudo recharges sooner.",
    "ranks": 4,
    "costs": [
-    50,
-    120,
-    260,
-    520
+    1100,
+    2450,
+    5400,
+    12000
    ],
    "per_rank": 0.5
   },
@@ -1759,10 +1770,10 @@
    "text": "Coins give more experience.",
    "ranks": 4,
    "costs": [
-    60,
-    140,
-    300,
-    600
+    1450,
+    3150,
+    6950,
+    15500
    ],
    "per_rank": 0.05
   },
@@ -1771,11 +1782,11 @@
    "text": "Fallen barbarians drop more denarii.",
    "ranks": 5,
    "costs": [
-    80,
-    180,
-    400,
-    800,
-    1600
+    1300,
+    2550,
+    5100,
+    10000,
+    20500
    ],
    "per_rank": 0.05
   },
@@ -1784,10 +1795,10 @@
    "text": "Every soldier attacks faster.",
    "ranks": 4,
    "costs": [
-    70,
-    160,
-    340,
-    700
+    1600,
+    3500,
+    7750,
+    17000
    ],
    "per_rank": 0.04
   },
@@ -1796,10 +1807,10 @@
    "text": "Every soldier has more health.",
    "ranks": 4,
    "costs": [
-    60,
-    140,
-    300,
-    600
+    1450,
+    3150,
+    6950,
+    15500
    ],
    "per_rank": 0.05
   },
@@ -1808,9 +1819,9 @@
    "text": "Every soldier slowly heals.",
    "ranks": 3,
    "costs": [
-    90,
-    220,
-    500
+    2100,
+    5000,
+    12000
    ],
    "per_rank": 0.2
   },
@@ -1819,9 +1830,9 @@
    "text": "Missile troops shoot further.",
    "ranks": 3,
    "costs": [
-    50,
-    120,
-    260
+    1100,
+    2450,
+    5400
    ],
    "per_rank": 0.05
   },
@@ -1830,9 +1841,9 @@
    "text": "The testudo holds longer.",
    "ranks": 3,
    "costs": [
-    60,
-    150,
-    330
+    1300,
+    2800,
+    6200
    ],
    "per_rank": 0.5
   },
@@ -1841,10 +1852,10 @@
    "text": "Every soldier takes less damage.",
    "ranks": 4,
    "costs": [
-    100,
-    240,
-    520,
-    1000
+    2250,
+    4950,
+    11000,
+    24000
    ],
    "per_rank": 0.03
   },
@@ -1853,9 +1864,9 @@
    "text": "Supply carts give more.",
    "ranks": 3,
    "costs": [
-    70,
-    170,
-    380
+    1600,
+    3500,
+    7750
    ],
    "per_rank": 0.1
   },
@@ -1864,9 +1875,9 @@
    "text": "The legion can hold more soldiers.",
    "ranks": 3,
    "costs": [
-    150,
-    400,
-    900
+    3200,
+    7700,
+    18500
    ],
    "per_rank": 5
   },
@@ -1875,9 +1886,9 @@
    "text": "Fewer coins are needed for each level.",
    "ranks": 3,
    "costs": [
-    120,
-    300,
-    700
+    2900,
+    6900,
+    16500
    ],
    "per_rank": 0.04
   },
@@ -1886,11 +1897,43 @@
    "text": "Arms and recruits come up more often at level-ups.",
    "ranks": 3,
    "costs": [
-    100,
-    260,
-    600
+    2400,
+    5750,
+    14000
    ],
    "per_rank": 0.1
+  },
+  "triumphal_arch": {
+   "name": "Triumphal arch",
+   "text": "Raise an arch to the legion's victories in the camp, one stage at a time.",
+   "ranks": 10,
+   "costs": [
+    10000,
+    12500,
+    15500,
+    19500,
+    24500,
+    30500,
+    38000,
+    47500,
+    59500,
+    74500
+   ],
+   "per_rank": 0,
+   "camp": true
+  },
+  "triumph": {
+   "name": "Hold a triumph",
+   "text": "Parade through the finished arch. Each triumph sets up another gilded statue.",
+   "ranks": 0,
+   "costs": [
+    40000
+   ],
+   "growth": 1.1,
+   "per_rank": 0,
+   "camp": true,
+   "repeat": true,
+   "needs": "triumphal_arch"
   }
  },
  "achievements": {

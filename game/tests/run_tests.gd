@@ -1794,8 +1794,12 @@ func test_quartermaster_rank_costs_and_caps(b: Dictionary) -> void:
 	var p := _fresh_profile()
 	var qm: Dictionary = content.quartermaster
 	p.data.denarii = 1000000
+	var capped := 0
 	for id in qm:
 		var info: Dictionary = qm[id]
+		if info.get("repeat", false):
+			continue
+		capped += 1
 		check(info.costs.size() == int(info.ranks), "%s has a cost for every rank" % id)
 		for r in int(info.ranks):
 			check(p.next_cost(id, content) == int(info.costs[r]), "%s rank %d costs what the data says" % [id, r + 1])
@@ -1804,7 +1808,7 @@ func test_quartermaster_rank_costs_and_caps(b: Dictionary) -> void:
 			check(before - p.data.denarii == int(info.costs[r]), "and costs exactly that")
 		check(p.rank(id) == int(info.ranks), "%s reaches its cap" % id)
 		check(p.next_cost(id, content) == -1 and not p.buy(id, content), "%s cannot go past its cap" % id)
-	check(p.bonuses().size() == qm.size(), "every rank reaches the run's bonuses")
+	check(p.bonuses().size() == capped, "every rank reaches the run's bonuses")
 	var poor := _fresh_profile()
 	poor.data.denarii = int(qm.start_health.costs[0]) - 1
 	check(not poor.buy("start_health", content) and poor.rank("start_health") == 0, "too few denarii buy nothing")
@@ -4913,3 +4917,128 @@ func test_the_gaulish_king_summons_horsemen_and_frees_his_guard(b: Dictionary) -
 	n0 = h.e_pos.size()
 	h.summon(ci, s)
 	check(h.e_pos.size() - n0 == int(cfg.fury_count), "his summons bring %d riders now" % int(cfg.fury_count))
+
+
+## A good run's banked denarii with no upgrades and with every one, from the smart balance bot reaching about 16 minutes.
+const GOOD_RUN := [14000.0, 24000.0]
+
+
+## How many good runs pay for every rank of every capped upgrade, a run earning more as more of them are bought.
+func _runs_to_max(qm: Dictionary) -> int:
+	var total := 0.0
+	for id in qm:
+		if not qm[id].get("camp", false):
+			for cost in qm[id].costs:
+				total += float(cost)
+	var spent := 0.0
+	var runs := 0
+	while spent < total:
+		runs += 1
+		spent += GOOD_RUN[0] + (GOOD_RUN[1] - GOOD_RUN[0]) * spent / total
+	return runs
+
+
+func test_quartermaster_costs_rise_steeply_and_take_many_runs(_b: Dictionary) -> void:
+	var qm: Dictionary = content.quartermaster
+	for id in qm:
+		var costs: Array = qm[id].costs
+		check(qm[id].get("repeat", false) or int(costs[0]) <= int(GOOD_RUN[0]), "%s's first rank costs no more than a good run" % id)
+		for r in range(1, costs.size()):
+			var steep := 1.2 if qm[id].get("camp", false) else 1.6
+			check(float(costs[r]) >= float(costs[r - 1]) * steep, "%s rank %d costs at least %.1f times rank %d" % [id, r + 1, steep, r])
+	var runs := _runs_to_max(qm)
+	check(runs >= 25 and runs <= 40, "maxing every upgrade takes 25 to 40 good runs (%d)" % runs)
+	var arch := 0
+	for cost in qm.triumphal_arch.costs:
+		arch += int(cost)
+	check(arch >= int(GOOD_RUN[1]) * 10, "the arch takes at least ten more good runs to finish")
+
+
+func test_a_triumph_can_be_held_again_and_again_once_the_arch_stands(_b: Dictionary) -> void:
+	var p := _fresh_profile()
+	p.data.denarii = 100000000
+	check(p.next_cost("triumph", content) == -1 and p.waiting_for("triumph", content) == "triumphal_arch", "no triumph before the arch is built")
+	check(not p.buy("triumph", content), "and none can be bought")
+	for r in int(content.quartermaster.triumphal_arch.ranks):
+		p.buy("triumphal_arch", content)
+	check(p.waiting_for("triumph", content) == "", "the finished arch opens the triumphs")
+	var last := 0
+	var rising := true
+	for k in 40:
+		var cost: int = p.next_cost("triumph", content)
+		rising = rising and cost > last
+		last = cost
+		var before: int = p.data.denarii
+		check(p.buy("triumph", content) and before - p.data.denarii == cost, "triumph %d costs what it says" % (k + 1))
+	check(rising, "each triumph costs more than the last")
+	check(p.rank("triumph") == 40 and p.next_cost("triumph", content) > 0, "and there is always another")
+	check(ProfileScript.repeat_cost(40000.0, 1.1, 0) == 40000 and ProfileScript.repeat_cost(40000.0, 1.1, 1) == 44000, "the cost grows by its rate, rounded")
+	p.free()
+	_cleanup_profile_files()
+
+
+func test_a_locked_commander_can_be_bought_with_denarii(_b: Dictionary) -> void:
+	for id in content.commanders:
+		var free: bool = content.commanders[id].get("unlock", {}).get("type", "free") == "free"
+		check(free or ProfileScript.commander_price(content.commanders[id]) > 0, "%s has a price" % id)
+	var p := _fresh_profile()
+	var price := ProfileScript.commander_price(content.commanders.engineer)
+	p.data.denarii = price - 1
+	check(not p.buy_commander("engineer", content) and not p.commander_unlocked("engineer"), "too few denarii buy no commander")
+	p.data.denarii = price + 5
+	check(p.buy_commander("engineer", content) and p.commander_unlocked("engineer"), "his price unlocks him")
+	check(p.data.denarii == 5, "and is paid")
+	check(not p.buy_commander("engineer", content) and p.data.denarii == 5, "he is not bought twice")
+	check(not p.buy_commander("tribune", content), "the free commander is not for sale")
+	var tag := CommandersScreen.locked_tag(content.commanders.legate, content)
+	check(tag.contains(str(ProfileScript.commander_price(content.commanders.legate))), "his locked tag names his price")
+	p.free()
+	_cleanup_profile_files()
+
+
+func test_a_rich_old_save_still_has_much_to_buy(_b: Dictionary) -> void:
+	var p := _fresh_profile()
+	var old_caps := {"start_health": 5, "start_soldiers": 3, "move_speed": 4, "damage": 5, "pickup_radius": 3, "rerolls": 3, "banishes": 3,
+		"testudo_charge": 4, "experience": 4, "denarii": 5, "attack_speed": 4, "soldier_health": 4, "regeneration": 3, "missile_range": 3,
+		"testudo_hold": 3, "armour": 4, "cart_rewards": 3, "recruit_cap": 3, "level_ease": 3, "choice_luck": 3}
+	for id in old_caps:
+		p.data.ranks[id] = mini(old_caps[id], int(content.quartermaster[id].ranks))
+	p.data.denarii = 56000
+	var left := 0
+	var buyable := 0
+	for id in content.quartermaster:
+		var cost: int = p.next_cost(id, content)
+		if cost > 0 and cost <= 56000:
+			buyable += 1
+		if not content.quartermaster[id].get("repeat", false):
+			for r in range(p.rank(id), int(content.quartermaster[id].ranks)):
+				left += int(content.quartermaster[id].costs[r])
+	check(buyable >= 3, "a save that maxed the old ranks can buy something at once (%d)" % buyable)
+	check(left > 56000 * 4, "and has far more to buy than its balance (%d left)" % left)
+	p.free()
+	_cleanup_profile_files()
+
+
+func test_a_screen_can_send_a_key_to_a_chosen_button(_b: Dictionary) -> void:
+	var u := Ui.new()
+	u.begin()
+	u.register(Rect2(0, 0, 10, 10), "a")
+	u.register(Rect2(20, 0, 10, 10), "b")
+	u.register(Rect2(300, 200, 10, 10), "c")
+	u.link("a", Vector2.RIGHT, "c")
+	u.end()
+	u.focus = "a"
+	u.move(Vector2.RIGHT)
+	check(u.focus == "c", "a link sends focus where the screen chose")
+	u.move(Vector2.LEFT)
+	check(u.focus == "b", "without one it goes to the nearest button that way")
+	var pts := MapScreen.road_points(Vector2(0, 0), Vector2(100, 0), 0.2)
+	check(pts[0] == Vector2(0, 0) and pts[pts.size() - 1] == Vector2(100, 0) and absf(pts[12].y) > 5.0, "the road runs from place to place and bends")
+
+
+func test_the_objective_badges_are_extra_large(b: Dictionary) -> void:
+	var before := Ui.scale
+	for scale in [1, 2]:
+		Ui.set_text_size(scale, b)
+		check(Hud.badge_radius() >= 40.0 and Hud.tip_length() >= 26.0, "an arrow's badge and point are extra large at text size %d" % scale)
+	Ui.set_text_size(before, b)
