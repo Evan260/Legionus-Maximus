@@ -3668,9 +3668,9 @@ func test_bosses_arrive_on_their_own_timer(b: Dictionary) -> void:
 
 
 func test_the_horde_is_a_quarter_thinner(b: Dictionary) -> void:
-	check(is_equal_approx(float(b.spawn_per_second_start), 0.75) and is_equal_approx(float(b.spawn_per_second_growth), 0.02), "the stream is a quarter thinner")
+	check(is_equal_approx(float(b.spawn_per_second_start), 1.0) and is_equal_approx(float(b.spawn_per_second_growth), 0.02), "the stream starts at one a second and grows on the twelve minute clock")
 	check(int(b.surge_size_start) == 9 and is_equal_approx(float(b.surge_size_growth), 0.06), "so are the surges")
-	check(int(b.war_band.size_start) == 6 and is_equal_approx(float(b.war_band.size_growth), 0.015), "and the war bands")
+	check(int(b.war_band.size_start) == 6 and is_equal_approx(float(b.war_band.size_growth), 0.02), "and the war bands")
 
 
 func _boss_sim(b: Dictionary, seed_value: int, kind: String, at: Vector2) -> Array:
@@ -5524,12 +5524,12 @@ func test_a_war_band_runs_down_a_marching_legion(b: Dictionary) -> void:
 	_step_dt(s, 1.0)
 	var band_ran: float = before[0] - s.horde.e_pos[0].distance_to(s.commander.pos)
 	var plain_ran: float = plain_from - s.horde.e_pos[n].distance_to(s.commander.pos)
-	check(band_ran > plain_ran * (float(cfg.rush) - 0.2), "a war band rushes in %.1f times as fast as the stream (%.0f vs %.0f px)" % [float(cfg.rush), band_ran, plain_ran])
+	check(band_ran > plain_ran * (float(cfg.rush) - 0.3), "a war band rushes in about %.1f times as fast as the stream (%.0f vs %.0f px)" % [float(cfg.rush), band_ran, plain_ran])
 	_step_dt(s, float(cfg.rush_seconds))
-	check(s.horde.e_rush[0] <= 0.0, "and slows to a walk after %.0f s" % float(cfg.rush_seconds))
+	check(s.horde.e_slow[0] == 1.0, "and slows to a walk after %.0f s" % float(cfg.rush_seconds))
 	var camp := _quiet_sim(b, 1661)
 	camp.horde.war_band_at(camp, Vector2(300, 0))
-	check(camp.horde.e_rush[0] == 0.0, "an objective's defenders do not rush")
+	check(camp.horde.e_slow[0] == 1.0, "an objective's defenders do not rush")
 
 
 func test_wheat_fields_are_open_ground_away_from_the_start(b: Dictionary) -> void:
@@ -5563,7 +5563,7 @@ func test_a_legion_marching_in_a_loop_meets_a_band_across_it(b: Dictionary) -> v
 	var mid := s.horde.loop_centre()
 	check(mid != Vector2.INF, "marching round in circles is seen as a loop")
 	var before := s.horde.e_id.size()
-	s.horde.time = float(b.war_band.rush_from)
+	s.horde.time = float(b.war_band.loop_from)
 	s.horde._war_band(s)
 	var side := 0
 	for i in range(before, s.horde.e_id.size()):

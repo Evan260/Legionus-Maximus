@@ -407,6 +407,8 @@ func _shove_bosses() -> void:
 		var p := horde.e_pos[i]
 		var r := horde.k_radius[horde.e_kind[i]]
 		var reach := r + UNIT_RADIUS
+		if p.distance_to(commander.pos) > legion_reach + reach:
+			continue
 		var shove := Vector2.ZERO
 		for u in line:
 			var off: Vector2 = p - u.pos

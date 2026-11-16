@@ -96,8 +96,6 @@ var e_stuck := PackedFloat32Array()
 var e_flee := PackedFloat32Array()
 # 1 while a barbarian is trying to walk somewhere this update, and his real speed over the last moments in pixels a second, so one held in place shows his stance.
 var e_want := PackedByteArray()
-# Seconds left of a war band's rush at the legion.
-var e_rush := PackedFloat32Array()
 var e_pace := PackedFloat32Array()
 var next_id := 1
 var chieftain_id := -1
@@ -330,7 +328,6 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 	e_stuck.append(0.0)
 	e_flee.append(0.0)
 	e_want.append(0)
-	e_rush.append(0.0)
 	e_pace.append(k_speed[kind])
 	e_fury.append(1.0)
 	e_power.append(power)
@@ -529,7 +526,7 @@ func _war_band(sim: Sim, behind := false) -> void:
 	var dir := -ahead if behind else (ahead if rng.randf() < 0.5 else -ahead)
 	var first := e_pos.size()
 	var loop := loop_centre()
-	if not behind and loop != Vector2.INF and time >= float(b.war_band.get("rush_from", 0.0)):
+	if not behind and loop != Vector2.INF and time >= float(b.war_band.get("loop_from", 0.0)):
 		# A legion marching round and round in one place meets a band coming in across the middle of its loop.
 		var across: Vector2 = (loop - commander.pos).normalized()
 		war_band_at(sim, open_point(commander.pos + across * Vector2(1.15, 0.75) * float(b.spawn_radius)), float(b.war_band.get("loop_mult", 1.0)))
@@ -539,7 +536,7 @@ func _war_band(sim: Sim, behind := false) -> void:
 	if time < float(b.war_band.get("rush_from", 0.0)):
 		return
 	for i in range(first, e_pos.size()):
-		e_rush[i] = float(b.war_band.get("rush_seconds", 0.0))
+		e_slow[i] = float(b.war_band.get("rush", 1.0))
 
 
 ## The middle of the loop the commander has been marching round, or INF when he has been standing, fighting in place or marching on.
@@ -1144,7 +1141,7 @@ func _move(dt: float, sim: Sim) -> void:
 	var shield: float = (b.testudo_damage_taken if sim.testudo_left > 0.0 else 1.0) * sim.frenzy_guard()
 	var phase := frame % 3
 	var slow_recover: float = b.slow_recover
-	var rush_mult: float = b.war_band.get("rush", 1.0)
+	var rush_fade: float = (float(b.war_band.get("rush", 1.0)) - 1.0) / float(b.war_band.get("rush_seconds", 1.0))
 	var wall := 1.0 - float(b.drills.shield_wall) * sim.rank("shield_wall")
 	var throw_every: float = b.ranged.every
 	var dash_min: float = b.charger.min_distance
@@ -1178,6 +1175,7 @@ func _move(dt: float, sim: Sim) -> void:
 	var stuck_after: float = b.detour.stuck_after
 	var stuck_slip: float = b.detour.stuck_slip
 	var pace_k := minf(1.0, dt * 18.0)
+	var route_range: float = b.detour.get("route_range", solid_range)
 	var slide_until := detour_seconds - float(b.detour.get("slide", 0.0))
 	var rear := -Vector2.from_angle(sim.facing_angle)
 	var ci := chieftain_index()
@@ -1205,16 +1203,16 @@ func _move(dt: float, sim: Sim) -> void:
 			continue
 		var r := k_radius[kind]
 		var slow := e_slow[i]
+		# A slow above 1 is a war band's rush, which fades back to a walk.
 		if slow < 1.0:
 			e_slow[i] = minf(1.0, slow + dt * slow_recover)
+		elif slow > 1.0:
+			e_slow[i] = maxf(1.0, slow - dt * rush_fade)
 		var spd := k_speed[kind] * slow * e_fury[i]
 		var power := e_power[i]
 		if e_haste[i] > 0.0:
 			e_haste[i] -= dt
 			spd *= haste_mult
-		if e_rush[i] > 0.0:
-			e_rush[i] -= dt
-			spd *= rush_mult
 		var v := to / maxf(d, 0.001) * spd
 		var beh := k_beh[kind]
 		var circling := false
@@ -1364,7 +1362,7 @@ func _move(dt: float, sim: Sim) -> void:
 				if out.length() > 0.001:
 					push += out.normalized() * maxf(0.0, Sim.UNIT_RADIUS + r - out.length()) * 2.0
 				v = Vector2.ZERO
-		if i % 3 == phase and e_detour[i] <= 0.0 and v != Vector2.ZERO and f_ready and d < solid_range and not (dashing or circling or fleeing) and g == Vector2.ZERO:
+		if (i + frame) % 6 == 0 and d < route_range and e_detour[i] <= 0.0 and v != Vector2.ZERO and f_ready and not (dashing or circling or fleeing) and g == Vector2.ZERO:
 			# A barbarian about to walk into a wood or a gorge takes the route map round it before he touches it.
 			var ahead := p + v * (f_cell / spd) - f_origin
 			var ax := floori(ahead.x / f_cell)
@@ -1372,7 +1370,7 @@ func _move(dt: float, sim: Sim) -> void:
 			if ax >= 0 and ay >= 0 and ax < f_n and ay < f_n and f_closed[ax + ay * f_n] == 1:
 				e_detour[i] = detour_seconds * 0.5
 		var flow := Vector2.ZERO
-		if e_detour[i] > 0.0 or e_stuck[i] < 0.0:
+		if e_detour[i] > 0.0:
 			e_detour[i] -= dt
 			if v != Vector2.ZERO:
 				var fx := floori((p.x - f_origin.x) / f_cell)
@@ -1423,6 +1421,7 @@ func _move(dt: float, sim: Sim) -> void:
 			elif touched and e_tag[i] == ORDINARY and not sim.terrain.is_open(p):
 				# Inside a wood there is no gap to slide through, so he slips between the trunks along the route map out to open ground.
 				e_stuck[i] = -stuck_slip
+				e_detour[i] = maxf(e_detour[i], stuck_slip)
 		# Every barbarian in the grid is held at a ravine's lip every other update, which is enough since one step is shorter than his radius.
 		if (i + frame) % 2 == 0 and gx >= 0 and gy >= 0 and gx < t_n and gy < t_n and rv_start[gx + gy * t_n] < rv_start[gx + gy * t_n + 1]:
 			var kept := sim.terrain.ravine_push(np, r, r > Terrain.MAX_UNIT)
@@ -1443,11 +1442,12 @@ func _move(dt: float, sim: Sim) -> void:
 			e_stuck[i] += dt
 			if e_stuck[i] > stuck_after:
 				e_stuck[i] = -stuck_slip
+				e_detour[i] = maxf(e_detour[i], stuck_slip)
 		elif e_stuck[i] > 0.0:
 			e_stuck[i] = maxf(0.0, e_stuck[i] - dt)
 		e_pos[i] = np
-		e_want[i] = 1 if v != Vector2.ZERO else 0
-		if i % 3 == phase:
+		if i % 3 == phase and d < route_range:
+			e_want[i] = 1 if v != Vector2.ZERO else 0
 			e_pace[i] += ((np - p).length() / dt - e_pace[i]) * pace_k
 		if v != Vector2.ZERO:
 			e_face[i] = e_dir[i] if dashing else (v.normalized() if circling or fleeing else to / maxf(d, 0.001))
@@ -1797,7 +1797,6 @@ func remove_at(i: int) -> void:
 	e_stuck[i] = e_stuck[last]; e_stuck.resize(last)
 	e_flee[i] = e_flee[last]; e_flee.resize(last)
 	e_want[i] = e_want[last]; e_want.resize(last)
-	e_rush[i] = e_rush[last]; e_rush.resize(last)
 	e_pace[i] = e_pace[last]; e_pace.resize(last)
 	e_fury[i] = e_fury[last]; e_fury.resize(last)
 	e_power[i] = e_power[last]; e_power.resize(last)

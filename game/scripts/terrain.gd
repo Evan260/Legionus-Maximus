@@ -601,9 +601,12 @@ func _mark_blocked() -> void:
 		var x1 := clampi(floori((sv.x + reach - flow_origin.x) / FLOW_CELL), 0, FN - 1)
 		var y0 := clampi(floori((sv.y - reach - flow_origin.y) / FLOW_CELL), 0, FN - 1)
 		var y1 := clampi(floori((sv.y + reach - flow_origin.y) / FLOW_CELL), 0, FN - 1)
+		var r2 := reach * reach
 		for gx in range(x0, x1 + 1):
+			var dx := maxf(0.0, absf(cxs[gx] - sv.x) - FLOW_CELL / 2.0)
 			for gy in range(y0, y1 + 1):
-				if _covers(sv, Vector2(cxs[gx], cys[gy])):
+				var dy := maxf(0.0, absf(cys[gy] - sv.y) - FLOW_CELL / 2.0)
+				if dx * dx + dy * dy < r2:
 					blocked[gx + gy * FN] = 1
 	for k in rv_seg.size():
 		var sg := rv_seg[k]
