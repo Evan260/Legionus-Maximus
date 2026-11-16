@@ -21,8 +21,9 @@ func check(ok: bool, what: String) -> void:
 
 func run(balance: Dictionary) -> int:
 	content = Content.load_all(Content.available_art())
+	var only := OS.get_environment("ONLY_TESTS")
 	for m in get_method_list():
-		if m.name.begins_with("test_"):
+		if m.name.begins_with("test_") and (only == "" or m.name.contains(only)):
 			call(m.name, balance)
 	print("%d passed, %d failed" % [passes, failures])
 	if failures == 0 and passes > 0:
@@ -3571,11 +3572,14 @@ func test_the_horde_is_drawn_from_the_atlas_frames(b: Dictionary) -> void:
 		if not view.atlas.units.has(type):
 			continue
 		for d in 8:
-			var slot: int = k * 16 + d
+			var slot: int = k * 24 + d
 			for t in [0.0, 0.7, 3.2, 7.9, 8.0, 13.5, 101.25]:
 				var f: Array = view.atlas.unit_frame(type, "move", Sim.DIRS[d], t)
 				if f[0] != view._f_rect[view._f_start[slot] + posmod(int(t), view._f_count[slot])] or f[1] != view._f_anchor[slot]:
 					wrong.append("%s move %s %.2f" % [type, Sim.DIRS[d], t])
+				var idle: Array = view.atlas.unit_frame(type, "idle", Sim.DIRS[d], 0.0)
+				if idle[0] != view._f_rect[view._f_start[slot + 16]] or idle[1] != view._f_anchor[slot + 16]:
+					wrong.append("%s idle %s" % [type, Sim.DIRS[d]])
 				if view._k_attack[k] == 1:
 					var since: float = fmod(t, 0.5)
 					var a: Array = view.atlas.attack_frame(type, Sim.DIRS[d], since)
@@ -3968,7 +3972,8 @@ func test_ravines_wind_across_the_field_in_long_wide_gorges(b: Dictionary) -> vo
 				var widest := 0.0
 				for piece in rv.pieces:
 					var pts: PackedVector2Array = piece.pts
-					for i in pts.size() - 1:
+					# The three points at each end are the closing crack, not the gorge's own length.
+					for i in range(3, pts.size() - 4):
 						length += pts[i].distance_to(pts[i + 1])
 					for h in piece.half:
 						widest = maxf(widest, h * 2.0)
@@ -4919,6 +4924,50 @@ func test_the_gaulish_king_summons_horsemen_and_frees_his_guard(b: Dictionary) -
 	check(h.e_pos.size() - n0 == int(cfg.fury_count), "his summons bring %d riders now" % int(cfg.fury_count))
 
 
+## How many steps of the route map round the commander pass through a solid prop, from each open square's centre to the next open square's.
+func _route_steps_through_solids(s: Sim) -> int:
+	var t := s.terrain
+	var bad := 0
+	for c in Terrain.FN * Terrain.FN:
+		var dir: Vector2 = t.flow_dir[c]
+		var from := t.flow_origin + (Vector2(c % Terrain.FN, c / Terrain.FN) + Vector2(0.5, 0.5)) * Terrain.FLOW_CELL
+		if dir == Vector2.ZERO or not t.is_open(from):
+			continue
+		var to := from + Vector2(signf(dir.x), signf(dir.y)) * Terrain.FLOW_CELL
+		# A pocket of open ground walled in by the forest leads out through the trees, which is meant.
+		if not t.is_open(to):
+			continue
+		var hit := false
+		for q in [from, (from + to) / 2.0, to]:
+			var gx := floori((q.x - t.origin.x) / Terrain.CELL)
+			var gy := floori((q.y - t.origin.y) / Terrain.CELL)
+			if hit or gx < 0 or gy < 0 or gx >= Terrain.GN or gy >= Terrain.GN:
+				continue
+			var gc := gx + gy * Terrain.GN
+			for n in range(t.start[gc], t.start[gc + 1]):
+				var so: Vector3 = t.solid[t.items[n]]
+				var at := Vector2(so.x, so.y)
+				if Geometry2D.get_closest_point_to_segment(at, from, to).distance_to(at) < so.z:
+					hit = true
+					break
+		if hit:
+			bad += 1
+	return bad
+
+
+func test_the_route_map_never_leads_through_a_prop(b: Dictionary) -> void:
+	for province in ["germania", "gaul"]:
+		for seed_value in [1, 2, 3]:
+			var s := Sim.new(b, content, {"seed": seed_value, "province": province})
+			var worst := 0
+			for at in [Vector2.ZERO, Vector2(900, 300), Vector2(-700, -800)]:
+				s.commander.pos = at
+				s.terrain.refresh(at)
+				s.terrain.update_flow(at)
+				worst = maxi(worst, _route_steps_through_solids(s))
+			check(worst == 0, "in %s seed %d no step of the route map passes through a tree, rock or blocker (%d do)" % [province, seed_value, worst])
+
+
 ## A good run's banked denarii with no upgrades and with every one, from the smart balance bot reaching about 16 minutes.
 const GOOD_RUN := [14000.0, 24000.0]
 
@@ -5042,3 +5091,64 @@ func test_the_objective_badges_are_extra_large(b: Dictionary) -> void:
 		Ui.set_text_size(scale, b)
 		check(Hud.badge_radius() >= 40.0 and Hud.tip_length() >= 26.0, "an arrow's badge and point are extra large at text size %d" % scale)
 	Ui.set_text_size(before, b)
+
+
+func test_barbarians_go_round_a_wood_without_standing_still(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 1601)
+	s.terrain.empty = false
+	var wood := {}
+	for cx in range(-8, 9):
+		for cy in range(-8, 9):
+			wood[Vector2i(cx, cy)] = []
+	for row in 4:
+		for col in 14:
+			var at := Vector2(-150 + col * 22 + (11 if row % 2 == 1 else 0), 100 + row * 19)
+			var key := Vector2i(floori(at.x / Terrain.CHUNK), floori(at.y / Terrain.CHUNK))
+			var list: Array = wood.get(key, [])
+			list.append(["fir", at, 8.0])
+			wood[key] = list
+	for key in wood:
+		s.terrain._chunks[key] = wood[key]
+	s.terrain._anchor = Vector2i(1 << 30, 0)
+	s.terrain.refresh(s.commander.pos)
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	for k in 10:
+		s.horde.spawn("barbarian_club", Vector2(-60 + k * 14, 240))
+	var still := 0.0
+	var reached := {}
+	for f in 20 * 60:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+		for i in s.horde.e_pos.size():
+			if s.horde.e_want[i] == 1 and s.horde.e_fighting[i] == 0 and s.horde.e_pace[i] < Horde.STILL_PACE:
+				still += 1.0 / 60.0
+			if s.horde.e_pos[i].y < 60.0:
+				reached[s.horde.e_id[i]] = true
+	check(reached.size() >= 8, "they find the way round the wood to the legion (%d of 10)" % reached.size())
+	check(still < 3.0, "and between them stand pressing into the trees for under three seconds (%.1f)" % still)
+
+
+func test_a_barbarian_held_in_place_counts_as_still(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 1602)
+	s.b.detour = {"seconds": 0.6, "slide": 0.2, "stuck_after": 1e9, "stuck_slip": 0.0}
+	s.terrain.empty = false
+	var ring: Array = []
+	for k in 10:
+		ring.append(["rock", Vector2(300, 0) + Vector2.from_angle(k * TAU / 10.0) * 18.0, 9.0])
+	s.terrain._chunks[Vector2i(1, 0)] = ring
+	s.terrain._anchor = Vector2i(1 << 30, 0)
+	s.terrain.refresh(s.commander.pos)
+	s.commander.hp = 1e9
+	s.horde.spawn("barbarian_club", Vector2(300, 0))
+	s.horde.spawn("barbarian_club", Vector2(-300, 0))
+	_step_dt(s, 1.0)
+	check(s.horde.e_pace[1] > Horde.STILL_PACE, "a barbarian walking in the open counts as moving (%.0f)" % s.horde.e_pace[1])
+	check(s.horde.e_want[0] == 1 and s.horde.e_pace[0] < Horde.STILL_PACE, "one boxed in by rocks counts as still and shows his stance (%.1f)" % s.horde.e_pace[0])
+
+
+func test_a_ravine_end_is_solid_only_where_it_is_drawn(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 1603)
+	_gorge(s, -200, 160, 300, 20)
+	check(s.terrain.ravine_edge(Vector2(176, 300)) < 0.0, "the narrowing crack past the last point is part of the drop")
+	check(s.terrain.ravine_edge(Vector2(184, 306)) > 0.0, "but the ground beside its tip is open")
+	check(s.terrain.over_ravine(Vector2(176, 300)), "and the horde's grid holds the crack as well")

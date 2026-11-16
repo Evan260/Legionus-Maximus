@@ -50,7 +50,8 @@ const FN := 56
 const STEPS := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)]
 var flow_origin := Vector2.ZERO
 var flow_dir := PackedVector2Array()
-var _blocked := PackedByteArray()
+## 1 for every route map square a prop or ravine closes.
+var blocked := PackedByteArray()
 var _flow_goal := Vector2i(1 << 30, 0)
 # The eight steps of the route map as flat offsets, x and y parts, and the way back along each.
 var _step_off := PackedInt32Array()
@@ -123,7 +124,7 @@ func _drop_solid(k: int) -> void:
 	var sv := solid[k]
 	solid[k] = Vector3(GONE, GONE, 0.0)
 	solid_tree[k] = 0
-	var reach := sv.z + 8.0
+	var reach := sv.z
 	var x0 := clampi(floori((sv.x - reach - flow_origin.x) / FLOW_CELL), 0, FN - 1)
 	var x1 := clampi(floori((sv.x + reach - flow_origin.x) / FLOW_CELL), 0, FN - 1)
 	var y0 := clampi(floori((sv.y - reach - flow_origin.y) / FLOW_CELL), 0, FN - 1)
@@ -132,11 +133,18 @@ func _drop_solid(k: int) -> void:
 	for gx in range(x0, x1 + 1):
 		for gy in range(y0, y1 + 1):
 			var centre := flow_origin + (Vector2(gx, gy) + Vector2(0.5, 0.5)) * FLOW_CELL
-			if _blocked[gx + gy * FN] == 1 and centre.distance_to(Vector2(sv.x, sv.y)) < reach and not _blocks(centre, gx, gy):
-				_blocked[gx + gy * FN] = 0
+			if blocked[gx + gy * FN] == 1 and _covers(sv, centre) and not _blocks(centre, gx, gy):
+				blocked[gx + gy * FN] = 0
 				changed = true
 	if changed:
 		_flow_goal = Vector2i(1 << 30, 0)
+
+
+## Whether a solid prop covers any part of the flow square with this centre.
+static func _covers(sv: Vector3, centre: Vector2) -> bool:
+	var dx := maxf(0.0, absf(centre.x - sv.x) - FLOW_CELL / 2.0)
+	var dy := maxf(0.0, absf(centre.y - sv.y) - FLOW_CELL / 2.0)
+	return dx * dx + dy * dy < sv.z * sv.z
 
 
 ## Whether a solid prop or a ravine blocks the flow square (gx, gy) with this centre, as _mark_blocked decides it.
@@ -146,8 +154,7 @@ func _blocks(centre: Vector2, gx: int, gy: int) -> bool:
 	if cx >= 0 and cy >= 0 and cx < GN and cy < GN:
 		var cell := cx + cy * GN
 		for t in range(start[cell], start[cell + 1]):
-			var sv := solid[items[t]]
-			if centre.distance_to(Vector2(sv.x, sv.y)) < sv.z + 8.0:
+			if _covers(solid[items[t]], centre):
 				return true
 	for k in rv_seg.size():
 		var sg := rv_seg[k]
@@ -528,8 +535,8 @@ func refresh(p: Vector2) -> void:
 ## Marks every flow square a barbarian cannot stand in because a solid prop covers it.
 func _mark_blocked() -> void:
 	flow_origin = origin + (Vector2(GN, GN) * CELL - Vector2(FN, FN) * FLOW_CELL) / 2.0
-	_blocked.resize(FN * FN)
-	_blocked.fill(0)
+	blocked.resize(FN * FN)
+	blocked.fill(0)
 	var cxs := PackedFloat32Array()
 	var cys := PackedFloat32Array()
 	cxs.resize(FN)
@@ -538,18 +545,17 @@ func _mark_blocked() -> void:
 		var centre := flow_origin + (Vector2(k, k) + Vector2(0.5, 0.5)) * FLOW_CELL
 		cxs[k] = centre.x
 		cys[k] = centre.y
+	# A square is closed when a prop covers any of it, so a thin line of rocks between two rows of square centres still closes a row.
 	for sv in solid:
-		var reach := sv.z + 8.0
-		var at := Vector2(sv.x, sv.y)
+		var reach := sv.z
 		var x0 := clampi(floori((sv.x - reach - flow_origin.x) / FLOW_CELL), 0, FN - 1)
 		var x1 := clampi(floori((sv.x + reach - flow_origin.x) / FLOW_CELL), 0, FN - 1)
 		var y0 := clampi(floori((sv.y - reach - flow_origin.y) / FLOW_CELL), 0, FN - 1)
 		var y1 := clampi(floori((sv.y + reach - flow_origin.y) / FLOW_CELL), 0, FN - 1)
 		for gx in range(x0, x1 + 1):
-			var cx := cxs[gx]
 			for gy in range(y0, y1 + 1):
-				if Vector2(cx, cys[gy]).distance_to(at) < reach:
-					_blocked[gx + gy * FN] = 1
+				if _covers(sv, Vector2(cxs[gx], cys[gy])):
+					blocked[gx + gy * FN] = 1
 	for k in rv_seg.size():
 		var sg := rv_seg[k]
 		var reach := maxf(rv_half[k].x, rv_half[k].y) + 8.0
@@ -560,8 +566,8 @@ func _mark_blocked() -> void:
 		for gx in range(x0, x1 + 1):
 			for gy in range(y0, y1 + 1):
 				var centre := flow_origin + (Vector2(gx, gy) + Vector2(0.5, 0.5)) * FLOW_CELL
-				if _blocked[gx + gy * FN] == 0 and _seg_edge(k, centre) < 8.0 and on_bridge(centre) < 0:
-					_blocked[gx + gy * FN] = 1
+				if blocked[gx + gy * FN] == 0 and _seg_edge(k, centre) < 8.0 and on_bridge(centre) < 0:
+					blocked[gx + gy * FN] = 1
 	_flow_goal = Vector2i(1 << 30, 0)
 
 
@@ -588,7 +594,7 @@ func update_flow(goal: Vector2) -> void:
 	flow_dir.resize(FN * FN)
 	flow_dir.fill(Vector2.ZERO)
 	# Each square's state: bit 1 once reached, bit 2 when blocked.
-	var state := _blocked.duplicate()
+	var state := blocked.duplicate()
 	for c in FN * FN:
 		state[c] <<= 1
 	_queue.resize(FN * FN)
@@ -610,7 +616,7 @@ func update_flow(goal: Vector2) -> void:
 			var n := c + off[k]
 			if state[n] != 0:
 				continue
-			# A diagonal step may not cut the corner between two blocked squares.
+			# A diagonal step may not cut the corner of a blocked square.
 			if k >= 4 and (state[c + sdy[k] * FN] >= 2 or state[c + sdx[k]] >= 2):
 				continue
 			state[n] = 1
@@ -618,11 +624,7 @@ func update_flow(goal: Vector2) -> void:
 			queue[tail] = n
 			tail += 1
 	# A barbarian caught among trees stands in blocked squares, so the map also spreads from open ground through the trees, pointing back out.
-	tail = 0
-	for c in FN * FN:
-		if state[c] == 1:
-			queue[tail] = c
-			tail += 1
+	# It starts again from the open squares in the order they were reached, so a blocked square points to the open one nearest the goal.
 	head = 0
 	while head < tail:
 		var c := queue[head]
@@ -647,9 +649,9 @@ func update_flow(goal: Vector2) -> void:
 func is_open(p: Vector2) -> bool:
 	var gx := floori((p.x - flow_origin.x) / FLOW_CELL)
 	var gy := floori((p.y - flow_origin.y) / FLOW_CELL)
-	if _blocked.is_empty() or gx < 0 or gy < 0 or gx >= FN or gy >= FN:
+	if blocked.is_empty() or gx < 0 or gy < 0 or gx >= FN or gy >= FN:
 		return true
-	return _blocked[gx + gy * FN] == 0
+	return blocked[gx + gy * FN] == 0
 
 
 ## The way to walk from p round the obstacles to the commander, or zero where the map has no answer.
@@ -772,8 +774,8 @@ func _gorge_line(r: RandomNumberGenerator, inner: Rect2) -> Dictionary:
 	var cut_to := -INF
 	if r.randf() < float(cfg.land_bridge_chance):
 		var mid := r.randf_range(0.35, 0.65) * length
-		# The narrowed ends on either side reach into the gap, so the gap in the line is wider than the ground left between them.
-		var gap := r.randf_range(float(cfg.land_bridge[0]), float(cfg.land_bridge[1])) + 2.0 * w_hi * end_w
+		# The narrowed ends and their cracks on either side reach into the gap, so the gap in the line is wider than the ground left between them.
+		var gap := r.randf_range(float(cfg.land_bridge[0]), float(cfg.land_bridge[1])) + 2.0 * 2.2 * w_hi * end_w
 		cut_from = mid - gap / 2.0
 		cut_to = mid + gap / 2.0
 	var width := r.randf_range(w_lo, w_hi)
@@ -798,7 +800,29 @@ func _gorge_line(r: RandomNumberGenerator, inner: Rect2) -> Dictionary:
 		half.append(width * clampf(end_w + (1.0 - end_w) * to_end / taper, end_w, 1.0))
 	if pts.size() > 1:
 		pieces.append({"pts": pts, "half": half})
-	return _with_box({"pieces": pieces})
+	return _with_box(_cracked({"pieces": pieces}))
+
+
+## Each end of every piece runs on as a narrowing crack, so a gorge closes to a point, and the drop the legion and horde meet is the one drawn.
+static func _cracked(rv: Dictionary) -> Dictionary:
+	for piece in rv.pieces:
+		var pts: PackedVector2Array = piece.pts.duplicate()
+		var half: PackedFloat32Array = piece.half.duplicate()
+		for end in 2:
+			var k := 0 if end == 0 else pts.size() - 1
+			var dir := (pts[k] - pts[1 if end == 0 else k - 1]).normalized()
+			var w := half[k]
+			for j in range(1, 4):
+				var at := pts[k] + dir * w * 0.4 * j
+				if end == 0:
+					pts.insert(0, at)
+					half.insert(0, w * (1.0 - j / 3.5))
+				else:
+					pts.append(at)
+					half.append(w * (1.0 - j / 3.5))
+		piece.pts = pts
+		piece.half = half
+	return rv
 
 
 func _with_box(rv: Dictionary) -> Dictionary:
@@ -829,7 +853,7 @@ func _fits(rv: Dictionary, inner: Rect2) -> bool:
 
 ## Lays a ravine by hand, given as pieces of {pts, half}, for tests and looks.
 func add_ravine(pieces: Array) -> void:
-	_laid.append(_with_box({"pieces": pieces}))
+	_laid.append(_with_box(_cracked({"pieces": pieces})))
 	_anchor = Vector2i(1 << 30, 0)
 
 

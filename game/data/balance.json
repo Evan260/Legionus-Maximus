@@ -36,7 +36,7 @@
   "recycle_radius": 460,
   "legion_cap": 100,
   "commander_regen": 0.3,
-  "detour": {"seconds": 0.6, "stuck_after": 1.2, "stuck_slip": 1.0},
+  "detour": {"seconds": 0.6, "slide": 0.2, "stuck_after": 1.2, "stuck_slip": 1.0},
   "press": {"per_enemy": 0.1, "slowest": 0.2},
   "promotion_picks": 5,
   "legion": {

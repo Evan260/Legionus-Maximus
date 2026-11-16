@@ -24,7 +24,7 @@ var _kinds_of: Sim
 var _k_type := PackedStringArray()
 var _k_attack := PackedByteArray()
 var _k_shadow := PackedFloat32Array()
-# Every enemy kind's walk and attack frames, so drawing the horde reads arrays instead of the atlas's JSON: slot (kind * 2 + action) * 8 + direction gives where its frames start in _f_rect, how many there are and the anchor.
+# Every enemy kind's walk, attack and stance frames, so drawing the horde reads arrays instead of the atlas's JSON: slot (kind * 3 + action) * 8 + direction gives where its frames start in _f_rect, how many there are and the anchor.
 var _f_start := PackedInt32Array()
 var _f_count := PackedInt32Array()
 var _f_anchor := PackedVector2Array()
@@ -188,7 +188,7 @@ func _draw() -> void:
 		if not view.has_point(p):
 			continue
 		var kind := h.e_kind[i]
-		var slot := kind * 16 + Sim.dir_index(h.e_face[i])
+		var slot := kind * 24 + Sim.dir_index(h.e_face[i])
 		var fi: int
 		var since := sim.time - h.e_strike[i]
 		if _k_attack[kind] == 1 and since >= 0.0 and since < strike_secs:
@@ -198,6 +198,10 @@ func _draw() -> void:
 		elif _k_attack[kind] == 1 and h.e_fighting[i] == 1 and h.e_tag[i] != Horde.CHIEF:
 			slot += 8
 			fi = posmod(int(loop_t + h.e_phase[i]), _f_count[slot])
+		elif h.e_fighting[i] == 0 and h.e_pace[i] < Horde.STILL_PACE and _f_count[slot + 16] > 0:
+			# A barbarian held in place shows his stance instead of running on the spot.
+			slot += 16
+			fi = 0
 		else:
 			fi = posmod(int(sim.time * 11.0 + h.e_phase[i] if h.e_fighting[i] == 0 else float(h.e_phase[i])), _f_count[slot])
 		var rect := _f_rect[_f_start[slot] + fi]
@@ -271,17 +275,17 @@ func _index_kinds() -> void:
 		_k_attack[k] = 1 if atlas.units.has(h.kind_ids[k]) and atlas.units[h.kind_ids[k]].has("attack") else 0
 		# A small barbarian keeps the 16 px shadow; a boss's grows with his body.
 		_k_shadow[k] = maxf(16.0, h.k_radius[k] * 2.4)
-	var slots := h.kind_ids.size() * 16
+	var slots := h.kind_ids.size() * 24
 	_f_start.resize(slots)
 	_f_count.resize(slots)
 	_f_anchor.resize(slots)
 	_f_rect.clear()
 	for k in h.kind_ids.size():
 		var unit: Dictionary = atlas.units.get(h.kind_ids[k], {})
-		for a in 2:
-			var action := "attack" if a == 1 else "move"
+		for a in 3:
+			var action: String = ["move", "attack", "idle"][a]
 			for d in 8:
-				var slot := (k * 2 + a) * 8 + d
+				var slot := (k * 3 + a) * 8 + d
 				_f_start[slot] = _f_rect.size()
 				_f_count[slot] = 0
 				if not unit.has(action):
@@ -893,21 +897,8 @@ func _draw_ravines(view: Rect2) -> void:
 
 ## The triangles of one ravine piece: the dark fill of its whole outline, and the strip of rocky lip along it.
 func _gorge_mesh(piece: Dictionary) -> Array:
-	var pts: PackedVector2Array = piece.pts.duplicate()
-	var half: PackedFloat32Array = piece.half.duplicate()
-	# Each end runs on as a narrowing crack, so a gorge closes to a point instead of stopping in a blunt round end.
-	for end in 2:
-		var k := 0 if end == 0 else pts.size() - 1
-		var dir := (pts[k] - pts[1 if end == 0 else k - 1]).normalized()
-		var w := half[k]
-		for j in range(1, 4):
-			var at := pts[k] + dir * w * 0.4 * j
-			if end == 0:
-				pts.insert(0, at)
-				half.insert(0, w * (1.0 - j / 3.5))
-			else:
-				pts.append(at)
-				half.append(w * (1.0 - j / 3.5))
+	var pts: PackedVector2Array = piece.pts
+	var half: PackedFloat32Array = piece.half
 	var n := pts.size()
 	# The outline runs down one side, round the far end, back up the other side and round the near end.
 	var centres := PackedVector2Array()

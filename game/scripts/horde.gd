@@ -11,6 +11,8 @@ const BEAST := 3
 const LOBBER := 4
 const FLANKER := 5
 const BEHAVIOURS := {"melee": MELEE, "ranged": RANGED, "charger": CHARGER, "beast": BEAST, "lobber": LOBBER, "flanker": FLANKER}
+## Below this real speed in pixels a second a barbarian counts as standing still.
+const STILL_PACE := 8.0
 const ORDINARY := 0
 const ELITE := 1
 const CHIEF := 2
@@ -80,7 +82,7 @@ var e_cd := PackedFloat32Array()
 var e_dash := PackedFloat32Array()
 # Throws left before a ranged enemy closes in to fight hand to hand.
 var e_ammo := PackedInt32Array()
-# Seconds left walking round an obstacle, and which way round (1 or -1).
+# Seconds left walking round an obstacle, which way round (1 or -1), and the outward face of what he last touched.
 var e_detour := PackedFloat32Array()
 var e_side := PackedInt32Array()
 var e_way := PackedVector2Array()
@@ -92,6 +94,9 @@ var e_guard := PackedVector2Array()
 var e_stuck := PackedFloat32Array()
 # Seconds left running away from the legion, for a horn blower whom soldiers have reached.
 var e_flee := PackedFloat32Array()
+# 1 while a barbarian is trying to walk somewhere this update, and his real speed over the last moments in pixels a second, so one held in place shows his stance.
+var e_want := PackedByteArray()
+var e_pace := PackedFloat32Array()
 var next_id := 1
 var chieftain_id := -1
 
@@ -317,6 +322,8 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 	e_guard.append(Vector2.ZERO)
 	e_stuck.append(0.0)
 	e_flee.append(0.0)
+	e_want.append(0)
+	e_pace.append(k_speed[kind])
 	e_fury.append(1.0)
 	e_power.append(power)
 	return e_id.size() - 1
@@ -1116,11 +1123,14 @@ func _move(dt: float, sim: Sim) -> void:
 	var f_origin := sim.terrain.flow_origin
 	var f_cell := Terrain.FLOW_CELL
 	var f_n := Terrain.FN
+	var f_closed := sim.terrain.blocked
 	var held := 0
 	var solid_range: float = b.get("solid_range", 400.0)
 	var detour_seconds: float = b.detour.seconds
 	var stuck_after: float = b.detour.stuck_after
 	var stuck_slip: float = b.detour.stuck_slip
+	var pace_k := minf(1.0, dt * 18.0)
+	var slide_until := detour_seconds - float(b.detour.get("slide", 0.0))
 	var rear := -Vector2.from_angle(sim.facing_angle)
 	var ci := chieftain_index()
 	var chief_pos := e_pos[ci] if ci >= 0 else Vector2.ZERO
@@ -1135,11 +1145,13 @@ func _move(dt: float, sim: Sim) -> void:
 		var d := to.length()
 		if d > recycle and e_tag[i] != CHIEF and e_guard[i] == Vector2.ZERO:
 			# Barbarians left far behind come round again from ahead, so the field never empties.
-			e_pos[i] = cpos - to * (b.spawn_radius / d)
+			e_pos[i] = open_point(cpos - to * (b.spawn_radius / d))
 			continue
 		if e_stun[i] > 0.0:
 			e_stun[i] -= dt
 			e_fighting[i] = 0
+			e_want[i] = 0
+			e_pace[i] = 0.0
 			if e_flash[i] > 0.0:
 				e_flash[i] -= dt
 			continue
@@ -1296,15 +1308,30 @@ func _move(dt: float, sim: Sim) -> void:
 				if out.length() > 0.001:
 					push += out.normalized() * maxf(0.0, Sim.UNIT_RADIUS + r - out.length()) * 2.0
 				v = Vector2.ZERO
-		if e_detour[i] > 0.0:
+		if i % 3 == phase and e_detour[i] <= 0.0 and v != Vector2.ZERO and f_ready and d < solid_range and not (dashing or circling or fleeing) and g == Vector2.ZERO:
+			# A barbarian about to walk into a wood or a gorge takes the route map round it before he touches it.
+			var ahead := p + v * (f_cell / spd) - f_origin
+			var ax := floori(ahead.x / f_cell)
+			var ay := floori(ahead.y / f_cell)
+			if ax >= 0 and ay >= 0 and ax < f_n and ay < f_n and f_closed[ax + ay * f_n] == 1:
+				e_detour[i] = detour_seconds * 0.5
+		var flow := Vector2.ZERO
+		if e_detour[i] > 0.0 or e_stuck[i] < 0.0:
 			e_detour[i] -= dt
 			if v != Vector2.ZERO:
-				var way := e_way[i]
 				var fx := floori((p.x - f_origin.x) / f_cell)
 				var fy := floori((p.y - f_origin.y) / f_cell)
-				if f_ready and fx >= 0 and fy >= 0 and fx < f_n and fy < f_n and f_dir[fx + fy * f_n] != Vector2.ZERO:
-					way = f_dir[fx + fy * f_n]
-				v = way * spd
+				if f_ready and fx >= 0 and fy >= 0 and fx < f_n and fy < f_n:
+					flow = f_dir[fx + fy * f_n]
+				var w := flow if flow != Vector2.ZERO else v / spd
+				if e_detour[i] > slide_until and e_stuck[i] >= 0.0:
+					# Against the obstacle he keeps only the part of his way that runs along it, since the coarse route map can point into a rock.
+					var n := e_way[i]
+					var into := w.dot(n)
+					if into < 0.0:
+						w -= n * into
+						w = Vector2(-n.y, n.x) * e_side[i] if w.length_squared() < 0.09 else w.normalized()
+				v = w * spd
 		var np := p + v * dt + push * 0.6
 		# Trees and rocks push the barbarian back out, read straight from the terrain grid since this runs for the whole horde.
 		# Barbarians well off the screen pass through, since nobody sees them and the check is costly for a full horde.
@@ -1312,6 +1339,7 @@ func _move(dt: float, sim: Sim) -> void:
 		var gy := floori((np.y - t_origin.y) / t_cell)
 		if d < solid_range and e_stuck[i] >= 0.0 and gx >= 0 and gy >= 0 and gx < t_n and gy < t_n:
 			var gc := gx + gy * t_n
+			var touched := false
 			for t in range(t_start[gc], t_start[gc + 1]):
 				var so := t_solid[t_items[t]]
 				var ax := np.x - so.x
@@ -1329,23 +1357,25 @@ func _move(dt: float, sim: Sim) -> void:
 						sim.terrain.horde_chop(Vector2(so.x, so.y), chop_rate)
 					# A barbarian walking into a tree or rock slides along it on the side that leads towards the legion, and keeps that side a while.
 					if v != Vector2.ZERO:
-						var along := Vector2(-ay, ax) / dl
+						touched = true
+						e_way[i] = Vector2(ax, ay) / dl
 						if e_detour[i] <= 0.0:
-							e_side[i] = 1 if along.dot(to) >= 0.0 else -1
-						e_way[i] = along * e_side[i]
+							e_side[i] = 1 if Vector2(-ay, ax).dot(_route(p, to, sim)) >= 0.0 else -1
 						e_detour[i] = detour_seconds
 			if r > Terrain.MAX_UNIT:
 				np = sim.terrain.push_out_wide(np, r)
+			elif touched and not sim.terrain.is_open(p):
+				# Inside a wood there is no gap to slide through, so he slips between the trunks along the route map out to open ground.
+				e_stuck[i] = -stuck_slip
 		# Every barbarian in the grid is held at a ravine's lip every other update, which is enough since one step is shorter than his radius.
 		if (i + frame) % 2 == 0 and gx >= 0 and gy >= 0 and gx < t_n and gy < t_n and rv_start[gx + gy * t_n] < rv_start[gx + gy * t_n + 1]:
 			var kept := sim.terrain.ravine_push(np, r, r > Terrain.MAX_UNIT)
 			if kept != np:
 				if v != Vector2.ZERO:
 					var out_of := (kept - np).normalized()
-					var along := Vector2(-out_of.y, out_of.x)
 					if e_detour[i] <= 0.0:
-						e_side[i] = 1 if along.dot(to) >= 0.0 else -1
-					e_way[i] = along * e_side[i]
+						e_side[i] = 1 if Vector2(-out_of.y, out_of.x).dot(_route(p, to, sim)) >= 0.0 else -1
+					e_way[i] = out_of
 					e_detour[i] = detour_seconds
 				np = kept
 		# A barbarian wedged among trees who makes no headway for a while slips through them for a moment to get free.
@@ -1358,12 +1388,21 @@ func _move(dt: float, sim: Sim) -> void:
 		elif e_stuck[i] > 0.0:
 			e_stuck[i] = maxf(0.0, e_stuck[i] - dt)
 		e_pos[i] = np
+		e_want[i] = 1 if v != Vector2.ZERO else 0
+		if i % 3 == phase:
+			e_pace[i] += ((np - p).length() / dt - e_pace[i]) * pace_k
 		if v != Vector2.ZERO:
 			e_face[i] = e_dir[i] if dashing else (v.normalized() if circling or fleeing else to / maxf(d, 0.001))
 		if e_flash[i] > 0.0:
 			e_flash[i] -= dt
 	sim.pressing = held
 	sim.legion.remove_fallen(sim)
+
+
+## The way the route map leads from p, or straight at the legion where it has none.
+func _route(p: Vector2, to: Vector2, sim: Sim) -> Vector2:
+	var way := sim.terrain.flow_at(p)
+	return to if way == Vector2.ZERO else way
 
 
 ## The index in sim.units of the nearest unit close enough for an enemy at p of radius r to strike, or -1, from the cells the units stood in when the grids were built.
@@ -1673,5 +1712,7 @@ func remove_at(i: int) -> void:
 	e_guard[i] = e_guard[last]; e_guard.resize(last)
 	e_stuck[i] = e_stuck[last]; e_stuck.resize(last)
 	e_flee[i] = e_flee[last]; e_flee.resize(last)
+	e_want[i] = e_want[last]; e_want.resize(last)
+	e_pace[i] = e_pace[last]; e_pace.resize(last)
 	e_fury[i] = e_fury[last]; e_fury.resize(last)
 	e_power[i] = e_power[last]; e_power.resize(last)
