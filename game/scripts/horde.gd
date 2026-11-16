@@ -96,6 +96,8 @@ var e_stuck := PackedFloat32Array()
 var e_flee := PackedFloat32Array()
 # 1 while a barbarian is trying to walk somewhere this update, and his real speed over the last moments in pixels a second, so one held in place shows his stance.
 var e_want := PackedByteArray()
+# Seconds left of a war band's rush at the legion.
+var e_rush := PackedFloat32Array()
 var e_pace := PackedFloat32Array()
 var next_id := 1
 var chieftain_id := -1
@@ -116,6 +118,9 @@ var spawn_acc := 0.0
 var next_surge := 0.0
 var next_cart := 0.0
 var next_band := 0.0
+## Where the commander stood each of the last seconds, oldest first, to see whether he is marching round in a loop.
+var trail := PackedVector2Array()
+var next_trail := 0.0
 var frame := 0
 var haste_mult := 1.0
 var cleave_cd := 0.0
@@ -325,6 +330,7 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 	e_stuck.append(0.0)
 	e_flee.append(0.0)
 	e_want.append(0)
+	e_rush.append(0.0)
 	e_pace.append(k_speed[kind])
 	e_fury.append(1.0)
 	e_power.append(power)
@@ -427,6 +433,11 @@ func update(dt: float, sim: Sim) -> void:
 	# The sim can swap in a changed balance table, so the horde reads the current one.
 	b = sim.b
 	time = sim.time
+	if time >= next_trail:
+		next_trail = time + 1.0
+		trail.append(commander.pos)
+		if trail.size() > int(b.war_band.get("loop_samples", 0)):
+			trail.remove_at(0)
 	_spawn(dt, sim)
 	_chieftain(dt, sim)
 	_rally(dt, sim)
@@ -516,7 +527,39 @@ func _boss_arrival(sim: Sim) -> void:
 func _war_band(sim: Sim, behind := false) -> void:
 	var ahead := Vector2.from_angle(sim.facing_angle)
 	var dir := -ahead if behind else (ahead if rng.randf() < 0.5 else -ahead)
-	war_band_at(sim, open_point(commander.pos + dir.rotated(rng.randf_range(-0.4, 0.4)) * Vector2(1.15, 0.75) * float(b.spawn_radius)))
+	var first := e_pos.size()
+	var loop := loop_centre()
+	if not behind and loop != Vector2.INF and time >= float(b.war_band.get("rush_from", 0.0)):
+		# A legion marching round and round in one place meets a band coming in across the middle of its loop.
+		var across: Vector2 = (loop - commander.pos).normalized()
+		war_band_at(sim, open_point(commander.pos + across * Vector2(1.15, 0.75) * float(b.spawn_radius)), float(b.war_band.get("loop_mult", 1.0)))
+	else:
+		war_band_at(sim, open_point(commander.pos + dir.rotated(rng.randf_range(-0.4, 0.4)) * Vector2(1.15, 0.75) * float(b.spawn_radius)))
+	# A timed band runs at the legion for a while, so one that keeps marching cannot simply leave it behind.
+	if time < float(b.war_band.get("rush_from", 0.0)):
+		return
+	for i in range(first, e_pos.size()):
+		e_rush[i] = float(b.war_band.get("rush_seconds", 0.0))
+
+
+## The middle of the loop the commander has been marching round, or INF when he has been standing, fighting in place or marching on.
+func loop_centre() -> Vector2:
+	var cfg: Dictionary = b.war_band
+	if trail.size() < int(cfg.get("loop_samples", 1 << 30)):
+		return Vector2.INF
+	var mid := Vector2.ZERO
+	for p in trail:
+		mid += p
+	mid /= trail.size()
+	var walked := 0.0
+	for k in range(1, trail.size()):
+		walked += trail[k].distance_to(trail[k - 1])
+	var spread := 0.0
+	for p in trail:
+		spread = maxf(spread, p.distance_to(mid))
+	if spread > float(cfg.loop_spread) or walked < float(cfg.loop_walk) or commander.pos.distance_to(mid) < float(cfg.loop_spread) * 0.3:
+		return Vector2.INF
+	return mid
 
 
 ## A war band gathered round a given point, such as the defenders of an objective; `mult` scales its size.
@@ -1101,6 +1144,7 @@ func _move(dt: float, sim: Sim) -> void:
 	var shield: float = (b.testudo_damage_taken if sim.testudo_left > 0.0 else 1.0) * sim.frenzy_guard()
 	var phase := frame % 3
 	var slow_recover: float = b.slow_recover
+	var rush_mult: float = b.war_band.get("rush", 1.0)
 	var wall := 1.0 - float(b.drills.shield_wall) * sim.rank("shield_wall")
 	var throw_every: float = b.ranged.every
 	var dash_min: float = b.charger.min_distance
@@ -1168,6 +1212,9 @@ func _move(dt: float, sim: Sim) -> void:
 		if e_haste[i] > 0.0:
 			e_haste[i] -= dt
 			spd *= haste_mult
+		if e_rush[i] > 0.0:
+			e_rush[i] -= dt
+			spd *= rush_mult
 		var v := to / maxf(d, 0.001) * spd
 		var beh := k_beh[kind]
 		var circling := false
@@ -1750,6 +1797,7 @@ func remove_at(i: int) -> void:
 	e_stuck[i] = e_stuck[last]; e_stuck.resize(last)
 	e_flee[i] = e_flee[last]; e_flee.resize(last)
 	e_want[i] = e_want[last]; e_want.resize(last)
+	e_rush[i] = e_rush[last]; e_rush.resize(last)
 	e_pace[i] = e_pace[last]; e_pace.resize(last)
 	e_fury[i] = e_fury[last]; e_fury.resize(last)
 	e_power[i] = e_power[last]; e_power.resize(last)

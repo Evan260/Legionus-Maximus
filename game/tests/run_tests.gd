@@ -4655,13 +4655,17 @@ func test_gaul_is_farmland_with_villages_hedges_and_wheat(b: Dictionary) -> void
 	t.field = b.fields.gaul
 	for pr in t.props_in(Rect2(-3000, -3000, 6000, 6000)):
 		kinds[pr[0]] = kinds.get(pr[0], 0) + 1
-	check(kinds.has("wheat") and kinds.has("hedge") and kinds.has("village"), "the fields hold wheat, hedges and villages (%s)" % str(kinds.keys()))
+	check(kinds.has("hedge") and kinds.has("roundhouse"), "the farmland holds hedges and villages of roundhouses (%s)" % str(kinds.keys()))
+	check(not kinds.has("wheat"), "and no scattered sheaves of wheat")
+	var fields := t.fields_in(Rect2(-3000, -3000, 6000, 6000))
+	var big := fields.filter(func(f: Rect2) -> bool: return f.size.x >= 100.0 and f.size.y >= 70.0)
+	check(big.size() >= 6, "but whole fields of standing wheat (%d large of %d)" % [big.size(), fields.size()])
 	check(not kinds.has("oak") and not kinds.has("fir") and not kinds.has("log"), "and none of Germania's forest")
 	var g := Terrain.new(902, b.forest, {})
 	var forest := {}
 	for pr in g.props_in(Rect2(-3000, -3000, 6000, 6000)):
 		forest[pr[0]] = true
-	check(forest.has("oak") and not forest.has("wheat") and not forest.has("village"), "Germania keeps its forest")
+	check(forest.has("oak") and not forest.has("wheat") and not forest.has("roundhouse") and g.fields_in(Rect2(-3000, -3000, 6000, 6000)).is_empty(), "Germania keeps its forest and has no fields")
 
 
 func test_hedges_and_villages_block_and_wheat_does_not(b: Dictionary) -> void:
@@ -4673,7 +4677,7 @@ func test_hedges_and_villages_block_and_wheat_does_not(b: Dictionary) -> void:
 	for pr in t.props_in(Rect2(-3000, -3000, 6000, 6000)):
 		if pr[0] == "hedge" and hedge == Vector2.INF:
 			hedge = pr[1]
-		elif pr[0] == "village" and village == Vector2.INF:
+		elif pr[0] == "roundhouse" and village == Vector2.INF:
 			village = pr[1]
 		elif pr[0] == "wheat" and pr[2] > 0.0:
 			wheat_solid = true
@@ -4683,8 +4687,11 @@ func test_hedges_and_villages_block_and_wheat_does_not(b: Dictionary) -> void:
 	var at := hedge + Vector2(3, -6)
 	check(t.push_out(at, Sim.UNIT_RADIUS).distance_to(at) > 4.0, "a soldier cannot stand in a hedge")
 	t.refresh(village)
-	at = village + Vector2(0, -30)
-	check(t.push_out(at, Sim.UNIT_RADIUS).distance_to(at) > 4.0, "nor in a village's houses")
+	for off in [Vector2(0, -24), Vector2(-30, -20), Vector2(30, -20), Vector2(0, -50)]:
+		at = village + off
+		check(t.push_out(at, Sim.UNIT_RADIUS).distance_to(at) > 4.0, "nor inside a roundhouse's wall (%s)" % off)
+	at = village + Vector2(0, 30)
+	check(t.push_out(at, Sim.UNIT_RADIUS) == at, "but he can walk past in front of its door")
 
 
 func test_a_swordsman_slash_cuts_two_soldiers(b: Dictionary) -> void:
@@ -5495,3 +5502,96 @@ func test_the_summary_lists_what_a_win_unlocked(b: Dictionary) -> void:
 		check(str(content.commanders.archer_captain.name) in got[2].text, "the commander line names him (%s)" % got[2].text)
 		check(got[3].text == str(content.achievements.win_germania.name), "the achievement line names it")
 	check(SummaryScreen.unlocks(after, after, content, "germania").is_empty(), "a run that unlocks nothing lists nothing")
+
+
+func test_a_war_band_runs_down_a_marching_legion(b: Dictionary) -> void:
+	var cfg: Dictionary = b.war_band
+	var s := _quiet_sim(b, 1660)
+	s.commander.hp = 1e9
+	s.time = float(cfg.rush_from)
+	s.horde.time = s.time
+	s.horde.next_band = s.time
+	s.horde.next_surge = 1e9
+	s.horde.next_boss = 1e9
+	s.horde._spawn(1.0 / 60.0, s)
+	var n := s.horde.e_pos.size()
+	check(n > 0, "the band comes")
+	var before: Array = []
+	for i in n:
+		before.append(s.horde.e_pos[i].distance_to(s.commander.pos))
+	s.horde.spawn("barbarian_club", s.commander.pos + Vector2(0, 300))
+	var plain_from: float = s.horde.e_pos[n].distance_to(s.commander.pos)
+	_step_dt(s, 1.0)
+	var band_ran: float = before[0] - s.horde.e_pos[0].distance_to(s.commander.pos)
+	var plain_ran: float = plain_from - s.horde.e_pos[n].distance_to(s.commander.pos)
+	check(band_ran > plain_ran * (float(cfg.rush) - 0.2), "a war band rushes in %.1f times as fast as the stream (%.0f vs %.0f px)" % [float(cfg.rush), band_ran, plain_ran])
+	_step_dt(s, float(cfg.rush_seconds))
+	check(s.horde.e_rush[0] <= 0.0, "and slows to a walk after %.0f s" % float(cfg.rush_seconds))
+	var camp := _quiet_sim(b, 1661)
+	camp.horde.war_band_at(camp, Vector2(300, 0))
+	check(camp.horde.e_rush[0] == 0.0, "an objective's defenders do not rush")
+
+
+func test_wheat_fields_are_open_ground_away_from_the_start(b: Dictionary) -> void:
+	for seed_value in [1, 2, 3]:
+		var s := Sim.new(b, content, {"seed": seed_value, "province": "gaul"})
+		var fields := s.terrain.fields_in(Rect2(-2500, -2500, 5000, 5000))
+		check(not fields.is_empty(), "seed %d has wheat fields" % seed_value)
+		var clear := true
+		var away := true
+		for f in fields:
+			away = away and not f.grow(-1.0).has_point(Vector2.ZERO)
+			for c in s.terrain.clearings:
+				var near := Vector2(clampf(c[0].x, f.position.x, f.end.x), clampf(c[0].y, f.position.y, f.end.y))
+				clear = clear and near.distance_to(c[0]) >= c[1]
+		check(away and clear, "no field covers the start or an objective's clearing (seed %d)" % seed_value)
+		if fields.is_empty():
+			continue
+		var mid: Vector2 = fields[0].get_center()
+		s.terrain.refresh(mid)
+		var p := s.terrain.push_out(mid, Sim.UNIT_RADIUS)
+		check(p == mid or s.terrain.props_in(Rect2(mid - Vector2(30, 30), Vector2(60, 60))).any(func(pr: Array) -> bool: return pr[2] > 0.0), "the legion walks through standing wheat")
+
+
+func test_a_legion_marching_in_a_loop_meets_a_band_across_it(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 1670)
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	s.soldiers.clear()
+	for f in 20 * 30:
+		s.update(1.0 / 30.0, Vector2(cos(s.time * 0.4), sin(s.time * 0.4)), false)
+	var mid := s.horde.loop_centre()
+	check(mid != Vector2.INF, "marching round in circles is seen as a loop")
+	var before := s.horde.e_id.size()
+	s.horde.time = float(b.war_band.rush_from)
+	s.horde._war_band(s)
+	var side := 0
+	for i in range(before, s.horde.e_id.size()):
+		if (s.horde.e_pos[i] - s.commander.pos).dot(mid - s.commander.pos) > 0.0:
+			side += 1
+	check(s.horde.e_id.size() > before and side == s.horde.e_id.size() - before, "and the next war band comes in from across the middle of the loop")
+	var still := _quiet_sim(b, 1671)
+	_step_dt(still, 20.0)
+	check(still.horde.loop_centre() == Vector2.INF, "a legion standing still is not looping")
+	var march := _quiet_sim(b, 1672)
+	_step_dt(march, 20.0, Vector2.RIGHT)
+	check(march.horde.loop_centre() == Vector2.INF, "nor is one marching straight on")
+
+
+func test_a_roundhouse_towers_over_a_soldier_and_stands_in_a_cluster(b: Dictionary) -> void:
+	var atlas := Atlas.new()
+	var house: float = atlas.prop_frame("roundhouse")[0].size.y
+	var man: float = atlas.unit_frame("legionary", "idle", "south", 0.0)[0].size.y
+	check(house >= man * 2.0, "a roundhouse is at least twice a soldier's height (%.0f vs %.0f px)" % [house, man])
+	var t := Terrain.new(905, b.forest, {})
+	t.field = b.fields.gaul
+	var houses: Array = t.props_in(Rect2(-3000, -3000, 6000, 6000)).filter(func(pr: Array) -> bool: return pr[0] == "roundhouse")
+	var clustered := 0
+	for h in houses:
+		var near := 0
+		for o in houses:
+			if o != h and o[1].distance_to(h[1]) < 160.0:
+				near += 1
+		if near >= 2:
+			clustered += 1
+	check(houses.size() >= 6 and clustered >= houses.size() * 0.8, "houses stand in clusters of three or more (%d of %d)" % [clustered, houses.size()])

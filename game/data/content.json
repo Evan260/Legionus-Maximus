@@ -623,7 +623,7 @@
    "dps": 2.5,
    "radius": 5,
    "coins": 1,
-   "arrives": 68,
+   "arrives": 90,
    "art": [
     "unit:wolf"
    ]
@@ -973,7 +973,7 @@
    "flank_charge": {
     "offset": 0.7
    },
-   "arrives": 90
+   "arrives": 100
   },
   "gaul_archer": {
    "name": "Archer",
@@ -1016,7 +1016,7 @@
     "burst_mult": 1.5,
     "stun": 1.2
    },
-   "arrives": 68
+   "arrives": 90
   },
   "champion": {
    "name": "Champion",
@@ -1486,7 +1486,7 @@
    "props": [
     "wheat",
     "hedge",
-    "village"
+    "roundhouse"
    ],
    "ordinary": [
     "gaul_swordsman",
@@ -1500,9 +1500,8 @@
    ],
    "chieftain": "gaul_king",
    "art": [
-    "prop:wheat",
     "prop:hedge",
-    "prop:village",
+    "prop:roundhouse",
     "ground:gaul"
    ]
   },

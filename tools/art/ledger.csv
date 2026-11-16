@@ -499,3 +499,5 @@ time,kind,name,cost_usd,cost_generations,usd_left
 2026-11-15T18:39:17,proflash,tools/art/raw/map/map_a.png,0.0331,0,15.9824
 2026-11-15T18:52:19,proflash,tools/art/raw/map/arch.png,0.0286,0,15.9538
 2026-11-15T18:52:49,proflash,tools/art/raw/map/statue.png,0.0234,0,15.9304
+2026-11-15T19:57:23,proflash,tools/art/raw/wheat_field/field_a.png,0.0276,0,15.9028
+2026-11-15T20:10:29,proflash,tools/art/raw/roundhouse/house_a.png,0.0282,0,15.8745

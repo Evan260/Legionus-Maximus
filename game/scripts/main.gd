@@ -180,6 +180,26 @@ func _go_to(kind: String) -> void:
 	if kind == "ravine" or kind == "bridge" or kind == "ravine-end":
 		_go_to_ravine(kind == "bridge", kind == "ravine-end")
 		return
+	if kind == "village":
+		var best := Vector2.INF
+		for pr in sim.terrain.props_in(Rect2(-3000, -3000, 6000, 6000)):
+			if pr[0] in ["village", "roundhouse"] and pr[1].length() < best.length():
+				best = pr[1]
+		if best == Vector2.INF:
+			return
+		sim.commander.pos = best + Vector2(-70, 50)
+		sim.legion.place_all(sim.facing_angle)
+		look_march = Vector2.ZERO
+		return
+	if kind == "field":
+		var fields: Array = sim.terrain.fields_in(Rect2(-3000, -3000, 6000, 6000))
+		if fields.is_empty():
+			return
+		fields.sort_custom(func(f: Rect2, g: Rect2) -> bool: return f.get_center().length() < g.get_center().length())
+		sim.commander.pos = fields[0].get_center()
+		sim.legion.place_all(sim.facing_angle)
+		look_march = Vector2.ZERO
+		return
 	var burn := kind == "burning-camp"
 	if burn:
 		kind = "camp"

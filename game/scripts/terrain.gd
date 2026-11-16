@@ -63,6 +63,9 @@ var _queue := PackedInt32Array()
 var empty := false
 var _chunks := {}
 var _regions := {}
+# The wheat fields of each farmland region, as rectangles anyone can walk through, and those of the region being built.
+var _fields := {}
+var _new_fields: Array = []
 var _buckets := {}
 var _extra_at := {}
 var _ready_to_fall: Array = []
@@ -301,7 +304,9 @@ func _region(rx: int, ry: int) -> Array:
 	var roll := r.randf()
 	var centre := (Vector2(rx, ry) + Vector2(r.randf_range(0.25, 0.75), r.randf_range(0.25, 0.75))) * REGION
 	if not field.is_empty():
+		_new_fields = []
 		_regions[key] = _farmland(r, roll, centre)
+		_fields[key] = _new_fields
 		return _regions[key]
 	if roll < float(forest.ridge_chance):
 		out = _ridge(r, centre)
@@ -377,7 +382,7 @@ func _ridge(r: RandomNumberGenerator, centre: Vector2) -> Array:
 	return out
 
 
-## A farmland region holds a few villages with hedges off their sides, a hedgerow running east and west, or a field of wheat.
+## A farmland region holds a few villages with hedges off their sides and fields beside them, a hedgerow running east and west, or a large field of wheat.
 ## A piece of a feature that falls in a clearing or by a ravine takes its whole village or hedge bush with it, so nothing is left half solid.
 func _farmland(r: RandomNumberGenerator, roll: float, centre: Vector2) -> Array:
 	var f := field
@@ -392,14 +397,18 @@ func _farmland(r: RandomNumberGenerator, roll: float, centre: Vector2) -> Array:
 			groups.append(_village(at))
 			if r.randf() < float(f.village_hedge):
 				var side := 1.0 if r.randf() < 0.5 else -1.0
-				groups.append_array(_hedge_line(r, at + Vector2(side * 60.0, 0.0), side, r.randi_range(2, 4), false))
-		for k in r.randi_range(1, 2):
-			groups.append(_wheat_field(r, centre + Vector2.from_angle(r.randf() * TAU) * r.randf_range(110.0, 170.0), r.randf_range(30.0, 50.0)))
+				groups.append_array(_hedge_line(r, at + Vector2(side * float(f.village_reach), 0.0), side, r.randi_range(2, 4), false))
+		var built: Array = []
+		for g in groups:
+			for p in g:
+				built.append(p[1])
+		for k in r.randi_range(int(f.village_fields[0]), int(f.village_fields[1])):
+			_wheat_field(r, centre + Vector2.from_angle(r.randf() * TAU) * r.randf_range(170.0, 260.0), f.village_field_size, built)
 	elif roll < float(f.village_chance) + float(f.hedge_chance):
 		var length := r.randf_range(float(f.hedge_length[0]), float(f.hedge_length[1]))
 		groups.append_array(_hedge_line(r, centre - Vector2(length / 2.0, 0.0), 1.0, int(length / float(f.hedge_span)), r.randf() < float(f.gate_chance)))
 	elif roll < float(f.village_chance) + float(f.hedge_chance) + float(f.wheat_chance):
-		groups.append(_wheat_field(r, centre, r.randf_range(float(f.wheat_size[0]), float(f.wheat_size[1]))))
+		_wheat_field(r, centre, f.field_size)
 	var kept: Array = []
 	for g in groups:
 		var ok := true
@@ -412,11 +421,14 @@ func _farmland(r: RandomNumberGenerator, roll: float, centre: Vector2) -> Array:
 	return kept
 
 
-## One village: its picture, standing at its feet with no solid of its own, and unseen circles over its houses and fence.
+## One village: a cluster of roundhouses, each drawn with no solid of its own and made solid by unseen circles over its wall.
 func _village(at: Vector2) -> Array:
-	var g: Array = [["village", at, 0.0]]
-	for c in field.village_blockers:
-		g.append(["", at + Vector2(float(c[0]), float(c[1])), float(c[2])])
+	var g: Array = []
+	for h in field.village_houses:
+		var house := at + Vector2(float(h[0]), float(h[1]))
+		g.append(["roundhouse", house, 0.0])
+		for c in field.house_blockers:
+			g.append(["", house + Vector2(float(c[0]), float(c[1])), float(c[2])])
 	return g
 
 
@@ -437,20 +449,57 @@ func _hedge_line(r: RandomNumberGenerator, from: Vector2, dir: float, count: int
 	return groups
 
 
-## A field of wheat: stalks on a loose grid inside a circle, which anyone can walk through.
-func _wheat_field(r: RandomNumberGenerator, at: Vector2, radius: float) -> Array:
-	var step := float(field.wheat_step)
-	var g: Array = []
-	var y := -radius
-	while y <= radius:
-		var x := -radius
-		while x <= radius:
-			var q := Vector2(x + r.randf_range(-3.0, 3.0), y + r.randf_range(-2.0, 2.0))
-			if q.length() < radius:
-				g.append(["wheat", at + q, 0.0])
-			x += step
-		y += step * 0.7
-	return g
+## A field of standing wheat centred on `at`, sized from [[least, most width], [least, most height]], sometimes with a second
+## strip off one corner so it reads as a worked field rather than a box; a field that would touch the start, a clearing or a ravine is left out.
+func _wheat_field(r: RandomNumberGenerator, at: Vector2, size: Array, built: Array = []) -> void:
+	var w := snappedf(r.randf_range(float(size[0][0]), float(size[0][1])), 4.0)
+	var h := snappedf(r.randf_range(float(size[1][0]), float(size[1][1])), 4.0)
+	var parts: Array = [Rect2((at - Vector2(w, h) / 2.0).snapped(Vector2(4, 4)), Vector2(w, h))]
+	if r.randf() < float(field.get("field_wing", 0.0)):
+		var main: Rect2 = parts[0]
+		var ww := snappedf(w * r.randf_range(0.35, 0.6), 4.0)
+		var wh := snappedf(h * r.randf_range(0.4, 0.7), 4.0)
+		var right := r.randf() < 0.5
+		var down := r.randf() < 0.5
+		var x := main.end.x if right else main.position.x - ww
+		var y := main.end.y - wh if down else main.position.y
+		parts.append(Rect2(x, y, ww, wh))
+	for part in parts:
+		for q in [part.position, part.end, Vector2(part.position.x, part.end.y), Vector2(part.end.x, part.position.y), part.get_center()]:
+			if q.length() <= clear_radius + 40.0 or _in_clearing(q) or _by_ravine(q):
+				return
+		# A field keeps clear of the villages and hedges it was laid out beside.
+		var room: Rect2 = part.grow(float(field.get("field_gap", 0.0)))
+		for p in built:
+			if room.has_point(p):
+				return
+	_new_fields.append_array(parts)
+
+
+## Every wheat field that reaches into the rectangle.
+func fields_in(rect: Rect2) -> Array:
+	var out: Array = []
+	if field.is_empty() or empty:
+		return out
+	var wide := rect.grow(REGION * 0.75)
+	for rx in range(floori(wide.position.x / REGION), floori(wide.end.x / REGION) + 1):
+		for ry in range(floori(wide.position.y / REGION), floori(wide.end.y / REGION) + 1):
+			var key := Vector2i(rx, ry)
+			if not _fields.has(key):
+				_region(rx, ry)
+			for f in _fields[key]:
+				if f.intersects(rect) and not _cleared(f):
+					out.append(f)
+	return out
+
+
+## Whether a clearing laid after the field was made covers any of it.
+func _cleared(f: Rect2) -> bool:
+	for c in clearings:
+		var near := Vector2(clampf(c[0].x, f.position.x, f.end.x), clampf(c[0].y, f.position.y, f.end.y))
+		if near.distance_to(c[0]) < c[1]:
+			return true
+	return false
 
 
 ## Clears a circle of ground that may already be built and stands the run's own pieces in it.

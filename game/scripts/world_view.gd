@@ -107,6 +107,7 @@ func _draw() -> void:
 		for gy in range(gy0, gy0 + ceili(screen.y / gh) + 2):
 			draw_texture(ground, Vector2(gx * gw, gy * gh))
 
+	_draw_fields(view_for(top_left))
 	_draw_ravines(view_for(top_left).grow(80.0))
 	_draw_fort_ring(view_for(top_left))
 	_draw_ground_zones(view_for(top_left))
@@ -267,6 +268,27 @@ func _legion_frame(u: Dictionary) -> Array:
 		if not f.is_empty():
 			return f
 	return atlas.unit_frame(u.type, "move" if u.moving else "idle", Sim.dir_name(u.facing), u.anim)
+
+
+## Gaul's wheat fields: the wheat tile repeated over each field, lined up with the world so neighbouring fields share their rows, inside a dark furrow.
+func _draw_fields(view: Rect2) -> void:
+	var fields := sim.terrain.fields_in(view)
+	if fields.is_empty() or not atlas.props.has("wheat_field"):
+		return
+	var src: Rect2 = atlas.prop_frame("wheat_field")[0]
+	var tw := src.size.x
+	var th := src.size.y
+	var edge := Color(0.24, 0.17, 0.08, 0.7)
+	for f in fields:
+		draw_rect(f.grow(2.0), edge)
+	for f in fields:
+		var area: Rect2 = f.intersection(view)
+		for tx in range(floori(area.position.x / tw), floori((area.end.x - 0.01) / tw) + 1):
+			for ty in range(floori(area.position.y / th), floori((area.end.y - 0.01) / th) + 1):
+				var tile := Rect2(tx * tw, ty * th, tw, th).intersection(area)
+				if tile.size.x <= 0.0 or tile.size.y <= 0.0:
+					continue
+				draw_texture_rect_region(atlas.texture, tile, Rect2(src.position + tile.position - Vector2(tx * tw, ty * th), tile.size))
 
 
 ## The gold ring of the triumph running out from the commander, with a second fainter one behind it.

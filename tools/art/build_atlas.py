@@ -32,7 +32,8 @@ PROPS = {"oak": "props2/oak.png", "fir": "props2/fir.png", "rock": "props2/rock.
          "onager_stone": "props3/onager_stone.png", "chest": "props3/chest.png", "supply_cart": "props3/supply_cart.png",
          "fort_gate": "props3/fort_gate.png", "hut": "props3/hut.png", "eagle_standard": "props3/eagle_standard.png",
          "altar": "props3/altar.png", "stump": "props3/stump.png", "timber": "props3/timber.png",
-         "wheat": "props3/wheat.png", "hedge": "props3/hedge.png", "village": "props3/village.png"}
+         "wheat": "props3/wheat.png", "hedge": "props3/hedge.png", "village": "props3/village.png", "roundhouse": "roundhouse/house_a.png",
+         "wheat_field": "wheat_field/field_tile.png"}
 # Props drawn as several frames side by side on one sheet, played in turn.
 SHEETS = {"flame": "props3/flame_sheet_b.png"}
 # Props toned down after drawing, as (how much the light parts darken, how much colour is taken out), so the
