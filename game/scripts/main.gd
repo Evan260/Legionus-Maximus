@@ -29,6 +29,8 @@ extends Node
 ##                      holds his others back; an ordinary enemy comes as a small group, and slash|rear|volley|rush has them use theirs
 ##   --province=ID      start the run in that province, for looking at it
 ##   --god=ID           with --autoplay, call that god at --god-at seconds (default 2) of the look; --god=choose fills the favour and holds the choice open
+##   --seed=N           lay out the field and run from a fixed seed, so a look comes out the same every time
+##   --trailer-shot=NAME  stage a trailer shot with tools/trailer/shots.gd
 
 var balance: Dictionary
 var content: Content
@@ -128,6 +130,8 @@ func _ready() -> void:
 		shot_at = float(args.get("at", "3"))
 	if args.has("win-at"):
 		win_at = float(args["win-at"])
+	if args.has("trailer-shot"):
+		add_child(load("res://tools/trailer/shots.gd").new())
 
 
 ## Brings a boss close beside the legion and has him use one ability at once, for a screenshot.
@@ -376,6 +380,8 @@ func _run_options() -> Dictionary:
 	options.profile_bonuses = Profile.bonuses()
 	options.demo_seconds = Game.run_cap(balance)
 	options.objectives_near = args.has("objectives-near")
+	if args.has("seed"):
+		options.seed = int(args.seed)
 	options.ravine_tip = int(Profile.data.totals.get("ravine_tips", 0)) < int(balance.bridge.tip_runs)
 	return options
 

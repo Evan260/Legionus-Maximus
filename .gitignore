@@ -6,3 +6,7 @@ tools/art/raw/job_*.log
 tools/art/raw/*.log
 .superpowers/
 game/tests/balance_overrides.json
+
+# Recordings, the scratch frames they are cut from, and the window size the recording scripts set
+marketing/recordings/
+game/override.cfg
