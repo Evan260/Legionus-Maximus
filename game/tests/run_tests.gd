@@ -5152,3 +5152,87 @@ func test_a_ravine_end_is_solid_only_where_it_is_drawn(b: Dictionary) -> void:
 	check(s.terrain.ravine_edge(Vector2(176, 300)) < 0.0, "the narrowing crack past the last point is part of the drop")
 	check(s.terrain.ravine_edge(Vector2(184, 306)) > 0.0, "but the ground beside its tip is open")
 	check(s.terrain.over_ravine(Vector2(176, 300)), "and the horde's grid holds the crack as well")
+
+
+func _overlapping_boss(s: Sim, i: int) -> int:
+	var n := 0
+	var reach: float = s.horde.k_radius[s.horde.e_kind[i]] + Sim.UNIT_RADIUS - 0.5
+	for u in s.units_in_formation():
+		if u.pos.distance_to(s.horde.e_pos[i]) < reach:
+			n += 1
+	return n
+
+
+func test_a_boss_never_slips_through_trees(b: Dictionary) -> void:
+	var made := _boss_sim(b, 1610, "war_band_leader", Vector2(300, 0))
+	var s: Sim = made[0]
+	var i: int = made[1]
+	s.terrain.empty = false
+	var ring: Array = []
+	for k in 16:
+		ring.append(["oak", Vector2(300, 0) + Vector2.from_angle(k * TAU / 16.0) * 30.0, 9.0])
+	s.terrain._chunks[Vector2i(1, 0)] = ring
+	s.terrain._anchor = Vector2i(1 << 30, 0)
+	s.terrain.refresh(s.commander.pos)
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	var far := 0.0
+	for f in 6 * 60:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+		far = maxf(far, s.horde.e_pos[i].distance_to(Vector2(300, 0)))
+	check(far < 20.0, "a boss boxed in by trees stays in the box instead of slipping out (%.0f px)" % far)
+
+
+func test_the_legion_shoves_a_boss_it_marches_into(b: Dictionary) -> void:
+	var made := _boss_sim(b, 1611, "berserker", Vector2(40, 0))
+	var s: Sim = made[0]
+	var i: int = made[1]
+	for k in 20:
+		Upgrades.apply(s, "legionary")
+	s.legion.place_all(0.0)
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	s.horde.e_stun[i] = 1e9
+	_step_dt(s, 3.0, Vector2.RIGHT)
+	check(s.horde.e_pos[i].x > 120.0, "marching into a boss pushes him ahead of the legion (%.0f)" % s.horde.e_pos[i].x)
+	check(_overlapping_boss(s, i) == 0, "and no Roman stands inside him")
+
+
+func test_the_legion_halts_at_a_boss_pinned_against_rocks(b: Dictionary) -> void:
+	var made := _boss_sim(b, 1612, "berserker", Vector2(60, 0))
+	var s: Sim = made[0]
+	var i: int = made[1]
+	s.terrain.empty = false
+	var wall: Array = []
+	for k in 13:
+		wall.append(["rock", Vector2(110, -120 + k * 20), 10.0])
+	s.terrain._chunks[Vector2i(0, 0)] = wall.filter(func(w: Array) -> bool: return w[1].y >= 0)
+	s.terrain._chunks[Vector2i(0, -1)] = wall.filter(func(w: Array) -> bool: return w[1].y < 0)
+	s.terrain._anchor = Vector2i(1 << 30, 0)
+	s.terrain.refresh(s.commander.pos)
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	s.horde.e_stun[i] = 1e9
+	var r: float = s.horde.k_radius[s.horde.e_kind[i]]
+	_step_dt(s, 4.0, Vector2.RIGHT)
+	check(s.horde.e_pos[i].x <= 110.0 - 10.0 - r + 1.0, "the boss stops at the rocks (%.1f)" % s.horde.e_pos[i].x)
+	check(_overlapping_boss(s, i) == 0, "and the legion stops against him instead of walking through him")
+	check(s.commander.pos.x < s.horde.e_pos[i].x, "the commander stays on his side")
+
+
+func test_the_war_priest_blinks_clear_of_the_legion(b: Dictionary) -> void:
+	var made := _boss_sim(b, 1613, "war_priest", Vector2(10, 0))
+	var s: Sim = made[0]
+	var i: int = made[1]
+	for k in 60:
+		Upgrades.apply(s, "legionary")
+	s.legion.place_all(0.0)
+	s._rebuild_grids()
+	made[2].blink_cd = 0.0
+	s.horde._bosses(1.0 / 60.0, s)
+	var r: float = s.horde.k_radius[s.horde.e_kind[i]]
+	var clear := true
+	for u in s.units_in_formation():
+		clear = clear and u.pos.distance_to(s.horde.e_pos[i]) > r + Sim.UNIT_RADIUS + 10.0
+	check(s.horde.e_pos[i] != Vector2(10, 0), "surrounded, he blinks")
+	check(clear, "and comes out beyond the legion's ranks (%.0f px from the commander, reach %.0f)" % [s.horde.e_pos[i].distance_to(s.commander.pos), s.legion_reach])

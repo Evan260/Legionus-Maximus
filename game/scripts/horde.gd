@@ -946,7 +946,9 @@ func _blink(i: int, cfg: Dictionary, sim: Sim) -> bool:
 		return false
 	var cpos: Vector2 = commander.pos
 	var away := (p - cpos).normalized() if p != cpos else Vector2.RIGHT
-	var to := sim.terrain.push_out(p + away.rotated(rng.randf_range(-0.6, 0.6)) * float(cfg.distance), k_radius[e_kind[i]])
+	# He always comes out beyond the legion's outer rank, however deep in it he stood.
+	var out := maxf(p.distance_to(cpos) + float(cfg.distance), sim.legion_reach + k_radius[e_kind[i]] + Sim.UNIT_RADIUS + 24.0)
+	var to := sim.terrain.push_out(cpos + away.rotated(rng.randf_range(-0.6, 0.6)) * out, k_radius[e_kind[i]])
 	sim.event("blink", p)
 	sim.event("blink", to)
 	sim.effects.append({"kind": "smoke", "pos": p, "t": 0.0})
@@ -1364,7 +1366,7 @@ func _move(dt: float, sim: Sim) -> void:
 						e_detour[i] = detour_seconds
 			if r > Terrain.MAX_UNIT:
 				np = sim.terrain.push_out_wide(np, r)
-			elif touched and not sim.terrain.is_open(p):
+			elif touched and e_tag[i] == ORDINARY and not sim.terrain.is_open(p):
 				# Inside a wood there is no gap to slide through, so he slips between the trunks along the route map out to open ground.
 				e_stuck[i] = -stuck_slip
 		# Every barbarian in the grid is held at a ravine's lip every other update, which is enough since one step is shorter than his radius.
@@ -1378,8 +1380,10 @@ func _move(dt: float, sim: Sim) -> void:
 					e_way[i] = out_of
 					e_detour[i] = detour_seconds
 				np = kept
-		# A barbarian wedged among trees who makes no headway for a while slips through them for a moment to get free.
-		if e_stuck[i] < 0.0:
+		# A barbarian wedged among trees who makes no headway for a while slips through them for a moment to get free; a boss never does, since he would seem to teleport.
+		if e_tag[i] != ORDINARY:
+			pass
+		elif e_stuck[i] < 0.0:
 			e_stuck[i] = minf(0.0, e_stuck[i] + dt)
 		elif v != Vector2.ZERO and (np - p).length_squared() < v.length_squared() * dt * dt * 0.0625:
 			e_stuck[i] += dt

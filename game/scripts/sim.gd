@@ -367,11 +367,50 @@ func _move_legion(dt: float, move: Vector2) -> void:
 	legion.follow(dt, self)
 	for so in soldiers:
 		so.pos = terrain.push_out(so.pos, UNIT_RADIUS, dt)
+	_shove_bosses()
 	var fallen := terrain.fell_ready()
 	if fallen > 0:
 		timber += terrain.take_logs() * int(b.felling.timber)
 		event("fell", commander.pos)
 		terrain.refresh(commander.pos)
+
+
+## Romans who march into a boss push him ahead of them; what the trees, rocks or a gorge will not let him give, the Romans give instead.
+func _shove_bosses() -> void:
+	var bosses: Array = horde.elite_ids.duplicate()
+	if horde.chieftain_id != -1 and not horde.charging:
+		bosses.append(horde.chieftain_id)
+	if bosses.is_empty():
+		return
+	var line := units_in_formation()
+	for id in bosses:
+		var i := horde.e_id.find(id)
+		if i < 0:
+			continue
+		var p := horde.e_pos[i]
+		var r := horde.k_radius[horde.e_kind[i]]
+		var reach := r + UNIT_RADIUS
+		var shove := Vector2.ZERO
+		for u in line:
+			var off: Vector2 = p - u.pos
+			var d := off.length()
+			if d < reach:
+				shove += (off / d if d > 0.001 else Vector2.RIGHT) * (reach - d)
+		if shove == Vector2.ZERO:
+			continue
+		var wide := r > Terrain.MAX_UNIT
+		var np := p + shove.limit_length(reach)
+		np = terrain.push_out_wide(np, r) if wide else terrain.push_out(np, r)
+		np = terrain.ravine_push(np, r, wide)
+		horde.e_pos[i] = np
+		var st: Dictionary = horde.boss.get(id, {})
+		if st.get("hold", 0.0) > 0.0:
+			st.at = np
+		for u in line:
+			var off: Vector2 = u.pos - np
+			var d := off.length()
+			if d < reach:
+				u.pos = np + (off / d if d > 0.001 else Vector2.LEFT) * reach
 
 
 ## The commander and the soldiers standing in the formation, not those out on a sortie.
