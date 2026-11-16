@@ -5215,6 +5215,17 @@ func test_a_screen_can_send_a_key_to_a_chosen_button(_b: Dictionary) -> void:
 	check(pts[0] == Vector2(0, 0) and pts[pts.size() - 1] == Vector2(100, 0) and absf(pts[12].y) > 5.0, "the road runs from place to place and bends")
 
 
+func test_the_map_puts_each_province_where_it_lies(_b: Dictionary) -> void:
+	check(MapScreen.spot("parthia") == MapScreen.project(Vector2(44.5, 33.0)).round(), "a province sits at its longitude and latitude")
+	check(MapScreen.spot("britannia").x < MapScreen.spot("gaul").x and MapScreen.spot("britannia").y < MapScreen.spot("gaul").y, "Britannia lies north-west of Gaul")
+	var road := MapScreen.route("roma", "germania", 0.0)
+	var alps := MapScreen.project(Vector2(11.5, 47.0))
+	var near := INF
+	for p in road:
+		near = minf(near, p.distance_to(alps))
+	check(road[0] == MapScreen.spot("roma") and road[road.size() - 1] == MapScreen.spot("germania") and near < 2.0, "the road from Rome to Germania crosses the Alps")
+
+
 func test_the_objective_badges_keep_their_size(b: Dictionary) -> void:
 	var before := Ui.scale
 	for scale in [1, 2]:

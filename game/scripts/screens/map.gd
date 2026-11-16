@@ -3,10 +3,25 @@ extends RefCounted
 ## The map: the painted frontier with the legion's road from Rome through the provinces in the order they open, and a panel for the one selected.
 
 const MODES := [["hard", "Hard"], ["endless", "Endless"], ["decimatio", "Decimatio"]]
-## Where each province lies on the painted map, in the picture's own pixels (256 by 144).
-const PLACES := {"roma": Vector2(118, 98), "germania": Vector2(100, 22), "britannia": Vector2(34, 15), "gaul": Vector2(40, 47),
-	"dacia": Vector2(203, 27), "parthia": Vector2(226, 84)}
-const PICTURE := Vector2(256, 144)
+## The painted map's projection, the same as tools/art/make_map.py: equirectangular from 13°W and 58.8°N, with longitude scaled by cos 42°.
+const WEST := -13.0
+const NORTH := 58.8
+const PX_PER_DEG := 10.8
+const LON_SCALE := 0.7431448
+## Where each province lies, as longitude and latitude.
+const PLACES := {"roma": Vector2(12.5, 41.9), "germania": Vector2(9.0, 51.5), "britannia": Vector2(-1.0, 52.0), "gaul": Vector2(2.5, 47.0),
+	"dacia": Vector2(24.5, 46.0), "parthia": Vector2(44.5, 33.0)}
+## The towns and passes each march goes by, as longitude and latitude, so the road keeps to the land and crosses the sea at the straits.
+const ROUTES := {
+	"roma>germania": [Vector2(11.0, 45.4), Vector2(11.5, 47.0), Vector2(10.9, 48.4), Vector2(8.3, 50.0)],
+	"germania>britannia": [Vector2(6.4, 51.6), Vector2(1.6, 50.7), Vector2(1.3, 51.1), Vector2(-0.1, 51.5)],
+	"britannia>gaul": [Vector2(-0.8, 50.8), Vector2(1.1, 49.4), Vector2(2.35, 48.85)],
+	"gaul>dacia": [Vector2(6.0, 47.2), Vector2(8.2, 47.5), Vector2(12.1, 48.9), Vector2(16.9, 48.1), Vector2(19.0, 47.5), Vector2(20.5, 44.8),
+		Vector2(22.6, 44.6)],
+	"dacia>parthia": [Vector2(24.5, 43.7), Vector2(29.0, 41.0), Vector2(32.9, 39.9), Vector2(34.6, 37.8), Vector2(36.2, 36.2), Vector2(37.9, 37.05),
+		Vector2(40.7, 34.75), Vector2(42.8, 33.6)],
+}
+const PICTURE := Vector2(640, 360)
 const NODE_R := 9.0
 const ROAD := Color(0.72, 0.12, 0.1)
 const SHADE := Color(0.06, 0.04, 0.03, 0.72)
@@ -87,15 +102,45 @@ static func picture_rect() -> Rect2:
 	return Rect2(0, 0, Ui.W, Ui.H)
 
 
-## A point of the painted map in screen pixels.
-static func spot(id: String) -> Vector2:
+## A longitude and latitude on the painted map in screen pixels.
+static func project(lon_lat: Vector2) -> Vector2:
 	var r := picture_rect()
-	return (r.position + PLACES.get(id, PICTURE / 2.0) * r.size / PICTURE).round()
+	var at := Vector2((lon_lat.x - WEST) * LON_SCALE, NORTH - lon_lat.y) * PX_PER_DEG
+	return r.position + at * r.size / PICTURE
 
 
-## The panel with the selected province's records and modes, in the sea at the bottom left.
+## A province's place on the painted map in screen pixels.
+static func spot(id: String) -> Vector2:
+	if not PLACES.has(id):
+		return (picture_rect().get_center()).round()
+	return project(PLACES[id]).round()
+
+
+## The panel with the selected province's records and modes, over the steppe at the top right.
 static func panel_rect() -> Rect2:
-	return Rect2(8, 264, 246, 68) if Ui.scale == 1 else Rect2(8, 196, 252, 136)
+	return Rect2(Ui.W - 254, 8, 246, 68) if Ui.scale == 1 else Rect2(Ui.W - 260, 8, 252, 136)
+
+
+## The road from one province to the next: a smooth curve through the towns on its route, or a bent line where it has none.
+static func route(from_id: String, to_id: String, bend: float) -> PackedVector2Array:
+	var vias: Array = ROUTES.get(from_id + ">" + to_id, [])
+	if vias.is_empty():
+		return road_points(spot(from_id), spot(to_id), bend)
+	var stops: Array = [spot(from_id)]
+	for v in vias:
+		stops.append(project(v))
+	stops.append(spot(to_id))
+	var out := PackedVector2Array()
+	for i in stops.size() - 1:
+		var p0: Vector2 = stops[maxi(i - 1, 0)]
+		var p1: Vector2 = stops[i]
+		var p2: Vector2 = stops[i + 1]
+		var p3: Vector2 = stops[mini(i + 2, stops.size() - 1)]
+		for k in 8:
+			var t := k / 8.0
+			out.append(0.5 * (2.0 * p1 + (p2 - p0) * t + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t * t + (3.0 * p1 - p0 - 3.0 * p2 + p3) * t * t * t))
+	out.append(stops[stops.size() - 1])
+	return out
 
 
 ## The points of the curved road from one place to the next, bending to alternate sides so the march winds.
@@ -137,11 +182,10 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 
 ## The road from Rome through every province: solid where the legion has marched, dashes beyond, moving towards the next to win.
 func _road(c: CanvasItem, ids: Array, now: float) -> void:
-	var from := spot("roma")
+	var from := "roma"
 	var walked := true
 	for i in ids.size():
-		var to := spot(ids[i])
-		var pts := road_points(from, to, 0.18 if i % 2 == 0 else -0.18)
+		var pts := route(from, ids[i], 0.18 if i % 2 == 0 else -0.18)
 		var won: bool = state_of(ids[i]) == "won"
 		var next: bool = walked and not won
 		if walked and won:
@@ -152,7 +196,7 @@ func _road(c: CanvasItem, ids: Array, now: float) -> void:
 			_dashes(c, pts, ROAD if next else Color(0.42, 0.3, 0.22), 3.0, now * 14.0 if next else 0.0)
 		# A province not drawn yet is passed through, so the march still leads on to the next one that is.
 		walked = walked and (won or state_of(ids[i]) == "fog")
-		from = to
+		from = ids[i]
 	_rome(c)
 
 
@@ -362,7 +406,7 @@ func _panel(c: CanvasItem, ui: Ui, id: String) -> void:
 		ui.fit_text(c, tr(MODES[k][1]), room, Vector2(box.end.x + 4.0, b.position.y + bh / 2.0 + Ui.px * 3 / 8), Ui.INK)
 
 
-## Keys and pad move along the road from node to node; down goes into the panel's switches and back up to the node.
+## Keys and pad move along the road from node to node; up goes into the panel's switches and back down to the node.
 func _links(ui: Ui, ids: Array) -> void:
 	var switches: Array = []
 	if state_of(selected) in ["won", "open"] and Profile.record_of(selected).won:
@@ -370,17 +414,17 @@ func _links(ui: Ui, ids: Array) -> void:
 			switches.append("%s:%s" % [m[0], selected])
 	for i in ids.size():
 		var here: String = "prov:" + ids[i]
-		if i > 0:
-			ui.link(here, Vector2.LEFT, "prov:" + ids[i - 1])
-			ui.link(here, Vector2.UP, "prov:" + ids[i - 1])
-		if i < ids.size() - 1:
-			ui.link(here, Vector2.RIGHT, "prov:" + ids[i + 1])
-		ui.link(here, Vector2.DOWN, switches[0] if not switches.is_empty() and ids[i] == selected else (("prov:" + ids[i + 1]) if i < ids.size() - 1 else here))
+		var before: String = ("prov:" + ids[i - 1]) if i > 0 else here
+		var after: String = ("prov:" + ids[i + 1]) if i < ids.size() - 1 else here
+		ui.link(here, Vector2.LEFT, before)
+		ui.link(here, Vector2.RIGHT, after)
+		ui.link(here, Vector2.DOWN, after)
+		ui.link(here, Vector2.UP, switches[0] if not switches.is_empty() and ids[i] == selected else before)
 	var across := Ui.scale == 1
 	for k in switches.size():
-		var back := Vector2.UP if across else Vector2.LEFT
+		var back := Vector2.DOWN if across else Vector2.LEFT
 		ui.link(switches[k], back, "prov:" + selected)
 		var prev := Vector2.LEFT if across else Vector2.UP
 		var next := Vector2.RIGHT if across else Vector2.DOWN
-		ui.link(switches[k], prev, switches[k - 1] if k > 0 else "prov:" + selected)
+		ui.link(switches[k], prev, switches[k - 1] if k > 0 else ("prov:" + selected if across else switches[k]))
 		ui.link(switches[k], next, switches[k + 1] if k < switches.size() - 1 else switches[k])
