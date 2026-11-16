@@ -560,28 +560,28 @@ func _objective_arrows(sim: Sim, avoid: Array) -> void:
 	var view := Ui.view
 	var big := Ui.scale > 1
 	var top := 16.0 + 8.0 * Ui.scale + (22.0 if big else 11.0)
+	var note: Dictionary = sim.objectives.notice
+	var lines: Array = []
+	var spot := Rect2()
+	if not note.is_empty() and sim.time - float(note.at) < float(note.get("seconds", sim.b.objectives.notice_seconds)):
+		lines = Ui.lines_of(_notice_text(note.kind).to_upper(), view.x - 24.0)
+		var nw := 0.0
+		for line in lines:
+			nw = maxf(nw, Ui.width_at(line, Ui.px))
+		var h := Ui.leading() * lines.size()
+		spot = Rect2((view.x - nw) / 2.0, minf(view.y * 0.7 - Ui.px, view.y - bottom_band(view) - h - 2.0), nw, h)
+		# The notice keeps its place under the legion and the badges and labels step round it.
+		avoid = avoid + [spot]
 	var laid := arrow_layout(sim.objectives.targets(), sim.commander.pos, view, top, float(sim.b.objectives.metre_px), avoid)
 	var atlas: Atlas = main.world.atlas
 	var radius := badge_radius()
 	# The point pulses so it catches the eye at the edge of a busy screen.
 	var reach := tip_length() * (1.0 + 0.15 * sin(sim.time * 5.0))
-	var placed: Array = []
 	for l in laid:
-		placed.append(l.label)
-		if l.on_screen:
-			continue
-		placed.append(l.badge)
-		_badge(l, atlas, radius, reach, sim.time)
-	var note: Dictionary = sim.objectives.notice
-	if not note.is_empty() and sim.time - float(note.at) < float(note.get("seconds", sim.b.objectives.notice_seconds)):
-		placed.append(centre_keep_out(view))
-		var lines := Ui.lines_of(_notice_text(note.kind).to_upper(), view.x - 24.0)
-		var nw := 0.0
-		for line in lines:
-			nw = maxf(nw, Ui.width_at(line, Ui.px))
-		var r := _free_spot(Rect2((view.x - nw) / 2.0, view.y * 0.7 - Ui.px, nw, Ui.leading() * lines.size()), placed, view, top, bottom_band(view))
-		for k in lines.size():
-			text(lines[k], Vector2(r.position.x, r.position.y + Ui.px + Ui.leading() * k), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, nw)
+		if not l.on_screen:
+			_badge(l, atlas, radius, reach, sim.time)
+	for k in lines.size():
+		text(lines[k], Vector2(spot.position.x, spot.position.y + Ui.px + Ui.leading() * k), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, spot.size.x)
 	for l in laid:
 		var r: Rect2 = l.label
 		if l.on_screen:
