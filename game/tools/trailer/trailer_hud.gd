@@ -1,5 +1,6 @@
 extends Hud
-## The interface as the trailer shows it: only the gods' names and the triumph's VICTORY over the field, and the screens.
+## The interface as the trailer shows it: only the gods' names, the triumph's VICTORY, the level-up and gods' choices,
+## and the screens.
 
 
 func _scene() -> void:
@@ -12,3 +13,5 @@ func _scene() -> void:
 		return
 	_god_banner(sim)
 	_victory_banner(sim)
+	if main.state == "choose" or main.state == "pray":
+		_choices(sim)

@@ -1,21 +1,25 @@
 extends Node
 ## The trailer's staging on top of the game's own look flags: main.gd adds this node with --trailer-shot=NAME, and
 ## tools/trailer/make_trailer.py passes each shot's look flags beside it. Nothing is saved, the game's music is left
-## out for the edit's, the legion never falls, and level-ups are taken out of sight so no choice panel flashes up.
+## out for the edit's, the legion never falls, and level-ups are taken out of sight unless the shot shows the choice.
 ##   --men=N        start with N more soldiers in the trailer's mix of recruits, or --men=N:KIND all of one kind
 ##   --mortal       let the legion take harm as in a real run
 
 const MIX := ["legionary", "legionary", "archer"]
-## The hook: the commander stands alone for this long, then this many men join him each second until the legion is full.
-const ALONE_SECONDS := 2.0
-const JOIN_PER_SECOND := 20.0
 ## How far down the end card's field is moved, in game pixels, so the legion stands below the logo.
 const END_DROP := 75.0
+## The level-up shot: when the level comes, when the archers are picked out and when they are taken, in seconds.
+const LEVEL_AT := 1.0
+const PICK_AT := 2.0
+const TAKE_AT := 3.0
+## The gods' shot: when Jupiter is picked out and when he is called, in seconds from the start.
+const GOD_PICK_AT := 2.2
+const GOD_CALL_AT := 3.4
 
 var main: Node
 var shot := ""
 var _clock := 0.0
-var _joined := 0.0
+var _levelled := false
 
 
 func _ready() -> void:
@@ -50,7 +54,13 @@ func _process(dt: float) -> void:
 	_clock += dt
 	Steamworks.queue.clear()
 	var sim: Sim = main.sim
-	if sim == null or not main.state in ["play", "choose"]:
+	if sim == null:
+		return
+	if shot == "levelup":
+		_level_up(sim)
+	if main.state == "pray":
+		_pray()
+	if not main.state in ["play", "choose"] or (shot == "levelup" and main.state == "choose"):
 		return
 	while sim.pending_levels > 0:
 		Upgrades.apply(sim, Upgrades.offers(sim)[0])
@@ -62,21 +72,45 @@ func _process(dt: float) -> void:
 			s.hp = s.max_hp
 	if shot == "endcard":
 		main.world.position.y += END_DROP
-	if shot == "grow" and _clock > ALONE_SECONDS:
-		_joined += JOIN_PER_SECOND * dt
-		while _joined >= 1.0 and sim.soldiers.size() < sim.legion.cap:
-			_joined -= 1.0
-			sim.add_soldier(MIX[sim.soldiers.size() % MIX.size()])
+	if shot == "whirl" and _whirling(sim):
+		main.look_march = Vector2(-1.0, 0.15)
+
+
+## A level comes in the middle of the fight, the archers are picked out on the panel and then taken.
+func _level_up(sim: Sim) -> void:
+	if not _levelled and _clock >= LEVEL_AT:
+		_levelled = true
+		sim.gain(sim.xp_next - sim.xp)
+	if main.state != "choose":
+		return
+	if not main.choices.has("archer"):
+		main.choices[1] = "archer"
+	if _clock >= TAKE_AT:
+		main._take(main.choices.find("archer"))
+	elif _clock >= PICK_AT:
+		main.selected = main.choices.find("archer")
+
+
+## The choice of gods stays open, Jupiter is picked out and then called.
+func _pray() -> void:
+	if not main.choices.has("jupiter"):
+		main.choices[0] = "jupiter"
+	var i: int = main.choices.find("jupiter")
+	if _clock >= GOD_CALL_AT:
+		main._call_god(i)
+	elif _clock >= GOD_PICK_AT:
+		main.selected = i
+
+
+## Whether the berserker's whirlwind is winding up, its ring on the ground.
+func _whirling(sim: Sim) -> bool:
+	for l in sim.horde.foe_lobs:
+		if l.get("whirl", false):
+			return true
+	return false
 
 
 # Shots -------------------------------------------------------------------
-
-## The commander alone on the march, before a single man has joined him.
-func _shot_grow(sim: Sim) -> void:
-	sim.soldiers.clear()
-	sim.horde.next_band = 1e9
-	main.look_march = Vector2(0.6, 0.0)
-
 
 ## The legion stands outside the thickest stand of trees near the start and marches into it, felling the trees it presses.
 func _shot_fell(sim: Sim) -> void:
@@ -103,11 +137,33 @@ func _shot_fell(sim: Sim) -> void:
 	main.look_march = way * 0.5
 
 
-## A wave of barbarians comes on from the right at a standing block of archers, so the arrows fly the whole gap.
-func _shot_arrows(sim: Sim) -> void:
-	sim.horde.next_band = 1e9
-	main.look_march = Vector2.ZERO
-	_wave(sim, sim.commander.pos, 0.0, 1.3, 230.0, 420.0, 220)
+## The commander and a handful of men stand against a small band coming on from the right, for a close look at the fight.
+func _shot_skirmish(sim: Sim) -> void:
+	_quiet(sim)
+	_wave(sim, sim.commander.pos, 0.0, 1.6, 70.0, 150.0, 16)
+
+
+## The skirmish again, with a level-up in the middle of it; --hold-choice keeps main.gd from taking the first card.
+func _shot_levelup(sim: Sim) -> void:
+	main.args["hold-choice"] = ""
+	_shot_skirmish(sim)
+
+
+## A block of archers looses at a band charging from the right, so the arrows fly the whole gap.
+func _shot_archers(sim: Sim) -> void:
+	_quiet(sim)
+	_wave(sim, sim.commander.pos, 0.0, 0.9, 170.0, 300.0, 18)
+
+
+## A legion of forty ringed by a medium crowd, from every side.
+func _shot_hold(sim: Sim) -> void:
+	_quiet(sim)
+	_wave(sim, sim.commander.pos, 0.0, TAU, 150.0, 330.0, 140)
+
+
+## The hold again, with the choice of gods opened over it by --god=choose.
+func _shot_gods(sim: Sim) -> void:
+	_shot_hold(sim)
 
 
 ## The berserker waits at the ravine's lip while the legion, set back from it, marches up and shoves him over.
@@ -118,8 +174,9 @@ func _shot_ravine(sim: Sim) -> void:
 	sim.terrain.refresh(sim.commander.pos)
 
 
-## The berserker stands at the edge of a small legion, so his whirlwind's ring shows on the grass round him and the men he catches.
+## The berserker stands at the edge of a small legion; when his whirlwind's ring shows, the legion marches out of it.
 func _shot_whirl(sim: Sim) -> void:
+	_quiet(sim)
 	var h := sim.horde
 	var i := h.e_pos.size() - 1
 	if i >= 0:
@@ -136,12 +193,13 @@ func _shot_charge(sim: Sim) -> void:
 		h.e_pos[ci] = sim.commander.pos + Vector2(1.0, -0.35).normalized() * (sim.legion_reach + 30.0)
 	h.charge_cd = 0.8
 	main.look_march = Vector2.ZERO
+	_quiet(sim)
 
 
 ## The fort ringed by a horde pressing at its walls.
 func _shot_fort(sim: Sim) -> void:
 	var centre: Vector2 = sim.objectives.fort.centre
-	_wave(sim, centre, 0.0, TAU, float(main.balance.fort.half) + 60.0, float(main.balance.fort.half) + 320.0, 400)
+	_wave(sim, centre, 0.0, TAU, float(main.balance.fort.half) + 60.0, float(main.balance.fort.half) + 260.0, 160)
 	main.look_march = Vector2.ZERO
 
 
@@ -149,8 +207,15 @@ func _shot_fort(sim: Sim) -> void:
 func _shot_endcard(sim: Sim) -> void:
 	main.hud.visible = false
 	main.look_march = Vector2(0.3, 0.0)
+	_quiet(sim)
+
+
+## Stops the run's own stream of barbarians and its bands, so only the staged ones are on the field, and holds the legion still.
+func _quiet(sim: Sim) -> void:
 	sim.horde.next_band = 1e9
 	sim.horde.spawn_acc = -1e9
+	if main.look_march == Vector2.INF:
+		main.look_march = Vector2.ZERO
 
 
 ## Spawns a band of the province's ordinary barbarians over an arc round a point, between two distances.

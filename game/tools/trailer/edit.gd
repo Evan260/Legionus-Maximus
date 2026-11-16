@@ -29,30 +29,27 @@ const BADGE_GAP := 40.0
 const BADGE_Y := 891.0
 ## The Google Play picture has clear margins round its badge, this share of its height above and below.
 const GOOGLE_MARGIN := 41.0 / 250.0
-## The story: the commander alone, the legion grown to a hundred, the hordes and their champions, the gods, the
-## ravines and forests, the camps, Gaul, the fort held to the triumph and the map. A shot plays from `from` seconds
-## into its recording; a card is black with one line of text; `drums: false` keeps the drums out; `zoom` shows a shot
-## a whole number of times larger around `centre`, in screen pixels.
+## The story, close in first and wider as it goes: the commander and a handful of men in a small fight, a level-up that
+## brings archers and the archers at work, the forest felled and a gorge bridged, the bosses read and beaten, a medium
+## crowd held, Gaul, the gods called on, the one great horde under Jupiter's lightning, the fort held to the triumph and
+## the map. A shot plays from `from` seconds into its recording; a card is black with one line of text; `drums: false`
+## keeps the drums out; `zoom` shows a shot a whole number of times larger around `centre`, in screen pixels.
 const TRAILER := [
 	{"card": "Germania, AD 9.", "beats": 4, "drums": false},
-	{"shot": "grow", "from": 0.3, "beats": 4, "caption": "One commander.", "drums": false, "fade_in": 0.6},
-	{"shot": "grow", "from": 2.97, "beats": 10, "caption": "A hundred men.", "drums": false},
-	{"card": "Against every tribe\nin the forest.", "beats": 4, "drums": false},
-	{"shot": "horde", "from": 1.5, "beats": 8, "caption": "Hold the line."},
-	{"shot": "arrows", "from": 0.9, "beats": 4},
-	{"shot": "whirl", "from": 0.05, "beats": 4, "caption": "Berserkers.", "zoom": 2.0, "centre": Vector2(1110, 540)},
-	{"shot": "charge", "from": 0.6, "beats": 4, "caption": "War chiefs."},
-	{"shot": "god", "from": 1.6, "beats": 6, "caption": "Call on the gods."},
-	{"shot": "vulcan", "from": 1.8, "beats": 4},
-	{"shot": "ravine", "from": 0.2, "beats": 4, "caption": "Shove them over."},
-	{"shot": "fell", "from": 1.0, "beats": 4, "caption": "Fell the forest."},
-	{"shot": "bridge", "from": 0.3, "beats": 4, "caption": "Bridge the gorge."},
-	{"shot": "camp", "from": 0.5, "beats": 4, "caption": "Burn their camps."},
-	{"shot": "field", "from": 1.0, "beats": 4, "caption": "March on Gaul."},
-	{"shot": "village", "from": 1.0, "beats": 4},
-	{"shot": "fort", "from": 0.5, "beats": 6, "caption": "Hold the fort."},
-	{"shot": "fort", "from": 4.4, "beats": 6},
-	{"shot": "map", "from": 0.8, "beats": 6},
+	{"shot": "skirmish", "from": 1.0, "beats": 7, "caption": "Lead the legion.", "drums": false, "fade_in": 0.6, "zoom": 2.0, "centre": Vector2(1050, 540)},
+	{"shot": "levelup", "from": 0.8, "beats": 6, "caption": "Choose your men.", "drums": false},
+	{"shot": "archers", "from": 1.0, "beats": 7, "caption": "Every man fights.", "zoom": 2.0, "centre": Vector2(1150, 540)},
+	{"shot": "fell", "from": 1.5, "beats": 6, "caption": "Fell the forest."},
+	{"shot": "bridge", "from": 0.3, "beats": 6, "caption": "Bridge the gorge."},
+	{"shot": "whirl", "from": 0.2, "beats": 7, "caption": "Step out of the ring.", "zoom": 2.0, "centre": Vector2(1170, 560)},
+	{"shot": "charge", "from": 0.5, "beats": 7, "caption": "War chiefs."},
+	{"shot": "ravine", "from": 0.2, "beats": 6, "caption": "Shove them over."},
+	{"shot": "hold", "from": 1.0, "beats": 6, "caption": "Hold the line."},
+	{"shot": "field", "from": 1.0, "beats": 6, "caption": "March on Gaul."},
+	{"shot": "gods", "from": 0.8, "beats": 5, "caption": "Call on the gods."},
+	{"shot": "reveal", "from": 1.6, "beats": 6},
+	{"shot": "fort", "from": 1.0, "beats": 8, "caption": "Hold the fort."},
+	{"shot": "map", "from": 0.8, "beats": 5},
 	{"end": "endcard", "from": 1.0, "beats": 10, "dim": 0.3, "drums": false},
 ]
 
