@@ -363,7 +363,7 @@ const BADGE_ICON := {"camp": "eagle_standard", "grove": "altar", "column": "supp
 
 ## The radius of the dark disc an edge arrow carries its target's picture on.
 static func badge_radius() -> float:
-	return 20.0 if Ui.scale == 1 else 24.0
+	return 14.0 if Ui.scale == 1 else 17.0
 
 
 ## The strip along the bottom of the screen that the arrows keep out of, for the testudo, timber, favour and health bar.
@@ -374,7 +374,7 @@ static func bottom_band(view: Vector2) -> float:
 
 ## How far an edge arrow's point stands out from its disc.
 static func tip_length() -> float:
-	return 14.0 if Ui.scale == 1 else 16.0
+	return 10.0 if Ui.scale == 1 else 12.0
 
 
 ## The room a badge's centre may stand in so its disc and its pulsing point both stay inside `area`.
@@ -530,7 +530,7 @@ static func _name_key(kind: String) -> String:
 func _objective_arrows(sim: Sim, avoid: Array) -> void:
 	var view := Ui.view
 	var big := Ui.scale > 1
-	var top := 16.0 + 8.0 * Ui.scale + (22.0 if big else 11.0) + 14.0
+	var top := 16.0 + 8.0 * Ui.scale + (22.0 if big else 11.0)
 	var laid := arrow_layout(sim.objectives.targets(), sim.commander.pos, view, top, float(sim.b.objectives.metre_px), avoid)
 	var atlas: Atlas = main.world.atlas
 	var radius := badge_radius()
@@ -571,27 +571,27 @@ func _badge(l: Dictionary, atlas: Atlas, radius: float, reach: float, now: float
 	var side := dir.orthogonal()
 	var tip := c + dir * (radius + reach)
 	var base := c + dir * (radius * 0.55)
-	var half := radius * 0.78
+	var half := radius * 0.7
 	var head := PackedVector2Array([tip, base + side * half, base - side * half])
 	# A dark shadow under the whole badge lifts it off the grass.
-	draw_colored_polygon(PackedVector2Array([tip + Vector2(3, 3), base + side * half + Vector2(3, 3), base - side * half + Vector2(3, 3)]), Color(0, 0, 0, 0.4))
-	draw_circle(c + Vector2(3, 3), radius + 3.0, Color(0, 0, 0, 0.4))
-	var outline := PackedVector2Array([tip + dir * 4.0, base + side * (half + 4.0) - dir * 2.0, base - side * (half + 4.0) - dir * 2.0])
+	draw_colored_polygon(PackedVector2Array([tip + Vector2(2, 2), base + side * half + Vector2(2, 2), base - side * half + Vector2(2, 2)]), Color(0, 0, 0, 0.35))
+	draw_circle(c + Vector2(2, 2), radius + 1.0, Color(0, 0, 0, 0.35))
+	var outline := PackedVector2Array([tip + dir * 2.5, base + side * (half + 2.5) - dir * 1.5, base - side * (half + 2.5) - dir * 1.5])
 	draw_colored_polygon(outline, INK)
 	draw_colored_polygon(head, rim)
-	draw_colored_polygon(PackedVector2Array([tip - dir * 5.0, base + side * half * 0.45 + dir * 2.0, base + dir * 2.0]), bright)
+	draw_colored_polygon(PackedVector2Array([tip - dir * 3.0, base + side * half * 0.45 + dir * 2.0, base + dir * 2.0]), bright)
 	var glow := 0.5 + 0.5 * sin(now * 5.0)
-	draw_circle(c, radius + 6.0, Color(rim, 0.25 + 0.25 * glow))
-	draw_circle(c, radius + 2.0, INK)
+	draw_circle(c, radius + 2.5, Color(rim, 0.2 + 0.2 * glow))
+	draw_circle(c, radius + 1.0, INK)
 	draw_circle(c, radius, rim)
-	draw_arc(c, radius - 2.0, PI * 1.05, PI * 1.7, 12, bright, 2.0)
-	draw_circle(c, radius - 5.0, INK)
-	draw_circle(c, radius - 7.0, Color(0.2, 0.14, 0.1))
-	draw_circle(c, radius - 13.0, Color(0.26, 0.19, 0.13))
+	draw_arc(c, radius - 0.5, PI * 1.05, PI * 1.7, 10, bright, 1.0)
+	draw_circle(c, radius - 2.0, INK)
+	draw_circle(c, radius - 3.0, Color(0.2, 0.14, 0.1))
+	draw_circle(c, radius - 7.0, Color(0.26, 0.19, 0.13))
 	var key: String = BADGE_ICON.get(l.kind, "")
 	if atlas != null and atlas.props.has(key):
 		var f: Rect2 = atlas.prop_frame(key)[0]
-		var inner := (radius - 9.0) * 2.0
+		var inner := (radius - 4.0) * 2.0
 		var k := minf(inner / f.size.x, inner / f.size.y)
 		var size := (f.size * k).round()
 		draw_texture_rect_region(atlas.texture, Rect2((c - size / 2.0).round(), size), f)

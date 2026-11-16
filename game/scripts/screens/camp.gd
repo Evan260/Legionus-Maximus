@@ -33,9 +33,21 @@ func sub_line(id: String) -> String:
 func draw(c: CanvasItem, ui: Ui) -> void:
 	var big := Ui.scale > 1
 	_monument(c, Vector2(96, 192 if not big else 186))
-	ui.panel(c, Rect2(Ui.W / 2 - 80, 8, 160, 30 if big else 22))
-	ui.text(c, tr("The camp").to_upper(), Vector2(0, 31 if big else 23), Ui.BROWN, HORIZONTAL_ALIGNMENT_CENTER, Ui.W)
-	ui.text(c, (tr("%d denarii") % int(Profile.data.denarii)).to_upper(), Vector2(0, 28 if big else 20), Ui.GOLD_LIGHT, HORIZONTAL_ALIGNMENT_RIGHT, Ui.W - 20, true)
+	var plate := Color(0.12, 0.08, 0.06, 0.78)
+	var title := tr("The camp").to_upper()
+	var tw := Ui.width_at(title, Ui.px)
+	c.draw_rect(Rect2(Ui.W / 2 - tw / 2 - 10, 8, tw + 20, 30 if big else 22), plate)
+	ui.text(c, title, Vector2(0, 31 if big else 23), Ui.GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, Ui.W, true)
+	var money := (tr("%d denarii") % int(Profile.data.denarii)).to_upper()
+	var mw := Ui.width_at(money, Ui.px)
+	var coin_r := 5.0 if not big else 7.0
+	var money_box := Rect2(Ui.W - 20 - mw - coin_r * 2 - 14, 8, mw + coin_r * 2 + 20, 30 if big else 22)
+	c.draw_rect(money_box, plate)
+	var coin_at := Vector2(money_box.position.x + 6 + coin_r, money_box.get_center().y)
+	c.draw_circle(coin_at, coin_r + 1.0, Color(0.16, 0.1, 0.08))
+	c.draw_circle(coin_at, coin_r, Ui.GOLD)
+	c.draw_circle(coin_at + Vector2(-1, -1), coin_r * 0.45, Ui.GOLD_LIGHT)
+	ui.text(c, money, Vector2(0, 31 if big else 23), Ui.GOLD_LIGHT, HORIZONTAL_ALIGNMENT_RIGHT, Ui.W - 24, true)
 	var setup: Dictionary = main.run_setup
 	var modes: Array = []
 	for key in ["hard", "endless", "decimatio"]:

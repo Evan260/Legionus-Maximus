@@ -4276,12 +4276,12 @@ func test_the_health_bar_flashes_and_reddens(b: Dictionary) -> void:
 	check(Hud.health_colour(0.5, 10.0) != Hud.RED, "above it, not")
 
 
-func test_the_arrows_are_big_badges_whose_labels_never_overlap(b: Dictionary) -> void:
+func test_the_arrows_are_badges_whose_labels_never_overlap(b: Dictionary) -> void:
 	var before := Ui.scale
 	var view := Vector2(640, 360)
 	for scale in [1, 2]:
 		Ui.set_text_size(scale, b)
-		check(Hud.badge_radius() >= 18.0, "an arrow's badge is big at text size %d" % scale)
+		check(Hud.badge_radius() >= 12.0, "an arrow's badge is readable at text size %d" % scale)
 		for k in 12:
 			var a := k * TAU / 12.0
 			var targets := [["camp", Vector2.from_angle(a) * 900.0], ["grove", Vector2.from_angle(a + 0.3) * 1200.0], ["column", Vector2.from_angle(a + 2.5) * 800.0], ["fort", Vector2.from_angle(a - 0.25) * 1000.0]]
@@ -5100,7 +5100,7 @@ func test_the_objective_badges_keep_their_size(b: Dictionary) -> void:
 	var before := Ui.scale
 	for scale in [1, 2]:
 		Ui.set_text_size(scale, b)
-		check(Hud.badge_radius() >= 20.0 and Hud.badge_radius() <= 24.0 and Hud.tip_length() >= 14.0, "an objective badge stays its compact size at text size %d" % scale)
+		check(Hud.badge_radius() >= 14.0 and Hud.badge_radius() <= 17.0 and Hud.tip_length() >= 10.0, "an objective badge stays its compact size at text size %d" % scale)
 	Ui.set_text_size(before, b)
 
 

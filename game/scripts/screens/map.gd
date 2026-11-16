@@ -95,7 +95,7 @@ static func spot(id: String) -> Vector2:
 
 ## The panel with the selected province's records and modes, in the sea at the bottom left.
 static func panel_rect() -> Rect2:
-	return Rect2(8, 264, 220, 68) if Ui.scale == 1 else Rect2(8, 196, 252, 136)
+	return Rect2(8, 264, 246, 68) if Ui.scale == 1 else Rect2(8, 196, 252, 136)
 
 
 ## The points of the curved road from one place to the next, bending to alternate sides so the march winds.
@@ -306,16 +306,8 @@ func _labels(c: CanvasItem, ui: Ui, ids: Array) -> Array:
 	return plates
 
 
-## The title and the key hints on dark strips, so they read over the painted map.
-func _header(c: CanvasItem, ui: Ui, plates: Array) -> void:
-	var title := tr("Map").to_upper()
-	var tw := Ui.width_at(title, Ui.px)
-	var r := Rect2(Ui.W - tw - 24.0, 6, tw + 16.0, Ui.leading() + 6.0)
-	for p in plates:
-		if p.grow(3.0).intersects(r):
-			r.position.y = Ui.H - 2.0 * Ui.leading() - 30.0
-	ui.panel(c, r)
-	ui.text(c, title, Vector2(r.position.x + 8, r.position.y + 3 + Ui.px), Ui.BROWN)
+## The key hints on a dark strip, so they read over the painted map.
+func _header(c: CanvasItem, ui: Ui, _plates: Array) -> void:
 	var hint := Controls.hint("pick")
 	var size := Ui.fit_size(hint, Ui.W - 16.0)
 	c.draw_rect(Rect2(0, Ui.H - Ui.lead_for(size) - 6.0, Ui.W, Ui.lead_for(size) + 6.0), SHADE)
