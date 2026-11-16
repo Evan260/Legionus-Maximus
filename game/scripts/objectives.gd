@@ -3,6 +3,8 @@ extends RefCounted
 ## The run's mission as plain data: the barbarian camp, the stranded column and the sacred grove, each in a clearing some way
 ## off, and the Roman fort that appears late in the run.
 
+## Seconds the rescued column's cart takes to fade away.
+const CART_FADE := 1.5
 const KINDS := ["camp", "column", "grove"]
 
 var list: Array = []
@@ -305,9 +307,17 @@ func _grove(o: Dictionary, dt: float, sim: Sim) -> void:
 
 func _finish(o: Dictionary, sim: Sim) -> void:
 	o.done = true
+	o.done_at = sim.time
 	purse += int(sim.b.objectives.purse[o.kind])
 	notice = {"kind": o.kind, "at": sim.time}
 	sim.event("level", o.pos)
+
+
+## How solid the stranded column's cart is drawn at `now`: whole while the column waits, fading away once it has joined the legion.
+func cart_alpha(o: Dictionary, now: float) -> float:
+	if not o.done:
+		return 1.0
+	return clampf(1.0 - (now - float(o.get("done_at", now))) / CART_FADE, 0.0, 1.0)
 
 
 ## The places the HUD points to: every objective not yet done, and the fort once it stands, as [kind, position].

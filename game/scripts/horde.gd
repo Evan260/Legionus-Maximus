@@ -1541,11 +1541,23 @@ func _spear_target(p: Vector2, hit_radius: float, sim: Sim) -> int:
 ## A stranded supply cart stands somewhere on screen for the legion to reach before it is plundered.
 func spawn_cart() -> void:
 	var cfg: Dictionary = b.cart
-	var at: Vector2 = commander.pos + Vector2.from_angle(rng.randf() * TAU) * Vector2(1.6, 1.0) * rng.randf_range(float(cfg.near), float(cfg.far))
 	var owner_sim: Sim = sim_ref.get_ref() if sim_ref != null else null
-	if owner_sim != null:
+	var at := Vector2.ZERO
+	# A cart in a wood or over a gorge could never be reached, so it is placed again until it stands on open ground.
+	for k in 24:
+		at = commander.pos + Vector2.from_angle(rng.randf() * TAU) * Vector2(1.6, 1.0) * rng.randf_range(float(cfg.near), float(cfg.far))
+		if owner_sim == null:
+			break
 		at = owner_sim.terrain.push_out(at, float(cfg.radius))
+		if owner_sim.terrain.is_open(at) and owner_sim.terrain.ravine_edge(at) >= float(cfg.radius):
+			break
 	carts.append({"pos": at, "t": 0.0})
+
+
+## How solid a supply cart is drawn: whole, fading out over its last seconds.
+func cart_alpha(cart: Dictionary) -> float:
+	var cfg: Dictionary = b.cart
+	return clampf((float(cfg.life) - float(cart.t)) / float(cfg.get("fade", 1.0)), 0.0, 1.0)
 
 
 func _carts(dt: float, sim: Sim) -> void:

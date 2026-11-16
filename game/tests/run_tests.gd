@@ -5236,3 +5236,50 @@ func test_the_war_priest_blinks_clear_of_the_legion(b: Dictionary) -> void:
 		clear = clear and u.pos.distance_to(s.horde.e_pos[i]) > r + Sim.UNIT_RADIUS + 10.0
 	check(s.horde.e_pos[i] != Vector2(10, 0), "surrounded, he blinks")
 	check(clear, "and comes out beyond the legion's ranks (%.0f px from the commander, reach %.0f)" % [s.horde.e_pos[i].distance_to(s.commander.pos), s.legion_reach])
+
+
+func test_the_rescued_column_cart_fades_away(b: Dictionary) -> void:
+	var s := Sim.new(b, content, {"seed": 1620, "objectives_near": true})
+	var col: Dictionary = {}
+	for o in s.objectives.list:
+		if o.kind == "column":
+			col = o
+	if col.is_empty():
+		check(false, "the run has a stranded column")
+		return
+	check(s.objectives.cart_alpha(col, s.time) == 1.0, "the column's cart stands while the column waits")
+	s.commander.pos = col.pos
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(col.done, "reaching the column rescues it")
+	check(s.objectives.cart_alpha(col, s.time + 0.5) < 1.0, "then its cart fades")
+	check(s.objectives.cart_alpha(col, s.time + 5.0) == 0.0, "and is gone a few seconds later")
+
+
+func test_a_supply_cart_fades_before_it_goes(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 1621, Content.with_all_art())
+	s.horde.spawn_cart()
+	var cart: Dictionary = s.horde.carts[0]
+	check(s.horde.cart_alpha(cart) == 1.0, "a new cart is drawn whole")
+	cart.t = float(b.cart.life) - 0.5
+	check(s.horde.cart_alpha(cart) < 1.0 and s.horde.cart_alpha(cart) > 0.0, "it fades near the end of its time")
+	s.commander.pos = Vector2(5000, 0)
+	_step_dt(s, 1.0)
+	check(s.horde.carts.is_empty(), "and is gone when its time is up")
+
+
+func test_supply_carts_stand_where_the_legion_can_reach_them(b: Dictionary) -> void:
+	var bad := 0
+	for province in ["germania", "gaul"]:
+		for seed_value in [1, 2, 3, 4]:
+			var s := Sim.new(b, Content.with_all_art(), {"seed": seed_value, "province": province})
+			for at in [Vector2.ZERO, Vector2(600, 400), Vector2(-900, 700), Vector2(1200, -1000)]:
+				s.commander.pos = at
+				s.terrain.refresh(at)
+				s.terrain.update_flow(at)
+				for k in 30:
+					s.horde.carts.clear()
+					s.horde.spawn_cart()
+					var p: Vector2 = s.horde.carts[0].pos
+					if not s.terrain.is_open(p) or s.terrain.ravine_edge(p) < float(b.cart.radius):
+						bad += 1
+	check(bad == 0, "every supply cart stands on open ground, clear of woods and gorges (%d do not)" % bad)

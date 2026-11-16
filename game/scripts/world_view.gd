@@ -481,7 +481,7 @@ func _add_chests_and_carts(view: Rect2) -> void:
 		var f := atlas.prop_frame("supply_cart")
 		for cart in sim.horde.carts:
 			if view.has_point(cart.pos):
-				_add(cart.pos.y, f[0], cart.pos - f[1], Color.WHITE)
+				_add(cart.pos.y, f[0], cart.pos - f[1], Color(1, 1, 1, sim.horde.cart_alpha(cart)))
 
 
 ## The eagle in the camp, the stranded column's cart and guards, and the grove's altar; huts, oaks and the fort are terrain.
@@ -494,7 +494,9 @@ func _add_objectives(view: Rect2) -> void:
 				if not o.done:
 					_add_prop("eagle_standard", o.pos, Color.WHITE)
 			"column":
-				_add_prop("supply_cart", o.pos, Color.WHITE)
+				var fade := sim.objectives.cart_alpha(o, sim.time)
+				if fade > 0.0:
+					_add_prop("supply_cart", o.pos, Color(1, 1, 1, fade))
 				for g in o.guards:
 					var f := _legion_frame(g)
 					draw_texture(shadow, (g.pos - Vector2(8, 3)).round())
