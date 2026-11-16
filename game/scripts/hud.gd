@@ -342,7 +342,7 @@ const BADGE_ICON := {"camp": "eagle_standard", "grove": "altar", "column": "supp
 
 ## The radius of the dark disc an edge arrow carries its target's picture on.
 static func badge_radius() -> float:
-	return 20.0 if Ui.scale == 1 else 24.0
+	return 40.0 if Ui.scale == 1 else 44.0
 
 
 ## The strip along the bottom of the screen that the arrows keep out of, for the testudo, timber, favour and health bar.
@@ -353,7 +353,16 @@ static func bottom_band(view: Vector2) -> float:
 
 ## How far an edge arrow's point stands out from its disc.
 static func tip_length() -> float:
-	return 14.0 if Ui.scale == 1 else 16.0
+	return 26.0 if Ui.scale == 1 else 28.0
+
+
+## The room a badge's centre may stand in so its disc and its pulsing point both stay inside `area`.
+static func badge_room(area: Rect2, dir: Vector2) -> Rect2:
+	var radius := badge_radius()
+	var reach := (radius + tip_length() * 1.15 + 3.0) * dir
+	var lo := Vector2(maxf(radius, -reach.x), maxf(radius, -reach.y)) + Vector2.ONE * 3.0
+	var hi := Vector2(maxf(radius, reach.x), maxf(radius, reach.y)) + Vector2.ONE * 3.0
+	return Rect2(area.position + lo, area.size - lo - hi)
 
 
 ## The middle of the screen, where the legion stands, which the arrows' labels keep out of.
@@ -365,7 +374,6 @@ static func centre_keep_out(view: Vector2) -> Rect2:
 ## of the middle of the screen and of the `avoid` rects (the bosses' names).
 static func arrow_layout(targets: Array, cpos: Vector2, view: Vector2, top: float, metre := 16.0, avoid: Array = []) -> Array:
 	var radius := badge_radius()
-	var tip := tip_length()
 	var low := bottom_band(view)
 	var out: Array = []
 	var placed: Array = avoid.duplicate()
@@ -376,26 +384,20 @@ static func arrow_layout(targets: Array, cpos: Vector2, view: Vector2, top: floa
 		if Rect2(Vector2.ZERO, view).grow(-EDGE).has_point(view / 2.0 + off):
 			out.append({"kind": t[0], "off": off, "on_screen": true, "badge": Rect2(), "foot": view / 2.0 + off - Vector2(0, LABEL_RISE.get(t[0], 50.0))})
 			continue
-		var inset := radius + tip + 2.0
-		var high := top + radius + tip * 1.15 + 1.0
-		# The pulsing point of a badge on the bottom edge stays above the bridge hint and the rest of the bottom row.
-		var room := Rect2(inset, high, view.x - 2.0 * inset, view.y - high - maxf(inset, low + radius + tip * 1.2))
+		# The badge and its point stay below the top bar and above the bridge hint and the rest of the bottom row.
+		var room := badge_room(Rect2(0, top, view.x, view.y - top - low), off.normalized())
 		var c := _on_room_edge(room, view / 2.0, off)
 		var box := Rect2(c - Vector2.ONE * radius, Vector2.ONE * radius * 2.0)
-		# A badge that would cover another slides along the edge of the screen, back and forth, until it is clear.
-		var along := Vector2(0, 1) if absf(c.x - view.x / 2.0) >= room.size.x / 2.0 - 0.5 else Vector2(1, 0)
-		for k in 12:
-			var clash := false
-			for p in placed:
-				clash = clash or p.grow(2.0).intersects(box)
-			if not clash:
-				break
-			var step := (k / 2 + 1) * (2.0 * radius + 6.0) * (1.0 if k % 2 == 0 else -1.0)
-			var moved := (c + along * step).clamp(room.position, room.end)
-			box.position = moved - Vector2.ONE * radius
+		# A badge that would cover another moves to the nearest clear spot along the edge of the screen.
+		c = _clear_spot(room, c, radius, placed)
+		box.position = c - Vector2.ONE * radius
+		var along := Vector2(0, 1) if absf(c.x - room.position.x) < 0.5 or absf(c.x - room.end.x) < 0.5 else Vector2(1, 0)
 		c = box.get_center()
 		placed.append(box)
-		out.append({"kind": t[0], "off": off, "on_screen": false, "centre": c, "dir": off.normalized(), "badge": box, "along": along})
+		var dir := off.normalized()
+		var tip_at := c + dir * (radius + tip_length() * 0.7)
+		placed.append(Rect2(tip_at, Vector2.ZERO).grow(radius * 0.5))
+		out.append({"kind": t[0], "off": off, "on_screen": false, "centre": c, "dir": dir, "badge": box, "along": along})
 	for l in out:
 		var name := TranslationServer.translate(_name_key(l.kind)).to_upper()
 		var dist := "" if l.on_screen else TranslationServer.translate("%d m") % int(l.off.length() / metre)
@@ -411,13 +413,34 @@ static func arrow_layout(targets: Array, cpos: Vector2, view: Vector2, top: floa
 				spot = _beside_badge(l, nw, 1, placed, view, top, low)
 			if spot.is_empty():
 				var b: Rect2 = l.badge
-				l.label = _free_spot(Rect2(b.get_center() - Vector2(nw / 2.0, b.size.y / 2.0 + Ui.leading() + 2.0), Vector2(nw, Ui.leading())), placed, view, top, low)
+				l.label = _free_spot(Rect2(b.get_center() - Vector2(nw / 2.0, b.size.y / 2.0 + Ui.leading() + 2.0), Vector2(nw, Ui.leading())), placed, view, top, low, 12, true)
 			else:
 				placed.append(spot.rect)
 				l.label = spot.rect
 		l.name = name
 		l.dist = dist
 	return out
+
+
+## The point on the edge of `room` nearest `c` where a badge of `radius` covers nothing already placed, or `c` when there is none.
+static func _clear_spot(room: Rect2, c: Vector2, radius: float, placed: Array) -> Vector2:
+	var spots: Array = [c]
+	var edge := 2.0 * (room.size.x + room.size.y)
+	var d := 0.0
+	while d < edge:
+		var x := room.position.x + clampf(d, 0.0, room.size.x) - clampf(d - room.size.x - room.size.y, 0.0, room.size.x)
+		var y := room.position.y + clampf(d - room.size.x, 0.0, room.size.y) - clampf(d - 2.0 * room.size.x - room.size.y, 0.0, room.size.y)
+		spots.append(Vector2(x, y))
+		d += 6.0
+	spots.sort_custom(func(a: Vector2, b: Vector2) -> bool: return a.distance_squared_to(c) < b.distance_squared_to(c))
+	for p in spots:
+		var box := Rect2(p - Vector2.ONE * radius, Vector2.ONE * radius * 2.0)
+		var clash := false
+		for r in placed:
+			clash = clash or r.grow(2.0).intersects(box)
+		if not clash:
+			return p
+	return c
 
 
 ## A spot of `lines` lines right beside an edge badge, along the edge it stands on and on the side its point does not face
@@ -427,7 +450,7 @@ static func _beside_badge(l: Dictionary, w: float, lines: int, placed: Array, vi
 	var c := b.get_center()
 	var dir: Vector2 = l.dir
 	var h := Ui.leading() * lines
-	var gap := 4.0
+	var gap := 9.0
 	var right := Rect2(b.end.x + gap, c.y - h / 2.0, w, h)
 	var left := Rect2(b.position.x - gap - w, c.y - h / 2.0, w, h)
 	var below := Rect2(c.x - w / 2.0, b.end.y + gap, w, h)
@@ -439,6 +462,11 @@ static func _beside_badge(l: Dictionary, w: float, lines: int, placed: Array, vi
 	else:
 		tries = [above, below] if dir.y > 0.0 else [below, above]
 		tries.append_array([left, right] if dir.x > 0.0 else [right, left])
+	# When every side is taken, the label slides along each side towards a corner of the badge.
+	for shift in [0.5, 1.0]:
+		for r in tries.slice(0, 4):
+			var slide := Vector2(0, (b.size.y / 2.0 + h / 2.0) * shift) if r == left or r == right else Vector2((b.size.x / 2.0 + w / 2.0) * shift, 0)
+			tries.append_array([Rect2(r.position + slide, r.size), Rect2(r.position - slide, r.size)])
 	for r in tries:
 		r.position.x = clampf(r.position.x, 4.0, view.x - r.size.x - 4.0)
 		if r.position.y < top or r.end.y > view.y - low:
@@ -485,7 +513,7 @@ func _objective_arrows(sim: Sim, avoid: Array) -> void:
 	var laid := arrow_layout(sim.objectives.targets(), sim.commander.pos, view, top, float(sim.b.objectives.metre_px), avoid)
 	var atlas: Atlas = main.world.atlas
 	var radius := badge_radius()
-	# The point pulses gently so it catches the eye at the edge of a busy screen.
+	# The point pulses so it catches the eye at the edge of a busy screen.
 	var reach := tip_length() * (1.0 + 0.15 * sin(sim.time * 5.0))
 	var placed: Array = []
 	for l in laid:
@@ -493,25 +521,7 @@ func _objective_arrows(sim: Sim, avoid: Array) -> void:
 		if l.on_screen:
 			continue
 		placed.append(l.badge)
-		var c: Vector2 = l.centre
-		var dir: Vector2 = l.dir
-		var fort: bool = l.kind == "fort"
-		var rim := RED if fort else GOLD
-		var side := dir.orthogonal() * radius * 0.55
-		var base := c + dir * (radius - 4.0)
-		draw_colored_polygon(PackedVector2Array([c + dir * (radius + reach + 2.0), base + side * 1.25, base - side * 1.25]), INK)
-		draw_colored_polygon(PackedVector2Array([c + dir * (radius + reach), base + side, base - side]), rim)
-		draw_colored_polygon(PackedVector2Array([c + dir * (radius + reach - 3.0), base + side * 0.4, base]), GOLD_LIGHT if not fort else Color(0.95, 0.45, 0.35))
-		draw_circle(c, radius + 1.0, INK)
-		draw_circle(c, radius - 1.0, rim)
-		draw_circle(c, radius - 3.0, Color(0.13, 0.09, 0.07))
-		var key: String = BADGE_ICON.get(l.kind, "")
-		if atlas != null and atlas.props.has(key):
-			var f: Rect2 = atlas.prop_frame(key)[0]
-			var inner := (radius - 5.0) * 2.0
-			var k := minf(inner / f.size.x, inner / f.size.y)
-			var size := (f.size * k).round()
-			draw_texture_rect_region(atlas.texture, Rect2((c - size / 2.0).round(), size), f)
+		_badge(l, atlas, radius, reach, sim.time)
 	var note: Dictionary = sim.objectives.notice
 	if not note.is_empty() and sim.time - float(note.at) < float(sim.b.objectives.notice_seconds):
 		var line := _notice_text(note.kind).to_upper()
@@ -523,17 +533,57 @@ func _objective_arrows(sim: Sim, avoid: Array) -> void:
 		if l.on_screen:
 			text(l.name, Vector2(r.position.x, r.position.y + Ui.px), GOLD_LIGHT)
 			continue
+		if r.size.x == 0.0:
+			continue
+		draw_rect(r.grow(2.0), Color(0.08, 0.05, 0.04, 0.55))
 		text(l.name, Vector2(r.position.x, r.position.y + Ui.px), GOLD_LIGHT if l.kind != "fort" else CREAM, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
 		text(l.dist, Vector2(r.position.x, r.position.y + Ui.px + Ui.leading()), CREAM, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
 
 
-## Keeps a label on screen and moves it off every badge and label already placed, to the nearest free spot no more than `reach` steps away.
-static func _free_spot(r: Rect2, placed: Array, view: Vector2, top: float, low := 4.0, reach := 6) -> Rect2:
+## One edge badge: a thick outlined arrow head pointing at the target, and a bright ringed disc carrying its picture.
+func _badge(l: Dictionary, atlas: Atlas, radius: float, reach: float, now: float) -> void:
+	var c: Vector2 = l.centre
+	var dir: Vector2 = l.dir
+	var fort: bool = l.kind == "fort"
+	var rim := Color(0.86, 0.22, 0.16) if fort else GOLD
+	var bright := Color(1.0, 0.55, 0.42) if fort else Color(1.0, 0.95, 0.62)
+	var side := dir.orthogonal()
+	var tip := c + dir * (radius + reach)
+	var base := c + dir * (radius * 0.55)
+	var half := radius * 0.78
+	var head := PackedVector2Array([tip, base + side * half, base - side * half])
+	# A dark shadow under the whole badge lifts it off the grass.
+	draw_colored_polygon(PackedVector2Array([tip + Vector2(3, 3), base + side * half + Vector2(3, 3), base - side * half + Vector2(3, 3)]), Color(0, 0, 0, 0.4))
+	draw_circle(c + Vector2(3, 3), radius + 3.0, Color(0, 0, 0, 0.4))
+	var outline := PackedVector2Array([tip + dir * 4.0, base + side * (half + 4.0) - dir * 2.0, base - side * (half + 4.0) - dir * 2.0])
+	draw_colored_polygon(outline, INK)
+	draw_colored_polygon(head, rim)
+	draw_colored_polygon(PackedVector2Array([tip - dir * 5.0, base + side * half * 0.45 + dir * 2.0, base + dir * 2.0]), bright)
+	var glow := 0.5 + 0.5 * sin(now * 5.0)
+	draw_circle(c, radius + 6.0, Color(rim, 0.25 + 0.25 * glow))
+	draw_circle(c, radius + 2.0, INK)
+	draw_circle(c, radius, rim)
+	draw_arc(c, radius - 2.0, PI * 1.05, PI * 1.7, 12, bright, 2.0)
+	draw_circle(c, radius - 5.0, INK)
+	draw_circle(c, radius - 7.0, Color(0.2, 0.14, 0.1))
+	draw_circle(c, radius - 13.0, Color(0.26, 0.19, 0.13))
+	var key: String = BADGE_ICON.get(l.kind, "")
+	if atlas != null and atlas.props.has(key):
+		var f: Rect2 = atlas.prop_frame(key)[0]
+		var inner := (radius - 9.0) * 2.0
+		var k := minf(inner / f.size.x, inner / f.size.y)
+		var size := (f.size * k).round()
+		draw_texture_rect_region(atlas.texture, Rect2((c - size / 2.0).round(), size), f)
+
+
+## Keeps a label on screen and moves it off every badge and label already placed, to the nearest free spot no more than `reach` steps away;
+## with nowhere free it stays where it was, or with `or_none` is left out as an empty rect.
+static func _free_spot(r: Rect2, placed: Array, view: Vector2, top: float, low := 4.0, reach := 6, or_none := false) -> Rect2:
 	r.position.x = clampf(r.position.x, 4.0, view.x - r.size.x - 4.0)
 	r.position.y = clampf(r.position.y, top, view.y - r.size.y - low)
 	var tries: Array = []
 	var step := Vector2(r.size.x / 2.0 + 4.0, r.size.y + 2.0)
-	for dx in range(-mini(reach, 3), mini(reach, 3) + 1):
+	for dx in range(-mini(reach, 4), mini(reach, 4) + 1):
 		for dy in range(-reach, reach + 1):
 			tries.append(Vector2(dx, dy))
 	tries.sort_custom(func(a: Vector2, b: Vector2) -> bool: return (a * step).length_squared() < (b * step).length_squared())
@@ -548,6 +598,8 @@ static func _free_spot(r: Rect2, placed: Array, view: Vector2, top: float, low :
 		if not clash:
 			placed.append(tried)
 			return tried
+	if or_none:
+		return Rect2()
 	placed.append(r)
 	return r
 
