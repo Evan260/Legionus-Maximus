@@ -576,8 +576,7 @@ func _badge(l: Dictionary, atlas: Atlas, radius: float, reach: float, now: float
 		draw_texture_rect_region(atlas.texture, Rect2((c - size / 2.0).round(), size), f)
 
 
-## Keeps a label on screen and moves it off every badge and label already placed, to the nearest free spot no more than `reach` steps away;
-## with nowhere free it stays where it was, or with `or_none` is left out as an empty rect.
+## Moves a label to the nearest free spot within `reach` steps; with none free it stays put, or with `or_none` becomes an empty rect.
 static func _free_spot(r: Rect2, placed: Array, view: Vector2, top: float, low := 4.0, reach := 6, or_none := false) -> Rect2:
 	r.position.x = clampf(r.position.x, 4.0, view.x - r.size.x - 4.0)
 	r.position.y = clampf(r.position.y, top, view.y - r.size.y - low)

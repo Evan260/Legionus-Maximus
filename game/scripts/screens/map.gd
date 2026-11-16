@@ -1,7 +1,6 @@
 class_name MapScreen
 extends RefCounted
-## The map: a painted map of the frontier with the legion's road from Rome through every province in the order they open,
-## each province a node showing whether it is won, open, locked or not drawn yet, and a panel with the chosen one's records and modes.
+## The map: the painted frontier with the legion's road from Rome through the provinces in the order they open, and a panel for the one selected.
 
 const MODES := [["hard", "Hard"], ["endless", "Endless"], ["decimatio", "Decimatio"]]
 ## Where each province lies on the painted map, in the picture's own pixels (256 by 144).
@@ -265,8 +264,7 @@ func _banner(c: CanvasItem, p: Vector2) -> void:
 	c.draw_texture_rect_region(atlas.texture, Rect2(p + Vector2(NODE_R + 1.0, -f.size.y + 3.0), f.size), f)
 
 
-## Each province's name and state on a dark plate by its node, clear of the other nodes, plates and the panel.
-## With large text only the selected province's state is written; the panel says the rest.
+## Each province's name and state on a dark plate by its node, clear of the rest; with large text only the selected one's state is written.
 func _labels(c: CanvasItem, ui: Ui, ids: Array) -> Array:
 	var placed: Array = [panel_rect().grow(4.0), Rect2(spot("roma") - Vector2(12, 46), Vector2(24, 58))]
 	for id in ids:
