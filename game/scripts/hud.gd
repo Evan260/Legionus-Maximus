@@ -363,7 +363,7 @@ const BADGE_ICON := {"camp": "eagle_standard", "grove": "altar", "column": "supp
 
 ## The radius of the dark disc an edge arrow carries its target's picture on.
 static func badge_radius() -> float:
-	return 40.0 if Ui.scale == 1 else 44.0
+	return 20.0 if Ui.scale == 1 else 24.0
 
 
 ## The strip along the bottom of the screen that the arrows keep out of, for the testudo, timber, favour and health bar.
@@ -374,7 +374,7 @@ static func bottom_band(view: Vector2) -> float:
 
 ## How far an edge arrow's point stands out from its disc.
 static func tip_length() -> float:
-	return 26.0 if Ui.scale == 1 else 28.0
+	return 14.0 if Ui.scale == 1 else 16.0
 
 
 ## The room a badge's centre may stand in so its disc and its pulsing point both stay inside `area`.

@@ -5096,11 +5096,11 @@ func test_a_screen_can_send_a_key_to_a_chosen_button(_b: Dictionary) -> void:
 	check(pts[0] == Vector2(0, 0) and pts[pts.size() - 1] == Vector2(100, 0) and absf(pts[12].y) > 5.0, "the road runs from place to place and bends")
 
 
-func test_the_objective_badges_are_extra_large(b: Dictionary) -> void:
+func test_the_objective_badges_keep_their_size(b: Dictionary) -> void:
 	var before := Ui.scale
 	for scale in [1, 2]:
 		Ui.set_text_size(scale, b)
-		check(Hud.badge_radius() >= 40.0 and Hud.tip_length() >= 26.0, "an arrow's badge and point are extra large at text size %d" % scale)
+		check(Hud.badge_radius() >= 20.0 and Hud.badge_radius() <= 24.0 and Hud.tip_length() >= 14.0, "an objective badge stays its compact size at text size %d" % scale)
 	Ui.set_text_size(before, b)
 
 

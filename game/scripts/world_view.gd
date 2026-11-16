@@ -689,11 +689,7 @@ func _draw_shots(tex: Texture2D) -> void:
 		var dir: Vector2 = s.vel.normalized()
 		match s.kind:
 			"arrow":
-				var col := Color(0.42, 0.28, 0.16) if s.burn <= 0.0 else Color(1.0, 0.55, 0.15)
-				draw_line(s.pos - dir * 6.0, s.pos, col, 1.0)
-				draw_rect(Rect2((s.pos).round(), Vector2(1, 1)), Color(0.85, 0.85, 0.8))
-				if s.burn > 0.0:
-					draw_rect(Rect2((s.pos - dir * 2.0 + Vector2(0, -1)).round(), Vector2(1, 1)), Color(1, 0.85, 0.3))
+				_big_shot(s.pos, dir, 18.0, s.burn > 0.0, Color(0.55, 0.36, 0.2), Color(0.85, 0.2, 0.15))
 			"pilum":
 				# The pilum is drawn pointing up and to the right, so it is turned from that angle.
 				draw_set_transform(s.pos, dir.angle() + PI / 4.0)
@@ -701,11 +697,36 @@ func _draw_shots(tex: Texture2D) -> void:
 				draw_texture_rect_region(tex, Rect2(-r.size / 2.0, r.size), r)
 				draw_set_transform(Vector2.ZERO)
 			"stone":
-				draw_rect(Rect2((s.pos - dir * 3.0).round(), Vector2(1, 1)), Color(0.75, 0.74, 0.7, 0.5))
-				draw_rect(Rect2(s.pos.round(), Vector2(2, 2)), Color(0.62, 0.6, 0.56))
+				draw_line(s.pos - dir * 16.0, s.pos, Color(1.0, 1.0, 0.85, 0.25), 4.0)
+				draw_circle(s.pos, 4.0, Color(0.16, 0.1, 0.08))
+				draw_circle(s.pos, 3.0, Color(0.68, 0.66, 0.6))
+				draw_circle(s.pos + Vector2(-1, -1), 1.2, Color(0.92, 0.9, 0.85))
 			"bolt":
-				draw_line(s.pos - dir * 11.0, s.pos, Color(0.3, 0.2, 0.12), 2.0)
-				draw_line(s.pos - dir * 2.0, s.pos + dir * 2.0, Color(0.8, 0.8, 0.78), 2.0)
+				_big_shot(s.pos, dir, 24.0, false, Color(0.36, 0.24, 0.14), Color(0.9, 0.85, 0.75))
+
+
+## A missile drawn far larger than life, outlined and trailing a streak, so every shot reads in a crowded fight.
+func _big_shot(pos: Vector2, dir: Vector2, length: float, fire: bool, wood: Color, feather: Color) -> void:
+	var ink := Color(0.16, 0.1, 0.08)
+	var side := dir.orthogonal()
+	var tail := pos - dir * length
+	var neck := pos - dir * 5.0
+	if fire:
+		var flick := 0.8 + 0.2 * sin(sim.time * 40.0 + pos.x)
+		draw_line(tail - dir * 20.0, neck, Color(1.0, 0.45, 0.1, 0.35 * flick), 7.0)
+		draw_line(tail - dir * 10.0, neck, Color(1.0, 0.8, 0.3, 0.5 * flick), 3.0)
+	else:
+		draw_line(tail - dir * 18.0, tail, Color(1.0, 1.0, 0.85, 0.28), 4.0)
+	draw_line(tail, neck, ink, 4.0)
+	draw_line(tail, neck, wood, 2.0)
+	for k in [-1.0, 1.0]:
+		draw_line(tail + dir * 5.0, tail - dir * 1.0 + side * 4.0 * k, ink, 3.0)
+		draw_line(tail + dir * 5.0, tail - dir * 1.0 + side * 4.0 * k, feather, 1.5)
+	draw_colored_polygon(PackedVector2Array([pos + dir * 4.0, neck - dir * 1.0 + side * 4.5, neck - dir * 1.0 - side * 4.5]), ink)
+	draw_colored_polygon(PackedVector2Array([pos + dir * 2.5, neck + side * 3.0, neck - side * 3.0]), Color(0.9, 0.9, 0.88))
+	if fire:
+		draw_circle(pos, 4.5, Color(1.0, 0.6, 0.15, 0.55))
+		draw_circle(pos, 2.0, Color(1.0, 0.95, 0.6))
 
 
 func _draw_effects() -> void:

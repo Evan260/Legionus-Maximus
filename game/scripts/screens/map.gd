@@ -95,7 +95,7 @@ static func spot(id: String) -> Vector2:
 
 ## The panel with the selected province's records and modes, in the sea at the bottom left.
 static func panel_rect() -> Rect2:
-	return Rect2(8, 222, 264, 110) if Ui.scale == 1 else Rect2(8, 160, 268, 172)
+	return Rect2(8, 264, 220, 68) if Ui.scale == 1 else Rect2(8, 196, 252, 136)
 
 
 ## The points of the curved road from one place to the next, bending to alternate sides so the march winds.
@@ -339,9 +339,6 @@ func _panel(c: CanvasItem, ui: Ui, id: String) -> void:
 	var tag := state_text(id).to_upper()
 	ui.fit_text(c, tag, w, Vector2(x, y), Ui.RED if state == "open" else Ui.BROWN)
 	y += Ui.leading() + 2.0
-	# With large text the description is left out so the records and switches fit beside the map.
-	if not big:
-		y = ui.wrap_fit(c, info.text, Vector2(x, y), w, Ui.BROWN, 2) + 1.0
 	if state == "fog" or state == "locked":
 		return
 	var rec := Profile.record_of(id)
@@ -349,7 +346,7 @@ func _panel(c: CanvasItem, ui: Ui, id: String) -> void:
 	results.append(tr("Hard won") if rec.hard_won else tr("Hard not won"))
 	if rec.endless_best > 0.0:
 		results.append(tr("Endless %s") % clock(rec.endless_best))
-	for line in Ui.pack(results, "  " if big else "   ", w).slice(0, 2):
+	for line in Ui.pack(results, "  ", w).slice(0, 1 if not big else 2):
 		ui.fit_text(c, line, w, Vector2(x, y), Ui.INK)
 		y += Ui.leading()
 	var bh := 14.0 if not big else 22.0
