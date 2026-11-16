@@ -4,6 +4,7 @@ keys,en,fr,de,es,it,pt_BR,pl,tr,ru,uk,ja,ko,zh_CN,zh_TW
 %d in the legion,%d in the legion,%d dans la légion,%d in der Legion,%d en la legión,%d nella legione,%d na legião,%d w legii,%d lejyonda,%d в легионе,%d в легіоні,%d 軍団での,군단 내 %d,%d 军团,%d 軍團
 %d m,%d m,%d m,%d m,%d m,%d m,%d m,%d m,%d m,%d м,%d м,%d m,%d m,%d m,%d m
 %d of %d found,%d of %d found,%d sur %d trouvés,%d von %d gefunden,%d de %d encontrados,%d di %d trovati,%d de %d encontrados,%d z %d znalezionych,%d / %d bulundu,найдено %d из %d,знайдено %d з %d,%d/%d 発見,%d/%d 발견,%d/%d 已发现,%d/%d 已發現
+"%d timber, you have %d","%d timber, you have %d","%d bois, vous en avez %d","%d Holz, du hast %d","%d de madera, tienes %d","%d legname, ne hai %d","%d de madeira, você tem %d","%d drewna, masz %d","%d kereste, sende %d var","%d дерева, у вас %d","%d деревини, у вас %d",木材 %d、所持 %d,"목재 %d, 보유 %d",木材 %d，现有 %d,木材 %d，現有 %d
 %s is open,%s is open,%s est ouvert,%s ist offen,%s está abierto,%s è aperto,%s está aberto,%s jest otwarte,%s açık,%s открыт,%s відкрито,%s は開いている,%s 열려 있어요,%s 开门了,%s 開門了
 %s is won,%s is won,%s est gagné,%s ist gewonnen,%s se gana,%s viene vinto,%s é ganho,%s wygrana,%s kazanıldı,%s выиграно,%s виграно,%s 勝利,%s 승리했다,%s 赢了,%s 已經贏了
 %s joins the camp,%s joins the camp,%s rejoint le camp,%s schließt sich dem Lager an,%s se une al campamento,%s si unisce al campo,%s se junta ao acampamento,%s dołącza do obozu,%s kampa katılır,%s присоединяется к лагерю,%s приєднується до табору,%s キャンプに加わる,%s 캠프에 합류한다,%s 加入了营地,%s 加入了營地
@@ -48,6 +49,7 @@ Enemy,Enemy,Ennemi,Feind,Enemigo,Nemico,Inimigo,Wróg,Düşman,Враг,Воро
 Enter,Enter,Entrée,Enter,Intro,Invio,Enter,Enter,Enter,Enter,Enter,Enter,Enter,回车,Enter
 Escape,Escape,Échap,Esc,Esc,Esc,Esc,Esc,Esc,Esc,Esc,Esc,Esc,Esc,Esc
 Favour,Favour,Faveur,Gunst,Favor,Favore,Favor,Łaska,Lütuf,Милость,Милість,神の加護,신의 은총,神恩,神恩
+"Fell trees for timber, then bridge the ravine at its edge","Fell trees for timber, then bridge the ravine at its edge","Abattez des arbres pour le bois, puis jetez un pont au bord du ravin",Fälle Bäume für Holz und überbrücke dann die Schlucht an ihrem Rand,Tala árboles para obtener madera y tiende un puente al borde del barranco,"Abbatti alberi per il legname, poi getta un ponte dal bordo del burrone",Derrube árvores para obter madeira e construa uma ponte na beira do desfiladeiro,"Zetnij drzewa na drewno, a potem przerzuć most z krawędzi wąwozu","Kereste için ağaç kes, sonra vadinin kenarında köprü kur","Рубите деревья на древесину, затем наведите мост с края оврага","Рубайте дерева на деревину, потім наведіть міст з краю яру",木を切って木材を集め、谷の縁で橋を架けよう,"나무를 베어 목재를 모은 뒤, 협곡 가장자리에서 다리를 놓으세요",砍树获取木材，然后在峡谷边缘架桥,砍樹取得木材，然後在峽谷邊緣架橋
 Finish the %s first.,Finish the %s first.,Finis d’abord le %s .,Beende zuerst die %s .,Termina primero la %s .,Finisci prima il %s .,Termine o %s primeiro.,Najpierw skończ %s .,Önce %s bitir.,Сначала закончите %s .,Спочатку закінчи %s .,まず %s を終わらせてください。,먼저 %s 끝내.,先把 %s 吃完。,先把 %s 吃完。
 Forged,Forged,Arme forgée,Schmiedewaffe,Arma forjada,Arma forgiata,Arma forjada,Broń kuta,Dövme silah,Кованое оружие,Кована зброя,鍛造武器,단조 무기,锻造武器,鍛造武器
 Free,Free,Gratuit,Kostenlos,Gratis,Gratis,Grátis,Za darmo,Ücretsiz,Бесплатно,Безкоштовно,無料,무료,免费,免費
@@ -155,8 +157,8 @@ Your soldiers fight on their own.,Your soldiers fight on their own.,Vos soldats 
 a province,a province,Une province,Eine Provinz,Una provincia,una provincia,uma província,Prowincja,bir eyalet,Провинция,провінція,州,한 지방,一个省,一個省份
 back,back,retour,zurück,volver,indietro,voltar,wróć,geri,назад,назад,戻る,뒤로,返回,返回
 banish,banish,bannir,verbannen,desterrar,bandisci,banir,wyklucz,çıkar,исключить,виключити,追放,추방,放逐,放逐
+bridge,bridge,pont,Brücke,puente,ponte,ponte,most,köprü,мост,міст,橋,다리,架桥,架橋
 bridge over a ravine: %d timber,bridge over a ravine: %d timber,pont sur un ravin : %d bois,Brücke über eine Schlucht: %d Holz,puente sobre un barranco: %d de madera,ponte su un burrone: %d legname,ponte sobre um desfiladeiro: %d de madeira,most nad wąwozem: %d drewna,vadiye köprü: %d kereste,мост через овраг: %d древесины,міст через яр: %d деревини,谷に橋：木材 %d,협곡 다리: 목재 %d,峡谷架桥：木材 %d,峽谷架橋：木材 %d
-bridge the ravine,bridge the ravine,franchir le ravin,Schlucht überbrücken,tender un puente,getta un ponte,construir ponte,przerzuć most,köprü kur,навести мост,навести міст,谷に橋を架ける,협곡에 다리 놓기,架桥过谷,架橋過谷
 buy a rank,buy a rank,acheter un rang,Rang kaufen,comprar rango,compra un grado,comprar nível,kup poziom,seviye al,купить ранг,купити ранг,ランクを購入,등급 구매,购买等级,購買等級
 call,call,invoquer,beschwören,invocar,invoca,invocar,wezwij,çağır,призвать,закликати,祈る,기도,祈求,祈求
 call the gods,call the gods,invoquer les dieux,die Götter anrufen,invocar a los dioses,invoca gli dei,invocar os deuses,wezwij bogów,tanrıları çağır,воззвать к богам,звернутися до богів,神々に祈る,신들에게 기도,祈求诸神,祈求眾神

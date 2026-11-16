@@ -204,22 +204,6 @@
       "zh_CN": "祈求诸神",
       "zh_TW": "祈求眾神"
     },
-    "bridge the ravine": {
-      "en": "bridge the ravine",
-      "fr": "franchir le ravin",
-      "de": "Schlucht überbrücken",
-      "es": "tender un puente",
-      "it": "getta un ponte",
-      "pt_BR": "construir ponte",
-      "pl": "przerzuć most",
-      "tr": "köprü kur",
-      "ru": "навести мост",
-      "uk": "навести міст",
-      "ja": "谷に橋を架ける",
-      "ko": "협곡에 다리 놓기",
-      "zh_CN": "架桥过谷",
-      "zh_TW": "架橋過谷"
-    },
     "cancel": {
       "en": "cancel",
       "fr": "annuler",
@@ -1693,6 +1677,54 @@
     "content.quartermaster.denarii.text": {
       "en": "Fallen barbarians drop more denarii.",
       "zh_CN": "倒下的野蛮人会掉落更多银币。"
+    },
+    "bridge": {
+      "en": "bridge",
+      "fr": "pont",
+      "de": "Brücke",
+      "es": "puente",
+      "it": "ponte",
+      "pt_BR": "ponte",
+      "pl": "most",
+      "tr": "köprü",
+      "ru": "мост",
+      "uk": "міст",
+      "ja": "橋",
+      "ko": "다리",
+      "zh_CN": "架桥",
+      "zh_TW": "架橋"
+    },
+    "%d timber, you have %d": {
+      "en": "%d timber, you have %d",
+      "fr": "%d bois, vous en avez %d",
+      "de": "%d Holz, du hast %d",
+      "es": "%d de madera, tienes %d",
+      "it": "%d legname, ne hai %d",
+      "pt_BR": "%d de madeira, você tem %d",
+      "pl": "%d drewna, masz %d",
+      "tr": "%d kereste, sende %d var",
+      "ru": "%d дерева, у вас %d",
+      "uk": "%d деревини, у вас %d",
+      "ja": "木材 %d、所持 %d",
+      "ko": "목재 %d, 보유 %d",
+      "zh_CN": "木材 %d，现有 %d",
+      "zh_TW": "木材 %d，現有 %d"
+    },
+    "Fell trees for timber, then bridge the ravine at its edge": {
+      "en": "Fell trees for timber, then bridge the ravine at its edge",
+      "fr": "Abattez des arbres pour le bois, puis jetez un pont au bord du ravin",
+      "de": "Fälle Bäume für Holz und überbrücke dann die Schlucht an ihrem Rand",
+      "es": "Tala árboles para obtener madera y tiende un puente al borde del barranco",
+      "it": "Abbatti alberi per il legname, poi getta un ponte dal bordo del burrone",
+      "pt_BR": "Derrube árvores para obter madeira e construa uma ponte na beira do desfiladeiro",
+      "pl": "Zetnij drzewa na drewno, a potem przerzuć most z krawędzi wąwozu",
+      "tr": "Kereste için ağaç kes, sonra vadinin kenarında köprü kur",
+      "ru": "Рубите деревья на древесину, затем наведите мост с края оврага",
+      "uk": "Рубайте дерева на деревину, потім наведіть міст з краю яру",
+      "ja": "木を切って木材を集め、谷の縁で橋を架けよう",
+      "ko": "나무를 베어 목재를 모은 뒤, 협곡 가장자리에서 다리를 놓으세요",
+      "zh_CN": "砍树获取木材，然后在峡谷边缘架桥",
+      "zh_TW": "砍樹取得木材，然後在峽谷邊緣架橋"
     }
   }
 }
