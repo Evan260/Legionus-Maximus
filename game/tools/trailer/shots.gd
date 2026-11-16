@@ -8,7 +8,9 @@ extends Node
 const MIX := ["legionary", "legionary", "archer"]
 ## The hook: the commander stands alone for this long, then this many men join him each second until the legion is full.
 const ALONE_SECONDS := 2.0
-const JOIN_PER_SECOND := 16.0
+const JOIN_PER_SECOND := 20.0
+## How far down the end card's field is moved, in game pixels, so the legion stands below the logo.
+const END_DROP := 75.0
 
 var main: Node
 var shot := ""
@@ -22,6 +24,15 @@ func _ready() -> void:
 	# This node runs after main.gd each frame, so a choice panel main has just opened is closed before it is drawn.
 	process_priority = 10
 	AudioServer.set_bus_mute(AudioServer.get_bus_index("Music"), true)
+	# The trailer shows the field without the interface, and the map without its panel and key hints.
+	var hud: Node2D = main.hud
+	hud.set_script(load("res://tools/trailer/trailer_hud.gd"))
+	hud.main = main
+	hud.ui = main.ui
+	main.screens["map"] = load("res://tools/trailer/trailer_map.gd").new(main)
+	# A legion that marches without fighting is hunted by extra beasts, which would swamp the marching shots.
+	if main.balance.has("pursuit"):
+		main.balance.pursuit.cap = 0.0
 	var sim: Sim = main.sim
 	if sim == null:
 		return
@@ -49,6 +60,8 @@ func _process(dt: float) -> void:
 		sim.commander.hp = sim.commander.max_hp
 		for s in sim.soldiers:
 			s.hp = s.max_hp
+	if shot == "endcard":
+		main.world.position.y += END_DROP
 	if shot == "grow" and _clock > ALONE_SECONDS:
 		_joined += JOIN_PER_SECOND * dt
 		while _joined >= 1.0 and sim.soldiers.size() < sim.legion.cap:
@@ -103,6 +116,15 @@ func _shot_ravine(sim: Sim) -> void:
 	sim.commander.pos -= ahead * 120.0
 	sim.legion.place_all(sim.facing_angle)
 	sim.terrain.refresh(sim.commander.pos)
+
+
+## The berserker stands at the edge of a small legion, so his whirlwind's ring shows on the grass round him and the men he catches.
+func _shot_whirl(sim: Sim) -> void:
+	var h := sim.horde
+	var i := h.e_pos.size() - 1
+	if i >= 0:
+		h.e_pos[i] = sim.commander.pos + Vector2(62, 10)
+	main.look_march = Vector2.ZERO
 
 
 ## The chieftain stands off to the side and charges at once, through the ranks.

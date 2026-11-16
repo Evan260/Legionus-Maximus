@@ -40,7 +40,7 @@ const TRAILER := [
 	{"card": "Against every tribe\nin the forest.", "beats": 4, "drums": false},
 	{"shot": "horde", "from": 1.5, "beats": 8, "caption": "Hold the line."},
 	{"shot": "arrows", "from": 0.9, "beats": 4},
-	{"shot": "whirl", "from": 0.05, "beats": 4, "caption": "Berserkers.", "zoom": 2.0, "centre": Vector2(990, 480)},
+	{"shot": "whirl", "from": 0.05, "beats": 4, "caption": "Berserkers.", "zoom": 2.0, "centre": Vector2(1110, 540)},
 	{"shot": "charge", "from": 0.6, "beats": 4, "caption": "War chiefs."},
 	{"shot": "god", "from": 1.6, "beats": 6, "caption": "Call on the gods."},
 	{"shot": "vulcan", "from": 1.8, "beats": 4},
@@ -53,7 +53,7 @@ const TRAILER := [
 	{"shot": "fort", "from": 0.5, "beats": 6, "caption": "Hold the fort."},
 	{"shot": "fort", "from": 4.4, "beats": 6},
 	{"shot": "map", "from": 0.8, "beats": 6},
-	{"end": "endcard", "from": 1.0, "beats": 10, "dim": 0.45, "drums": false},
+	{"end": "endcard", "from": 1.0, "beats": 10, "dim": 0.3, "drums": false},
 ]
 
 var _shots_dir := ""
@@ -71,6 +71,7 @@ var _logo: TextureRect
 var _scroll: TextureRect
 var _wishlist: Label
 var _badges: Array[TextureRect] = []
+var _vignette: TextureRect
 var _harp: AudioStreamPlayer
 var _drums: AudioStreamPlayer
 var _sound: AudioStreamPlayer
@@ -135,6 +136,24 @@ func _build() -> void:
 	_picture.stretch_mode = TextureRect.STRETCH_SCALE
 	_picture.size = SIZE
 	add_child(_picture)
+	# A soft dark oval behind the end card's logo and scroll, so the lettering reads over the field.
+	var gradient := Gradient.new()
+	gradient.set_color(0, Color(0.03, 0.02, 0.02, 0.6))
+	gradient.set_color(1, Color(0.03, 0.02, 0.02, 0.0))
+	var oval := GradientTexture2D.new()
+	oval.gradient = gradient
+	oval.fill = GradientTexture2D.FILL_RADIAL
+	oval.fill_from = Vector2(0.5, 0.5)
+	oval.fill_to = Vector2(1.0, 0.5)
+	oval.width = 256
+	oval.height = 128
+	_vignette = TextureRect.new()
+	_vignette.texture = oval
+	_vignette.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_vignette.stretch_mode = TextureRect.STRETCH_SCALE
+	_vignette.position = Vector2(260, 60)
+	_vignette.size = Vector2(1400, 860)
+	add_child(_vignette)
 	# Cards, captions and the end card are drawn in the game's own pixels and scaled up, like the game.
 	var area := SIZE / float(PIXEL)
 	_overlay = SubViewport.new()
@@ -257,6 +276,7 @@ func _draw_segment(seg: Dictionary, local: float, length: float) -> void:
 	_scroll.visible = is_end
 	_wishlist.visible = is_end
 	_shade.visible = is_end
+	_vignette.visible = is_end
 	for b in _badges:
 		b.visible = is_end
 	_caption.visible = seg.has("caption")
@@ -287,6 +307,7 @@ func _draw_segment(seg: Dictionary, local: float, length: float) -> void:
 	if is_end:
 		# The field darkens a little behind the logo, which settles in first, then the scroll and the badges beneath it.
 		_shade.color.a = clampf(local / 0.8, 0.0, 1.0) * float(seg.get("dim", 0.0))
+		_vignette.modulate.a = clampf(local / 0.8, 0.0, 1.0)
 		_logo.modulate.a = clampf((local - 0.4) / 0.8, 0.0, 1.0)
 		_logo.position.y = LOGO_Y + roundf(4.0 * (1.0 - _logo.modulate.a))
 		var s := clampf((local - 1.6) / 0.6, 0.0, 1.0)

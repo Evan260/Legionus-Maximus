@@ -35,7 +35,7 @@ SHOTS = {
     "grow": (12, 7.0, [*LOOK, "--trailer-shot=grow"]),
     "horde": (9, 4.0, [*LOOK, "--trailer-shot=horde", "--go-to=crowd", "--give=onager:3,torches:2,trumpets:2"]),
     "arrows": (8, 3.5, [*LOOK, "--trailer-shot=arrows", "--men=60:archer", "--give=fire_arrows:3"]),
-    "whirl": (7, 1.6, [*LOOK, "--trailer-shot=whirl", "--men=40", "--boss=berserker", "--boss-act=whirl"]),
+    "whirl": (7, 1.6, [*LOOK, "--trailer-shot=whirl", "--men=16", "--boss=berserker", "--boss-act=whirl"]),
     "charge": (9, 4.0, [*LOOK, "--trailer-shot=charge", "--men=40", "--boss=chieftain"]),
     "god": (8, 3.0, [*LOOK, "--trailer-shot=god", "--go-to=crowd", "--god=jupiter", "--god-at=2"]),
     "vulcan": (8, 3.0, [*LOOK, "--trailer-shot=vulcan", "--go-to=crowd", "--god=vulcan", "--god-at=2"]),
