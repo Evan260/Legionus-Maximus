@@ -1322,6 +1322,7 @@ func _move(dt: float, sim: Sim) -> void:
 			e_block[i] = 0.0
 			push = Vector2.ZERO
 		e_fighting[i] = 0
+		var shoved := Vector2.ZERO
 		if not throwing and i != through and d < legion_reach + r and (to.length_squared() < reach2 or e_tag[i] == CHIEF):
 			var target_unit := -1
 			var span := 1 if r + Sim.UNIT_RADIUS + 2.0 <= CELL else ceili((r + Sim.UNIT_RADIUS + 2.0) / CELL)
@@ -1370,7 +1371,8 @@ func _move(dt: float, sim: Sim) -> void:
 					push -= to * (inward / (d * d))
 				var out: Vector2 = p - u.pos
 				if out.length() > 0.001:
-					push += out.normalized() * maxf(0.0, Sim.UNIT_RADIUS + r - out.length()) * 2.0
+					shoved = out.normalized() * maxf(0.0, Sim.UNIT_RADIUS + r - out.length()) * 2.0
+					push += shoved
 				v = Vector2.ZERO
 		if (i + frame) % 6 == 0 and d < route_range and e_detour[i] <= 0.0 and v != Vector2.ZERO and f_ready and not (dashing or circling or fleeing) and g == Vector2.ZERO:
 			# A barbarian about to walk into a wood or a gorge takes the route map round it before he touches it.
@@ -1440,7 +1442,9 @@ func _move(dt: float, sim: Sim) -> void:
 		# Every barbarian in the grid is held at a ravine's lip every other update, which is enough since one step is shorter than his radius.
 		if (i + frame) % 2 == 0 and gx >= 0 and gy >= 0 and gx < t_n and gy < t_n and rv_start[gx + gy * t_n] < rv_start[gx + gy * t_n + 1]:
 			var kept := sim.terrain.ravine_push(np, r, r > Terrain.MAX_UNIT)
-			if kept != np:
+			if kept != np and e_tag[i] == ORDINARY and sim.shoved_over(np, kept, shoved):
+				sim.plunge(i)
+			elif kept != np:
 				if v != Vector2.ZERO:
 					var out_of := (kept - np).normalized()
 					if e_detour[i] <= 0.0:

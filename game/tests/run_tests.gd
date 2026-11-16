@@ -5233,6 +5233,108 @@ func test_the_legion_halts_at_a_boss_pinned_against_rocks(b: Dictionary) -> void
 	check(s.commander.pos.x < s.horde.e_pos[i].x, "the commander stays on his side")
 
 
+## A boss held by a long stun beside a gorge whose lip runs along y = 60, with a legion of twenty north of him facing south.
+func _boss_at_gorge(b: Dictionary, seed_value: int, kind: String, at: Vector2, commander_at: Vector2) -> Array:
+	var made := _boss_sim(b, seed_value, kind, at)
+	var s: Sim = made[0]
+	var i: int = made[1]
+	_gorge(s, -600, 600, 100, 40)
+	s.commander.pos = commander_at
+	s.facing_angle = PI / 2.0
+	for k in 12:
+		s.add_soldier("legionary")
+	s.legion.place_all(s.facing_angle)
+	s.horde.e_stun[i] = 1e9
+	s.horde.e_hp[i] = 1e9
+	s.horde.e_max[i] = 1e9
+	s._rebuild_grids()
+	return [s, s.horde.e_id[i]]
+
+
+func test_the_legion_shoves_a_boss_into_a_ravine(b: Dictionary) -> void:
+	var r := float(content.enemies.berserker.radius)
+	var made := _boss_at_gorge(b, 1630, "berserker", Vector2(0, 60 - r - 1.0), Vector2(0, -60))
+	var s: Sim = made[0]
+	var id: int = made[1]
+	var kills := s.kills
+	var rewards := s.horde.chests.size() + s.free_choices
+	var fell := false
+	for f in 4 * 60:
+		s.update(1.0 / 60.0, Vector2.DOWN, false)
+		for e in s.effects:
+			fell = fell or (e.kind == "plunge" and e.type == "berserker")
+		if s.horde.e_id.find(id) < 0:
+			break
+	check(s.horde.e_id.find(id) < 0, "the boss shoved over the lip falls into the gorge")
+	check(s.kills - kills == 1, "and counts as a kill (%d)" % (s.kills - kills))
+	check(fell, "and is seen to fall")
+	check(s.horde.chests.size() + s.free_choices > rewards, "he leaves his chest")
+	var dry := true
+	for ch in s.horde.chests:
+		dry = dry and s.terrain.ravine_edge(ch.pos) >= 0.0
+	check(dry, "on the lip, where the legion can take it")
+
+
+func test_a_chieftain_shoved_into_a_ravine_before_the_fort_leaves_the_fort_to_hold(b: Dictionary) -> void:
+	var s := _chief_sim(b, 1634)
+	_gorge(s, -600, 600, 100, 40)
+	s.commander.pos = Vector2(0, -70)
+	s.facing_angle = PI / 2.0
+	for k in 12:
+		s.add_soldier("legionary")
+	s.legion.place_all(s.facing_angle)
+	var ci := s.horde.spawn_chieftain(Vector2(0, 60 - float(content.enemies.chieftain.radius) - 1.0))
+	s.objectives.raise_fort(s)
+	s.objectives.fort.seen = false
+	s.horde.e_stun[ci] = 1e9
+	s.horde.e_hp[ci] = 1e9
+	s.horde.e_max[ci] = 1e9
+	_step_dt(s, 4.0, Vector2.DOWN)
+	check(s.horde.chief_dead, "the chieftain shoved over the lip falls")
+	check(not s.victory and s.objectives.notice.get("kind", "") == "chieftain", "and with the fort unseen the run goes on until it is held")
+
+
+func test_a_boss_beside_a_ravine_is_not_shoved_in(b: Dictionary) -> void:
+	var made := _boss_at_gorge(b, 1631, "berserker", Vector2(60, 25), Vector2(-60, 25))
+	var s: Sim = made[0]
+	var id: int = made[1]
+	_step_dt(s, 1.5, Vector2.RIGHT)
+	var i := s.horde.e_id.find(id)
+	check(i >= 0, "a boss pushed along beside the lip stays alive")
+	check(i >= 0 and s.terrain.ravine_edge(s.horde.e_pos[i]) >= 0.0, "and on firm ground")
+
+
+func test_a_boss_on_a_bridge_is_not_shoved_through_it(b: Dictionary) -> void:
+	var made := _boss_at_gorge(b, 1632, "berserker", Vector2(0, 30), Vector2(0, -40))
+	var s: Sim = made[0]
+	var id: int = made[1]
+	s.timber = int(b.bridge.cost)
+	check(s.build_bridge(), "a bridge is laid across the gorge")
+	s.horde.e_pos[s.horde.e_id.find(id)] = Vector2(0, 100)
+	_step_dt(s, 2.0, Vector2.DOWN)
+	check(s.horde.e_id.find(id) >= 0, "a boss shoved along the deck does not fall through it")
+
+
+func test_the_legion_shoves_barbarians_into_a_ravine(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 1633)
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	for k in 12:
+		s.add_soldier("legionary")
+	_gorge(s, -600, 600, 100, 40)
+	s.commander.pos = Vector2(0, -40)
+	s.facing_angle = PI / 2.0
+	s.legion.place_all(s.facing_angle)
+	for k in 6:
+		var i := s.horde.spawn("barbarian_club", Vector2(-50 + k * 20, 60 - 6 - 1))
+		s.horde.e_hp[i] = 1e9
+		s.horde.e_max[i] = 1e9
+	var kills := s.kills
+	_step_dt(s, 3.0, Vector2.DOWN)
+	check(s.kills - kills >= 3, "barbarians the legion shoves over the lip fall in (%d of 6)" % (s.kills - kills))
+	check(s.c_pos.is_empty(), "and drop nothing")
+
+
 func test_the_war_priest_blinks_clear_of_the_legion(b: Dictionary) -> void:
 	var made := _boss_sim(b, 1613, "war_priest", Vector2(10, 0))
 	var s: Sim = made[0]

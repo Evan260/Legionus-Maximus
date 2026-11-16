@@ -23,6 +23,7 @@ extends Node
 ##   --card=ID          show that achievement's card, for looking at it
 ##   --give=ID,ID:RANK  start the run with these arms or drills at the rank (default 1), for looking at them
 ##   --boss=ID          with --autoplay, bring that elite or the chieftain beside the legion; --boss-act=whirl|shield|band|mend|curse|blink|rage|roar,
+##                      fall (with --go-to=ravine) stands him at the lip for the legion to shove in,
 ##                      duel|rally|blast|flee for the Gaulish elites and siege|summon for the Gaulish king, makes him use that ability at once and
 ##                      holds his others back; an ordinary enemy comes as a small group, and slash|rear|volley|rush has them use theirs
 ##   --province=ID      start the run in that province, for looking at it
@@ -147,6 +148,8 @@ func _bring_boss(kind: String, act: String) -> void:
 		_bring_group(kind, act)
 		return
 	var i := h.spawn(kind, at + (Vector2(-30, -20) if act == "flee" else Vector2.ZERO), true)
+	if act == "fall":
+		_stand_at_lip(i)
 	var st := h.boss_state(i)
 	var timers := {"whirl": "whirl_cd", "shield": "shield_cd", "band": "band_cd", "mend": "mend_cd", "curse": "curse_cd", "blink": "blink_cd",
 		"duel": "duel_cd", "blast": "blast_cd"}
@@ -162,6 +165,16 @@ func _bring_boss(kind: String, act: String) -> void:
 		for k in 6:
 			var j := h.spawn(h.ordinary[0], at + Vector2.from_angle(k * TAU / 6.0) * 60.0)
 			h.e_hp[j] = h.e_max[j] * 0.4
+
+
+## Stands a boss at the ravine's lip just ahead of the legion, held still, and marches the legion into him so it shoves him in.
+func _stand_at_lip(i: int) -> void:
+	var h := sim.horde
+	var ahead := Vector2.from_angle(sim.facing_angle)
+	var r: float = h.k_radius[h.e_kind[i]]
+	h.e_pos[i] = sim.terrain.ravine_push(sim.commander.pos + ahead * 40.0, r, true)
+	h.e_stun[i] = 1e9
+	look_march = ahead * 0.5
 
 
 ## Brings a small group of an ordinary enemy at the distance their ability needs, ready to use it at once.

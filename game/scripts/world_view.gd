@@ -17,6 +17,7 @@ var _keys := PackedInt64Array()
 var _rects: Array[Rect2] = []
 var _dests := PackedVector2Array()
 var _mods := PackedColorArray()
+var _sizes := PackedVector2Array()
 # The trees being chopped this frame, as [position, seconds of chopping], for their progress bars.
 var _felling: Array = []
 # Per enemy kind of the current sim: its art name, whether it has an attack drawn, and its shadow's width.
@@ -77,11 +78,12 @@ func _process(dt: float) -> void:
 		queue_redraw()
 
 
-func _add(y: float, rect: Rect2, dest: Vector2, mod: Color, moving := false) -> void:
+func _add(y: float, rect: Rect2, dest: Vector2, mod: Color, moving := false, size := Vector2.ZERO) -> void:
 	_keys.append((int(y) + 100000) * 65536 + _rects.size())
 	_rects.append(rect)
 	_dests.append(_snap(dest) if moving else dest.round())
 	_mods.append(mod)
+	_sizes.append(rect.size if size == Vector2.ZERO else size)
 
 
 ## Rounds a moving unit to the pixel relative to the camera, so men marching beside the commander keep a steady gap on a diagonal.
@@ -118,6 +120,7 @@ func _draw() -> void:
 	_rects.clear()
 	_dests.clear()
 	_mods.clear()
+	_sizes.clear()
 	var white := Color.WHITE
 	var margin := 80.0
 	var view := Rect2(top_left - Vector2(margin, margin), screen + Vector2(margin, margin) * 2.0)
@@ -231,9 +234,16 @@ func _draw() -> void:
 			var a: float = 1.0 - e.t / 0.45
 			_add(e.pos.y, f[0], e.pos - f[1] + Vector2(0, e.t * 8.0), Color(0.75, 0.35, 0.3, a))
 		elif e.kind == "plunge":
+			# The body shrinks and darkens as it drops into the gorge; a boss shudders at the lip first.
 			var f := atlas.unit_frame(e.type, "idle", Sim.dir_name(e.facing), 0.0)
-			var k: float = e.t / 0.45
-			_add(e.pos.y, f[0], e.pos - f[1] + Vector2(0, k * k * 40.0), Color(0.45 - 0.4 * k, 0.4 - 0.36 * k, 0.38 - 0.34 * k, 1.0 - k * k))
+			var k: float = e.t / Sim.PLUNGE_SECONDS
+			var rect: Rect2 = f[0]
+			var size := rect.size * (1.0 - 0.8 * k)
+			var into: Vector2 = e.get("into", Vector2(0, 30))
+			var mid: Vector2 = e.pos - f[1] + rect.size / 2.0 + into * k * k
+			if e.get("big", false):
+				mid.x += sin(e.t * 70.0) * 3.0 * (1.0 - k)
+			_add(mid.y, rect, mid - size / 2.0, Color(0.9 - 0.85 * k, 0.8 - 0.76 * k, 0.75 - 0.71 * k, 1.0 - k * k * k), false, size)
 
 	_add_arm_sprites(view)
 	_add_chests_and_carts(view)
@@ -244,7 +254,7 @@ func _draw() -> void:
 	var tex := atlas.texture
 	for key in _keys:
 		var idx := int(key % 65536)
-		draw_texture_rect_region(tex, Rect2(_dests[idx], _rects[idx].size), _rects[idx], _mods[idx])
+		draw_texture_rect_region(tex, Rect2(_dests[idx], _sizes[idx]), _rects[idx], _mods[idx])
 
 	_draw_shots(tex)
 	_draw_spears()

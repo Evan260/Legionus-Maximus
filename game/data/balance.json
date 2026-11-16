@@ -132,7 +132,7 @@
   "banishes": 0,
   "history_every": 10,
   "damage_numbers": {"cap": 60, "seconds": 0.6, "rise": 14},
-  "shake": {"hurt": 0.12, "chieftain": 0.3, "roar": 0.6, "testudo": 0.2, "pixels": 2},
+  "shake": {"hurt": 0.12, "chieftain": 0.3, "roar": 0.6, "bossfall": 0.7, "testudo": 0.2, "pixels": 2},
   "text_px": [8, 16],
   "audio": {
     "voices": 24,
@@ -193,7 +193,7 @@
       "blink": {"set": "blink", "max": 2, "db": -8.0, "spread": 0.08, "pitch": 1.0, "priority": 0},
       "charge": {"set": "charge", "max": 1, "db": -5.0, "spread": 0.04, "pitch": 0.7, "priority": 1},
       "slam": {"set": "slam", "max": 1, "db": -3.0, "spread": 0.05, "pitch": 1.0, "priority": 1},
-      "bellow": {"set": "bellow", "max": 1, "db": -4.0, "spread": 0.0, "pitch": 0.8, "priority": 2},
+      "bellow": {"set": "bellow", "max": 1, "db": -4.0, "spread": 0.0, "pitch": 0.8, "priority": 2}, "bossfall": {"set": "bellow", "max": 1, "db": -2.0, "spread": 0.05, "pitch": 1.25, "priority": 2},
       "godready": {"set": "godready", "max": 1, "db": -6.0, "spread": 0.0, "pitch": 1.0, "priority": 2},
       "thunder": {"set": "thunder", "max": 1, "db": -5.0, "spread": 0.05, "pitch": 1.0, "priority": 1},
       "wave": {"set": "wave", "max": 1, "db": -4.0, "spread": 0.0, "pitch": 1.0, "priority": 2},

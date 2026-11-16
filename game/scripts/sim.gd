@@ -7,6 +7,8 @@ const GW := 48
 const UNIT_RADIUS := 7.0
 ## The widest enemy that skips the search for a unit to strike when his cell is not marked in ug_near.
 const NEAR_RADIUS := 8.0
+## How long a body falling into a ravine takes to vanish.
+const PLUNGE_SECONDS := 0.55
 ## Kinds that happen many times an update are counted and reported once per update; the rest are reported as they happen.
 const COUNTED := ["hit", "kill", "coin", "arrow", "pilum", "bolt"]
 const EVENT_CAP := 64
@@ -132,7 +134,7 @@ var bridge_refused := {}
 ## Whether the legion faces a ravine it could bridge, looked at a few times a second for the hint.
 var bridge_here := false
 var _bridge_look := 0.0
-# Barbarians thrown into a ravine, by id, who fall without dropping coins.
+# Barbarians thrown into a ravine, by id, with the lip a boss was shoved off (INF for the rest, who drop nothing).
 var _plunged := {}
 
 
@@ -419,6 +421,10 @@ func _shove_bosses() -> void:
 			continue
 		var wide := r > Terrain.MAX_UNIT
 		var np := p + shove.limit_length(reach)
+		var kept := terrain.ravine_push(np, r, wide)
+		if shoved_over(np, kept, shove):
+			_fall(i, np, kept)
+			continue
 		np = terrain.push_out_wide(np, r) if wide else terrain.push_out(np, r)
 		np = terrain.ravine_push(np, r, wide)
 		horde.e_pos[i] = np
@@ -521,10 +527,30 @@ func build_bridge() -> bool:
 	return true
 
 
-## A barbarian thrown over a ravine's drop falls to his death.
-func plunge(i: int) -> void:
-	_plunged[horde.e_id[i]] = true
+## A barbarian thrown over a ravine's drop falls to his death. A boss leaves his reward at `lip`, the ground he was shoved off.
+func plunge(i: int, lip := Vector2.INF) -> void:
+	_plunged[horde.e_id[i]] = lip
 	horde.e_hp[i] = 0.0
+
+
+## Whether a push that moved a man to `to` drove him over a ravine's lip: the gorge held him back at `kept`, against the push, and no bridge's deck bore him.
+func shoved_over(to: Vector2, kept: Vector2, push: Vector2) -> bool:
+	if kept == to or push == Vector2.ZERO:
+		return false
+	var back := kept - to
+	return back.dot(push) < -0.5 * back.length() * push.length() and terrain.on_bridge(to) < 0 and terrain.on_bridge(kept) < 0
+
+
+## A boss the legion shoves over a ravine's lip falls and dies at once, crying out as he goes.
+func _fall(i: int, at: Vector2, lip: Vector2) -> void:
+	event("bossfall", at)
+	shake = maxf(shake, float(b.shake.get("bossfall", 0.0)))
+	horde.e_pos[i] = at
+	plunge(i, lip)
+	var before := kills
+	_kill(i)
+	effects[-1].into = (at - lip).normalized() * float(b.ravines.width[0]) * 0.5
+	legion.veterans(kills - before, self)
 
 
 func _cell(p: Vector2) -> Vector2i:
@@ -792,12 +818,17 @@ func _kill(i: int) -> void:
 	var pay := float(content.enemies[id].coins) * (1.0 + float(b.drills.plunder) * rank("plunder") + bonus_amount("denarii")) * (float(b.hard.denarii_mult) if hard else 1.0)
 	# A fraction of a coin is paid as the same chance of one more.
 	var value := int(pay) + (1 if pay > floorf(pay) and rng.randf() < pay - floorf(pay) else 0)
-	var fell := _plunged.erase(horde.e_id[i])
-	if value > 0 and not fell:
-		drop_coin(horde.e_pos[i], value)
-	effects.append({"kind": "plunge" if fell else "death", "pos": horde.e_pos[i], "t": 0.0, "type": id, "facing": horde.e_face[i]})
+	var fell := _plunged.has(horde.e_id[i])
+	var lip: Vector2 = _plunged.get(horde.e_id[i], Vector2.INF)
+	_plunged.erase(horde.e_id[i])
+	var boss := horde.e_tag[i] != Horde.ORDINARY
+	# An ordinary barbarian takes his coins into the gorge; a boss shoved off the lip leaves his reward on it.
+	var at := lip if lip != Vector2.INF else horde.e_pos[i]
+	if value > 0 and (not fell or (boss and lip != Vector2.INF)):
+		drop_coin(at, value)
+	effects.append({"kind": "plunge" if fell else "death", "pos": horde.e_pos[i], "t": 0.0, "type": id, "facing": horde.e_face[i], "big": boss})
 	if horde.e_tag[i] == Horde.ELITE:
-		horde.drop_chest(horde.e_pos[i])
+		horde.drop_chest(at)
 	if horde.e_id[i] == horde.chieftain_id:
 		# His death wins only once the fort has been on screen; before that the legion still has to hold the fort.
 		if objectives.fort_seen():
@@ -960,7 +991,7 @@ func _effects(dt: float) -> void:
 	var keep: Array = []
 	for e in effects:
 		e.t += dt
-		if e.t < (0.12 if e.kind == "slash" else 0.45):
+		if e.t < (0.12 if e.kind == "slash" else (PLUNGE_SECONDS if e.kind == "plunge" else 0.45)):
 			keep.append(e)
 	effects = keep
 	_float_numbers(dt)
