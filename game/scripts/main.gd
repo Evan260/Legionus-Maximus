@@ -10,6 +10,7 @@ extends Node
 ##   --go-to=KIND       with --autoplay, start beside the camp, column or grove, inside a fort raised at once, or burning-camp;
 ##                      ravine stands the legion at the lip of the nearest ravine, bridge lays a bridge there and marches onto it,
 ##                      ravine-end stands it just past one end of the nearest ravine
+##                      crowd gives it 80 men on cleared ground ringed by a full late horde
 ##   --hold-choice      with --autoplay, give a level at once and leave its choices open
 ##   --hard, --endless, --decimatio   start the run in that mode
 ##   --screen=NAME      open a screen (camp, quartermaster, tablinum, map, commanders, settings) with a sample profile, for screenshots;
@@ -180,6 +181,9 @@ func _go_to(kind: String) -> void:
 	if kind == "ravine" or kind == "bridge" or kind == "ravine-end":
 		_go_to_ravine(kind == "bridge", kind == "ravine-end")
 		return
+	if kind == "crowd":
+		_go_to_crowd()
+		return
 	if kind == "village":
 		var best := Vector2.INF
 		for pr in sim.terrain.props_in(Rect2(-3000, -3000, 6000, 6000)):
@@ -220,6 +224,21 @@ func _go_to(kind: String) -> void:
 	if burn:
 		sim.commander.pos = at + Vector2(0, 30)
 	sim.legion.place_all(sim.facing_angle)
+
+
+## Gives the legion 80 men on cleared ground and rings it with a full late horde, which presses it from every side.
+func _go_to_crowd() -> void:
+	sim.terrain.clear()
+	for i in 80:
+		sim.add_soldier("archer" if i % 3 == 1 else "legionary")
+	sim.legion.place_all(sim.facing_angle)
+	sim.commander.max_hp *= 20.0
+	sim.commander.hp = sim.commander.max_hp
+	var kinds := ["barbarian_club", "barbarian_spear", "barbarian_club", "wolf", "barbarian_club"]
+	for i in int(balance.max_enemies):
+		sim.horde.spawn(kinds[i % kinds.size()], sim.commander.pos + Vector2.from_angle(i * 2.39996) * (200.0 + 500.0 * fmod(i * 0.618034, 1.0)))
+	sim.horde.next_band = 1e9
+	look_march = Vector2.ZERO
 
 
 ## Stands the legion at the lip of the ravine nearest the start, facing across; with `bridge` it lays a bridge and marches onto it.

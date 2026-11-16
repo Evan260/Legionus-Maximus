@@ -117,6 +117,8 @@
   "drills": {"shield_wall": 0.1, "better_bows": 0.1, "close_order": 0.35, "plunder": 0.15, "glory": 0.1, "veterans_gain": 0.04, "veterans_cap": 0.4, "reserves_seconds": [20, 14, 8]},
   "slow_recover": 2.0,
   "separation_range": 300,
+  "crowd_spacing": 1.5,
+  "crowd_give": 0.3,
   "spawn_mix": {"later_start": 0.25, "later_seconds": 900},
   "bosses": {"first": 90, "every": 45, "count_start": 1, "count_growth": 0.00213, "count_max": 3, "max_alive": 4, "max_alive_start": 1, "max_alive_growth": 0.00333, "health_growth": 0.00111, "early_mult": 0.15, "early_pace": 0.25, "early_until": 720, "early_health": 0.25, "early_health_until": 450},
   "ranged": {"every": 1.8, "throws": 3, "spear_speed": 120, "spear_life": 3.0, "spear_radius": 3},

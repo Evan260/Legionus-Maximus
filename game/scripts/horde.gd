@@ -77,6 +77,8 @@ var e_strike := PackedFloat32Array()
 var e_stun := PackedFloat32Array()
 var e_slow := PackedFloat32Array()
 var e_push := PackedVector2Array()
+## How far the men between a barbarian and the legion overlap him, which stops him walking on into them.
+var e_block := PackedFloat32Array()
 var e_tag := PackedByteArray()
 var e_cd := PackedFloat32Array()
 var e_dash := PackedFloat32Array()
@@ -306,6 +308,7 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 	e_stun.append(0.0)
 	e_slow.append(1.0)
 	e_push.append(Vector2.ZERO)
+	e_block.append(0.0)
 	e_tag.append(tag)
 	var beh := k_beh[kind]
 	var wait := 0.0
@@ -1147,6 +1150,8 @@ func _move(dt: float, sim: Sim) -> void:
 	var dash_min: float = b.charger.min_distance
 	var dash_max: float = b.charger.max_distance
 	var sep_range: float = b.separation_range
+	var crowd_give: float = b.get("crowd_give", 0.3)
+	var spacing: float = b.get("crowd_spacing", 1.0)
 	var units := sim.units
 	var ug_near := sim.ug_near
 	var ug_head := sim.ug_head
@@ -1288,14 +1293,13 @@ func _move(dt: float, sim: Sim) -> void:
 		# Enemies beyond the screen are not spaced apart, since nobody can see them bunch up.
 		if i % 3 == phase and d < sep_range:
 			push = Vector2.ZERO
+			var block := 0.0
 			var c := cidx(p)
 			if c >= 0:
 				var kx := c % GW
 				var ky := c / GW
-				var seen := 0
 				# A boss wider than a grid square looks further for the barbarians he would overlap.
-				var ring := 1 if r + r <= CELL else 2
-				# Once six neighbours are counted, each further cell adds only its first; the bots are tuned on this spacing.
+				var ring := 1 if (r + r) * spacing <= CELL else 2
 				for cy in range(maxi(0, ky - ring), mini(GW, ky + ring + 1)):
 					for cx in range(maxi(0, kx - ring), mini(GW, kx + ring + 1)):
 						var cell := cx + cy * GW
@@ -1303,17 +1307,19 @@ func _move(dt: float, sim: Sim) -> void:
 						for t in range(gs[cell], gs[cell + 1]):
 							var away := p - e_pos[gi[t]]
 							var dd := away.length_squared()
-							var min_d := r + gr[t]
+							var min_d := (r + gr[t]) * spacing
 							if dd < min_d * min_d and dd > 0.0001:
 								var dl := sqrt(dd)
 								push += away / dl * (min_d - dl)
-								seen += 1
-								if seen > 5:
-									break
+								var ahead := -away.dot(to)
+								if ahead > 0.0:
+									block += (min_d - dl) * ahead / (dl * d)
 			e_push[i] = push
+			e_block[i] = block
 		elif i % 3 == phase:
 			# A push worked out earlier is dropped once the enemy is beyond the spacing range.
 			e_push[i] = Vector2.ZERO
+			e_block[i] = 0.0
 			push = Vector2.ZERO
 		e_fighting[i] = 0
 		if not throwing and i != through and d < legion_reach + r and (to.length_squared() < reach2 or e_tag[i] == CHIEF):
@@ -1358,6 +1364,10 @@ func _move(dt: float, sim: Sim) -> void:
 				if foe.length_squared() > 0.000001:
 					e_face[i] = foe.normalized()
 				held += 1
+				# The crowd behind cannot shove a man locked in melee in among the Romans, so it spreads round the legion instead of filling it.
+				var inward := push.dot(to)
+				if inward > 0.0 and d > 0.001:
+					push -= to * (inward / (d * d))
 				var out: Vector2 = p - u.pos
 				if out.length() > 0.001:
 					push += out.normalized() * maxf(0.0, Sim.UNIT_RADIUS + r - out.length()) * 2.0
@@ -1386,6 +1396,11 @@ func _move(dt: float, sim: Sim) -> void:
 						w -= n * into
 						w = Vector2(-n.y, n.x) * e_side[i] if w.length_squared() < 0.09 else w.normalized()
 				v = w * spd
+		if e_block[i] > 0.0 and v != Vector2.ZERO and not dashing:
+			# A barbarian already pressed into the man ahead stops walking into him and only slides past, so the press does not pile up through the rows.
+			var into := v.dot(to)
+			if into > 0.0:
+				v -= to * (into / (d * d) * minf(1.0, e_block[i] / (r * crowd_give)))
 		var np := p + v * dt + push * 0.6
 		# Trees and rocks push the barbarian back out, read straight from the terrain grid since this runs for the whole horde.
 		# Barbarians well off the screen pass through, since nobody sees them and the check is costly for a full horde.
@@ -1784,6 +1799,7 @@ func remove_at(i: int) -> void:
 	e_stun[i] = e_stun[last]; e_stun.resize(last)
 	e_slow[i] = e_slow[last]; e_slow.resize(last)
 	e_push[i] = e_push[last]; e_push.resize(last)
+	e_block[i] = e_block[last]; e_block.resize(last)
 	e_tag[i] = e_tag[last]; e_tag.resize(last)
 	e_cd[i] = e_cd[last]; e_cd.resize(last)
 	e_dash[i] = e_dash[last]; e_dash.resize(last)

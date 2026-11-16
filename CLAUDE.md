@@ -14,6 +14,7 @@ Godot is `C:\Users\evand\AppData\Local\Microsoft\WinGet\Packages\GodotEngine.God
 - Stuck barbarians: `godot --headless --path game --script res://tests/stuck_probe.gd -- --province=gaul --seeds=8 --seconds=300 --mode=circle|face|straight` counts barbarians who try to walk but stay put for over a second with no Roman in reach, sorted by what holds them (`PROBE_DETAIL=1` prints each one)
 - Every other flag, all for looking or testing and none of them saved to the profile:
   - `--boss=ID` with `--autoplay` brings that elite or the chieftain beside the legion, and `--boss-act=whirl|shield|band|mend|curse|blink|rage|roar` has him use that ability at once; Gaul's elites take `duel|rally|blast|flee` and its king `siege|summon|roar`. An ordinary enemy comes as a group of four, and `slash|rear|volley|rush` has Gaul's use theirs
+  - `--go-to=crowd` with `--autoplay` gives the legion 80 men on cleared ground and rings it with a full late horde, for a look at how the crowd spaces itself
   - `--province=ID` starts the run in that province, so `--province=gaul` is needed to bring the Gaulish king
   - `--chieftain-at=S` brings the chieftain at that second; `--hold-choice` with `--autoplay` leaves a level-up open
   - `--hard`, `--endless`, `--decimatio` start the run in that mode
