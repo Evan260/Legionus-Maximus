@@ -4192,6 +4192,59 @@ func test_a_bridge_needs_timber_and_a_ravine_ahead(b: Dictionary) -> void:
 	check(s.timber == int(cfg.cost) and s.bridge_refused.get("why", "") == "ravine", "nothing is spent and the notice says there is no ravine ahead")
 
 
+func test_the_bridge_hint_shows_at_a_lip_with_or_without_timber(b: Dictionary) -> void:
+	var cost := int(b.bridge.cost)
+	var s := _quiet_sim(b, 1510)
+	_gorge(s, -400, 400, 100, 50)
+	s.commander.pos = Vector2(0, -10)
+	s.facing_angle = PI / 2.0
+	s.legion.place_all(s.facing_angle)
+	s.timber = 0
+	_step_dt(s, 0.5)
+	check(s.bridge_here, "the hint is up at the lip with no timber")
+	var short := Hud.bridge_hint(3, cost)
+	check(not short.enough and short.text.contains(str(cost)) and short.text.contains("3"), "without timber it gives the cost and the count (%s)" % short.text)
+	var ready := Hud.bridge_hint(cost, cost)
+	check(ready.enough and ready.text.contains(str(cost)) and ready.text != short.text, "with timber it gives the cost (%s)" % ready.text)
+	check(short.text.begins_with(Controls.key_of("bridge")) and ready.text.begins_with(Controls.key_of("bridge")), "both lead with the key")
+
+
+func test_the_ravine_tip_shows_once_a_run_when_a_ravine_comes_near(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 1511)
+	_gorge(s, -400, 400, 900, 50)
+	_step_dt(s, 0.5)
+	check(not s.ravine_near and not s.ravine_tip_shown, "a ravine far off gives no tip")
+	s.commander.pos = Vector2(0, 760)
+	s.legion.place_all(s.facing_angle)
+	s.terrain.refresh(s.commander.pos)
+	_step_dt(s, 0.5)
+	check(s.ravine_near, "a ravine on screen is noticed")
+	check(s.ravine_tip_shown and s.objectives.notice.get("kind", "") == "ravine", "and the tip is shown")
+	s.objectives.notice = {}
+	s.commander.pos = Vector2(0, 0)
+	_step_dt(s, 0.5)
+	s.commander.pos = Vector2(0, 760)
+	_step_dt(s, 0.5)
+	check(s.objectives.notice.is_empty(), "the tip is shown only once a run")
+	var done := Sim.new(b, content, {"seed": 1512, "ravine_tip": false})
+	done.terrain.clear()
+	done.commander.pos = Vector2(0, 760)
+	_gorge(done, -400, 400, 900, 50)
+	_step_dt(done, 0.5)
+	check(not done.ravine_tip_shown, "a player past the first runs gets no tip")
+
+
+func test_the_profile_counts_the_runs_that_showed_the_ravine_tip(b: Dictionary) -> void:
+	var p := _fresh_profile()
+	var s := Sim.new(b, Content.with_all_art(), {"seed": 1513})
+	s.over = true
+	s.ravine_tip_shown = true
+	p.record_run(s)
+	check(int(p.data.totals.ravine_tips) == 1, "a run that showed the tip is counted")
+	check(Profile.merge_saved({"totals": {"ravine_tips": 2}}).totals.ravine_tips == 2, "the count is read back")
+	_cleanup_profile_files()
+
+
 func test_the_legion_marches_over_its_bridge(b: Dictionary) -> void:
 	var s := _quiet_sim(b, 1503)
 	for k in 6:
@@ -5298,6 +5351,7 @@ func test_the_legion_shoves_a_boss_into_a_ravine(b: Dictionary) -> void:
 
 func test_a_chieftain_shoved_into_a_ravine_before_the_fort_leaves_the_fort_to_hold(b: Dictionary) -> void:
 	var s := _chief_sim(b, 1634)
+	s.ravine_tip = false
 	_gorge(s, -600, 600, 100, 40)
 	s.commander.pos = Vector2(0, -70)
 	s.facing_angle = PI / 2.0

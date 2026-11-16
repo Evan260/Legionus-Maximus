@@ -4,7 +4,7 @@ extends Node
 
 const DEFAULT_PATH := "user://profile.json"
 const NO_SAVE_FLAGS := ["run-tests", "bench", "autoplay", "skip", "shot", "at", "screen", "page", "text-size", "lang", "card", "hard", "endless", "decimatio",
-	"commander", "chieftain-at", "as-demo", "objectives-near", "boss", "boss-act", "god", "god-at", "give", "go-to", "hold-choice", "win-at"]
+	"commander", "chieftain-at", "as-demo", "objectives-near", "boss", "boss-act", "god", "god-at", "give", "go-to", "hold-choice", "win-at", "timber"]
 
 const SETTING_DEFAULTS := {"master": 0.8, "music": 0.8, "effects": 0.8, "fullscreen": false, "shake": true, "numbers": true,
 	"text_size": 1, "bindings": {}, "language": ""}
@@ -36,7 +36,7 @@ static func defaults() -> Dictionary:
 		"unlocked": {"commanders": ["tribune"], "provinces": ["germania"]},
 		"records": {},
 		"seen": {},
-		"totals": {"kills": 0, "runs": 0, "wins": 0},
+		"totals": {"kills": 0, "runs": 0, "wins": 0, "ravine_tips": 0},
 		"settings": {},
 		"achievements": [],
 	}
@@ -277,6 +277,8 @@ func record_run(sim: Sim) -> void:
 	data.denarii = int(data.denarii) + sim.banked_denarii()
 	data.totals.runs = int(data.totals.runs) + 1
 	data.totals.kills = int(data.totals.kills) + sim.kills
+	if sim.ravine_tip_shown:
+		data.totals.ravine_tips = int(data.totals.ravine_tips) + 1
 	var rec: Dictionary = record_of(sim.province)
 	rec.longest = maxf(float(rec.longest), sim.time)
 	# A demo that reaches its time limit shows the victory screen but is not a win.

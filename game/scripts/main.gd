@@ -22,6 +22,7 @@ extends Node
 ##   --as-demo          play as the demo: Germania, three commanders and 15 minutes
 ##   --card=ID          show that achievement's card, for looking at it
 ##   --give=ID,ID:RANK  start the run with these arms or drills at the rank (default 1), for looking at them
+##   --timber=N         with --autoplay, start the run carrying that much timber
 ##   --boss=ID          with --autoplay, bring that elite or the chieftain beside the legion; --boss-act=whirl|shield|band|mend|curse|blink|rage|roar,
 ##                      fall (with --go-to=ravine) stands him at the lip for the legion to shove in,
 ##                      duel|rally|blast|flee for the Gaulish elites and siege|summon for the Gaulish king, makes him use that ability at once and
@@ -345,6 +346,7 @@ func _new_sim() -> void:
 	sim.show_numbers = bool(Profile.setting("numbers"))
 	world.sim = sim
 	if args.has("autoplay") or args.has("skip"):
+		sim.timber = int(args.get("timber", "0"))
 		for entry in str(args.get("give", "")).split(",", false):
 			var parts := entry.split(":")
 			var info := content.upgrade(parts[0])
@@ -374,6 +376,7 @@ func _run_options() -> Dictionary:
 	options.profile_bonuses = Profile.bonuses()
 	options.demo_seconds = Game.run_cap(balance)
 	options.objectives_near = args.has("objectives-near")
+	options.ravine_tip = int(Profile.data.totals.get("ravine_tips", 0)) < int(balance.bridge.tip_runs)
 	return options
 
 

@@ -13,6 +13,7 @@ const GOLD := Color(0.91, 0.69, 0.25)
 const GOLD_LIGHT := Color(1.0, 0.89, 0.59)
 const RED := Color(0.72, 0.18, 0.14)
 const BROWN_TEXT := Color(0.5, 0.36, 0.22)
+const MUTED := Color(0.7, 0.66, 0.6)
 
 const EDGE := 26.0
 ## How far above its foot an objective's name is written when it is on screen, clear of its sprite.
@@ -184,6 +185,9 @@ func _timber(sim: Sim, H: float) -> void:
 		var r: Rect2 = f[0]
 		draw_texture_rect_region(atlas.texture, Rect2(Vector2(46, y - r.size.y + 2.0), r.size), r, Color.WHITE if enough else Color(0.75, 0.72, 0.68))
 	text(str(sim.timber), Vector2(66, y), GOLD_LIGHT if enough else CREAM)
+	var bridge_cost := int(sim.b.bridge.cost)
+	if sim.ravine_near:
+		_bridge_cost(Vector2(66.0 + Ui.width_at(str(sim.timber), Ui.px) + 6.0, y), bridge_cost, sim.timber >= bridge_cost)
 	var line := ""
 	var refused: Dictionary = sim.bridge_refused
 	if not refused.is_empty() and sim.time - float(refused.at) < float(sim.b.bridge.notice_seconds) and float(refused.at) >= sim.palisade_refused_at:
@@ -193,9 +197,32 @@ func _timber(sim: Sim, H: float) -> void:
 	if line != "":
 		text(line.to_upper(), Vector2(0, Ui.view.y * 0.7), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x)
 	if sim.bridge_here and main.state == "play":
-		var hint := Controls.hint("bridge") + "  " + tr("(%d timber)") % int(sim.b.bridge.cost)
+		var hint := bridge_hint(sim.timber, bridge_cost)
 		var r: Rect2 = bottom_layout(Ui.view).bridge
-		text(hint.to_upper(), Vector2(0, r.position.y + Ui.px), GOLD_LIGHT if sim.timber >= int(sim.b.bridge.cost) else CREAM, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x)
+		var said := str(hint.text).to_upper()
+		var w := Ui.width_at(said, Ui.px)
+		draw_rect(Rect2((Ui.view.x - w) / 2.0 - 4.0, r.position.y - 1.0, w + 8.0, r.size.y + 2.0), Color(0.08, 0.05, 0.04, 0.55))
+		text(said, Vector2(0, r.position.y + Ui.px), GOLD_LIGHT if hint.enough else MUTED, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x)
+
+
+## The hint at a ravine's lip: the key and the cost, or with too little timber the cost and what the legion has.
+static func bridge_hint(timber: int, cost: int) -> Dictionary:
+	if timber >= cost:
+		return {"text": Controls.hint("bridge") + "  " + TranslationServer.translate("(%d timber)") % cost, "enough": true}
+	return {"text": Controls.hint("bridge") + ": " + TranslationServer.translate("%d timber, you have %d") % [cost, timber], "enough": false}
+
+
+## A small plank bridge and the timber a bridge costs, beside the legion's timber while a ravine is on screen.
+func _bridge_cost(at: Vector2, cost: int, enough: bool) -> void:
+	var wood := Color(0.62, 0.42, 0.24) if enough else Color(0.5, 0.45, 0.4)
+	var k := float(Ui.scale)
+	var top := at.y - Ui.px * 0.5 - 3.5 * k
+	draw_rect(Rect2(at.x - 1, top - 1, 12 * k + 2, 7 * k + 2), INK)
+	for n in 4:
+		draw_rect(Rect2(at.x + n * 3.0 * k, top, 2 * k, 7 * k), wood)
+	draw_rect(Rect2(at.x, top + k, 12 * k, k), wood.lightened(0.3))
+	draw_rect(Rect2(at.x, top + 5 * k, 12 * k, k), wood.darkened(0.3))
+	text(str(cost), Vector2(at.x + 12 * k + 4.0, at.y), GOLD_LIGHT if enough else CREAM)
 
 
 ## The favour of the gods at the bottom right: a wreath over a bar that fills with kills, glowing with the key to call them once full.
@@ -225,7 +252,7 @@ static func bottom_layout(view: Vector2) -> Dictionary:
 	var testudo_w := maxf(Ui.width_at(TranslationServer.translate("Testudo").to_upper(), Ui.px), Ui.width_at(TranslationServer.translate("Hold!").to_upper(), Ui.px))
 	var testudo := Rect2(8, H - 42, 38 + testudo_w, 42)
 	var timber_y := H - 8.0 - lead - 4.0
-	var timber := Rect2(46, timber_y - 14.0, 20 + Ui.width_at("999", Ui.px), 16)
+	var timber := Rect2(46, timber_y - 14.0, 30 + 12 * Ui.scale + Ui.width_at("999", Ui.px) + Ui.width_at("99", Ui.px), 16)
 	var favour_w := Ui.width_at(TranslationServer.translate("Favour").to_upper(), Ui.px)
 	var favour := Rect2(W - 46 - favour_w, H - 42, 38 + favour_w, 42)
 	var pray_w := Ui.width_at(Controls.hint("pray").to_upper(), Ui.px)
@@ -354,6 +381,8 @@ func _notice_text(kind: String) -> String:
 			return tr("The chieftain falls: now hold the fort")
 		"roar":
 			return tr("The chieftain roars in fury")
+		"ravine":
+			return tr("Fell trees for timber, then bridge the ravine at its edge")
 	return tr("A Roman fort is in sight: hold it")
 
 
@@ -544,11 +573,15 @@ func _objective_arrows(sim: Sim, avoid: Array) -> void:
 		placed.append(l.badge)
 		_badge(l, atlas, radius, reach, sim.time)
 	var note: Dictionary = sim.objectives.notice
-	if not note.is_empty() and sim.time - float(note.at) < float(sim.b.objectives.notice_seconds):
-		var line := _notice_text(note.kind).to_upper()
-		var nw := Ui.width_at(line, Ui.px)
-		var r := _free_spot(Rect2((view.x - nw) / 2.0, view.y * 0.7 - Ui.px, nw, Ui.leading()), placed, view, top)
-		text(line, Vector2(r.position.x, r.position.y + Ui.px), GOLD_LIGHT)
+	if not note.is_empty() and sim.time - float(note.at) < float(note.get("seconds", sim.b.objectives.notice_seconds)):
+		placed.append(centre_keep_out(view))
+		var lines := Ui.lines_of(_notice_text(note.kind).to_upper(), view.x - 24.0)
+		var nw := 0.0
+		for line in lines:
+			nw = maxf(nw, Ui.width_at(line, Ui.px))
+		var r := _free_spot(Rect2((view.x - nw) / 2.0, view.y * 0.7 - Ui.px, nw, Ui.leading() * lines.size()), placed, view, top, bottom_band(view))
+		for k in lines.size():
+			text(lines[k], Vector2(r.position.x, r.position.y + Ui.px + Ui.leading() * k), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, nw)
 	for l in laid:
 		var r: Rect2 = l.label
 		if l.on_screen:

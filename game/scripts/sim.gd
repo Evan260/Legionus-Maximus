@@ -134,6 +134,11 @@ var bridge_refused := {}
 ## Whether the legion faces a ravine it could bridge, looked at a few times a second for the hint.
 var bridge_here := false
 var _bridge_look := 0.0
+## Whether a ravine's lip is close enough to be on screen, for the bridge cost beside the timber.
+var ravine_near := false
+## Whether this run may still show the tip about bridging, and whether it has.
+var ravine_tip := true
+var ravine_tip_shown := false
 # Barbarians thrown into a ravine, by id, with the lip a boss was shoved off (INF for the rest, who drop nothing).
 var _plunged := {}
 
@@ -146,6 +151,7 @@ func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
 	hard = options.get("hard", false)
 	endless = options.get("endless", false)
 	decimatio = options.get("decimatio", false)
+	ravine_tip = options.get("ravine_tip", true)
 	demo_seconds = float(options.get("demo_seconds", 0.0))
 	bonuses = options.get("profile_bonuses", {})
 	b = balance
@@ -284,6 +290,7 @@ func update(dt: float, move: Vector2, testudo_pressed: bool) -> void:
 	if _bridge_look <= 0.0:
 		_bridge_look = float(b.bridge.look_every)
 		bridge_here = not terrain.rv_items.is_empty() and not bridge_span().is_empty()
+		_look_for_ravines()
 	_rebuild_grids()
 	objectives.before_horde(self)
 	horde.update(dt, self)
@@ -505,6 +512,17 @@ func bridge_span() -> Array:
 	if span.is_empty() or terrain.on_bridge(commander.pos) >= 0 or terrain.on_bridge(commander.pos + dir * (float(span[0]) + float(span[1])) / 2.0) >= 0:
 		return []
 	return span
+
+
+## Notes a ravine on screen, and the first time one comes into view tells the player how to cross it.
+func _look_for_ravines() -> void:
+	var within := float(b.bridge.tip_within)
+	ravine_near = terrain.ravine_edge(commander.pos, within + float(b.ravines.width[1])) < within
+	var note: Dictionary = objectives.notice
+	var quiet := note.is_empty() or time - float(note.at) >= float(note.get("seconds", b.objectives.notice_seconds))
+	if ravine_near and ravine_tip and not ravine_tip_shown and quiet:
+		ravine_tip_shown = true
+		objectives.notice = {"kind": "ravine", "at": time, "seconds": float(b.bridge.tip_seconds)}
 
 
 ## Spends timber on a plank bridge across the ravine ahead; with no ravine ahead or too little timber it is refused.

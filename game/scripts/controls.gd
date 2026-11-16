@@ -22,7 +22,7 @@ const KEY_NAMES := {KEY_UP: "Up", KEY_DOWN: "Down", KEY_LEFT: "Left", KEY_RIGHT:
 	KEY_ENTER: "Enter", KEY_TAB: "Tab", KEY_BACKSPACE: "Backspace"}
 # The words of the key hints, each translated on its own so no translation has to keep a key in its place.
 const HINT_WORDS := ["move", "choose", "back", "buy a rank", "take it", "call", "not now", "reroll", "banish",
-	"call the gods", "bridge the ravine", "cancel", "change a key or button", "change a volume"]
+	"call the gods", "bridge", "cancel", "change a key or button", "change a volume"]
 
 
 ## The keys and pad buttons an action has: the saved ones, or the defaults when none are saved or the saved list is empty.
@@ -164,7 +164,7 @@ static func hint(kind: String, count := 0) -> String:
 		"pray":
 			parts = [part(both.call("pray"), "call the gods")]
 		"bridge":
-			parts = [part(both.call("bridge"), "bridge the ravine")]
+			parts = [part(both.call("bridge"), "bridge")]
 		"gods":
 			parts = [part(sides, "choose"), part(key_of("confirm"), "call"), part(key_of("back"), "not now")]
 	return "     ".join(parts)
