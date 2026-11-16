@@ -2,15 +2,16 @@ extends SceneTree
 ## Plays whole runs headless with four bots (standing still, marching straight, circling, turning to face the crowd, and facing with recruits first until the legion has 30)
 ## and prints when each dies, for tuning balance.json. Optional overrides go in tests/balance_overrides.json.
 ## `"upgrades": "two_thirds"` (or --upgrades=two_thirds) plays with every quartermaster upgrade at two-thirds of its ranks, as a player well into the game.
+## `--until=SECONDS` ends each run there (default 1200), so a round that only asks who reaches 12:00 can stop at 720.
 
-func run(balance: Dictionary, content: Content, seed: int, mode: String, province := "germania", bonuses := {}) -> String:
+func run(balance: Dictionary, content: Content, seed: int, mode: String, province := "germania", bonuses := {}, until := 1200.0) -> String:
 	var sim := Sim.new(balance, content, {"seed": seed, "province": province, "profile_bonuses": bonuses})
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
 	var dt := 1.0 / 30.0
 	var hp_at := {}
 	var low_late := 9999.0
-	while not sim.over and sim.time < 1200.0:
+	while not sim.over and sim.time < until:
 		var move := Vector2.ZERO
 		if mode == "face" or mode == "smart":
 			# Turn the front to the thickest crowd close by, then step back so the shields meet it.
@@ -47,7 +48,7 @@ func run(balance: Dictionary, content: Content, seed: int, mode: String, provinc
 			low_late = minf(low_late, sim.commander.hp / sim.commander.max_hp)
 		var m := int(sim.time / 60.0)
 		if not hp_at.has(m):
-			hp_at[m] = "%d:%d/%d/%d" % [m, sim.commander.hp, sim.soldiers.size(), sim.horde.e_pos.size()]
+			hp_at[m] = "%d:%d/%d/%d/p%.2f/k%.1f/v%d" % [m, sim.commander.hp, sim.soldiers.size(), sim.horde.e_pos.size(), sim.horde.pursuit, sim.horde.kill_rate, sim.horde.march_speed]
 	return ("low_late=%.2f " % low_late) + "%-6s seed %d %s t=%4d lvl=%2d kills=%5d gods=%d  %s" % [mode, seed, "WIN " if sim.victory else "dead", sim.time, sim.level, sim.kills, sim.gods.calls, " ".join(hp_at.values().slice(0, 12))]
 
 
@@ -70,6 +71,8 @@ func _init() -> void:
 			over.modes = Array(kv[1].split(","))
 		elif kv.size() == 2 and kv[0] == "upgrades":
 			over.upgrades = kv[1]
+		elif kv.size() == 2 and kv[0] == "until":
+			over.until = float(kv[1])
 		elif kv.size() == 2 and kv[0] == "seeds":
 			over.seeds = Array(kv[1].split(",")).map(func(x: String) -> int: return int(x))
 	var bonuses := {}
@@ -79,5 +82,5 @@ func _init() -> void:
 				bonuses[id] = roundi(int(content.quartermaster[id].ranks) * 2.0 / 3.0)
 	for mode in over.get("modes", ["idle", "straight", "circle", "face", "smart"]):
 		for seed in over.get("seeds", [1, 2, 3, 4, 5, 6]):
-			print(run(balance, content, seed, mode, str(over.get("province", "germania")), bonuses))
+			print(run(balance, content, seed, mode, str(over.get("province", "germania")), bonuses, float(over.get("until", 1200.0))))
 	quit()

@@ -4245,6 +4245,51 @@ func test_the_profile_counts_the_runs_that_showed_the_ravine_tip(b: Dictionary) 
 	_cleanup_profile_files()
 
 
+func test_a_legion_that_marches_without_fighting_is_hunted(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 1520)
+	s.commander.max_hp = 1e9
+	s.commander.hp = 1e9
+	_step_dt(s, 90.0, Vector2.RIGHT)
+	check(s.horde.pursuit > 0.5, "marching on without a kill raises the pursuit (%.2f)" % s.horde.pursuit)
+	var since := s.horde.next_id
+	for k in 30 * 10:
+		s.update(1.0 / 30.0, Vector2.RIGHT, false)
+		if s.horde.next_id > since:
+			break
+	var ahead := 0
+	var behind := 0
+	for i in s.horde.e_pos.size():
+		if s.horde.e_id[i] >= since:
+			if s.horde.e_pos[i].x > s.commander.pos.x:
+				ahead += 1
+			else:
+				behind += 1
+	check(s.horde.e_pos.size() > 0 and ahead > behind, "and hunters come in ahead of its march (%d ahead, %d behind)" % [ahead, behind])
+	var hunter := s.horde.e_bare.find(1)
+	var coins := s.c_pos.size()
+	var bare := s.horde.bare_kills
+	if hunter >= 0:
+		s._kill(hunter)
+	check(hunter >= 0 and s.c_pos.size() == coins and s.horde.bare_kills == bare + 1, "a hunter carries no coins")
+
+
+func test_a_legion_that_holds_and_fights_is_not_hunted_but_one_standing_idle_is(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 1521)
+	s.commander.max_hp = 1e9
+	s.commander.hp = 1e9
+	for k in 120 * 30:
+		var back := 1.0 if (k / 60) % 2 == 0 else -1.0
+		s.update(1.0 / 30.0, Vector2.RIGHT * 0.2 * back, false)
+		if k % 15 == 0:
+			s.kills += 1
+	check(s.horde.pursuit < 0.05, "a legion stepping about as it kills is not hunted (%.2f)" % s.horde.pursuit)
+	var still := _quiet_sim(b, 1522)
+	still.commander.max_hp = 1e9
+	still.commander.hp = 1e9
+	_step_dt(still, 120.0)
+	check(still.horde.pursuit > 0.5, "one that never moves is (%.2f)" % still.horde.pursuit)
+
+
 func test_the_legion_marches_over_its_bridge(b: Dictionary) -> void:
 	var s := _quiet_sim(b, 1503)
 	for k in 6:

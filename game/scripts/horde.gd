@@ -176,8 +176,22 @@ var chief_fury := false
 var e_fury := PackedFloat32Array()
 # How hard an elite hits: softer for those who come early, harder in a rage; 1 for everyone else.
 var e_power := PackedFloat32Array()
+## 1 for a hunter sent after a running legion, who carries no coins.
+var e_bare := PackedByteArray()
 # Each elite's own ability timers and state, by enemy id, since there are only ever a few of them.
 var boss := {}
+## How hard the horde hunts a legion that keeps marching without fighting, or never moves: 1 brings hunters from all round, and it climbs on to `cap`.
+var pursuit := 0.0
+## The kills a second and the march speed, each averaged over the last few seconds, and the way the legion is heading.
+var kill_rate := 0.0
+var march_speed := 0.0
+var heading := Vector2.ZERO
+var _p_next := 0.0
+var _p_from := Vector2.INF
+var _p_kills := 0
+## Hunters killed, left out of the kill rate so killing them never calls the hunt off.
+var bare_kills := 0
+var next_hunt := 0.0
 
 
 func _init(balance: Dictionary, game_content: Content, random: RandomNumberGenerator, commander_unit: Dictionary, province_id: String) -> void:
@@ -334,6 +348,7 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 	e_pace.append(k_speed[kind])
 	e_fury.append(1.0)
 	e_power.append(power)
+	e_bare.append(0)
 	return e_id.size() - 1
 
 
@@ -439,6 +454,7 @@ func update(dt: float, sim: Sim) -> void:
 		if trail.size() > int(b.war_band.get("loop_samples", 0)):
 			trail.remove_at(0)
 	_spawn(dt, sim)
+	_pursue(sim)
 	_chieftain(dt, sim)
 	_rally(dt, sim)
 	_bosses(dt, sim)
@@ -473,6 +489,7 @@ func _spawn(dt: float, sim: Sim) -> void:
 			var a := side + rng.randf_range(-0.6, 0.6)
 			var r: float = b.spawn_radius + rng.randf_range(0.0, 80.0)
 			spawn(_pick_ordinary(), open_point(commander.pos + Vector2(cos(a) * 1.15, sin(a) * 0.75) * r))
+	next_boss -= dt * minf(1.0, pursuit) * float(b.get("pursuit", {}).get("boss_haste", 0.0))
 	if time >= next_boss:
 		next_boss += float(b.bosses.every)
 		_boss_arrival(sim)
@@ -482,6 +499,78 @@ func _spawn(dt: float, sim: Sim) -> void:
 		next_cart += float(b.cart.every)
 		if content.available.has("prop:supply_cart"):
 			spawn_cart()
+
+
+## Once a second, weighs how much the legion marches against how much it kills, and sends hunters after one that runs.
+func _pursue(sim: Sim) -> void:
+	var cfg: Dictionary = b.get("pursuit", {})
+	if cfg.is_empty() or time < _p_next:
+		return
+	var step := float(cfg.tick)
+	_p_next = time + step
+	if _p_from == Vector2.INF:
+		_p_from = commander.pos
+		_p_kills = sim.kills - bare_kills
+		return
+	var k := step / float(cfg.window)
+	var moved: Vector2 = (commander.pos - _p_from) / step
+	_p_from = commander.pos
+	kill_rate = lerpf(kill_rate, float(sim.kills - bare_kills - _p_kills) / step, k)
+	_p_kills = sim.kills - bare_kills
+	march_speed = lerpf(march_speed, moved.length(), k)
+	heading = heading.lerp(moved, k)
+	if time < float(cfg.from):
+		return
+	# Ground marched for each kill tells a legion that holds and fights from one that runs while its arms do the killing.
+	var per_kill := march_speed / maxf(kill_rate, 0.1)
+	if march_speed > float(cfg.moving) and per_kill > float(cfg.per_kill):
+		pursuit = minf(float(cfg.cap), pursuit + float(cfg.rise) * step * minf(1.0, per_kill / float(cfg.per_kill) - 1.0))
+	elif march_speed < float(cfg.still_speed):
+		pursuit = minf(float(cfg.cap), pursuit + float(cfg.still_rise) * step)
+	else:
+		pursuit = maxf(0.0, pursuit - float(cfg.fall) * step)
+	if pursuit >= float(cfg.hunt_min) and time >= next_hunt:
+		next_hunt = time + float(cfg.hunt_every)
+		_hunt(sim, cfg, moved)
+
+
+## Beasts and sprinters that come in ahead of the legion's march and, as the pursuit grows, from all round it, running at first and tougher and fiercer the longer the hunt goes on.
+func _hunt(sim: Sim, cfg: Dictionary, moved: Vector2) -> void:
+	var fast: Array = []
+	for id in ordinary:
+		var info: Dictionary = content.enemies[id]
+		if float(info.get("arrives", 0.0)) <= time and (info.behaviour == "beast" or info.has("sprint")):
+			fast.append(id)
+	if fast.is_empty() and not ordinary.is_empty():
+		fast.append(ordinary[0])
+	if fast.is_empty():
+		return
+	var n := int(pursuit * (float(cfg.hunt_start) + float(cfg.hunt_growth) * time) * float(cfg.province_mult.get(province, 1.0)))
+	var ahead := moved.angle() if moved.length() > 1.0 else rng.randf() * TAU
+	var spread := lerpf(float(cfg.spread_min), PI, minf(1.0, pursuit))
+	var first := e_pos.size()
+	var tough := 1.0 + float(cfg.tough) * maxf(0.0, pursuit - 1.0)
+	var fierce := 1.0 + float(cfg.fierce) * maxf(0.0, pursuit - 1.0)
+	for k in n:
+		if e_pos.size() >= int(b.max_enemies):
+			break
+		var wide := spread if k % 2 == 1 else float(cfg.spread_min)
+		var a := ahead + rng.randf_range(-wide, wide)
+		var r := float(b.spawn_radius) + rng.randf_range(0.0, 60.0)
+		spawn(fast[rng.randi_range(0, fast.size() - 1)], open_point(commander.pos + Vector2(cos(a) * 1.15, sin(a) * 0.75) * r))
+	for i in range(first, e_pos.size()):
+		e_slow[i] = float(b.war_band.get("rush", 1.0))
+		e_bare[i] = 1
+		e_hp[i] *= tough
+		e_max[i] *= tough
+		e_power[i] *= fierce
+	if e_pos.size() > first:
+		sim.event("surge", commander.pos)
+
+
+## The extra bosses let loose on a legion the horde is hunting, one more for each step of the pursuit past the first.
+func hunted_bosses() -> int:
+	return int(maxf(0.0, pursuit - 1.0) * float(b.get("pursuit", {}).get("bosses", 0.0)))
 
 
 ## Early bosses hit with part of their strength, growing from the first boss's arrival to the full by `early_until`, so only the opening is gentle.
@@ -522,7 +611,7 @@ func _boss_arrival(sim: Sim) -> void:
 	# Only the bosses that came on this timer count against its limit, not an objective's defender.
 	timed_ids = timed_ids.filter(func(id: int) -> bool: return elite_ids.has(id))
 	for k in n:
-		if timed_ids.size() >= mini(int(cfg.max_alive), int(float(cfg.max_alive_start) + float(cfg.max_alive_growth) * time)):
+		if timed_ids.size() >= mini(int(cfg.max_alive), int(float(cfg.max_alive_start) + float(cfg.max_alive_growth) * time)) + hunted_bosses():
 			break
 		var a := side + rng.randf_range(-0.5, 0.5)
 		var at := spawn(elites[rng.randi_range(0, elites.size() - 1)], open_point(commander.pos + Vector2(cos(a) * 1.15, sin(a) * 0.75) * b.spawn_radius), true)
@@ -1832,3 +1921,4 @@ func remove_at(i: int) -> void:
 	e_pace[i] = e_pace[last]; e_pace.resize(last)
 	e_fury[i] = e_fury[last]; e_fury.resize(last)
 	e_power[i] = e_power[last]; e_power.resize(last)
+	e_bare[i] = e_bare[last]; e_bare.resize(last)

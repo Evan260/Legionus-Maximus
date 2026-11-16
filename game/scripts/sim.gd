@@ -833,7 +833,9 @@ func _kill(i: int) -> void:
 		event("godready", commander.pos)
 	tally(1, horde.e_pos[i])
 	killed_kinds[id] = true
-	var pay := float(content.enemies[id].coins) * (1.0 + float(b.drills.plunder) * rank("plunder") + bonus_amount("denarii")) * (float(b.hard.denarii_mult) if hard else 1.0)
+	if horde.e_bare[i] == 1:
+		horde.bare_kills += 1
+	var pay := 0.0 if horde.e_bare[i] == 1 else float(content.enemies[id].coins) * (1.0 + float(b.drills.plunder) * rank("plunder") + bonus_amount("denarii")) * (float(b.hard.denarii_mult) if hard else 1.0)
 	# A fraction of a coin is paid as the same chance of one more.
 	var value := int(pay) + (1 if pay > floorf(pay) and rng.randf() < pay - floorf(pay) else 0)
 	var fell := _plunged.has(horde.e_id[i])

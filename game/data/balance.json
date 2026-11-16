@@ -23,6 +23,7 @@
   "palisade": {"cost": 4, "stakes": 7, "ahead": 50, "gap": 14, "bow": 8, "radius": 6, "seconds": 40, "fade": 3, "notice_seconds": 1.5},
   "triumph": {"seconds": 3.5, "wave_speed": 520, "coin_speed": 700, "cheer": 9.0, "hop": 4},
   "chieftain_guard": {"count": 10, "radius": 48},
+  "pursuit": {"tick": 1.0, "window": 20.0, "from": 45, "moving": 18, "per_kill": 1.5, "rise": 0.012, "fall": 0.03, "still_speed": 3, "still_rise": 0.02, "hunt_min": 0.2, "hunt_every": 6.0, "hunt_start": 2, "hunt_growth": 0.06, "spread_min": 0.6, "boss_haste": 1.0, "cap": 4.0, "bosses": 1.0, "tough": 1.25, "fierce": 0.5, "province_mult": {"gaul": 0.45}},
   "surge_every": 90,
   "war_band": {"first": 38, "every": 26, "size_start": 6, "size_growth": 0.0176, "spread": 30, "rush": 1.8, "rush_seconds": 5.0, "rush_from": 120, "loop_samples": 16, "loop_spread": 260, "loop_walk": 500, "loop_mult": 1.6, "loop_from": 0},
   "spawn_per_second_start": 0.88,
