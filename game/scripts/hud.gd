@@ -110,8 +110,10 @@ func _scene() -> void:
 	var bosses := boss_names(sim)
 	for b in bosses:
 		text(b.name, Vector2(b.rect.position.x, b.rect.position.y + Ui.px), GOLD_LIGHT)
-	_objective_arrows(sim, bosses.map(func(b: Dictionary) -> Rect2: return b.rect))
+	if sim.triumph_left <= 0.0:
+		_objective_arrows(sim, bosses.map(func(b: Dictionary) -> Rect2: return b.rect))
 	_god_banner(sim)
+	_victory_banner(sim)
 	if main.state == "choose" or main.state == "pray":
 		_choices(sim)
 
@@ -307,6 +309,25 @@ func _god_banner(sim: Sim) -> void:
 	var y := Ui.view.y * 0.24
 	draw_string(Ui.font(), Vector2(3, y + 3), name, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x, size, Color(INK, a))
 	draw_string(Ui.font(), Vector2(0, y), name, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x, size, Color(GOLD_LIGHT, a))
+
+
+## The great VICTORY across the field while the legion holds its triumph, between two laurels, with the province's name below.
+func _victory_banner(sim: Sim) -> void:
+	if sim.triumph_left <= 0.0 or main.state != "play":
+		return
+	var a := clampf(sim.triumph_t * 3.0, 0.0, 1.0)
+	var grow := 1.0 + 0.25 * (1.0 - clampf(sim.triumph_t * 2.5, 0.0, 1.0))
+	var size := int(Ui.px * 5 * grow)
+	var word := tr("Victory").to_upper()
+	var y := Ui.view.y * 0.3
+	var w := Ui.font().get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	draw_rect(Rect2(0, y - size * 1.1, Ui.view.x, size * 1.6 + Ui.leading()), Color(INK, 0.45 * a))
+	draw_string(Ui.font(), Vector2(4, y + 4), word, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x, size, Color(INK, a))
+	draw_string(Ui.font(), Vector2(0, y), word, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x, size, Color(GOLD_LIGHT, a))
+	for side in [-1.0, 1.0]:
+		_laurel(Vector2(Ui.view.x / 2.0 + side * (w / 2.0 + 22.0), y - size * 0.35))
+	var line := tr("%s is won") % str(sim.content.provinces[sim.province].name)
+	draw_string(Ui.font(), Vector2(0, y + Ui.leading() + Ui.px * 0.6), line.to_upper(), HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x, Ui.px, Color(CREAM, a))
 
 
 ## The name of an objective or the fort, as the arrows and notices show it.

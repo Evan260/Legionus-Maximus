@@ -1,8 +1,10 @@
 class_name SummaryScreen
 extends RefCounted
-## The summary after a run: the numbers, the damage each weapon did as bars, and the legion's size over the run as a line.
+## The summary after a run: the numbers, the damage each weapon did as bars, what the run unlocked, and the legion's size over the run as a line.
 
 const BARS := 8
+## Seconds between one unlock appearing and the next.
+const UNLOCK_STEP := 0.35
 
 var main: Node
 
@@ -32,6 +34,26 @@ static func held_line(sim: Sim) -> String:
 		return TranslationServer.translate("Held out %s after the chieftain") % clock(sim.endless_seconds())
 	var extra := int(sim.endless_seconds())
 	return TranslationServer.translate("Endless  +%d:%02d") % [extra / 60, extra % 60]
+
+
+## What the run unlocked, from the profile at its start and now: new provinces, the modes of a province won for the first time,
+## new commanders and new achievements, each as {kind, id, text}.
+static func unlocks(before: Dictionary, after: Dictionary, content: Content, province: String) -> Array:
+	var out: Array = []
+	for id in after.unlocked.provinces:
+		if not before.unlocked.provinces.has(id) and content.ready("provinces", id):
+			out.append({"kind": "province", "id": id, "text": TranslationServer.translate("%s is open") % str(content.provinces[id].name)})
+	var was: Dictionary = before.records.get(province, {})
+	var now: Dictionary = after.records.get(province, {})
+	if bool(now.get("won", false)) and not bool(was.get("won", false)) and content.provinces.has(province):
+		out.append({"kind": "modes", "id": province, "text": TranslationServer.translate("Hard, Endless and Decimatio in %s") % str(content.provinces[province].name)})
+	for id in after.unlocked.commanders:
+		if not before.unlocked.commanders.has(id) and content.commanders.has(id):
+			out.append({"kind": "commander", "id": id, "text": TranslationServer.translate("%s joins the camp") % str(content.commanders[id].name)})
+	for id in after.achievements:
+		if not before.achievements.has(id) and content.achievements.has(id):
+			out.append({"kind": "achievement", "id": id, "text": str(content.achievements[id].name)})
+	return out
 
 
 static func short(n: float) -> String:
@@ -113,6 +135,9 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 		ui.text(c, stats[i][1], Vector2(0, top + i * srow), Ui.RED, HORIZONTAL_ALIGNMENT_RIGHT, lx + left_w)
 	_bars(c, ui, sim, Rect2(lx + left_w + 16.0, top, r.end.x - 12.0 - (lx + left_w + 16.0), brow * (BARS + 1)), brow)
 	var cap_y := top + brow * (BARS + 1) + 8.0
+	var gained: Array = unlocks(main.profile_at_start, Profile.data, main.content, sim.province) if not main.profile_at_start.is_empty() else []
+	if not gained.is_empty():
+		cap_y = _unlocked(c, ui, gained, Rect2(lx, cap_y - 2.0, r.size.x - 24.0, 0.0)) + 8.0
 	var h := 30.0 if s > 1 else 22.0
 	var chart := Rect2(lx, cap_y + 6.0, r.size.x - 24.0, r.end.y - h - 14.0 - (cap_y + 6.0))
 	_chart(c, ui, sim, chart, cap_y)
@@ -122,6 +147,80 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	if sim.demo_over and int(main.balance.demo.store_app_id) > 0:
 		var wide := wide_button_width()
 		ui.button(c, Rect2(r.end.x - 12.0 - 2.0 * bw - 16.0 - wide, r.end.y - h - 6.0, wide, h), "wishlist", tr("Wishlist").to_upper(), "", true, null, true)
+
+
+## The gold band of what the run unlocked, each with its picture, appearing one after another; returns the y below it.
+func _unlocked(c: CanvasItem, ui: Ui, gained: Array, area: Rect2) -> float:
+	var s := Ui.scale
+	var pic := 16.0 * s
+	var cols := 2
+	var col_w := floorf(area.size.x / cols)
+	var row_h := pic + 4.0
+	var rows := ceili(gained.size() / float(cols))
+	var band := Rect2(area.position.x, area.position.y, area.size.x, Ui.leading() + rows * row_h + 8.0)
+	c.draw_rect(band.grow(1), Ui.GOLD)
+	c.draw_rect(band, Color(0.24, 0.15, 0.1))
+	c.draw_rect(Rect2(band.position, Vector2(band.size.x, 1)), Ui.GOLD_LIGHT)
+	ui.text(c, tr("Unlocked").to_upper(), Vector2(band.position.x + 6.0, band.position.y + 2.0 + Ui.px), Ui.GOLD_LIGHT)
+	var age: float = main.clock - main.opened_at
+	for k in gained.size():
+		var a := clampf((age - k * UNLOCK_STEP) * 4.0, 0.0, 1.0)
+		if a <= 0.0:
+			continue
+		var at := Vector2(band.position.x + 6.0 + (k % cols) * col_w, band.position.y + Ui.leading() + 4.0 + (k / cols) * row_h)
+		# Each one lands with a short rise and a flash of gold, so the list reads as a reward.
+		var lift := (1.0 - a) * 4.0
+		var box := Rect2(at + Vector2(0, lift), Vector2(pic, pic))
+		c.draw_rect(box.grow(1), Color(Ui.GOLD, a))
+		_unlock_picture(c, ui, gained[k], box, a)
+		ui.fit_text(c, str(gained[k].text), col_w - pic - 14.0, Vector2(box.end.x + 5.0, box.position.y + pic / 2.0 + Ui.px * 0.4), Color(Ui.CREAM, a))
+	return band.end.y
+
+
+## The picture for one unlock: the province's ground, a laurel for its modes or an achievement, or the new commander's man.
+func _unlock_picture(c: CanvasItem, ui: Ui, u: Dictionary, box: Rect2, a: float) -> void:
+	var tint := Color(1, 1, 1, a)
+	match u.kind:
+		"province":
+			# The province shows the last prop of its own, such as a Gaulish village.
+			c.draw_rect(box, Color(0.42, 0.5, 0.28, a))
+			var atlas: Atlas = main.world.atlas
+			var prop := ""
+			for key in main.content.provinces[u.id].get("art", []):
+				if str(key).begins_with("prop:"):
+					prop = str(key).trim_prefix("prop:")
+			if atlas != null and atlas.props.has(prop):
+				var f := atlas.prop_frame(prop)
+				var src: Rect2 = f[0]
+				var k := minf(box.size.x / src.size.x, box.size.y / src.size.y)
+				var size := src.size * k
+				c.draw_texture_rect_region(atlas.texture, Rect2(box.get_center() - size / 2.0, size), src, tint)
+		"commander":
+			var atlas: Atlas = main.world.atlas
+			var unit := "commander"
+			for key in main.content.commanders[u.id].get("art", []):
+				if str(key).begins_with("unit:"):
+					unit = str(key).trim_prefix("unit:")
+				elif str(key).begins_with("icon:") and ui.icon(str(key).trim_prefix("icon:")) != null:
+					c.draw_rect(box, Ui.PARCH)
+					c.draw_texture_rect(ui.icon(str(key).trim_prefix("icon:")), box, false, tint)
+					return
+			c.draw_rect(box, Ui.PARCH)
+			if atlas != null and atlas.units.has(unit):
+				var f: Array = atlas.unit_frame(unit, "idle" if atlas.units[unit].has("idle") else "move", "south", 0.0)
+				var src: Rect2 = f[0]
+				var k := minf(box.size.x / src.size.x, box.size.y / src.size.y) * 1.3
+				var size := src.size * k
+				c.draw_texture_rect_region(atlas.texture, Rect2(box.get_center() - size / 2.0 + Vector2(0, -1), size), src, tint)
+		_:
+			c.draw_rect(box, Color(0.36, 0.22, 0.12, a))
+			var mid := box.get_center()
+			for side in [-1.0, 1.0]:
+				for i in 6:
+					var ang := deg_to_rad(120.0 + 20.0 * i)
+					var p := mid + Vector2(cos(ang) * side, -sin(ang)) * box.size.x * 0.33
+					c.draw_rect(Rect2(floorf(p.x) - 1.0, floorf(p.y) - 1.0, 2, 2), Color(Ui.GOLD if i % 2 == 0 else Ui.GOLD_LIGHT, a))
+			c.draw_rect(Rect2(mid.x - 1.5, mid.y - 1.5, 3, 3), Color(Ui.RED if u.kind == "achievement" else Ui.CREAM, a))
 
 
 func _bars(c: CanvasItem, ui: Ui, sim: Sim, area: Rect2, row: float) -> void:

@@ -119,6 +119,9 @@ var _last_hp := 0.0
 var _tally_n := PackedInt32Array([0, 0, 0, 0, 0, 0])
 var _tally_pos := PackedVector2Array([Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO])
 var _chieftain_heard := false
+## Seconds left of the triumph after a win, and how long it has played.
+var triumph_left := 0.0
+var triumph_t := 0.0
 var _hurt_heard := -1e9
 ## Logs from felled trees, spent on palisades.
 var timber := 0
@@ -259,6 +262,9 @@ func pickup_radius() -> float:
 
 func update(dt: float, move: Vector2, testudo_pressed: bool) -> void:
 	if over:
+		return
+	if triumph_left > 0.0:
+		_triumph(dt)
 		return
 	time += dt
 	terrain.clock = time
@@ -803,11 +809,37 @@ func _kill(i: int) -> void:
 func win(pos: Vector2) -> void:
 	victory = true
 	event("victory", pos)
+	event("triumph", commander.pos)
+	event("fanfare", commander.pos)
 	objectives.fort_reached = true
-	if not endless:
-		over = true
-	elif endless_since < 0.0:
+	triumph_left = float(b.triumph.seconds)
+	triumph_t = 0.0
+	if endless and endless_since < 0.0:
 		endless_since = time
+
+
+## The triumph after a win: a wave out from the commander kills every barbarian, every coin flies to him, and the clock stands still.
+func _triumph(dt: float) -> void:
+	var cfg: Dictionary = b.triumph
+	triumph_t += dt
+	var reach := triumph_t * float(cfg.wave_speed)
+	var before := kills
+	var i := horde.e_pos.size() - 1
+	while i >= 0:
+		if horde.e_pos[i].distance_to(commander.pos) <= reach:
+			_plunged.erase(horde.e_id[i])
+			_kill(i)
+		i -= 1
+	if kills > before:
+		legion.veterans(kills - before, self)
+	c_pull.fill(1)
+	_coins(dt, float(cfg.coin_speed))
+	_effects(dt)
+	_float_numbers(dt)
+	_flush_events()
+	triumph_left -= dt
+	if triumph_left <= 0.0 and not endless:
+		over = true
 
 
 ## The denarii the run banks: those carried and the purses of the objectives done.
@@ -852,7 +884,7 @@ func drop_coin(pos: Vector2, value: int) -> void:
 		c_born.resize(last)
 
 
-func _coins(dt: float) -> void:
+func _coins(dt: float, pull_speed := 220.0) -> void:
 	var r2 := pickup_radius() * pickup_radius()
 	var far := legion_reach + pickup_radius()
 	var far2 := far * far
@@ -876,7 +908,7 @@ func _coins(dt: float) -> void:
 				c_pull.resize(last)
 				c_born.resize(last)
 			else:
-				c_pos[i] += to / d * minf(d, 220.0 * dt)
+				c_pos[i] += to / d * minf(d, pull_speed * dt)
 		i -= 1
 
 

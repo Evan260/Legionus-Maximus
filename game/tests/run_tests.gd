@@ -440,7 +440,8 @@ func test_the_chieftain_comes_and_his_death_wins(b: Dictionary) -> void:
 	s.objectives.fort.seen = true
 	s.hit(ci, 1e9)
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
-	check(s.over and s.victory, "once the fort has been seen, his death ends the run in victory")
+	_step_dt(s, float(b.triumph.seconds) + 0.1)
+	check(s.over and s.victory, "once the fort has been seen, his death ends the run in victory, after its triumph")
 
 
 func test_the_commanders_death_loses(b: Dictionary) -> void:
@@ -1570,6 +1571,7 @@ func test_endless_keeps_going_after_the_chieftain(b: Dictionary) -> void:
 	s.hit(ci, 1e9)
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
 	check(not s.over and s.victory, "his death does not end an endless run but wins it")
+	_step_dt(s, float(b.triumph.seconds) + 0.1)
 	s.commander.hp = 0.0
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
 	check(s.over and s.victory, "the win stands when the legion falls later")
@@ -1595,6 +1597,7 @@ func test_endless_keeps_going_after_the_chieftain(b: Dictionary) -> void:
 	normal.objectives.fort.seen = true
 	normal.hit(normal.chieftain_index(), 1e9)
 	normal.update(1.0 / 60.0, Vector2.ZERO, false)
+	_step_dt(normal, float(b.triumph.seconds) + 0.1)
 	check(normal.over and normal.victory, "a normal run still ends with the chieftain")
 
 
@@ -2209,7 +2212,7 @@ func test_demo_offers_three_commanders(b: Dictionary) -> void:
 	Game.demo_forced = true
 	check(Game.commanders(content, b) == ready.slice(0, 3), "the demo lists the first three drawn commanders")
 	check(Game.province_allowed("germania", b) and not Game.province_allowed("gaul", b), "the demo opens Germania only")
-	check(Game.run_cap(b) == 900.0, "the demo caps the run at 900 seconds")
+	check(Game.run_cap(b) == float(b.demo.seconds) and float(b.demo.seconds) < float(b.chieftain_at), "the demo caps the run at its time limit, before the chieftain")
 	var saved: Dictionary = Profile.data
 	Profile.data = Profile.defaults()
 	for id in Game.commanders(content, b):
@@ -2598,9 +2601,9 @@ func test_a_word_too_long_for_a_line_is_broken(b: Dictionary) -> void:
 
 
 func test_title_goal_comes_from_the_balance(b: Dictionary) -> void:
-	check("16" in Game.goal_text(b) and "fort" in Game.goal_text(b), "the full game names 16 minutes and the fort")
+	check(str(int(float(b.chieftain_at) / 60.0)) in Game.goal_text(b) and "fort" in Game.goal_text(b), "the full game names the minutes to the chieftain and the fort")
 	Game.demo_forced = true
-	check("15" in Game.goal_text(b) and not "chieftain" in Game.goal_text(b), "the demo names 15 minutes and no chieftain")
+	check(str(int(float(b.demo.seconds) / 60.0)) in Game.goal_text(b) and not "chieftain" in Game.goal_text(b), "the demo names its minutes and no chieftain")
 	Game.demo_forced = false
 
 
@@ -2880,7 +2883,7 @@ func test_the_fort_appears_with_the_chieftain_and_holding_it_wins(b: Dictionary)
 	check(cp.distance_to(fort.pos) < d and (cp - s.commander.pos).dot(fort.pos - s.commander.pos) > 0.0, "between the legion and the fort")
 	s.horde.e_pos[ci] = s.commander.pos + Vector2(0, 2000)
 	s.commander.pos = fort.centre
-	_step_dt(s, float(cfg.hold) + 0.2)
+	_step_dt(s, float(cfg.hold) + 0.2 + float(b.triumph.seconds))
 	check(s.over and s.victory, "holding the fort wins the run")
 	var e := _mode_sim(b, {"seed": 157, "endless": true})
 	e.objectives.list.clear()
@@ -3130,7 +3133,7 @@ func test_holding_the_fort_wins_the_run(b: Dictionary) -> void:
 	s.commander.pos = fort.centre
 	_step_dt(s, hold * 0.5)
 	check(not s.over and fort.hold > 0.0, "half the time inside the walls is not enough")
-	_step_dt(s, hold * 0.5 + 0.2)
+	_step_dt(s, hold * 0.5 + 0.2 + float(b.triumph.seconds))
 	check(s.over and s.victory, "holding the fort for %d seconds wins the run" % int(hold))
 	var l := _fort_sim(b, 402)
 	l.commander.pos = l.objectives.fort.centre
@@ -3665,9 +3668,9 @@ func test_bosses_arrive_on_their_own_timer(b: Dictionary) -> void:
 
 
 func test_the_horde_is_a_quarter_thinner(b: Dictionary) -> void:
-	check(is_equal_approx(float(b.spawn_per_second_start), 0.75) and is_equal_approx(float(b.spawn_per_second_growth), 0.015), "the stream is a quarter thinner")
-	check(int(b.surge_size_start) == 9 and is_equal_approx(float(b.surge_size_growth), 0.045), "so are the surges")
-	check(int(b.war_band.size_start) == 6 and is_equal_approx(float(b.war_band.size_growth), 0.01125), "and the war bands")
+	check(is_equal_approx(float(b.spawn_per_second_start), 0.75) and is_equal_approx(float(b.spawn_per_second_growth), 0.02), "the stream is a quarter thinner")
+	check(int(b.surge_size_start) == 9 and is_equal_approx(float(b.surge_size_growth), 0.06), "so are the surges")
+	check(int(b.war_band.size_start) == 6 and is_equal_approx(float(b.war_band.size_growth), 0.015), "and the war bands")
 
 
 func _boss_sim(b: Dictionary, seed_value: int, kind: String, at: Vector2) -> Array:
@@ -5418,3 +5421,77 @@ func test_quartermaster_choice_luck_brings_more_arms_and_recruits(b: Dictionary)
 					hits += 1
 		share[rank] = float(hits) / total
 	check(share[3] > share[0], "three ranks bring arms and recruits up more often (%.2f vs %.2f)" % [share[3], share[0]])
+
+
+func _won_sim(b: Dictionary, seed_value: int, options := {}) -> Sim:
+	var opts := {"seed": seed_value}
+	opts.merge(options)
+	var s := Sim.new(b, content, opts)
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	for k in 40:
+		s.horde.spawn("barbarian_club", s.commander.pos + Vector2.from_angle(k * 0.7) * (60.0 + k * 9.0))
+	for k in 30:
+		s.drop_coin(s.commander.pos + Vector2.from_angle(k * 1.3) * (80.0 + k * 10.0), 2)
+	return s
+
+
+func test_a_win_ends_in_a_triumph(b: Dictionary) -> void:
+	var cfg: Dictionary = b.triumph
+	var s := _won_sim(b, 1650)
+	var t0 := s.time
+	var money := s.denarii
+	s.win(s.commander.pos)
+	check(not s.over and s.triumph_left > 0.0, "a win first holds a triumph before the run ends")
+	check(s.events.any(func(e: Dictionary) -> bool: return e.kind == "victory"), "with the victory sound")
+	var near_gone_at := -1.0
+	var far_gone_at := -1.0
+	var near_id := -1
+	var far_id := -1
+	var best := INF
+	var worst := 0.0
+	for i in s.horde.e_pos.size():
+		var d: float = s.horde.e_pos[i].distance_to(s.commander.pos)
+		if d < best:
+			best = d
+			near_id = s.horde.e_id[i]
+		if d > worst:
+			worst = d
+			far_id = s.horde.e_id[i]
+	var start: Vector2 = s.commander.pos
+	var steps := 0
+	while not s.over and steps < 600:
+		s.update(1.0 / 60.0, Vector2.RIGHT, false)
+		steps += 1
+		if near_gone_at < 0.0 and not s.horde.e_id.has(near_id):
+			near_gone_at = steps
+		if far_gone_at < 0.0 and not s.horde.e_id.has(far_id):
+			far_gone_at = steps
+	check(s.over and s.victory, "then the run ends in victory")
+	check(absf(steps / 60.0 - float(cfg.seconds)) < 0.1, "after about %.1f s (%.2f)" % [float(cfg.seconds), steps / 60.0])
+	check(s.horde.e_pos.is_empty(), "every barbarian on the field dies")
+	check(near_gone_at > 0.0 and far_gone_at > near_gone_at, "in a wave from the commander outwards (%d then %d)" % [near_gone_at, far_gone_at])
+	check(s.c_pos.is_empty() and s.denarii >= money + 60, "every coin flies to the commander and is counted (%d)" % (s.denarii - money))
+	check(s.time == t0 and s.commander.pos == start, "the clock and the commander stand still while it plays")
+
+
+func test_an_endless_win_triumphs_and_goes_on(b: Dictionary) -> void:
+	var s := _won_sim(b, 1651, {"endless": true})
+	s.win(s.commander.pos)
+	_step_dt(s, float(b.triumph.seconds) + 0.5)
+	check(not s.over and s.victory and s.triumph_left <= 0.0, "an endless run holds its triumph and then marches on")
+	check(s.endless_since >= 0.0, "counting the endless time from the win")
+
+
+func test_the_summary_lists_what_a_win_unlocked(b: Dictionary) -> void:
+	var before := Profile.merge_saved({"unlocked": {"commanders": ["tribune"], "provinces": ["germania"]}, "achievements": []})
+	var after := Profile.merge_saved({"unlocked": {"commanders": ["tribune", "archer_captain"], "provinces": ["germania", "gaul"]},
+		"records": {"germania": {"won": true, "best_time": 700.0}}, "achievements": ["win_germania"]})
+	var got := SummaryScreen.unlocks(before, after, content, "germania")
+	var kinds: Array = got.map(func(u: Dictionary) -> String: return u.kind)
+	check(kinds == ["province", "modes", "commander", "achievement"], "a first win lists the new province, the modes, the commander and the achievement in that order (%s)" % [kinds])
+	if got.size() == 4:
+		check(str(content.provinces.gaul.name) in got[0].text, "the province line names it (%s)" % got[0].text)
+		check(str(content.commanders.archer_captain.name) in got[2].text, "the commander line names him (%s)" % got[2].text)
+		check(got[3].text == str(content.achievements.win_germania.name), "the achievement line names it")
+	check(SummaryScreen.unlocks(after, after, content, "germania").is_empty(), "a run that unlocks nothing lists nothing")

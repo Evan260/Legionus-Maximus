@@ -164,8 +164,9 @@ func _draw() -> void:
 	var gold := Color(1.0, 0.92, 0.7)
 	var cursed := Color(0.78, 0.55, 1.0)
 	var stunned := Color(0.78, 0.74, 0.62)
+	var cheering := sim.triumph_left > 0.0
 	for u in [sim.commander] + sim.soldiers:
-		var f := _legion_frame(u)
+		var f := _cheer_frame(u) if cheering else _legion_frame(u)
 		var mod := white
 		if u.flash > 0.0:
 			mod = Color(1.0, 0.55, 0.55)
@@ -176,7 +177,10 @@ func _draw() -> void:
 		elif sim.testudo_left > 0.0:
 			mod = gold
 		draw_texture(shadow, _snap(u.pos - Vector2(8, 3)))
-		_add(u.pos.y, f[0], u.pos - f[1], mod, true)
+		var hop := Vector2.ZERO
+		if cheering:
+			hop.y = -absf(sin(sim.triumph_t * float(sim.b.triumph.cheer) + float(u.anim))) * float(sim.b.triumph.hop)
+		_add(u.pos.y, f[0], u.pos - f[1] + hop, mod, true)
 
 	if _kinds_of != sim:
 		_index_kinds()
@@ -246,6 +250,7 @@ func _draw() -> void:
 	_draw_boss_heads(view)
 	_draw_lobs(tex)
 	_draw_effects()
+	_draw_triumph_wave()
 	_draw_objective_marks(view)
 	_draw_numbers()
 	_draw_torches()
@@ -262,6 +267,28 @@ func _legion_frame(u: Dictionary) -> Array:
 		if not f.is_empty():
 			return f
 	return atlas.unit_frame(u.type, "move" if u.moving else "idle", Sim.dir_name(u.facing), u.anim)
+
+
+## The gold ring of the triumph running out from the commander, with a second fainter one behind it.
+func _draw_triumph_wave() -> void:
+	if sim.triumph_left <= 0.0:
+		return
+	var reach := sim.triumph_t * float(sim.b.triumph.wave_speed)
+	if reach > 700.0:
+		return
+	var a := clampf(1.0 - reach / 700.0, 0.0, 1.0)
+	draw_arc(sim.commander.pos, reach, 0.0, TAU, 96, Color(1.0, 0.89, 0.59, a), 3.0)
+	if reach > 30.0:
+		draw_arc(sim.commander.pos, reach - 24.0, 0.0, TAU, 96, Color(0.91, 0.69, 0.25, a * 0.5), 2.0)
+
+
+## A soldier cheering the win: he turns to the front and swings his weapon or raises his shield again and again, each in his own time.
+func _cheer_frame(u: Dictionary) -> Array:
+	var period := Atlas.ATTACK_FRAMES / Atlas.ATTACK_FPS * 1.6
+	var f := atlas.attack_frame(u.type, "south", fmod(sim.triumph_t + float(u.anim) * 0.37, period))
+	if not f.is_empty():
+		return f
+	return atlas.unit_frame(u.type, "idle", "south", 0.0)
 
 
 func _index_kinds() -> void:

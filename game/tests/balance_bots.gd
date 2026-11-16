@@ -27,6 +27,11 @@ func run(balance: Dictionary, content: Content, seed: int, mode: String, provinc
 		elif mode == "circle":
 			move = Vector2(cos(sim.time * 0.4), sin(sim.time * 0.4))
 		sim.update(dt, move, mode != "idle" and sim.testudo_charge >= 1.0 and sim.commander.hp < sim.commander.max_hp * 0.5)
+		# Every bot but the one standing still calls a god as soon as the favour fills.
+		if mode != "idle" and sim.gods.full(sim.b):
+			var gods := Gods.offers(sim)
+			if not gods.is_empty():
+				sim.gods.invoke(sim, gods[rng.randi_range(0, gods.size() - 1)])
 		while sim.pending_levels > 0 or sim.free_choices > 0:
 			var picks := Upgrades.next_choices(sim)
 			if picks.is_empty():
@@ -42,7 +47,7 @@ func run(balance: Dictionary, content: Content, seed: int, mode: String, provinc
 		var m := int(sim.time / 60.0)
 		if not hp_at.has(m):
 			hp_at[m] = "%d:%d/%d/%d" % [m, sim.commander.hp, sim.soldiers.size(), sim.horde.e_pos.size()]
-	return ("low_late=%.2f " % low_late) + "%-6s seed %d %s t=%4d lvl=%2d kills=%5d  %s" % [mode, seed, "WIN " if sim.victory else "dead", sim.time, sim.level, sim.kills, " ".join(hp_at.values().slice(0, 12))]
+	return ("low_late=%.2f " % low_late) + "%-6s seed %d %s t=%4d lvl=%2d kills=%5d gods=%d  %s" % [mode, seed, "WIN " if sim.victory else "dead", sim.time, sim.level, sim.kills, sim.gods.calls, " ".join(hp_at.values().slice(0, 12))]
 
 
 func _init() -> void:
@@ -55,7 +60,16 @@ func _init() -> void:
 	content.base_commander.merge(over.get("commander", {}), true)
 	for k in over.get("enemies", {}):
 		content.enemies[k].merge(over.enemies[k], true)
+	# Flags after `--` (--province=gaul --modes=face,smart --seeds=1,2,3) take the place of the file's keys, so several runs can go at once.
+	for a in OS.get_cmdline_user_args():
+		var kv: PackedStringArray = a.trim_prefix("--").split("=")
+		if kv.size() == 2 and kv[0] == "province":
+			over.province = kv[1]
+		elif kv.size() == 2 and kv[0] == "modes":
+			over.modes = Array(kv[1].split(","))
+		elif kv.size() == 2 and kv[0] == "seeds":
+			over.seeds = Array(kv[1].split(",")).map(func(x: String) -> int: return int(x))
 	for mode in over.get("modes", ["idle", "straight", "circle", "face", "smart"]):
-		for seed in over.get("seeds", [1, 2, 3, 4, 5]):
+		for seed in over.get("seeds", [1, 2, 3, 4, 5, 6]):
 			print(run(balance, content, seed, mode, str(over.get("province", "germania"))))
 	quit()

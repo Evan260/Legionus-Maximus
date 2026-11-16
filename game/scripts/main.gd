@@ -45,6 +45,10 @@ var settings_from := "title"
 var swallow_input := false
 var check_clock := 0.0
 var opened_at := 0.0
+## The profile as it stood when the run began, so the summary can list what the run unlocked.
+var profile_at_start := {}
+## With --win-at, the second at which an autoplay wins, for a look at the triumph.
+var win_at := -1.0
 var god_at := -1.0
 var run_setup := {"province": "germania", "commander": "tribune", "hard": false, "endless": false, "decimatio": false}
 
@@ -119,6 +123,8 @@ func _ready() -> void:
 		god_at = float(args.get("god-at", "2"))
 	if args.has("shot"):
 		shot_at = float(args.get("at", "3"))
+	if args.has("win-at"):
+		win_at = float(args["win-at"])
 
 
 ## Brings a boss close beside the legion and has him use one ability at once, for a screenshot.
@@ -346,6 +352,7 @@ func _finish_run() -> void:
 
 
 func _start() -> void:
+	profile_at_start = Profile.data.duplicate(true)
 	_new_sim()
 	state = "play"
 
@@ -383,7 +390,10 @@ func _process(dt: float) -> void:
 				_look_at_god(str(args.god))
 				if state != "play":
 					return
-			if Input.is_action_just_pressed("pray"):
+			if win_at >= 0.0 and sim.time >= win_at:
+				win_at = -1.0
+				sim.win(sim.commander.pos)
+			if Input.is_action_just_pressed("pray") and sim.triumph_left <= 0.0:
 				_open_gods()
 				if state != "play":
 					return
@@ -402,7 +412,7 @@ func _process(dt: float) -> void:
 			Audio.drain(sim)
 			if sim.over:
 				_finish_run()
-			elif sim.pending_levels > 0 or sim.free_choices > 0:
+			elif (sim.pending_levels > 0 or sim.free_choices > 0) and sim.triumph_left <= 0.0:
 				_open_choices()
 		"pray":
 			if args.has("autoplay") and clock - opened_at > 0.5 and args.get("god", "") != "choose":

@@ -607,7 +607,7 @@
    "dps": 1,
    "radius": 6,
    "coins": 2,
-   "arrives": 180,
+   "arrives": 135,
    "art": [
     "unit:axe_thrower"
    ],
@@ -623,7 +623,7 @@
    "dps": 2.5,
    "radius": 5,
    "coins": 1,
-   "arrives": 90,
+   "arrives": 68,
    "art": [
     "unit:wolf"
    ]
@@ -973,7 +973,7 @@
    "flank_charge": {
     "offset": 0.7
    },
-   "arrives": 120
+   "arrives": 90
   },
   "gaul_archer": {
    "name": "Archer",
@@ -994,7 +994,7 @@
     "delay": 1.1,
     "damage_mult": 0.33
    },
-   "arrives": 180
+   "arrives": 135
   },
   "boar": {
    "name": "Boar",
@@ -1016,7 +1016,7 @@
     "burst_mult": 1.5,
     "stun": 1.2
    },
-   "arrives": 90
+   "arrives": 68
   },
   "champion": {
    "name": "Champion",
@@ -1635,7 +1635,7 @@
    },
    "unlock": {
     "type": "survive",
-    "seconds": 960,
+    "seconds": 720,
     "max_soldiers": 10
    },
    "art": [
