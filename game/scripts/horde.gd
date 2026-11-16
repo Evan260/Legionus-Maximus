@@ -484,10 +484,16 @@ func _spawn(dt: float, sim: Sim) -> void:
 			spawn_cart()
 
 
-## Early bosses hit with part of their strength, growing to the full by `early_until`, so the opening stays learnable.
+## Early bosses hit with part of their strength, growing from the first boss's arrival to the full by `early_until`, so only the opening is gentle.
 func early_boss_mult() -> float:
 	var cfg: Dictionary = b.bosses
-	return lerpf(float(cfg.early_mult), 1.0, clampf(time / float(cfg.early_until), 0.0, 1.0))
+	return lerpf(float(cfg.early_mult), 1.0, _boss_ramp())
+
+
+## How far the bosses' opening has gone, from 0 when the first comes to 1 at `early_until`.
+func _boss_ramp() -> float:
+	var cfg: Dictionary = b.bosses
+	return clampf((time - float(cfg.first)) / maxf(1.0, float(cfg.early_until) - float(cfg.first)), 0.0, 1.0)
 
 
 ## Early bosses also come with part of their health, on their own curve so they stay tough while hitting softer.
@@ -499,7 +505,7 @@ func early_boss_health() -> float:
 ## How fast early bosses use their abilities, rising to full pace by `early_until`.
 func early_pace() -> float:
 	var cfg: Dictionary = b.bosses
-	return lerpf(float(cfg.early_pace), 1.0, clampf(time / float(cfg.early_until), 0.0, 1.0))
+	return lerpf(float(cfg.early_pace), 1.0, _boss_ramp())
 
 
 ## Bosses come from one side on their own timer, more of them at once as the run goes on.
@@ -509,6 +515,9 @@ func _boss_arrival(sim: Sim) -> void:
 	var cfg: Dictionary = b.bosses
 	var n := mini(int(cfg.count_max), int(float(cfg.count_start) + float(cfg.count_growth) * time))
 	var side := rng.randf() * TAU
+	# A marching legion meets its bosses ahead, since it would outpace any that came from behind.
+	if sim.moving:
+		side = sim.facing_angle + rng.randf_range(-1.0, 1.0)
 	var came := false
 	# Only the bosses that came on this timer count against its limit, not an objective's defender.
 	timed_ids = timed_ids.filter(func(id: int) -> bool: return elite_ids.has(id))
@@ -944,16 +953,19 @@ func _scorn(i: int, st: Dictionary, cfg: Dictionary, sim: Sim) -> void:
 	sim.effects.append({"kind": "cry", "pos": p, "t": 0.0, "radius": float(cfg.radius)})
 
 
-## The horn blower's blast: soldiers near enough are thrown back a step and the whole legion strikes slower for a few seconds.
+## The horn blower's blast: soldiers near enough are hurt and thrown back a step, and the whole legion strikes slower for a few seconds.
 func blast(i: int, cfg: Dictionary, sim: Sim) -> void:
 	var p := e_pos[i]
 	var reach := sim.legion_reach + float(cfg.range)
 	var push := float(cfg.push)
+	var dmg := float(cfg.get("damage", 0.0)) * e_power[i] * sim.frenzy_guard()
 	for u in sim.soldiers:
 		var off: Vector2 = u.pos - p
 		if off.length_squared() < reach * reach and off.length_squared() > 0.0001:
 			u.pos += off.normalized() * push
+			u.hp -= dmg
 	sim.units_moved()
+	sim.legion.remove_fallen(sim)
 	blast_left = float(cfg.seconds)
 	blast_slow = float(cfg.slow)
 	e_strike[i] = time

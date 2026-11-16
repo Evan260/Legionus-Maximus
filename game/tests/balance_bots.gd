@@ -1,9 +1,10 @@
 extends SceneTree
 ## Plays whole runs headless with four bots (standing still, marching straight, circling, turning to face the crowd, and facing with recruits first until the legion has 30)
 ## and prints when each dies, for tuning balance.json. Optional overrides go in tests/balance_overrides.json.
+## `"upgrades": "two_thirds"` (or --upgrades=two_thirds) plays with every quartermaster upgrade at two-thirds of its ranks, as a player well into the game.
 
-func run(balance: Dictionary, content: Content, seed: int, mode: String, province := "germania") -> String:
-	var sim := Sim.new(balance, content, {"seed": seed, "province": province})
+func run(balance: Dictionary, content: Content, seed: int, mode: String, province := "germania", bonuses := {}) -> String:
+	var sim := Sim.new(balance, content, {"seed": seed, "province": province, "profile_bonuses": bonuses})
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
 	var dt := 1.0 / 30.0
@@ -67,9 +68,16 @@ func _init() -> void:
 			over.province = kv[1]
 		elif kv.size() == 2 and kv[0] == "modes":
 			over.modes = Array(kv[1].split(","))
+		elif kv.size() == 2 and kv[0] == "upgrades":
+			over.upgrades = kv[1]
 		elif kv.size() == 2 and kv[0] == "seeds":
 			over.seeds = Array(kv[1].split(",")).map(func(x: String) -> int: return int(x))
+	var bonuses := {}
+	if over.get("upgrades", "") == "two_thirds":
+		for id in content.quartermaster:
+			if not content.quartermaster[id].get("repeat", false):
+				bonuses[id] = roundi(int(content.quartermaster[id].ranks) * 2.0 / 3.0)
 	for mode in over.get("modes", ["idle", "straight", "circle", "face", "smart"]):
 		for seed in over.get("seeds", [1, 2, 3, 4, 5, 6]):
-			print(run(balance, content, seed, mode, str(over.get("province", "germania"))))
+			print(run(balance, content, seed, mode, str(over.get("province", "germania")), bonuses))
 	quit()

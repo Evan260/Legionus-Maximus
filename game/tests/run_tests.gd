@@ -3668,9 +3668,9 @@ func test_bosses_arrive_on_their_own_timer(b: Dictionary) -> void:
 
 
 func test_the_horde_is_a_quarter_thinner(b: Dictionary) -> void:
-	check(is_equal_approx(float(b.spawn_per_second_start), 1.0) and is_equal_approx(float(b.spawn_per_second_growth), 0.02), "the stream starts at one a second and grows on the twelve minute clock")
-	check(int(b.surge_size_start) == 9 and is_equal_approx(float(b.surge_size_growth), 0.06), "so are the surges")
-	check(int(b.war_band.size_start) == 6 and is_equal_approx(float(b.war_band.size_growth), 0.02), "and the war bands")
+	check(is_equal_approx(float(b.spawn_per_second_start), 0.88) and is_equal_approx(float(b.spawn_per_second_growth), 0.0176), "the stream is trimmed by an eighth, leaving the bosses the main threat")
+	check(int(b.surge_size_start) == 8 and is_equal_approx(float(b.surge_size_growth), 0.053), "so are the surges")
+	check(int(b.war_band.size_start) == 6 and is_equal_approx(float(b.war_band.size_growth), 0.0176), "and the war bands' growth")
 
 
 func _boss_sim(b: Dictionary, seed_value: int, kind: String, at: Vector2) -> Array:
@@ -3914,6 +3914,25 @@ func test_early_bosses_come_weaker(b: Dictionary) -> void:
 	s.horde.e_hp[first] = 1.0
 	s.horde._bosses(1.0 / 60.0, s)
 	check(is_equal_approx(s.horde.e_power[first], float(cfg.early_mult) * float(content.enemies.berserker.rage.mult)), "his rage builds on it")
+
+
+func test_bosses_at_full_strength_cut_down_a_legionary(b: Dictionary) -> void:
+	var qm: Dictionary = content.quartermaster
+	var two_thirds := func(id: String) -> float: return roundi(int(qm[id].ranks) * 2.0 / 3.0) * float(qm[id].per_rank)
+	var s := _quiet_sim(b, 723, Content.with_all_art())
+	var hp: float = s.legion.max_hp_of("legionary") * (1.0 + two_thirds.call("soldier_health")) / (1.0 - two_thirds.call("armour"))
+	s.horde.time = float(b.bosses.early_until)
+	check(s.horde.early_boss_mult() == 1.0, "by %d s bosses hit at full strength" % int(b.bosses.early_until))
+	check(float(b.bosses.early_until) <= 180.0, "which is no later than three minutes in")
+	var berserker: Dictionary = content.enemies.berserker
+	check(float(berserker.dps) * float(berserker.whirlwind.damage_mult) >= hp, "a berserker's whirl fells a well-armoured legionary (%.0f against %.0f)" % [float(berserker.dps) * float(berserker.whirlwind.damage_mult), hp])
+	for id in ["chieftain", "gaul_king"]:
+		var info: Dictionary = content.enemies[id]
+		var atk: Dictionary = info.attacks
+		check(float(info.dps) * float(atk.cleave.damage_mult) >= hp, "%s's cleave fells one" % id)
+		check(float(info.dps) * float(atk.charge.burst_mult) >= hp, "and so does his charge")
+		if atk.has("slam"):
+			check(float(info.dps) * float(atk.slam.damage_mult) >= hp, "and his slam")
 
 
 func test_few_bosses_at_once_early_on(b: Dictionary) -> void:
@@ -4840,10 +4859,12 @@ func test_the_horn_blower_rallies_blasts_and_runs(b: Dictionary) -> void:
 	var rate := s.attack_rate()
 	var soldier: Dictionary = s.soldiers[0]
 	var before: float = soldier.pos.distance_to(h.e_pos[i])
+	var hp0: float = soldier.hp
 	st.blast_cd = 0.0
 	h._bosses(1.0 / 60.0, s)
 	check(h.blast_left > 0.0 and s.attack_rate() < rate, "his blast slows the legion's blows")
 	check(soldier.pos.distance_to(h.e_pos[i]) > before, "and pushes the soldiers back")
+	check(soldier.hp < hp0, "and hurts them")
 	check(h.k_beh[h.e_kind[i]] == Horde.LOBBER and h.k_lob[h.e_kind[i]] == 0, "he stands off and throws nothing")
 	soldier.pos = h.e_pos[i] + Vector2(-20, 0)
 	s._rebuild_grids()

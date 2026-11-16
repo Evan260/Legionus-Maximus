@@ -635,7 +635,7 @@
    "behaviour": "flanker",
    "hp": 5040,
    "speed": 50,
-   "dps": 14,
+   "dps": 18,
    "radius": 15,
    "coins": 0,
    "art": [
@@ -658,7 +658,7 @@
     "every": 7.0,
     "windup": 1.0,
     "radius": 45,
-    "damage_mult": 2.5,
+    "damage_mult": 3.6,
     "retry": 0.3
    },
    "rage": {
@@ -673,7 +673,7 @@
    "behaviour": "melee",
    "hp": 6000,
    "speed": 42,
-   "dps": 12,
+   "dps": 16,
    "radius": 15,
    "coins": 0,
    "art": [
@@ -717,7 +717,7 @@
     "every": 4.5,
     "flight": 1.2,
     "radius": 28,
-    "damage": 12
+    "damage": 18
    },
    "mend": {
     "every": 12.0,
@@ -758,14 +758,14 @@
      "every": 5.0,
      "reach": 34,
      "arc": 2.0,
-     "damage_mult": 1.2,
+     "damage_mult": 2.5,
      "retry": 0.25
     },
     "charge": {
      "every": 11.0,
      "speed_mult": 4.0,
      "seconds": 0.7,
-     "burst_mult": 1.5,
+     "burst_mult": 2.5,
      "warn": 1.0,
      "range": 40,
      "throw": 26
@@ -780,7 +780,7 @@
      "every": 9.0,
      "windup": 1.2,
      "radius": 56,
-     "damage_mult": 1.2,
+     "damage_mult": 2.5,
      "retry": 0.5
     },
     "horn": {
@@ -944,7 +944,7 @@
    "behaviour": "melee",
    "hp": 18,
    "speed": 42,
-   "dps": 1.5,
+   "dps": 2.0,
    "radius": 6,
    "coins": 1,
    "art": [
@@ -1025,7 +1025,7 @@
    "behaviour": "melee",
    "hp": 5600,
    "speed": 48,
-   "dps": 14,
+   "dps": 26,
    "radius": 15,
    "coins": 0,
    "art": [
@@ -1037,7 +1037,7 @@
     "range": 150,
     "radius": 100,
     "seconds": 7.0,
-    "inside_mult": 1.5,
+    "inside_mult": 2.0,
     "cut": 0.75,
     "scorn": {
      "power_mult": 1.5,
@@ -1073,6 +1073,7 @@
     "every": 11.0,
     "range": 160,
     "push": 18,
+    "damage": 8,
     "seconds": 4.0,
     "slow": 0.35
    },
@@ -1101,14 +1102,14 @@
      "every": 5.0,
      "reach": 34,
      "arc": 2.0,
-     "damage_mult": 1.2,
+     "damage_mult": 2.5,
      "retry": 0.25
     },
     "charge": {
      "every": 11.0,
      "speed_mult": 4.0,
      "seconds": 0.7,
-     "burst_mult": 1.5,
+     "burst_mult": 2.5,
      "warn": 1.0,
      "range": 40,
      "throw": 26
