@@ -1597,6 +1597,13 @@ func _carts(dt: float, sim: Sim) -> void:
 
 ## Breaking a cart gives one of three rewards; the choice is named so a test can ask for each.
 func open_cart(sim: Sim, reward := "") -> void:
+	_cart_reward(sim, reward)
+	# The quartermaster's cart rewards give a share of carts a second reward.
+	if rng.randf() < sim.bonus_amount("cart_rewards"):
+		_cart_reward(sim, reward)
+
+
+func _cart_reward(sim: Sim, reward: String) -> void:
 	if reward == "":
 		reward = ["free_choice", "heal", "magnet"][rng.randi_range(0, 2)]
 	match reward:

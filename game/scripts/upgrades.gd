@@ -16,7 +16,7 @@ static func _offerable(sim: Sim, kind: String, id: String) -> bool:
 	if not info.get("implemented", false) or not sim.content.ready(kind, id):
 		return false
 	if kind == "recruits":
-		return sim.soldiers.size() < int(sim.b.legion_cap)
+		return sim.soldiers.size() < sim.legion.cap
 	if kind == "forged":
 		return sim.rank(id) < int(info.max) and _pair_done(sim, info)
 	if id == "fire_arrows" and sim.count("archer") == 0:
@@ -57,14 +57,15 @@ static func offers(sim: Sim, n: int = -1, skip: Array = []) -> Array:
 			pool.erase(r)
 	# Recruits come up more often, since a growing legion is the heart of the game, and a forged form is a prize.
 	var weights := {}
+	var luck := 1.0 + sim.bonus_amount("choice_luck")
 	for id in pool:
 		match sim.content.group_of(id):
 			"Recruit":
-				weights[id] = 3.0
+				weights[id] = 3.0 * luck
 			"Forged":
 				weights[id] = 6.0
 			"Arms":
-				weights[id] = 2.0
+				weights[id] = 2.0 * luck
 			_:
 				weights[id] = 1.0
 	while picks.size() < n and not pool.is_empty():

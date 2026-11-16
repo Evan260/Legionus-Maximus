@@ -1718,7 +1718,7 @@ func test_quartermaster_ranks_change_the_start(b: Dictionary) -> void:
 	for v in boosted.c_val:
 		paid_boosted += v
 	check(paid_boosted > paid_base * 1.15, "kills pay more denarii")
-	check(boosted._bonus_amount("no_such_upgrade") == 0.0, "an unknown upgrade adds nothing")
+	check(boosted.bonus_amount("no_such_upgrade") == 0.0, "an unknown upgrade adds nothing")
 	check(fresh.speed() > Sim.new(b, Content.with_all_art(), {"seed": 120}).speed(), "a faster march")
 
 
@@ -5194,6 +5194,7 @@ func test_the_legion_shoves_a_boss_it_marches_into(b: Dictionary) -> void:
 	s.commander.hp = 1e9
 	s.commander.max_hp = 1e9
 	s.horde.e_stun[i] = 1e9
+	s.horde.e_hp[i] = 1e9
 	_step_dt(s, 3.0, Vector2.RIGHT)
 	check(s.horde.e_pos[i].x > 120.0, "marching into a boss pushes him ahead of the legion (%.0f)" % s.horde.e_pos[i].x)
 	check(_overlapping_boss(s, i) == 0, "and no Roman stands inside him")
@@ -5214,6 +5215,7 @@ func test_the_legion_halts_at_a_boss_pinned_against_rocks(b: Dictionary) -> void
 	s.commander.hp = 1e9
 	s.commander.max_hp = 1e9
 	s.horde.e_stun[i] = 1e9
+	s.horde.e_hp[i] = 1e9
 	var r: float = s.horde.k_radius[s.horde.e_kind[i]]
 	_step_dt(s, 4.0, Vector2.RIGHT)
 	check(s.horde.e_pos[i].x <= 110.0 - 10.0 - r + 1.0, "the boss stops at the rocks (%.1f)" % s.horde.e_pos[i].x)
@@ -5302,3 +5304,117 @@ func test_a_pack_of_beasts_bites_quietly_and_rarely(b: Dictionary) -> void:
 	check(int(heard.get("bite", 0)) >= 1 and int(heard.get("bite", 0)) <= 10 / float(b.bite_every) + 1, "they bite now and then, no more than once every %.1f s (%d)" % [float(b.bite_every), int(heard.get("bite", 0))])
 	check(int(heard.get("hurt", 0)) <= 10 / float(b.hurt_every) + 1, "and the commander's hurt cry does not loop while they gnaw at him (%d)" % int(heard.get("hurt", 0)))
 	check(b.audio.kinds.has("bite") and int(b.audio.kinds.bite.max) == 1 and float(b.audio.kinds.bite.db) <= -12.0, "the bite is a quiet sound, one at a time")
+
+
+func _qm_sim(b: Dictionary, id: String, rank: int, seed_value := 1640) -> Sim:
+	var s := Sim.new(b, Content.with_all_art(), {"seed": seed_value, "profile_bonuses": {id: rank} if rank > 0 else {}})
+	s.terrain.clear()
+	return s
+
+
+func _qm_step(id: String) -> float:
+	return float(content.quartermaster[id].per_rank)
+
+
+func test_quartermaster_attack_speed_quickens_every_blow(b: Dictionary) -> void:
+	var plain := _qm_sim(b, "attack_speed", 0).attack_rate()
+	var drilled := _qm_sim(b, "attack_speed", 2).attack_rate()
+	check(is_equal_approx(drilled, plain * (1.0 + 2.0 * _qm_step("attack_speed"))), "two ranks of attack speed make every soldier strike %.0f%% faster" % (200.0 * _qm_step("attack_speed")))
+
+
+func test_quartermaster_soldier_health_raises_every_soldier(b: Dictionary) -> void:
+	var plain := _qm_sim(b, "soldier_health", 0)
+	var drilled := _qm_sim(b, "soldier_health", 2)
+	check(is_equal_approx(drilled.soldiers[0].max_hp, plain.soldiers[0].max_hp * (1.0 + 2.0 * _qm_step("soldier_health"))), "two ranks give every soldier more health (%.0f vs %.0f)" % [drilled.soldiers[0].max_hp, plain.soldiers[0].max_hp])
+	Upgrades.apply(drilled, "archer")
+	check(drilled.soldiers[-1].max_hp > float(content.recruits.archer.hp), "and recruits joining later have it too")
+
+
+func test_quartermaster_regeneration_heals_soldiers(b: Dictionary) -> void:
+	var healed := {}
+	for rank in [0, 1]:
+		var s := _qm_sim(b, "regeneration", rank)
+		s.soldiers[0].hp = 1.0
+		s._regen(10.0)
+		healed[rank] = s.soldiers[0].hp - 1.0
+	check(healed[0] == 0.0, "without it a soldier does not heal on his own")
+	check(is_equal_approx(healed[1], 10.0 * _qm_step("regeneration")), "one rank heals every soldier %.1f a second" % _qm_step("regeneration"))
+
+
+func test_quartermaster_missile_range_reaches_further(b: Dictionary) -> void:
+	var plain := _qm_sim(b, "missile_range", 0).range_mult()
+	var drilled := _qm_sim(b, "missile_range", 3).range_mult()
+	check(is_equal_approx(drilled, plain * (1.0 + 3.0 * _qm_step("missile_range"))), "three ranks make missiles reach %.0f%% further" % (300.0 * _qm_step("missile_range")))
+
+
+func test_quartermaster_testudo_hold_holds_longer(b: Dictionary) -> void:
+	var held := {}
+	for rank in [0, 2]:
+		var s := _qm_sim(b, "testudo_hold", rank)
+		s.update(1.0 / 60.0, Vector2.ZERO, true)
+		held[rank] = s.testudo_left
+	check(is_equal_approx(held[2] - held[0], 2.0 * _qm_step("testudo_hold")), "two ranks hold the testudo %.1f s longer" % (2.0 * _qm_step("testudo_hold")))
+
+
+func test_quartermaster_armour_cuts_the_harm_taken(b: Dictionary) -> void:
+	var lost := {}
+	for rank in [0, 4]:
+		var s := _quiet_sim(b, 1641)
+		s.bonuses = {"armour": rank}
+		s.commander.hp = 1e9
+		s.commander.max_hp = 1e9
+		var so: Dictionary = s.soldiers[0]
+		so.hp = 1e6
+		so.max_hp = 1e6
+		s.horde.spawn("barbarian_club", so.pos + Vector2(8, 0))
+		_step_dt(s, 1.0)
+		lost[rank] = 1e6 - so.hp
+	check(lost[0] > 0.0 and is_equal_approx(lost[4], lost[0] * (1.0 - 4.0 * _qm_step("armour"))), "four ranks of armour cut the harm a soldier takes by %.0f%% (%.2f vs %.2f)" % [400.0 * _qm_step("armour"), lost[4], lost[0]])
+
+
+func test_quartermaster_cart_rewards_give_more(b: Dictionary) -> void:
+	var extra := {}
+	for rank in [0, 3]:
+		var s := _qm_sim(b, "cart_rewards", rank)
+		var before := s.free_choices
+		for k in 400:
+			s.horde.open_cart(s, "free_choice")
+		extra[rank] = s.free_choices - before - 400
+	check(extra[0] == 0, "without it a cart gives its one reward")
+	var want := 400.0 * 3.0 * _qm_step("cart_rewards")
+	check(extra[3] > want * 0.6 and extra[3] < want * 1.4, "three ranks give a second reward from about %d%% of carts (%d of 400)" % [int(300.0 * _qm_step("cart_rewards")), extra[3]])
+
+
+func test_quartermaster_recruit_cap_holds_more_soldiers(b: Dictionary) -> void:
+	var s := _qm_sim(b, "recruit_cap", 2)
+	var cap := int(b.legion_cap) + int(2.0 * _qm_step("recruit_cap"))
+	while s.soldiers.size() < cap + 5:
+		if not s.legion.add("legionary"):
+			break
+	check(s.soldiers.size() == cap, "two ranks let the legion hold %d soldiers (%d)" % [cap, s.soldiers.size()])
+	check(not Upgrades.available(s).has("legionary"), "and recruits stop being offered once it is full")
+
+
+func test_quartermaster_level_ease_needs_fewer_coins(b: Dictionary) -> void:
+	var plain := _qm_sim(b, "level_ease", 0)
+	var eased := _qm_sim(b, "level_ease", 3)
+	for s in [plain, eased]:
+		s.gain(400)
+	check(eased.level > plain.level, "with three ranks the same coins reach a higher level (%d vs %d)" % [eased.level, plain.level])
+	check(eased.xp_next < plain.xp_next, "since each level needs fewer coins")
+
+
+func test_quartermaster_choice_luck_brings_more_arms_and_recruits(b: Dictionary) -> void:
+	var share := {}
+	for rank in [0, 3]:
+		var s := _qm_sim(b, "choice_luck", rank)
+		var hits := 0
+		var total := 0
+		for k in 600:
+			for id in Upgrades.offers(s):
+				total += 1
+				var g := s.content.group_of(id)
+				if g == "Arms" or g == "Recruit":
+					hits += 1
+		share[rank] = float(hits) / total
+	check(share[3] > share[0], "three ranks bring arms and recruits up more often (%.2f vs %.2f)" % [share[3], share[0]])

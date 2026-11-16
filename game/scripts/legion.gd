@@ -10,12 +10,15 @@ var revive_timer := 0.0
 var reserves: Array = []
 var commander_hp_add := 0.0
 var commander_hp_mult := 1.0
+## Every soldier's health is multiplied by this, from the quartermaster.
+var soldier_hp_mult := 1.0
 
 var _b: Dictionary
 var _content: Content
 var _rng: RandomNumberGenerator
 var _ranks: Dictionary
-var _cap := 100
+## How many soldiers the legion can hold.
+var cap := 100
 var _l: Dictionary
 # The attack rate for this update, read once since every soldier's cooldown runs on it.
 var _rate := 1.0
@@ -32,7 +35,7 @@ func _init(balance: Dictionary, game_content: Content, random: RandomNumberGener
 	_content = game_content
 	_rng = random
 	_ranks = ranks
-	_cap = int(balance.legion_cap)
+	cap = int(balance.legion_cap)
 	_l = balance.legion
 	var cu: Dictionary = _content.base_commander
 	commander = {"type": "commander", "pos": Vector2.ZERO, "hp": float(cu.hp), "max_hp": float(cu.hp), "cd": 0.0,
@@ -64,6 +67,8 @@ func max_hp_of(type: String) -> float:
 	if type == "commander":
 		base = (base + commander_hp_add) * commander_hp_mult
 	var hp := base * (1.0 + float(_l.lorica_hp) * float(_ranks.get("lorica", 0)))
+	if type != "commander":
+		hp *= soldier_hp_mult
 	if type != "commander" and promoted(type):
 		hp *= float(_content.recruits[type].promotion.get("hp_mult", 1.0))
 	return hp
@@ -71,7 +76,7 @@ func max_hp_of(type: String) -> float:
 
 ## One soldier of a type, or false when the legion is full.
 func add(type: String) -> bool:
-	if soldiers.size() >= _cap:
+	if soldiers.size() >= cap:
 		return false
 	var info: Dictionary = _content.recruits[type]
 	var hp := max_hp_of(type)

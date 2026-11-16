@@ -150,8 +150,10 @@ func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
 	var kit: Dictionary = content.commanders[commander_id]
 	legion = Legion.new(b, content, rng, ranks)
 	arms = Arms.new(rng)
-	legion.commander_hp_add = _bonus_amount("start_health")
+	legion.commander_hp_add = bonus_amount("start_health")
 	legion.commander_hp_mult = float(kit.get("hp_mult", 1.0))
+	legion.soldier_hp_mult = 1.0 + bonus_amount("soldier_health")
+	legion.cap = int(b.legion_cap) + int(bonus_amount("recruit_cap"))
 	legion.commander.max_hp = legion.max_hp_of("commander")
 	legion.commander.hp = legion.commander.max_hp
 	horde = Horde.new(b, content, rng, legion.commander, province)
@@ -163,9 +165,9 @@ func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
 	terrain.refresh(legion.commander.pos)
 	horde.hard = hard
 	horde.sim_ref = weakref(self)
-	rerolls = int(b.rerolls) + int(kit.get("rerolls", 0)) + int(_bonus_amount("rerolls"))
-	banishes = int(b.banishes) + int(_bonus_amount("banishes"))
-	xp_next = int(b.xp_first)
+	rerolls = int(b.rerolls) + int(kit.get("rerolls", 0)) + int(bonus_amount("rerolls"))
+	banishes = int(b.banishes) + int(bonus_amount("banishes"))
+	xp_next = xp_for(1)
 	decimate_next = float(b.decimatio.every)
 	_next_sample = float(b.history_every)
 	_build_sources()
@@ -182,7 +184,7 @@ func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
 		while soldiers.size() < int(b.decimatio.start_soldiers):
 			add_soldier(kit_types[i % kit_types.size()] if not kit_types.is_empty() else "legionary")
 			i += 1
-	for i in int(_bonus_amount("start_soldiers")):
+	for i in int(bonus_amount("start_soldiers")):
 		add_soldier("legionary")
 	legion.place_all(facing_angle)
 	_last_hp = commander.hp
@@ -194,7 +196,7 @@ func _bonus(id: String) -> int:
 
 
 ## What a quartermaster upgrade adds, its rank times its step.
-func _bonus_amount(id: String) -> float:
+func bonus_amount(id: String) -> float:
 	if not content.quartermaster.has(id):
 		return 0.0
 	return float(_bonus(id)) * float(content.quartermaster[id].per_rank)
@@ -221,7 +223,7 @@ func slot_of(soldier: Dictionary) -> Vector2:
 
 
 func speed() -> float:
-	var v: float = content.base_commander.speed * (1.0 + 0.08 * rank("march") + _bonus_amount("move_speed")) * float(content.commanders[commander_id].get("speed_mult", 1.0))
+	var v: float = content.base_commander.speed * (1.0 + 0.08 * rank("march") + bonus_amount("move_speed")) * float(content.commanders[commander_id].get("speed_mult", 1.0))
 	# Barbarians locked in melee hold the legion back, so marching into a crowd bogs it down instead of passing through.
 	var held := 1.0 - float(b.press.per_enemy) * pressing
 	var cursed := 1.0 - horde.curse_slow if horde.curse_left > 0.0 else 1.0
@@ -229,7 +231,12 @@ func speed() -> float:
 
 
 func range_mult() -> float:
-	return 1.0 + float(b.drills.better_bows) * rank("better_bows")
+	return (1.0 + float(b.drills.better_bows) * rank("better_bows")) * (1.0 + bonus_amount("missile_range"))
+
+
+## The coins the next level after `at` needs, fewer with the quartermaster's level ease.
+func xp_for(at: int) -> int:
+	return maxi(1, int(float(b.xp_first + b.xp_step * (at - 1)) * (1.0 - bonus_amount("level_ease"))))
 
 
 ## How long a fire set by an arrow burns.
@@ -238,16 +245,16 @@ func burn_seconds() -> float:
 
 
 func attack_rate() -> float:
-	return (1.0 + 0.12 * rank("discipline")) * (float(b.gods.mars.rate_mult) if gods.frenzy_left > 0.0 else 1.0) * (1.0 - horde.blast_slow if horde.blast_left > 0.0 else 1.0)
+	return (1.0 + 0.12 * rank("discipline")) * (1.0 + bonus_amount("attack_speed")) * (float(b.gods.mars.rate_mult) if gods.frenzy_left > 0.0 else 1.0) * (1.0 - horde.blast_slow if horde.blast_left > 0.0 else 1.0)
 
 
-## The share of harm the legion takes while Mars's frenzy is on it.
+## The share of harm the legion takes: less with the quartermaster's armour and while Mars's frenzy is on it.
 func frenzy_guard() -> float:
-	return float(b.gods.mars.taken_mult) if gods.frenzy_left > 0.0 else 1.0
+	return (float(b.gods.mars.taken_mult) if gods.frenzy_left > 0.0 else 1.0) * (1.0 - bonus_amount("armour"))
 
 
 func pickup_radius() -> float:
-	return b.pickup_radius * (1.0 + 0.3 * rank("reach") + _bonus_amount("pickup_radius"))
+	return b.pickup_radius * (1.0 + 0.3 * rank("reach") + bonus_amount("pickup_radius"))
 
 
 func update(dt: float, move: Vector2, testudo_pressed: bool) -> void:
@@ -257,13 +264,13 @@ func update(dt: float, move: Vector2, testudo_pressed: bool) -> void:
 	terrain.clock = time
 	if testudo_pressed and testudo_charge >= 1.0 and testudo_left <= 0.0:
 		event("testudo", commander.pos)
-		testudo_left = b.testudo_hold + 1.0 * rank("testudo")
+		testudo_left = b.testudo_hold + 1.0 * rank("testudo") + bonus_amount("testudo_hold")
 		testudo_charge = 0.0
 		shake = maxf(shake, float(b.shake.testudo))
 	if testudo_left > 0.0:
 		testudo_left -= dt
 	else:
-		testudo_charge = minf(1.0, testudo_charge + dt / maxf(5.0, b.testudo_recharge - 2.0 * rank("testudo") - _bonus_amount("testudo_charge")))
+		testudo_charge = minf(1.0, testudo_charge + dt / maxf(5.0, b.testudo_recharge - 2.0 * rank("testudo") - bonus_amount("testudo_charge")))
 	_move_legion(dt, move)
 	_bridge_look -= dt
 	if _bridge_look <= 0.0:
@@ -591,7 +598,7 @@ func enemies_near(p: Vector2, r: float) -> Array:
 ## Every harm to an enemy goes through here so the quartermaster's damage bonus counts for hits, burns and scorching alike.
 ## The health it took is added to `src`, the id of the weapon or soldier type that did it, and returned.
 func _harm(i: int, dmg: float, src: int) -> float:
-	var full := dmg * (1.0 + _bonus_amount("damage"))
+	var full := dmg * (1.0 + bonus_amount("damage"))
 	if src >= _god_src:
 		full = gods.boss_cap(self, i, full)
 	elif gods.frenzy_left > 0.0:
@@ -774,7 +781,7 @@ func _kill(i: int) -> void:
 		event("godready", commander.pos)
 	tally(1, horde.e_pos[i])
 	killed_kinds[id] = true
-	var pay := float(content.enemies[id].coins) * (1.0 + float(b.drills.plunder) * rank("plunder") + _bonus_amount("denarii")) * (float(b.hard.denarii_mult) if hard else 1.0)
+	var pay := float(content.enemies[id].coins) * (1.0 + float(b.drills.plunder) * rank("plunder") + bonus_amount("denarii")) * (float(b.hard.denarii_mult) if hard else 1.0)
 	# A fraction of a coin is paid as the same chance of one more.
 	var value := int(pay) + (1 if pay > floorf(pay) and rng.randf() < pay - floorf(pay) else 0)
 	var fell := _plunged.erase(horde.e_id[i])
@@ -904,13 +911,13 @@ func _unit_near(p: Vector2, r2: float) -> bool:
 
 func gain(value: int) -> void:
 	denarii += value
-	xp_carry += value * (1.0 + float(b.drills.glory) * rank("glory") + _bonus_amount("experience"))
+	xp_carry += value * (1.0 + float(b.drills.glory) * rank("glory") + bonus_amount("experience"))
 	xp += int(xp_carry)
 	xp_carry -= int(xp_carry)
 	while xp >= xp_next:
 		xp -= xp_next
 		level += 1
-		xp_next = int(b.xp_first + b.xp_step * (level - 1))
+		xp_next = xp_for(level)
 		pending_levels += 1
 		event("level", commander.pos)
 
@@ -944,10 +951,13 @@ func _regen(dt: float) -> void:
 	if commander.hp > 0.0:
 		commander.hp = minf(commander.max_hp, commander.hp + float(b.get("commander_regen", 0.0)) * dt)
 	var r := 0.6 * rank("rations")
-	if r <= 0.0:
+	var own := bonus_amount("regeneration")
+	if r <= 0.0 and own <= 0.0:
 		return
-	for u in [commander] + soldiers:
-		u.hp = minf(u.max_hp, u.hp + r * dt)
+	if r > 0.0:
+		commander.hp = minf(commander.max_hp, commander.hp + r * dt)
+	for u in soldiers:
+		u.hp = minf(u.max_hp, u.hp + (r + own) * dt)
 
 
 ## Decimatio: every so often one soldier in ten is taken from the legion, at least one once it has ten.

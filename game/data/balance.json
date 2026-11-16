@@ -8,7 +8,7 @@
     "spread": 0.35,
     "clearing": 150,
     "metre_px": 16,
-    "purse": {"camp": 150, "column": 60, "grove": 80},
+    "purse": {"camp": 1500, "column": 600, "grove": 800},
     "notice_seconds": 3.5,
     "camp": {"wake": 250, "huts": 6, "hut_ring": 72, "hut_radius": 14, "touch": 16, "leader": "war_band_leader", "burn_seconds": 4},
     "column": {"wake": 300, "guards": 4, "guard_ring": 24, "reach": 40, "band_from": 160},
