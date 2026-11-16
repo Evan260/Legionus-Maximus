@@ -120,6 +120,8 @@ var frame := 0
 var haste_mult := 1.0
 var cleave_cd := 0.0
 var cry_cd := 0.0
+# When the pack may next be heard biting.
+var bite_cd := 0.0
 var charge_cd := 0.0
 var slam_cd := 0.0
 var horn_cd := 0.0
@@ -1221,8 +1223,11 @@ func _move(dt: float, sim: Sim) -> void:
 					e_cd[i] = k_dash_every[kind]
 					e_dir[i] = to / maxf(d, 0.001)
 					e_dash[i] = k_dash_secs[kind]
-					if (k_flank_off[kind] > 0.0 or k_rush_stun[kind] > 0.0) and d < 300.0:
-						sim.event("charge", p)
+					if d < 300.0:
+						if beh == BEAST:
+							_bite(p, sim)
+						elif k_flank_off[kind] > 0.0:
+							sim.event("charge", p)
 					if k_flank_off[kind] > 0.0:
 						# A flank rider aims beside the legion, each on his own side, so his charge runs along its ranks.
 						var across := Vector2(-to.y, to.x) / maxf(d, 0.001)
@@ -1301,6 +1306,8 @@ func _move(dt: float, sim: Sim) -> void:
 						e_cd[i] = k_slash_every[kind]
 						_slash(i, units[target_unit].pos - p, guard * power, sim)
 				u.flash = 0.08
+				if beh == BEAST and bite_cd <= time:
+					_bite(p, sim)
 				e_fighting[i] = 1
 				var foe: Vector2 = units[target_unit].pos - p
 				if foe.length_squared() > 0.000001:
@@ -1401,6 +1408,13 @@ func _move(dt: float, sim: Sim) -> void:
 			e_flash[i] -= dt
 	sim.pressing = held
 	sim.legion.remove_fallen(sim)
+
+
+## A beast's quiet bite, heard at most once every `bite_every` seconds for the whole pack.
+func _bite(p: Vector2, sim: Sim) -> void:
+	if time >= bite_cd:
+		bite_cd = time + float(b.get("bite_every", 1.0))
+		sim.event("bite", p)
 
 
 ## The way the route map leads from p, or straight at the legion where it has none.

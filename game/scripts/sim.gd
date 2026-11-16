@@ -119,6 +119,7 @@ var _last_hp := 0.0
 var _tally_n := PackedInt32Array([0, 0, 0, 0, 0, 0])
 var _tally_pos := PackedVector2Array([Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO])
 var _chieftain_heard := false
+var _hurt_heard := -1e9
 ## Logs from felled trees, spent on palisades.
 var timber := 0
 ## When a palisade was last asked for without the timber for it, for the notice.
@@ -347,7 +348,10 @@ func _track(dt: float) -> void:
 		history.append({"t": time, "legion": soldiers.size() + 1, "kills": kills})
 	if commander.hp < _last_hp:
 		shake = maxf(shake, float(b.shake.hurt))
-		event("hurt", commander.pos)
+		# The cry sounds once for a run of blows, so a crowd gnawing at the commander does not loop it.
+		if time - _hurt_heard >= float(b.get("hurt_every", 0.0)):
+			_hurt_heard = time
+			event("hurt", commander.pos)
 	_last_hp = commander.hp
 
 

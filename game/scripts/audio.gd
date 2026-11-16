@@ -14,6 +14,7 @@ var _next := 0
 var _clock := 0.0
 var _window_start := {}
 var _window_count := {}
+var _last_played := {}
 var _rng := RandomNumberGenerator.new()
 var cfg: Dictionary
 var _kinds: Dictionary
@@ -110,6 +111,9 @@ func play(kind: String, pan := 0.0, loudness_db := 0.0) -> void:
 		_window_count[kind] = 0
 	if int(_window_count[kind]) >= int(info.max):
 		return
+	# A kind with a cooldown waits that long after it last sounded, however often it is reported.
+	if info.has("cooldown") and _clock - float(_last_played.get(kind, -1e9)) < float(info.cooldown):
+		return
 	var variants: Array = _sets.get(info.set, [])
 	if variants.is_empty():
 		return
@@ -117,6 +121,7 @@ func play(kind: String, pan := 0.0, loudness_db := 0.0) -> void:
 	if p == null:
 		return
 	_window_count[kind] += 1
+	_last_played[kind] = _clock
 	p.stream = variants[_rng.randi() % variants.size()]
 	p.volume_db = float(info.db) + loudness_db
 	p.pitch_scale = float(info.pitch) * (1.0 + _rng.randf_range(-1.0, 1.0) * float(info.spread))

@@ -5283,3 +5283,21 @@ func test_supply_carts_stand_where_the_legion_can_reach_them(b: Dictionary) -> v
 					if not s.terrain.is_open(p) or s.terrain.ravine_edge(p) < float(b.cart.radius):
 						bad += 1
 	check(bad == 0, "every supply cart stands on open ground, clear of woods and gorges (%d do not)" % bad)
+
+
+func test_a_pack_of_beasts_bites_quietly_and_rarely(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 1630, Content.with_all_art())
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	for k in 12:
+		s.horde.spawn("boar" if k % 2 == 0 else "wolf", Vector2.from_angle(k * TAU / 12.0) * 120.0)
+	var heard := {}
+	for f in 10 * 60:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+		for e in s.events:
+			heard[e.kind] = int(heard.get(e.kind, 0)) + 1
+		s.events.clear()
+	check(not heard.has("charge") and not heard.has("roar"), "boars and wolves never roar or bellow a charge (%s)" % heard)
+	check(int(heard.get("bite", 0)) >= 1 and int(heard.get("bite", 0)) <= 10 / float(b.bite_every) + 1, "they bite now and then, no more than once every %.1f s (%d)" % [float(b.bite_every), int(heard.get("bite", 0))])
+	check(int(heard.get("hurt", 0)) <= 10 / float(b.hurt_every) + 1, "and the commander's hurt cry does not loop while they gnaw at him (%d)" % int(heard.get("hurt", 0)))
+	check(b.audio.kinds.has("bite") and int(b.audio.kinds.bite.max) == 1 and float(b.audio.kinds.bite.db) <= -12.0, "the bite is a quiet sound, one at a time")
