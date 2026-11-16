@@ -2097,6 +2097,7 @@ func test_events_are_reported_once(b: Dictionary) -> void:
 	s.update(1.0 / 60.0, Vector2.ZERO, true)
 	check("testudo" in _event_kinds(s), "raising the shields is an event")
 	s.events.clear()
+	s.time += float(b.hurt_every)
 	s.commander.hp -= 5.0
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
 	check("hurt" in _event_kinds(s), "the commander being hurt is an event")
