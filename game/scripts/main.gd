@@ -27,8 +27,9 @@ extends Node
 ##   --men=N            with --autoplay, start the run with N soldiers, legionaries and archers
 ##   --boss=ID          with --autoplay, bring that elite or the chieftain beside the legion; --boss-act=whirl|shield|band|mend|curse|blink|rage|roar,
 ##                      fall (with --go-to=ravine) stands him at the lip for the legion to shove in,
-##                      duel|rally|blast|flee for the Gaulish elites and siege|summon for the Gaulish king, makes him use that ability at once and
-##                      holds his others back; an ordinary enemy comes as a small group, and slash|rear|volley|rush has them use theirs
+##                      duel|rally|blast|flee for the Gaulish elites and siege|summon for the Gaulish king, onrush|blizzard for the Dacian elites and
+##                      sweep|rockfall|leap for the Dacian king, makes him use that ability at once and holds his others back; an ordinary enemy
+##                      comes as a small group, and slash|rear|volley|rush (Gaul) or chop|salvo|howl|maul (Dacia) has them use theirs
 ##   --province=ID      start the run in that province, for looking at it
 ##   --god=ID           with --autoplay, call that god at --god-at seconds (default 2) of the look; --god=choose fills the favour and holds the choice open
 ##   --seed=N           lay out the field and run from a fixed seed, so a look comes out the same every time
@@ -147,7 +148,7 @@ func _bring_boss(kind: String, act: String) -> void:
 	if not content.enemies.has(kind):
 		return
 	var h := sim.horde
-	var at: Vector2 = sim.commander.pos + (Vector2(130, 50) if act == "curse" else (Vector2(30, 25) if act == "whirl" else Vector2(60, 50)))
+	var at: Vector2 = sim.commander.pos + (Vector2(130, 50) if act in ["curse", "blizzard"] else (Vector2(30, 25) if act in ["whirl", "sweep"] else (Vector2(160, 60) if act == "leap" else Vector2(60, 50))))
 	if kind == h.chief_kind:
 		var ci := h.spawn_chieftain(at)
 		if act == "roar":
@@ -156,6 +157,13 @@ func _bring_boss(kind: String, act: String) -> void:
 			h.siege_cd = 0.0 if act == "siege" else 1e9
 			h.summon_cd = 0.0 if act == "summon" else 1e9
 			h.charge_cd = 1e9
+		elif act == "sweep" or act == "rockfall" or act == "leap":
+			h.sweep_cd = 0.0 if act == "sweep" else 1e9
+			h.rockfall_cd = 0.0 if act == "rockfall" else 1e9
+			h.leap_cd = 0.0 if act == "leap" else 1e9
+			# The leap belongs to his second phase, so he is brought in just below half health.
+			if act == "leap":
+				h.e_hp[ci] = h.e_max[ci] * 0.5 - 1.0
 		return
 	if not content.enemies[kind].get("elite", false):
 		_bring_group(kind, act)
@@ -165,7 +173,7 @@ func _bring_boss(kind: String, act: String) -> void:
 		_stand_at_lip(i)
 	var st := h.boss_state(i)
 	var timers := {"whirl": "whirl_cd", "shield": "shield_cd", "band": "band_cd", "mend": "mend_cd", "curse": "curse_cd", "blink": "blink_cd",
-		"duel": "duel_cd", "blast": "blast_cd"}
+		"duel": "duel_cd", "blast": "blast_cd", "onrush": "onrush_cd", "blizzard": "blizzard_cd"}
 	for key in timers.values():
 		if st.has(key):
 			st[key] = 1e9
@@ -174,7 +182,7 @@ func _bring_boss(kind: String, act: String) -> void:
 	if act == "rage":
 		h.e_hp[i] = h.e_max[i] * 0.45
 	h.rally_cd[h.e_id[i]] = 0.0 if act == "rally" else 1e9
-	if act == "mend" or act == "rally":
+	if act == "mend" or act == "rally" or act == "onrush":
 		for k in 6:
 			var j := h.spawn(h.ordinary[0], at + Vector2.from_angle(k * TAU / 6.0) * 60.0)
 			h.e_hp[j] = h.e_max[j] * 0.4
@@ -193,12 +201,14 @@ func _stand_at_lip(i: int) -> void:
 ## Brings a small group of an ordinary enemy at the distance their ability needs, ready to use it at once.
 func _bring_group(kind: String, act: String) -> void:
 	var h := sim.horde
-	var away := {"slash": 26.0, "rear": 170.0, "volley": 150.0, "rush": 170.0}
+	var away := {"slash": 26.0, "rear": 170.0, "volley": 150.0, "rush": 170.0, "chop": 26.0, "salvo": 150.0, "howl": 90.0, "maul": 30.0}
 	var r: float = away.get(act, 90.0)
 	var ahead := Vector2.from_angle(sim.facing_angle)
 	for k in 4:
 		var j := h.spawn(kind, sim.commander.pos + ahead.rotated((k - 1.5) * 0.35) * r)
 		h.e_cd[j] = 0.0
+	if act == "salvo":
+		h.salvo_cd = 0.4
 
 
 ## Puts the legion just below an objective or inside a freshly raised fort, for a screenshot.
@@ -209,6 +219,18 @@ func _go_to(kind: String) -> void:
 		return
 	if kind == "crowd":
 		_go_to_crowd()
+		return
+	if kind == "stream":
+		var best := Vector2.INF
+		for st in sim.terrain.streams_in(Rect2(-4000, -4000, 8000, 8000)):
+			var mid: Vector2 = st.pieces[0].pts[st.pieces[0].pts.size() / 2]
+			if mid.length() < best.length():
+				best = mid
+		if best == Vector2.INF:
+			return
+		sim.commander.pos = best + Vector2(0, -90)
+		sim.legion.place_all(sim.facing_angle)
+		look_march = Vector2(0, 0.6)
 		return
 	if kind == "village":
 		var best := Vector2.INF

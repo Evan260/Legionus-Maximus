@@ -1142,144 +1142,188 @@
   },
   "falx_warrior": {
    "name": "Falx warrior",
-   "text": "He fights with the falx, a curved blade that cuts through shields.",
+   "text": "His curved falx cuts through shields: neither the testudo nor a shield wall turns his blows, and every few seconds he lands a heavy chop.",
    "history": "The falx was a curved two-handed blade that could cut through a Roman helmet.",
    "behaviour": "melee",
-   "hp": 30,
+   "hp": 18,
    "speed": 42,
-   "dps": 5,
+   "dps": 1.8,
    "radius": 6,
-   "coins": 2,
+   "coins": 1,
    "art": [
     "unit:falx_warrior"
-   ]
+   ],
+   "falx": {
+    "every": 4.0,
+    "damage_mult": 1.8
+   }
   },
   "dacian_archer": {
    "name": "Archer",
-   "text": "A mountain archer with a strong bow.",
-   "history": "Dacian archers shot from the high ground of mountain fortresses.",
+   "text": "Dacian archers loose together at the beat of a drum, a wall of arrows that only the testudo stops.",
+   "history": "Dacian archers shot from the high walls of their mountain fortresses.",
    "behaviour": "ranged",
-   "hp": 22,
+   "hp": 20,
    "speed": 38,
-   "dps": 4,
+   "dps": 1.5,
    "radius": 6,
    "coins": 2,
    "art": [
     "unit:dacian_archer"
    ],
-   "range": 140
+   "range": 150,
+   "salvo": {
+    "every": 6.0,
+    "arrows": 2,
+    "spread": 0.14
+   },
+   "arrives": 150
   },
   "wolf_standard_bearer": {
    "name": "Wolf-standard bearer",
-   "text": "He carries the wolf-headed dragon standard that howls in the wind.",
+   "text": "His draco howls in the wind, and the warriors round him run faster while it sounds.",
    "history": "The Dacian draco, a wolf-headed dragon standard, howled as the wind passed through it.",
    "behaviour": "melee",
-   "hp": 36,
-   "speed": 41,
-   "dps": 4,
+   "hp": 28,
+   "speed": 40,
+   "dps": 1.5,
    "radius": 6,
-   "coins": 3,
+   "coins": 2,
    "art": [
     "unit:wolf_standard_bearer"
-   ]
+   ],
+   "howl": {
+    "every": 9.0,
+    "radius": 150,
+    "seconds": 3.0,
+    "speed_mult": 1.35
+   },
+   "arrives": 90
   },
   "mountain_bear": {
    "name": "Mountain bear",
-   "text": "A bear from the high passes.",
+   "text": "A bear from the high passes, slow to bring down. It rears up and mauls the soldiers in front of it, throwing them back.",
    "history": "Brown bears lived in the Carpathian forests, and the Dacians hunted them.",
    "behaviour": "beast",
-   "hp": 60,
-   "speed": 50,
-   "dps": 8,
+   "hp": 40,
+   "speed": 46,
+   "dps": 2.0,
    "radius": 8,
-   "coins": 3,
+   "coins": 2,
    "art": [
     "unit:mountain_bear"
-   ]
+   ],
+   "maul": {
+    "every": 4.0,
+    "damage_mult": 3.0,
+    "radius": 16,
+    "throw": 10
+   },
+   "arrives": 240
   },
   "falx_band": {
-   "name": "Falx band",
-   "text": "A band of falx warriors fighting as one.",
+   "name": "Falx band leader",
+   "text": "He marks a lane and charges down it, and the warriors round him charge with him, cutting down and scattering the soldiers in their path.",
    "history": "After meeting the falx, Roman soldiers added extra armour to their arms and helmets.",
    "behaviour": "melee",
-   "hp": 7440,
-   "speed": 45,
-   "dps": 18,
-   "radius": 17,
+   "hp": 5800,
+   "speed": 46,
+   "dps": 26,
+   "radius": 15,
    "coins": 0,
    "art": [
     "unit:falx_band"
    ],
-   "elite": true
+   "elite": true,
+   "onrush": {
+    "every": 12.0,
+    "range": 220,
+    "warn": 1.2,
+    "width": 44,
+    "length": 260,
+    "seconds": 0.55,
+    "damage_mult": 0.7,
+    "throw": 22,
+    "band_radius": 130,
+    "band_rush": 2.2
+   }
   },
   "priest": {
    "name": "Priest",
-   "text": "He speaks for Zalmoxis and heartens the host.",
+   "text": "A priest of Zalmoxis. He calls a blizzard down on the legion: a ring marks where it will fall, and inside the storm the legion marches slowly and freezes. He keeps his distance.",
    "history": "Dacian priests had great power at the court, and the king took their advice on war.",
-   "behaviour": "ranged",
-   "hp": 5760,
-   "speed": 35,
-   "dps": 12,
+   "behaviour": "lobber",
+   "hp": 4800,
+   "speed": 36,
+   "dps": 0,
    "radius": 14,
    "coins": 0,
    "art": [
     "unit:priest"
    ],
    "elite": true,
-   "range": 120
+   "range": 150,
+   "blizzard": {
+    "every": 12.0,
+    "range": 300,
+    "windup": 1.4,
+    "radius": 90,
+    "seconds": 6.0,
+    "slow": 0.45,
+    "dps": 2.0
+   }
   },
   "dacian_king": {
    "name": "Dacian king",
-   "text": "A king who advances behind a moving shield wall.",
+   "text": "A king behind a wall of falx warriors: while three of them stand between him and the legion, blows from in front glance off. He sweeps his blade in a wide arc and brings rocks down from the heights, and when hurt he sends his wall in and leaps onto the legion.",
    "history": "Decebalus held off Rome for years, until Trajan conquered Dacia in 106 AD.",
    "behaviour": "melee",
-   "hp": 34200,
-   "speed": 24,
-   "dps": 38,
-   "radius": 28,
+   "hp": 26000,
+   "speed": 26,
+   "dps": 30,
+   "radius": 26,
    "coins": 0,
    "art": [
     "unit:dacian_king"
    ],
    "chieftain": true,
    "attacks": {
-    "cleave": {
-     "every": 5.0,
-     "reach": 34,
-     "arc": 2.0,
-     "damage_mult": 1.2,
-     "retry": 0.25
-    },
-    "charge": {
-     "every": 11.0,
-     "speed_mult": 4.0,
-     "seconds": 0.7,
-     "burst_mult": 1.5,
-     "warn": 1.0,
-     "range": 40,
-     "throw": 26
-    },
-    "war_cry": {
-     "every": 18.0,
-     "radius": 240,
-     "seconds": 4.0,
-     "speed_mult": 1.5
-    },
-    "slam": {
-     "every": 9.0,
-     "windup": 1.2,
-     "radius": 56,
-     "damage_mult": 1.2,
+    "sweep": {
+     "every": 7.0,
+     "windup": 1.0,
+     "reach": 64,
+     "arc": 2.4,
+     "damage_mult": 2.2,
      "retry": 0.5
     },
-    "horn": {
-     "every": 30.0
+    "rockfall": {
+     "every": 14.0,
+     "count": 5,
+     "fury_count": 8,
+     "radius": 26,
+     "delay": 1.6,
+     "spread": 110,
+     "damage": 30
+    },
+    "leap": {
+     "every": 9.0,
+     "windup": 1.3,
+     "radius": 56,
+     "damage_mult": 2.0,
+     "range": 320
     }
    },
    "fury": {
     "below": 0.5,
-    "rate_mult": 1.4,
-    "bands": 2
+    "rate_mult": 1.3,
+    "release": true
+   },
+   "guard": "falx_warrior",
+   "wall": {
+    "min": 3,
+    "arc": 2.0,
+    "cut": 0.7,
+    "radius": 60
    }
   },
   "horse_archer": {
@@ -1527,8 +1571,8 @@
    ],
    "chieftain": "dacian_king",
    "art": [
-    "prop:pine",
     "prop:frozen_stream",
+    "prop:pine",
     "ground:dacia"
    ]
   },

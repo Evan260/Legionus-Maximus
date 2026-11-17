@@ -38,6 +38,8 @@ var _f_rect: Array[Rect2] = []
 var _prop_frames := {}
 # The rocky lip drawn along every ravine.
 var ravine_edge: Texture2D
+# The ice laid along every frozen stream, repeated across the world.
+var ice: Texture2D
 # The ground and the wheat fields are drawn by two layers behind this node, so the wheat can have a shader of its own that frays its edges.
 var _floor := Node2D.new()
 var _wheat := Node2D.new()
@@ -55,6 +57,7 @@ func _ready() -> void:
 	shadow = ImageTexture.create_from_image(img)
 	digits = _digit_texture()
 	ravine_edge = load("res://assets/ravine_edge.png")
+	ice = load("res://assets/ice.png")
 	# The ravine lip repeats along each gorge; every other picture is drawn inside its own rectangle, so repeating changes nothing for it.
 	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	for layer in [_floor, _wheat]:
@@ -481,6 +484,11 @@ func _draw_lobs(tex: Texture2D) -> void:
 				draw_rect(Rect2(q + Vector2(-1, -4), Vector2(2, 1)), Color(0.5, 0.3, 0.16))
 				draw_rect(Rect2(q + Vector2(-1, -2), Vector2(1, 3)), Color(0.55, 0.36, 0.2))
 	for l in sim.horde.foe_lobs:
+		if l.get("rock", false):
+			# A rock falls from the heights onto its ring.
+			var fall: float = clampf(l.t / l.dur, 0.0, 1.0)
+			_lob_sprite(tex, "rock", l.to + Vector2(0, -(1.0 - fall * fall) * 220.0 + 10.0))
+			continue
 		if l.get("slam", false):
 			continue
 		var k: float = l.t / l.dur
@@ -509,6 +517,27 @@ func _draw_warnings() -> void:
 		draw_line(h.charge_from - edge, end - edge, Color(0.95, 0.25, 0.15, 0.85), 1.0)
 		draw_line(end + edge, end - edge, Color(0.95, 0.25, 0.15, 0.85), 1.0)
 		draw_line(h.charge_from, h.charge_from.lerp(end, k), Color(0.95, 0.35, 0.15, 0.25), h.charge_width)
+	for id in h.boss:
+		var st: Dictionary = h.boss[id]
+		if st.get("rush_warn", 0.0) > 0.0:
+			var cfg: Dictionary = sim.content.enemies.falx_band.onrush
+			_draw_lane(st.rush_from, st.rush_dir, float(cfg.length), float(cfg.width), clampf(1.0 - st.rush_warn / st.rush_total, 0.0, 1.0))
+	if not h.sweep.is_empty():
+		var k: float = clampf(h.sweep.t / h.sweep.dur, 0.0, 1.0)
+		var a: float = h.sweep.dir.angle()
+		var half: float = h.sweep.arc / 2.0
+		var cone := PackedVector2Array([h.sweep.pos])
+		var fill := PackedVector2Array([h.sweep.pos])
+		for n in 17:
+			var ang: float = a - half + h.sweep.arc * n / 16.0
+			cone.append(h.sweep.pos + Vector2.from_angle(ang) * h.sweep.reach)
+			fill.append(h.sweep.pos + Vector2.from_angle(ang) * h.sweep.reach * maxf(k, 0.05))
+		draw_colored_polygon(cone, Color(0.75, 0.12, 0.08, 0.12 + 0.18 * k))
+		draw_colored_polygon(fill, Color(0.95, 0.35, 0.15, 0.25))
+		cone.append(h.sweep.pos)
+		draw_polyline(cone, Color(0.95, 0.25, 0.15, 0.85), 1.0)
+	for st in h.storms:
+		_draw_storm(st)
 	for l in sim.horde.foe_lobs:
 		var k: float = clampf(l.t / l.dur, 0.0, 1.0)
 		draw_circle(l.to, l.radius, Color(0.75, 0.12, 0.08, 0.12 + 0.18 * k))
@@ -524,6 +553,10 @@ func _draw_warnings() -> void:
 			draw_circle(at, m.radius, Color(0.2, 0.75, 0.3, 0.06 + 0.1 * k))
 			draw_arc(at, m.radius, 0.0, TAU, 64, Color(0.45, 1.0, 0.5, 0.9), 1.0)
 			draw_arc(at, m.radius * k, 0.0, TAU, 64, Color(0.6, 1.0, 0.6, 0.8), 2.0)
+		elif m.kind == "blizzard":
+			draw_circle(at, m.radius, Color(0.75, 0.88, 1.0, 0.12 + 0.18 * k))
+			draw_arc(at, m.radius, 0.0, TAU, 48, Color(0.85, 0.95, 1.0, 0.95), 1.0)
+			draw_circle(at, m.radius * k, Color(0.9, 0.96, 1.0, 0.3))
 		else:
 			draw_circle(at, m.radius, Color(0.45, 0.12, 0.6, 0.15 + 0.2 * k))
 			draw_arc(at, m.radius, 0.0, TAU, 40, Color(0.8, 0.45, 1.0, 0.95), 1.0)
@@ -531,6 +564,36 @@ func _draw_warnings() -> void:
 			for n in 3:
 				var a := sim.time * 2.0 + n * TAU / 3.0
 				draw_arc(at, m.radius * 0.6, a, a + 1.2, 8, Color(0.85, 0.55, 1.0, 0.8), 1.0)
+
+
+## The lane of a coming charge, filling from where it starts as it nears.
+func _draw_lane(from: Vector2, dir: Vector2, length: float, width: float, k: float) -> void:
+	var end := from + dir * length
+	var edge := dir.orthogonal() * width / 2.0
+	draw_line(from, end, Color(0.75, 0.12, 0.08, 0.12 + 0.18 * k), width)
+	draw_line(from + edge, end + edge, Color(0.95, 0.25, 0.15, 0.85), 1.0)
+	draw_line(from - edge, end - edge, Color(0.95, 0.25, 0.15, 0.85), 1.0)
+	draw_line(end + edge, end - edge, Color(0.95, 0.25, 0.15, 0.85), 1.0)
+	draw_line(from, from.lerp(end, k), Color(0.95, 0.35, 0.15, 0.25), width)
+
+
+## A priest's blizzard: a pale ring of driving snow, fading in and out.
+func _draw_storm(st: Dictionary) -> void:
+	var fade: float = clampf((st.life - st.t) / 1.0, 0.0, 1.0) * clampf(st.t / 0.3, 0.0, 1.0)
+	var p: Vector2 = st.pos
+	var r: float = st.radius
+	draw_circle(p, r, Color(0.82, 0.9, 1.0, 0.22 * fade))
+	draw_arc(p, r, 0.0, TAU, 48, Color(0.92, 0.97, 1.0, 0.8 * fade), 1.0)
+	for n in 3:
+		var a: float = -sim.time * 2.5 + n * TAU / 3.0
+		draw_arc(p, r * 0.7, a, a + 1.0, 8, Color(1.0, 1.0, 1.0, 0.6 * fade), 1.0)
+	for n in 28:
+		var a := float(n) * 2.39996
+		var d := r * sqrt((n + 0.5) / 28.0)
+		var drift := fmod(sim.time * (30.0 + n % 5 * 6.0) + n * 13.0, 24.0)
+		var q := p + Vector2(cos(a) * d - drift * 0.5, sin(a) * d + drift - 12.0)
+		if q.distance_to(p) < r:
+			draw_rect(Rect2(q.round(), Vector2(1, 1)), Color(1.0, 1.0, 1.0, 0.9 * fade))
 
 
 func _lob_sprite(tex: Texture2D, key: String, p: Vector2) -> void:
@@ -702,6 +765,10 @@ func _draw_spears() -> void:
 	for i in h.sp_pos.size():
 		var p: Vector2 = h.sp_pos[i]
 		var dir: Vector2 = h.sp_vel[i].normalized()
+		if h.sp_kind[i] == 1:
+			# The Dacian archers' arrows are fletched dark red, so they never pass for the legion's own.
+			_big_shot(p, dir, 16.0, false, Color(0.32, 0.2, 0.12), Color(0.62, 0.16, 0.12))
+			continue
 		draw_line(p - dir * 20.0, p - dir * 4.0, Color(1.0, 1.0, 0.85, 0.22), 4.0)
 		var spin := Vector2.from_angle(sim.time * 18.0 + float(i) * 1.7)
 		var side := spin.orthogonal()
@@ -1025,6 +1092,14 @@ func _draw_gods(top_left: Vector2, screen: Vector2) -> void:
 func _draw_ravines(view: Rect2) -> void:
 	var item := get_canvas_item()
 	var empty_uv := PackedVector2Array()
+	for st in sim.terrain.streams_in(view):
+		for piece in st.pieces:
+			if not piece.has("mesh"):
+				piece.mesh = _ice_mesh(piece)
+			var g: Array = piece.mesh
+			RenderingServer.canvas_item_add_triangle_array(item, g[0], g[1], g[2], g[3], PackedInt32Array(), PackedFloat32Array(), ice.get_rid())
+			draw_polyline(g[4], Color(0.93, 0.96, 1.0, 0.85), 3.0)
+			draw_polyline(g[4], Color(0.35, 0.45, 0.6, 0.7), 1.0)
 	for rv in sim.terrain.ravines_in(view):
 		for piece in rv.pieces:
 			# Each piece keeps its triangles once worked out, since a ravine never changes.
@@ -1038,12 +1113,40 @@ func _draw_ravines(view: Rect2) -> void:
 			_draw_bridge(br)
 
 
-## The triangles of one ravine piece: the dark fill of its whole outline, and the strip of rocky lip along it.
-func _gorge_mesh(piece: Dictionary) -> Array:
+## The triangles of one frozen stream piece, the ice laid in world space so it lines up across pieces, and its bank as a closed line.
+func _ice_mesh(piece: Dictionary) -> Array:
+	var o := _outline(piece)
+	var centres: PackedVector2Array = o[0]
+	var outs: PackedVector2Array = o[1]
+	var widths: PackedFloat32Array = o[2]
+	var m := centres.size()
+	var tex := Vector2(ice.get_width(), ice.get_height())
+	var pts := PackedVector2Array()
+	var cols := PackedColorArray()
+	var uvs := PackedVector2Array()
+	var idx := PackedInt32Array()
+	var bank := PackedVector2Array()
+	for k in m:
+		var edge := centres[k] + outs[k] * widths[k]
+		pts.append(edge)
+		bank.append(edge)
+	for k in m:
+		pts.append(centres[k])
+	for q in pts:
+		cols.append(Color.WHITE)
+		uvs.append(q / tex)
+	for k in m:
+		var j := (k + 1) % m
+		idx.append_array([m + k, k, j, m + k, j, m + j])
+	bank.append(bank[0])
+	return [idx, pts, cols, uvs, bank]
+
+
+## A gorge or stream piece's outline: down one side, round the far end, back up the other side and round the near end, as centres, outward directions and widths.
+func _outline(piece: Dictionary) -> Array:
 	var pts: PackedVector2Array = piece.pts
 	var half: PackedFloat32Array = piece.half
 	var n := pts.size()
-	# The outline runs down one side, round the far end, back up the other side and round the near end.
 	var centres := PackedVector2Array()
 	var outs := PackedVector2Array()
 	var widths := PackedFloat32Array()
@@ -1068,6 +1171,16 @@ func _gorge_mesh(piece: Dictionary) -> Array:
 		centres.append(pts[0])
 		outs.append(-normals[0].rotated(-PI * k / cap))
 		widths.append(half[0])
+	return [centres, outs, widths]
+
+
+## The triangles of one ravine piece: the dark fill of its whole outline, and the strip of rocky lip along it.
+func _gorge_mesh(piece: Dictionary) -> Array:
+	var pts: PackedVector2Array = piece.pts
+	var o := _outline(piece)
+	var centres: PackedVector2Array = o[0]
+	var outs: PackedVector2Array = o[1]
+	var widths: PackedFloat32Array = o[2]
 	var m := centres.size()
 	var dark := Color(0.035, 0.025, 0.03)
 	var fill_pts := PackedVector2Array()

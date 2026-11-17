@@ -1498,7 +1498,7 @@ func test_a_province_turns_on_with_its_ground_and_draws_it(b: Dictionary) -> voi
 	check(not Content.load_all(art).ready("provinces", "gaul"), "without its ground it stays hidden")
 	var s := Sim.new(b, c, {"seed": 5, "province": "gaul"})
 	check(s.province == "gaul" and Content.ground_path("gaul") == "res://assets/grounds/gaul.png", "Gaul draws its own ground")
-	check(Content.ground_path("dacia") == "res://assets/grounds/germania.png", "a province without a file falls back to Germania's ground")
+	check(Content.ground_path("parthia") == "res://assets/grounds/germania.png", "a province without a file falls back to Germania's ground")
 
 
 func test_province_only_spawns_its_ready_enemies(b: Dictionary) -> void:
@@ -2205,8 +2205,8 @@ func test_demo_offers_three_commanders(b: Dictionary) -> void:
 	check(Game.commanders(content, b) == ready, "the full game lists every drawn commander whose unlock province is playable")
 	check("engineer" in Game.commanders(content, b), "the engineer is offered now that Gaul is drawn")
 	var later := Content.load_all(Content.available_art())
-	later.commanders.engineer.unlock = {"type": "win", "province": "dacia"}
-	check(not "engineer" in Game.commanders(later, b), "a commander won in a province not drawn yet, such as Dacia, waits for it")
+	later.commanders.engineer.unlock = {"type": "win", "province": "parthia"}
+	check(not "engineer" in Game.commanders(later, b), "a commander won in a province not drawn yet, such as Parthia, waits for it")
 	check(Game.province_allowed("gaul", b), "the full game opens every province")
 	check(Game.run_cap(b) == 0.0, "the full game has no cap")
 	Game.demo_forced = true
@@ -4827,8 +4827,8 @@ func test_the_gods_sound_ready_once_when_the_favour_fills(b: Dictionary) -> void
 
 
 ## A quiet run in Gaul on open ground: no stream, surges or bosses on their own, a commander who cannot fall and eight legionaries round him.
-func _gaul_sim(b: Dictionary, seed_value: int) -> Sim:
-	var s := Sim.new(b, Content.with_all_art(), {"seed": seed_value, "province": "gaul"})
+func _gaul_sim(b: Dictionary, seed_value: int, province := "gaul") -> Sim:
+	var s := Sim.new(b, Content.with_all_art(), {"seed": seed_value, "province": province})
 	s.terrain.clear()
 	s.b = b.duplicate()
 	s.b.spawn_per_second_start = 0.0
@@ -5152,6 +5152,342 @@ func test_the_gaulish_king_summons_horsemen_and_frees_his_guard(b: Dictionary) -
 	n0 = h.e_pos.size()
 	h.summon(ci, s)
 	check(h.e_pos.size() - n0 == int(cfg.fury_count), "his summons bring %d riders now" % int(cfg.fury_count))
+
+
+func _dacia_sim(b: Dictionary, seed_value: int) -> Sim:
+	var s := _gaul_sim(b, seed_value, "dacia")
+	for t in ["sweep_cd", "rockfall_cd", "leap_cd", "salvo_cd"]:
+		s.horde.set(t, 1e9)
+	return s
+
+
+func test_winning_gaul_opens_dacia(b: Dictionary) -> void:
+	check(content.ready("provinces", "dacia"), "Dacia is drawn")
+	check(content.province_before("dacia") == "gaul", "the drawn province before Dacia is Gaul")
+	var p := _fresh_profile()
+	var s := Sim.new(b, content, {"seed": 940, "province": "gaul"})
+	s.time = 900.0
+	s.over = true
+	s.victory = true
+	p.record_run(s)
+	check(p.province_unlocked("dacia"), "winning in Gaul opens Dacia")
+	_cleanup_profile_files()
+	p.free()
+
+
+func test_dacia_is_snowy_mountains_with_pines_rocks_and_ice(b: Dictionary) -> void:
+	var area := Rect2(-4000, -4000, 8000, 8000)
+	var t := Terrain.new(941, b.forest, b.ravines)
+	t.mountain = b.mountains.dacia
+	t.stream_cfg = b.streams.dacia
+	var g := Terrain.new(941, b.forest, b.ravines)
+	var kinds := {}
+	var forest := {}
+	for pr in t.props_in(area):
+		kinds[pr[0]] = kinds.get(pr[0], 0) + 1
+	for pr in g.props_in(area):
+		forest[pr[0]] = forest.get(pr[0], 0) + 1
+	check(kinds.has("pine") and kinds.has("rock"), "the mountains hold pines and rocks (%s)" % str(kinds.keys()))
+	check(not kinds.has("oak") and not kinds.has("fir") and not kinds.has("log"), "and none of Germania's oaks, firs or logs")
+	check(int(kinds.get("rock", 0)) > int(forest.get("rock", 0)), "more rock than Germania (%d against %d)" % [kinds.get("rock", 0), forest.get("rock", 0)])
+	check(int(kinds.get("pine", 0)) > int(forest.get("fir", 0)) + int(forest.get("oak", 0)), "and more trees in its ridges (%d against %d)" % [kinds.get("pine", 0), int(forest.get("fir", 0)) + int(forest.get("oak", 0))])
+	var streams := t.streams_in(area)
+	check(streams.size() >= 4, "frozen streams wind across the field (%d)" % streams.size())
+	check(g.streams_in(area).is_empty(), "and Germania has none")
+	var on_ice := 0
+	for pr in t.props_in(area):
+		if pr[2] > 0.0 and t.on_ice(pr[1]):
+			on_ice += 1
+	check(on_ice == 0, "nothing solid stands on the ice")
+	var clear := true
+	for st in streams:
+		for piece in st.pieces:
+			for i in range(0, piece.pts.size(), 4):
+				clear = clear and t.ravine_edge(piece.pts[i], 400.0) > piece.half[i]
+	check(clear, "and no stream runs into a ravine")
+
+
+func test_the_legion_slides_on_ice(b: Dictionary) -> void:
+	var s := _dacia_sim(b, 942)
+	s.terrain.add_stream([{"pts": PackedVector2Array([Vector2(-600, 0), Vector2(600, 0)]), "half": PackedFloat32Array([400.0, 400.0])}])
+	s.commander.pos = Vector2.ZERO
+	s.legion.place_all(s.facing_angle)
+	check(s.terrain.on_ice(Vector2.ZERO) and not s.terrain.on_ice(Vector2(0, 600)), "the ice is where the stream lies")
+	s.update(1.0 / 60.0, Vector2.RIGHT, false)
+	var first: float = s.commander.pos.x
+	check(first > 0.0 and first < s.speed() / 60.0 * 0.5, "on the ice the legion gathers speed slowly (%.2f px)" % first)
+	for k in 120:
+		s.update(1.0 / 60.0, Vector2.RIGHT, false)
+	var at: Vector2 = s.commander.pos
+	for k in 30:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.commander.pos.x - at.x > 20.0, "and slides on after the march stops (%.0f px)" % (s.commander.pos.x - at.x))
+	var dry := _dacia_sim(b, 942)
+	dry.commander.pos = Vector2.ZERO
+	dry.update(1.0 / 60.0, Vector2.RIGHT, false)
+	var start: float = dry.commander.pos.x
+	dry.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(is_equal_approx(dry.commander.pos.x, start), "off the ice it stops where it stands")
+
+
+func test_a_falx_cuts_through_the_testudo(b: Dictionary) -> void:
+	var hurt := {}
+	for kind in ["falx_warrior", "barbarian_club"]:
+		var s := _dacia_sim(b, 943)
+		s.soldiers.clear()
+		s.legion.place_all(s.facing_angle)
+		var i := s.horde.spawn(kind, s.commander.pos + Vector2(10, 0))
+		s.horde.e_cd[i] = 1e9
+		s.testudo_left = 5.0
+		var before: float = s.commander.hp
+		for k in 30:
+			s._rebuild_grids()
+			s.horde._move(1.0 / 60.0, s)
+		hurt[kind] = (before - s.commander.hp) / float(content.enemies[kind].dps)
+	check(hurt.falx_warrior > hurt.barbarian_club * 2.0, "the testudo turns a club but not a falx (%.2f against %.2f)" % [hurt.falx_warrior, hurt.barbarian_club])
+	var s := _dacia_sim(b, 944)
+	s.soldiers.clear()
+	var i := s.horde.spawn("falx_warrior", s.commander.pos + Vector2(10, 0))
+	s.horde.e_cd[i] = 0.0
+	var hp0: float = s.commander.hp
+	s._rebuild_grids()
+	s.horde._move(1.0 / 60.0, s)
+	var cfg: Dictionary = content.enemies.falx_warrior
+	check(hp0 - s.commander.hp >= float(cfg.dps) * float(cfg.falx.damage_mult), "and every few seconds he lands a heavy chop")
+	check(s.horde.e_strike[i] == s.time, "which plays his swing")
+
+
+func test_dacian_archers_loose_together_on_the_drum(b: Dictionary) -> void:
+	var s := _dacia_sim(b, 945)
+	var h := s.horde
+	var cfg: Dictionary = content.enemies.dacian_archer.salvo
+	check(h.salvo_every == float(cfg.every), "the drum beats every %d seconds" % int(cfg.every))
+	var archers: Array = []
+	for k in 3:
+		var i := h.spawn("dacian_archer", s.commander.pos + Vector2.from_angle(k * 2.0) * 150.0)
+		h.e_cd[i] = 0.0
+		archers.append(i)
+	h.salvo_cd = 1.0
+	s._rebuild_grids()
+	h.update(1.0 / 60.0, s)
+	check(h.sp_pos.is_empty(), "no archer shoots before the beat")
+	h.salvo_cd = 0.001
+	h.update(1.0 / 60.0, s)
+	check(h.sp_pos.size() == 3 * int(cfg.arrows), "on the beat every archer looses %d arrows at once (%d)" % [int(cfg.arrows), h.sp_pos.size()])
+	var arrows := true
+	for k in h.sp_kind:
+		arrows = arrows and k == 1
+	check(arrows, "drawn as arrows")
+	s.testudo_left = 5.0
+	var hp0: float = s.commander.hp
+	for k in 120:
+		h._spears(1.0 / 60.0, s)
+	check(h.sp_pos.is_empty() and s.commander.hp == hp0, "and the testudo stops them")
+
+
+func test_the_draco_howls_and_speeds_the_warriors(b: Dictionary) -> void:
+	var s := _dacia_sim(b, 946)
+	var h := s.horde
+	var cfg: Dictionary = content.enemies.wolf_standard_bearer.howl
+	var i := h.spawn("wolf_standard_bearer", s.commander.pos + Vector2(120, 0))
+	var near := h.spawn("falx_warrior", s.commander.pos + Vector2(140, 30))
+	var far := h.spawn("falx_warrior", s.commander.pos + Vector2(-200, 200))
+	h.e_cd[i] = 0.0
+	s._rebuild_grids()
+	h._move(1.0 / 60.0, s)
+	check(h.e_haste[near] > 0.0 and is_equal_approx(h.haste_mult, float(cfg.speed_mult)), "his howl speeds the warriors round him")
+	check(h.e_haste[far] == 0.0, "but not those far off")
+	check(h.e_strike[i] == s.time, "and he raises the draco")
+
+
+func test_a_bear_mauls_and_throws_soldiers_back(b: Dictionary) -> void:
+	var s := _dacia_sim(b, 947)
+	var h := s.horde
+	var cfg: Dictionary = content.enemies.mountain_bear
+	var i := h.spawn("mountain_bear", Vector2(100, 0))
+	var a: Dictionary = s.soldiers[0]
+	var c: Dictionary = s.soldiers[1]
+	var far: Dictionary = s.soldiers[2]
+	a.pos = Vector2(84, 0)
+	c.pos = Vector2(80, 10)
+	far.pos = Vector2(-60, 0)
+	for u in [a, c, far]:
+		u.max_hp = 1e6
+		u.hp = 1e6
+	var gap: float = a.pos.distance_to(h.e_pos[i])
+	h._maul(i, a, 1.0, s)
+	var want := float(cfg.dps) * float(cfg.maul.damage_mult)
+	check(is_equal_approx(1e6 - a.hp, want), "the maul strikes hard (%.0f)" % want)
+	check(c.hp < 1e6 and c.hp > a.hp, "catches the soldier beside him more lightly")
+	check(far.hp == 1e6, "and misses one out of reach")
+	check(a.pos.distance_to(h.e_pos[i]) > gap, "throwing the soldier back")
+	check(float(cfg.hp) > float(content.enemies.falx_warrior.hp) * 2.0, "a bear takes much more to bring down than a warrior")
+
+
+func test_the_falx_band_leader_charges_with_his_band(b: Dictionary) -> void:
+	var s := _dacia_sim(b, 948)
+	var h := s.horde
+	var cfg: Dictionary = content.enemies.falx_band.onrush
+	s.commander.pos = Vector2.ZERO
+	s.legion.place_all(s.facing_angle)
+	var i := h.spawn("falx_band", Vector2(200, 0), true)
+	var st: Dictionary = h.boss_state(i)
+	st.onrush_cd = 0.0
+	var mate := h.spawn("falx_warrior", Vector2(230, 40))
+	s._rebuild_grids()
+	h._bosses(1.0 / 60.0, s)
+	check(st.rush_warn > 0.0, "he marks his lane first")
+	check(st.rush_dir.dot(Vector2.LEFT) > 0.99, "towards the legion")
+	var hp0: float = s.commander.hp
+	var start := h.e_pos[i]
+	while st.rush_warn > 0.0:
+		h._bosses(1.0 / 60.0, s)
+		h._bosses_after()
+	check(h.e_pos[i] == start and s.commander.hp == hp0, "nobody is hurt while the lane fills")
+	check(st.rush_left > 0.0, "then he charges")
+	check(h.e_slow[mate] > 1.0, "and the warriors round him rush in with him")
+	for k in int(float(cfg.seconds) * 60.0) + 2:
+		h._bosses(1.0 / 60.0, s)
+		h._bosses_after()
+	check(h.e_pos[i].distance_to(start) > float(cfg.length) * 0.8, "running the length of his lane")
+	check(s.commander.hp < hp0, "cutting down the soldiers in his path")
+
+
+func test_the_priest_calls_a_blizzard(b: Dictionary) -> void:
+	var s := _dacia_sim(b, 949)
+	var h := s.horde
+	var cfg: Dictionary = content.enemies.priest.blizzard
+	s.commander.pos = Vector2.ZERO
+	s.legion.place_all(s.facing_angle)
+	var i := h.spawn("priest", Vector2(160, 0), true)
+	h.boss_state(i).blizzard_cd = 0.0
+	var pace := s.speed()
+	h._bosses(1.0 / 60.0, s)
+	check(h.marks.size() == 1 and h.marks[0].kind == "blizzard", "a ring marks where his blizzard will fall")
+	h._storms(1.0 / 60.0, s)
+	check(is_equal_approx(s.speed(), pace), "it does nothing while the ring fills")
+	h.marks[0].t = h.marks[0].dur
+	h._marks(1.0 / 60.0, s)
+	var hp0: float = s.commander.hp
+	h._storms(1.0 / 60.0, s)
+	check(h.storms.size() == 1 and s.speed() < pace * (1.0 - float(cfg.slow) * 0.9), "then the storm slows the legion's march")
+	check(s.commander.hp < hp0, "and freezes those inside it")
+	s.commander.pos = Vector2(600, 0)
+	h._storms(1.0 / 60.0, s)
+	check(is_equal_approx(s.speed(), pace), "marching out of it frees the legion")
+	h.storms[0].t = float(cfg.seconds)
+	h._storms(1.0 / 60.0, s)
+	check(h.storms.is_empty(), "and it blows over after %d seconds" % int(cfg.seconds))
+
+
+func test_the_dacian_king_behind_his_wall(b: Dictionary) -> void:
+	var s := _dacia_sim(b, 950)
+	var h := s.horde
+	var cfg: Dictionary = content.enemies.dacian_king.wall
+	s.commander.pos = Vector2.ZERO
+	var ci := h.spawn_chieftain(Vector2(300, 0))
+	var front := true
+	var guards := 0
+	for k in h.e_pos.size():
+		if h.e_guard[k] != Vector2.ZERO:
+			guards += 1
+			front = front and h.e_guard[k].dot(Vector2.LEFT) > 0.0 and h.kind_ids[h.e_kind[k]] == "falx_warrior"
+	check(guards == h.guards_alive and guards > 0, "he comes with his guard")
+	check(front, "falx warriors standing in an arc between him and the legion")
+	var hp0: float = h.e_hp[ci]
+	s.hit(ci, 100.0, 0.0, "", Vector2(200, 0))
+	check(is_equal_approx(hp0 - h.e_hp[ci], 100.0 * (1.0 - float(cfg.cut))), "a blow from in front glances off the wall")
+	hp0 = h.e_hp[ci]
+	s.hit(ci, 100.0, 0.0, "", Vector2(400, 0))
+	check(is_equal_approx(hp0 - h.e_hp[ci], 100.0), "a blow from behind him lands in full")
+	s.commander.pos = Vector2(300, 400)
+	h._chieftain(1.0 / 60.0, s)
+	var turned := true
+	for k in h.e_pos.size():
+		if h.e_guard[k] != Vector2.ZERO:
+			turned = turned and h.e_guard[k].dot(Vector2.DOWN) > 0.0
+	check(turned, "the wall turns to face the legion")
+	while h.guards_alive >= int(cfg.min):
+		for k in h.e_pos.size():
+			if h.e_guard[k] != Vector2.ZERO:
+				h.remove_at(k)
+				break
+	ci = h.chieftain_index()
+	hp0 = h.e_hp[ci]
+	s.hit(ci, 100.0, 0.0, "", Vector2(300, 200))
+	check(is_equal_approx(hp0 - h.e_hp[ci], 100.0), "with fewer than %d left even blows from in front land" % int(cfg.min))
+
+
+func test_the_dacian_king_sweeps_and_brings_down_rocks(b: Dictionary) -> void:
+	var s := _dacia_sim(b, 951)
+	var h := s.horde
+	var atk: Dictionary = content.enemies.dacian_king.attacks
+	s.commander.pos = Vector2.ZERO
+	s.legion.place_all(s.facing_angle)
+	var ci := h.spawn_chieftain(Vector2(50, 0))
+	for u in s.units:
+		u.max_hp = 1e6
+		u.hp = 1e6
+	check(h.start_sweep(ci, s), "with soldiers in reach he raises his blade")
+	check(not h.sweep.is_empty() and h.chief_hold > 0.0, "and stands while a cone fills before him")
+	h._sweep_and_leap(ci, 0.1, s)
+	var whole := true
+	for u in s.units:
+		whole = whole and u.hp == 1e6
+	check(whole, "nobody is hurt while it fills")
+	h._sweep_and_leap(ci, float(atk.sweep.windup), s)
+	var cut := 0
+	var behind := true
+	for u in s.units:
+		var to: Vector2 = u.pos - Vector2(50, 0)
+		if u.hp < 1e6:
+			cut += 1
+			behind = behind and to.dot(Vector2.LEFT) > 0.0
+	check(cut >= 2 and behind, "then it cuts the soldiers in the cone and only them (%d)" % cut)
+	check(h.sweep.is_empty(), "and is spent")
+	var n0 := h.foe_lobs.size()
+	h.rockfall(ci, s)
+	var rocks := h.foe_lobs.slice(n0)
+	check(rocks.size() == int(atk.rockfall.count), "rocks come down on %d rings" % int(atk.rockfall.count))
+	var on_him := false
+	for l in rocks:
+		on_him = on_him or (l.to == s.commander.pos and l.get("rock", false))
+	check(on_him, "one of them on the commander")
+	h.chief_fury = true
+	n0 = h.foe_lobs.size()
+	h.rockfall(ci, s)
+	check(h.foe_lobs.size() - n0 == int(atk.rockfall.fury_count), "more in his second phase")
+
+
+func test_the_dacian_king_leaps_in_his_second_phase(b: Dictionary) -> void:
+	var s := _dacia_sim(b, 952)
+	var h := s.horde
+	var atk: Dictionary = content.enemies.dacian_king.attacks
+	s.commander.pos = Vector2.ZERO
+	s.legion.place_all(s.facing_angle)
+	var ci := h.spawn_chieftain(Vector2(200, 0))
+	h.leap_cd = 0.0
+	h._chieftain(1.0 / 60.0, s)
+	check(h.leap.is_empty(), "he does not leap while his wall stands")
+	h.e_hp[ci] = h.e_max[ci] * 0.49
+	h._chieftain(1.0 / 60.0, s)
+	check(h.chief_fury and h.guards_alive == 0, "below half health he sends his wall in")
+	h.leap_cd = 0.0
+	h._chieftain(1.0 / 60.0, s)
+	check(not h.leap.is_empty(), "and leaps")
+	var ring := false
+	for l in h.foe_lobs:
+		ring = ring or (l.to == Vector2.ZERO and l.get("slam", false))
+	check(ring, "onto a ring marked where the commander stood")
+	var hp0: float = s.commander.hp
+	var t := 0.0
+	while t < float(atk.leap.windup) + 0.05:
+		h._chieftain(1.0 / 60.0, s)
+		h._chieftain_after(s)
+		h._foe_lobs(1.0 / 60.0, s)
+		t += 1.0 / 60.0
+	check(h.e_pos[h.chieftain_index()].distance_to(Vector2.ZERO) < 40.0, "landing on it")
+	check(s.commander.hp < hp0, "and crushing those under him")
 
 
 ## How many steps of the route map round the commander pass through a solid prop, from each open square's centre to the next open square's.

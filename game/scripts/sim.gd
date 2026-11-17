@@ -42,6 +42,8 @@ var soldiers: Array:
 		legion.soldiers = value
 var facing_angle := 0.0
 var moving := false
+## The legion's march on the ice, which follows the way it is steered only slowly, so it slides.
+var glide := Vector2.ZERO
 # How many barbarians were locked in melee with the legion on the last update.
 var pressing := 0
 
@@ -170,6 +172,8 @@ func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
 	horde = Horde.new(b, content, rng, legion.commander, province)
 	terrain = Terrain.new(rng.seed, b.forest, b.get("ravines", {}))
 	terrain.field = b.get("fields", {}).get(province, {})
+	terrain.mountain = b.get("mountains", {}).get(province, {})
+	terrain.stream_cfg = b.get("streams", {}).get(province, {})
 	terrain.clear_radius = float(b.get("terrain_clear_radius", 200.0))
 	terrain.fell_seconds = float(b.felling.seconds)
 	objectives.place_start(self, options.get("objectives_near", false))
@@ -238,7 +242,8 @@ func speed() -> float:
 	# Barbarians locked in melee hold the legion back, so marching into a crowd bogs it down instead of passing through.
 	var held := 1.0 - float(b.press.per_enemy) * pressing
 	var cursed := 1.0 - horde.curse_slow if horde.curse_left > 0.0 else 1.0
-	return v * maxf(float(b.press.slowest), held * cursed * (b.testudo_speed if testudo_left > 0.0 else 1.0))
+	var frozen := 1.0 - horde.frost_slow
+	return v * maxf(float(b.press.slowest), held * cursed * frozen * (b.testudo_speed if testudo_left > 0.0 else 1.0))
 
 
 func range_mult() -> float:
@@ -379,14 +384,24 @@ func _track(dt: float) -> void:
 
 func _move_legion(dt: float, move: Vector2) -> void:
 	moving = move.length() > 0.15
+	var want := Vector2.ZERO
 	if moving:
 		var dir := move.normalized() if move.length() > 1.0 else move
 		# Marching head-on into a wheat field, the legion turns along its edge rather than standing pressed against it.
 		var along := terrain.round_field(commander.pos + dir * speed() * dt, UNIT_RADIUS, dir.normalized())
-		commander.pos += (along * dir.length() if along != Vector2.ZERO else dir) * speed() * dt
+		want = (along * dir.length() if along != Vector2.ZERO else dir) * speed()
 		facing_angle = lerp_angle(facing_angle, move.angle(), minf(1.0, dt * 5.0))
 		commander.facing = move.normalized()
+	if terrain.on_ice(commander.pos):
+		var ice: Dictionary = b.ice
+		glide = glide.lerp(want * float(ice.glide), minf(1.0, dt * float(ice.grip)))
+	else:
+		glide = want
+	commander.pos += glide * dt
+	var before: Vector2 = commander.pos
 	commander.pos = terrain.push_out(commander.pos, UNIT_RADIUS, dt)
+	if commander.pos != before:
+		glide = Vector2.ZERO if moving else glide * 0.5
 	terrain.rot_posts(time)
 	terrain.refresh(commander.pos)
 	terrain.update_flow(commander.pos)

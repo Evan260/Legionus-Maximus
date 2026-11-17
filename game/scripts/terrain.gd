@@ -7,8 +7,8 @@ extends RefCounted
 const CHUNK := 160.0
 const REGION := 480.0
 const SCATTER := ["oak", "fir", "rock", "log", "stones", "stones", "fir", "rock"]
-const SOLID := {"oak": 9.0, "fir": 8.0, "rock": 10.0, "log": 9.0}
-const TREES := {"oak": true, "fir": true}
+const SOLID := {"oak": 9.0, "fir": 8.0, "pine": 8.0, "rock": 10.0, "log": 9.0}
+const TREES := {"oak": true, "fir": true, "pine": true}
 
 const CELL := 64.0
 const GN := 28
@@ -44,6 +44,13 @@ var fell_seconds := 3.0
 var forest: Dictionary
 ## The province's own scatter and features from balance.json `fields`; empty for Germania's forest.
 var field: Dictionary
+## A mountain province's scatter, ridge tree and rock lines from balance.json `mountains`, laid over the forest numbers.
+var mountain: Dictionary
+## The frozen stream numbers from balance.json `streams`; with none the field has no ice.
+var stream_cfg: Dictionary
+# The frozen stream of each stream region once worked out, {} for a region without one, and streams laid by hand.
+var _streams := {}
+var _laid_streams: Array = []
 # The way round obstacles towards the commander: one step direction per FLOW_CELL square, or none where no way exists.
 const FLOW_CELL := 32.0
 const FN := 56
@@ -106,6 +113,7 @@ func clear() -> void:
 	posts.clear()
 	_chunks.clear()
 	_laid.clear()
+	_laid_streams.clear()
 	bridges.clear()
 	_anchor = Vector2i(1 << 30, 0)
 
@@ -260,7 +268,7 @@ func chunk(cx: int, cy: int) -> Array:
 		return out
 	var r := RandomNumberGenerator.new()
 	r.seed = hash([seed_value, key])
-	var scatter: Array = field.get("scatter", SCATTER)
+	var scatter: Array = field.get("scatter", mountain.get("scatter", SCATTER))
 	for i in r.randi_range(0, 2):
 		var p := Vector2((cx + r.randf()) * CHUNK, (cy + r.randf()) * CHUNK)
 		if p.length() > 90.0:
@@ -316,15 +324,18 @@ func _region(rx: int, ry: int) -> Array:
 	var out: Array = []
 	var roll := r.randf()
 	var centre := (Vector2(rx, ry) + Vector2(r.randf_range(0.25, 0.75), r.randf_range(0.25, 0.75))) * REGION
-	if roll < float(forest.ridge_chance):
+	var ridges := float(mountain.get("ridge_chance", forest.ridge_chance))
+	if roll < ridges:
 		out = _ridge(r, centre)
-	elif roll < float(forest.ridge_chance) + float(forest.line_chance):
+	elif roll < ridges + float(mountain.get("line_chance", forest.line_chance)):
 		var dir := Vector2.from_angle(r.randf() * PI)
-		var length := r.randf_range(160.0, 320.0)
+		var span: Array = mountain.get("line_length", [160.0, 320.0])
+		var length := r.randf_range(float(span[0]), float(span[1]))
+		var kinds: Array = mountain.get("line_kinds", [])
 		var t := -length / 2.0
 		while t <= length / 2.0:
 			var p := centre + dir * t + dir.orthogonal() * sin(t / 40.0) * 10.0
-			var kind := "rock" if r.randf() < 0.65 else "log"
+			var kind: String = kinds[r.randi_range(0, kinds.size() - 1)] if not kinds.is_empty() else ("rock" if r.randf() < 0.65 else "log")
 			out.append([kind, p, SOLID[kind]])
 			t += 20.0
 	var kept: Array = []
@@ -385,7 +396,7 @@ func _ridge(r: RandomNumberGenerator, centre: Vector2) -> Array:
 		var h := hash([seed_value, cell])
 		var odd := step / 2.0 if posmod(cell.y, 2) == 1 else 0.0
 		var at := Vector2(cell.x * step + odd + ((h & 255) / 255.0 * 2.0 - 1.0) * jitter, cell.y * row + (((h >> 8) & 255) / 255.0 * 2.0 - 1.0) * jitter)
-		var kind := "fir" if ((h >> 16) & 255) / 255.0 < firs else "oak"
+		var kind: String = mountain.get("tree", "fir" if ((h >> 16) & 255) / 255.0 < firs else "oak")
 		out.append([kind, at, SOLID[kind]])
 	return out
 
@@ -1060,8 +1071,8 @@ func ravine(rx: int, ry: int) -> Dictionary:
 			var size := float(ravine_cfg.region)
 			var inner := Rect2(Vector2(rx, ry) * size, Vector2.ONE * size).grow(-float(ravine_cfg.inset) - float(ravine_cfg.width[1]) / 2.0)
 			for k in int(ravine_cfg.tries):
-				var made := _gorge_line(r, inner)
-				if _fits(made, inner):
+				var made := _gorge_line(r, inner, ravine_cfg)
+				if _fits(made, inner, ravine_cfg):
 					out = made
 					break
 	_ravines[key] = out
@@ -1069,8 +1080,7 @@ func ravine(rx: int, ry: int) -> Dictionary:
 
 
 ## A winding gorge centred somewhere in `inner`, narrowing at its ends, sometimes broken by a natural land bridge.
-func _gorge_line(r: RandomNumberGenerator, inner: Rect2) -> Dictionary:
-	var cfg := ravine_cfg
+func _gorge_line(r: RandomNumberGenerator, inner: Rect2, cfg: Dictionary) -> Dictionary:
 	var ds := float(cfg.step)
 	var length := r.randf_range(float(cfg.length[0]), float(cfg.length[1]))
 	var w_lo := float(cfg.width[0]) / 2.0
@@ -1156,13 +1166,16 @@ func _with_box(rv: Dictionary) -> Dictionary:
 	return rv
 
 
-## Whether a gorge stays inside its room, clear of the start and of every clearing.
-func _fits(rv: Dictionary, inner: Rect2) -> bool:
-	var start_clear := float(ravine_cfg.start_clear)
+## Whether a gorge or stream stays inside its room, clear of the start and of every clearing, and a stream clear of the ravines.
+func _fits(rv: Dictionary, inner: Rect2, cfg: Dictionary) -> bool:
+	var start_clear := float(cfg.start_clear)
+	var gap := float(cfg.get("ravine_gap", -1.0))
 	for piece in rv.pieces:
 		for i in piece.pts.size():
 			var q: Vector2 = piece.pts[i]
 			if not inner.has_point(q) or q.length() < start_clear + piece.half[i]:
+				return false
+			if gap >= 0.0 and i % 4 == 0 and ravine_edge(q, piece.half[i] + gap + 200.0) < piece.half[i] + gap:
 				return false
 	for c in clearings:
 		if edge_of(rv, c[0]) < c[1]:
@@ -1215,12 +1228,72 @@ static func edge_of(rv: Dictionary, p: Vector2) -> float:
 	return best
 
 
-## Whether p is in the band of open ground kept round every ravine.
+## Whether p is in the band of open ground kept round every ravine and every frozen stream.
 func _by_ravine(p: Vector2) -> bool:
+	if not stream_cfg.is_empty() and stream_edge(p, float(stream_cfg.band) + float(stream_cfg.width[1])) < float(stream_cfg.band):
+		return true
 	if ravine_cfg.is_empty():
 		return false
 	var band := float(ravine_cfg.band)
 	return ravine_edge(p, band + float(ravine_cfg.width[1])) < band
+
+
+## The frozen stream of a stream region, laid out like a gorge but kept clear of the ravines: {pieces: [{pts, half}], box}, or {} for none.
+func stream(rx: int, ry: int) -> Dictionary:
+	var key := Vector2i(rx, ry)
+	if _streams.has(key):
+		return _streams[key]
+	var out := {}
+	if not stream_cfg.is_empty() and not empty:
+		var r := RandomNumberGenerator.new()
+		r.seed = hash([seed_value, "stream", key])
+		if r.randf() < float(stream_cfg.chance):
+			var size := float(stream_cfg.region)
+			var inner := Rect2(Vector2(rx, ry) * size, Vector2.ONE * size).grow(-float(stream_cfg.inset) - float(stream_cfg.width[1]) / 2.0)
+			for k in int(stream_cfg.tries):
+				var made := _gorge_line(r, inner, stream_cfg)
+				if _fits(made, inner, stream_cfg):
+					out = made
+					break
+	_streams[key] = out
+	return out
+
+
+## Lays a frozen stream by hand, given as pieces of {pts, half}, for tests and looks.
+func add_stream(pieces: Array) -> void:
+	_laid_streams.append(_with_box(_cracked({"pieces": pieces})))
+
+
+## Every frozen stream whose ice reaches into the rectangle.
+func streams_in(rect: Rect2) -> Array:
+	var out: Array = []
+	for st in _laid_streams:
+		if st.box.intersects(rect):
+			out.append(st)
+	if stream_cfg.is_empty() or empty:
+		return out
+	var size := float(stream_cfg.region)
+	for rx in range(floori(rect.position.x / size), floori(rect.end.x / size) + 1):
+		for ry in range(floori(rect.position.y / size), floori(rect.end.y / size) + 1):
+			var st := stream(rx, ry)
+			if not st.is_empty() and st.box.intersects(rect):
+				out.append(st)
+	return out
+
+
+## How far p is from the nearest frozen stream's bank, negative on the ice; INF when none is within `within`.
+func stream_edge(p: Vector2, within := 300.0) -> float:
+	var best := INF
+	for st in streams_in(Rect2(p - Vector2.ONE * within, Vector2.ONE * within * 2.0)):
+		best = minf(best, edge_of(st, p))
+	return best
+
+
+## Whether p stands on the ice of a frozen stream.
+func on_ice(p: Vector2) -> bool:
+	if stream_cfg.is_empty() and _laid_streams.is_empty():
+		return false
+	return stream_edge(p, 160.0) < 0.0
 
 
 ## Lists the ravine segments near the commander in every grid cell they could touch a unit from, as the solid props are.
