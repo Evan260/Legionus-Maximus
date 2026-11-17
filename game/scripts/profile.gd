@@ -253,7 +253,7 @@ func buy_commander(id: String, content: Content) -> bool:
 	return true
 
 
-## Opens every drawn province with its modes, every commander and the whole codex, with denarii to spare, for --max-state; it is never saved.
+## Opens every drawn province with its modes and every commander, maxes every upgrade and fills the codex, for --max-state; it is never saved.
 func max_out(content: Content) -> void:
 	data.denarii = 1000000
 	for p in content.provinces:
@@ -268,6 +268,10 @@ func max_out(content: Content) -> void:
 	for id in content.commanders:
 		if not data.unlocked.commanders.has(id):
 			data.unlocked.commanders.append(id)
+	# Every upgrade at its last rank; a triumph repeats for ever, so three are held to show their statues.
+	for id in content.quartermaster:
+		var info: Dictionary = content.quartermaster[id]
+		data.ranks[id] = 3 if info.get("repeat", false) else int(info.ranks)
 	for kind in Content.GROUPS.keys() + ["enemies", "commanders", "gods"]:
 		for id in content.get(kind):
 			data.seen[id] = true
