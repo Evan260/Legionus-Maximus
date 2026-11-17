@@ -23,6 +23,7 @@ extends Node
 ##   --card=ID          show that achievement's card, for looking at it
 ##   --give=ID,ID:RANK  start the run with these arms or drills at the rank (default 1), for looking at them
 ##   --timber=N         with --autoplay, start the run carrying that much timber
+##   --men=N            with --autoplay, start the run with N soldiers, legionaries and archers
 ##   --boss=ID          with --autoplay, bring that elite or the chieftain beside the legion; --boss-act=whirl|shield|band|mend|curse|blink|rage|roar,
 ##                      fall (with --go-to=ravine) stands him at the lip for the legion to shove in,
 ##                      duel|rally|blast|flee for the Gaulish elites and siege|summon for the Gaulish king, makes him use that ability at once and
@@ -116,6 +117,10 @@ func _ready() -> void:
 				sim.update(1.0 / 30.0, Vector2(cos(sim.time * 0.3), sin(sim.time * 0.3)), false)
 				while sim.pending_levels > 0:
 					Upgrades.apply(sim, Upgrades.offers(sim)[0])
+	if args.has("men") and state == "play":
+		for i in int(args.men):
+			sim.add_soldier("archer" if i % 3 == 1 else "legionary")
+		sim.legion.place_all(sim.facing_angle)
 	if args.has("go-to") and state == "play":
 		_go_to(str(args["go-to"]))
 	if args.has("card") and content.achievements.has(args.card):

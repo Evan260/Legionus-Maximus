@@ -25,6 +25,9 @@ var _rate := 1.0
 # The roll formation() last placed and the places it gave, reused while the roll is the same.
 var _form_roll: Array = []
 var _form_places: Array = []
+# The soldiers' indices in row-major order of the places they were last sorted for, front row first and left to right.
+var _order: Array = []
+var _order_of: Array = []
 # The commander and soldiers below full health this update, in roll order, gathered for the medici; only they can be the worst hurt.
 var _hurt: Array = []
 var _hurt_ready := false
@@ -180,10 +183,11 @@ func place_all(angle: float) -> void:
 ## Every soldier walks to his place in the formation; riders out on a sortie are moved by update.
 func follow(dt: float, sim: Sim) -> void:
 	var places := formation()
+	var column := _column(places, sim)
 	var step := sim.speed() * float(_l.follow_speed) * (1.0 + float(_b.drills.close_order) * sim.rank("close_order")) * dt
 	for i in soldiers.size():
 		var s: Dictionary = soldiers[i]
-		var target: Vector2 = commander.pos + places[i].rotated(sim.facing_angle)
+		var target: Vector2 = column[i] if not column.is_empty() else commander.pos + places[i].rotated(sim.facing_angle)
 		s.target = target
 		s.anim += dt * 10.0
 		if s.sortie != 0:
@@ -203,6 +207,63 @@ func follow(dt: float, sim: Sim) -> void:
 			s.pos += way * minf(d, step)
 		s.facing = to.normalized() if d > 3.0 else commander.facing
 	assign_guards()
+
+
+## While the legion crosses a bridge or comes up to one too wide for its deck, the men file over in rows that fit the deck, as one place on the field each; [] when no bridge is near or the formation fits.
+func _column(places: Array, sim: Sim) -> Array:
+	var bridges: Array = sim.terrain.bridges
+	if bridges.is_empty() or soldiers.is_empty():
+		return []
+	var width := 0.0
+	var front := -INF
+	for p in places:
+		width = maxf(width, absf(p.y))
+		front = maxf(front, p.x)
+	var gap := float(_l.col_gap)
+	var row_gap := float(_l.row_gap)
+	for br in bridges:
+		var room: float = br.half_w - Sim.UNIT_RADIUS
+		if width <= room:
+			continue
+		var cols := maxi(1, floori(2.0 * room / gap) + 1)
+		var lead := (ceili(float(soldiers.size()) / cols) + 1) * row_gap + float(_l.bridge_lead)
+		var off: Vector2 = commander.pos - br.pos
+		var along: float = off.dot(br.dir)
+		var side: Vector2 = br.dir.orthogonal()
+		if absf(along) > br.half_len + lead or absf(off.dot(side)) > br.half_w + float(_l.bridge_side):
+			continue
+		var way := 1.0 if Vector2.from_angle(sim.facing_angle).dot(br.dir) >= 0.0 else -1.0
+		var order := _row_major(places)
+		var out: Array = []
+		out.resize(soldiers.size())
+		var k := 0
+		var row := 0
+		while k < order.size():
+			var x := front - row * row_gap
+			row += 1
+			# The row level with the commander is left empty, since he walks in it.
+			if absf(x) < row_gap * 0.6:
+				continue
+			var in_row := mini(cols, order.size() - k)
+			for c in in_row:
+				out[order[k]] = br.pos + br.dir * (along + way * x) + side * ((c - (in_row - 1) / 2.0) * gap)
+				k += 1
+		return out
+	return []
+
+
+## The soldiers' indices sorted by their places, front row first and each row from left to right, so a man keeps his turn in the column.
+func _row_major(places: Array) -> Array:
+	if is_same(_order_of, places) and _order.size() == places.size():
+		return _order
+	var order: Array = range(places.size())
+	order.sort_custom(func(a: int, z: int) -> bool:
+		if not is_equal_approx(places[a].x, places[z].x):
+			return places[a].x > places[z].x
+		return places[a].y < places[z].y)
+	_order = order
+	_order_of = places
+	return order
 
 
 ## Men in the rear and middle are covered by the nearest front-rank soldier within reach.

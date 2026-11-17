@@ -63,6 +63,8 @@
     "middle_step": 14,
     "guard_reach": 20,
     "follow_speed": 1.5,
+    "bridge_lead": 90,
+    "bridge_side": 30,
     "fallen_kept": 100,
     "lorica_hp": 0.2,
     "revive_interval": 60

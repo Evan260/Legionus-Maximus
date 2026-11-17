@@ -4330,6 +4330,42 @@ func test_the_legion_marches_over_its_bridge(b: Dictionary) -> void:
 	check(over == s.soldiers.size(), "every soldier follows him across (%d of %d)" % [over, s.soldiers.size()])
 
 
+func test_a_big_legion_files_over_a_bridge_without_being_shoved(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 1505)
+	while s.soldiers.size() < 40:
+		s.legion.add(["legionary", "archer", "slinger"][s.soldiers.size() % 3])
+	_gorge(s, -600, 600, 100, 60)
+	s.commander.pos = Vector2(0, 0)
+	s.facing_angle = PI / 2.0
+	s.legion.place_all(s.facing_angle)
+	s.timber = int(b.bridge.cost)
+	check(s.build_bridge(), "the bridge is laid")
+	s.commander.pos = Vector2(0, -400)
+	s.legion.place_all(s.facing_angle)
+	s.terrain.refresh(s.commander.pos)
+	var dt := 1.0 / 30.0
+	var step := s.speed() * float(b.legion.follow_speed) * dt + 0.01
+	var worst := 0.0
+	var shoves := 0
+	for k in 18 * 30:
+		var before: Array = []
+		for so in s.soldiers:
+			before.append(so.pos)
+		s.terrain.ravine_shoves = 0
+		s.update(dt, Vector2.DOWN, false)
+		shoves += s.terrain.ravine_shoves
+		for i in s.soldiers.size():
+			worst = maxf(worst, s.soldiers[i].pos.distance_to(before[i]))
+	check(s.commander.pos.y > 500.0, "the legion of %d marches over (%.0f)" % [s.soldiers.size() + 1, s.commander.pos.y])
+	check(shoves == 0, "and no man is pushed by the ravine or the bridge's sides (%d pushes)" % shoves)
+	check(worst <= step, "and no man moves faster than he can march (%.2f px in one update, %.2f allowed)" % [worst, step])
+	var past := 0
+	for so in s.soldiers:
+		if so.pos.y > 200.0:
+			past += 1
+	check(past == s.soldiers.size(), "every man is across (%d of %d)" % [past, s.soldiers.size()])
+
+
 func test_barbarians_cross_a_bridge(b: Dictionary) -> void:
 	var s := _quiet_sim(b, 1504)
 	_gorge(s, -1400, 1400, 100, 50)
