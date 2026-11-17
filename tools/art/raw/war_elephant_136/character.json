@@ -1,0 +1,13 @@
+{
+  "character_id": "af33f77a-bcfc-4825-b204-1e30794884f2",
+  "pixellab_direction": {
+    "south": "south",
+    "south-west": "south-west",
+    "west": "west",
+    "north-west": "north-west",
+    "north": "north",
+    "north-east": "north-east",
+    "east": "east",
+    "south-east": "south-east"
+  }
+}
