@@ -7,8 +7,8 @@ extends RefCounted
 const CHUNK := 160.0
 const REGION := 480.0
 const SCATTER := ["oak", "fir", "rock", "log", "stones", "stones", "fir", "rock"]
-const SOLID := {"oak": 9.0, "fir": 8.0, "pine": 8.0, "rock": 10.0, "log": 9.0}
-const TREES := {"oak": true, "fir": true, "pine": true}
+const SOLID := {"oak": 9.0, "fir": 8.0, "pine": 8.0, "palm": 8.0, "rock": 10.0, "log": 9.0, "ruined_wall": 14.0}
+const TREES := {"oak": true, "fir": true, "pine": true, "palm": true}
 
 const CELL := 64.0
 const GN := 28
@@ -48,6 +48,8 @@ var field: Dictionary
 var mountain: Dictionary
 ## The frozen stream numbers from balance.json `streams`; with none the field has no ice.
 var stream_cfg: Dictionary
+## A desert province's scatter, oases, ruined walls and dunes from balance.json `deserts`, in place of ridges and lines.
+var desert: Dictionary
 # The frozen stream of each stream region once worked out, {} for a region without one, and streams laid by hand.
 var _streams := {}
 var _laid_streams: Array = []
@@ -268,7 +270,7 @@ func chunk(cx: int, cy: int) -> Array:
 		return out
 	var r := RandomNumberGenerator.new()
 	r.seed = hash([seed_value, key])
-	var scatter: Array = field.get("scatter", mountain.get("scatter", SCATTER))
+	var scatter: Array = field.get("scatter", mountain.get("scatter", desert.get("scatter", SCATTER)))
 	for i in r.randi_range(0, 2):
 		var p := Vector2((cx + r.randf()) * CHUNK, (cy + r.randf()) * CHUNK)
 		if p.length() > 90.0:
@@ -325,7 +327,9 @@ func _region(rx: int, ry: int) -> Array:
 	var roll := r.randf()
 	var centre := (Vector2(rx, ry) + Vector2(r.randf_range(0.25, 0.75), r.randf_range(0.25, 0.75))) * REGION
 	var ridges := float(mountain.get("ridge_chance", forest.ridge_chance))
-	if roll < ridges:
+	if not desert.is_empty():
+		out = _desert_feature(r, roll, centre)
+	elif roll < ridges:
 		out = _ridge(r, centre)
 	elif roll < ridges + float(mountain.get("line_chance", forest.line_chance)):
 		var dir := Vector2.from_angle(r.randf() * PI)
@@ -344,6 +348,58 @@ func _region(rx: int, ry: int) -> Array:
 			kept.append(p)
 	_regions[key] = kept
 	return kept
+
+
+## A desert region holds an oasis of palms, a ruined mud-brick wall, a spread of dunes or open sand.
+func _desert_feature(r: RandomNumberGenerator, roll: float, centre: Vector2) -> Array:
+	var cfg := desert
+	var out: Array = []
+	var oasis := float(cfg.oasis_chance)
+	var wall := oasis + float(cfg.wall_chance)
+	if roll < oasis:
+		var n := r.randi_range(int(cfg.palms[0]), int(cfg.palms[1]))
+		var gap := float(cfg.palm_gap)
+		for k in n * 4:
+			if out.size() >= n:
+				break
+			var p := centre + Vector2.from_angle(r.randf() * TAU) * sqrt(r.randf()) * float(cfg.oasis_radius)
+			var spaced := true
+			for q in out:
+				spaced = spaced and q[1].distance_to(p) >= gap
+			if spaced:
+				out.append(["palm", p, SOLID.palm])
+	elif roll < wall:
+		var dir := Vector2.from_angle(r.randf() * PI)
+		var length := r.randf_range(float(cfg.wall_length[0]), float(cfg.wall_length[1]))
+		var step := float(cfg.wall_step)
+		# Some walls have fallen in one place, leaving a breach the legion can march through.
+		var breach := r.randf_range(-0.25, 0.25) * length if r.randf() < float(cfg.wall_gap_chance) else INF
+		var t := -length / 2.0
+		while t <= length / 2.0:
+			if absf(t - breach) > float(cfg.wall_gap) / 2.0:
+				out.append(["ruined_wall", centre + dir * t + dir.orthogonal() * sin(t / 70.0) * 8.0, SOLID.ruined_wall])
+			t += step
+	elif roll < wall + float(cfg.dune_chance):
+		for k in r.randi_range(int(cfg.dunes[0]), int(cfg.dunes[1])):
+			out.append(["dune", centre + Vector2(r.randf_range(-1.0, 1.0), r.randf_range(-0.6, 0.6)) * float(cfg.dune_spread), 0.0])
+	return out
+
+
+## Whether p stands on the soft sand of a dune, which slows the legion's march.
+func on_dune(p: Vector2) -> bool:
+	if desert.is_empty():
+		return false
+	var size: Array = desert.dune_size
+	var rx := float(size[0])
+	var ry := float(size[1])
+	for pr in props_in(Rect2(p - Vector2(rx, ry), Vector2(rx * 2.0, ry * 3.0))):
+		if pr[0] != "dune":
+			continue
+		# A dune's drawn mound sits above the point it stands on, so its middle is half a mound higher.
+		var off: Vector2 = p - pr[1] + Vector2(0.0, ry)
+		if (off.x * off.x) / (rx * rx) + (off.y * off.y) / (ry * ry) <= 1.0:
+			return true
+	return false
 
 
 ## A ridge: a centre line that bends as it goes, swept with a changing width over a lattice of trees shared by the whole field.

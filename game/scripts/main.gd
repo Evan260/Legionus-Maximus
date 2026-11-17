@@ -28,8 +28,9 @@ extends Node
 ##   --boss=ID          with --autoplay, bring that elite or the chieftain beside the legion; --boss-act=whirl|shield|band|mend|curse|blink|rage|roar,
 ##                      fall (with --go-to=ravine) stands him at the lip for the legion to shove in,
 ##                      duel|rally|blast|flee for the Gaulish elites and siege|summon for the Gaulish king, onrush|blizzard for the Dacian elites and
-##                      sweep|rockfall|leap for the Dacian king, makes him use that ability at once and holds his others back; an ordinary enemy
-##                      comes as a small group, and slash|rear|volley|rush (Gaul) or chop|salvo|howl|maul (Dacia) has them use theirs
+##                      sweep|rockfall|leap for the Dacian king, wedge|trample for the Parthian elites and storm|elephants for the shah, makes him
+##                      use that ability at once and holds his others back; an ordinary enemy comes as a small group, and slash|rear|volley|rush (Gaul),
+##                      chop|salvo|howl|maul (Dacia) or kite|lance|thrust|sling (Parthia) has them use theirs
 ##   --province=ID      start the run in that province, for looking at it
 ##   --god=ID           with --autoplay, call that god at --god-at seconds (default 2) of the look; --god=choose fills the favour and holds the choice open
 ##   --seed=N           lay out the field and run from a fixed seed, so a look comes out the same every time
@@ -148,7 +149,7 @@ func _bring_boss(kind: String, act: String) -> void:
 	if not content.enemies.has(kind):
 		return
 	var h := sim.horde
-	var at: Vector2 = sim.commander.pos + (Vector2(130, 50) if act in ["curse", "blizzard"] else (Vector2(30, 25) if act in ["whirl", "sweep"] else (Vector2(160, 60) if act == "leap" else Vector2(60, 50))))
+	var at: Vector2 = sim.commander.pos + (Vector2(130, 50) if act in ["curse", "blizzard"] else (Vector2(30, 25) if act in ["whirl", "sweep"] else (Vector2(160, 60) if act == "leap" else (Vector2(200, 40) if act in ["wedge", "trample"] else Vector2(60, 50)))))
 	if kind == h.chief_kind:
 		var ci := h.spawn_chieftain(at)
 		if act == "roar":
@@ -164,6 +165,11 @@ func _bring_boss(kind: String, act: String) -> void:
 			# The leap belongs to his second phase, so he is brought in just below half health.
 			if act == "leap":
 				h.e_hp[ci] = h.e_max[ci] * 0.5 - 1.0
+		elif act == "storm" or act == "elephants":
+			h.storm_cd = 0.0 if act == "storm" else 1e9
+			# The elephants come with his second phase, so he is brought in just below half health.
+			if act == "elephants":
+				h.e_hp[ci] = h.e_max[ci] * 0.5 - 1.0
 		return
 	if not content.enemies[kind].get("elite", false):
 		_bring_group(kind, act)
@@ -173,7 +179,7 @@ func _bring_boss(kind: String, act: String) -> void:
 		_stand_at_lip(i)
 	var st := h.boss_state(i)
 	var timers := {"whirl": "whirl_cd", "shield": "shield_cd", "band": "band_cd", "mend": "mend_cd", "curse": "curse_cd", "blink": "blink_cd",
-		"duel": "duel_cd", "blast": "blast_cd", "onrush": "onrush_cd", "blizzard": "blizzard_cd"}
+		"duel": "duel_cd", "blast": "blast_cd", "onrush": "onrush_cd", "blizzard": "blizzard_cd", "wedge": "wedge_cd", "trample": "trample_cd"}
 	for key in timers.values():
 		if st.has(key):
 			st[key] = 1e9
@@ -201,7 +207,8 @@ func _stand_at_lip(i: int) -> void:
 ## Brings a small group of an ordinary enemy at the distance their ability needs, ready to use it at once.
 func _bring_group(kind: String, act: String) -> void:
 	var h := sim.horde
-	var away := {"slash": 26.0, "rear": 170.0, "volley": 150.0, "rush": 170.0, "chop": 26.0, "salvo": 150.0, "howl": 90.0, "maul": 30.0}
+	var away := {"slash": 26.0, "rear": 170.0, "volley": 150.0, "rush": 170.0, "chop": 26.0, "salvo": 150.0, "howl": 90.0, "maul": 30.0,
+		"kite": 120.0, "lance": 170.0, "thrust": 30.0, "sling": 130.0}
 	var r: float = away.get(act, 90.0)
 	var ahead := Vector2.from_angle(sim.facing_angle)
 	for k in 4:

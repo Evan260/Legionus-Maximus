@@ -492,7 +492,7 @@ func test_content_without_art_is_hidden(b: Dictionary) -> void:
 
 func test_germania_has_the_existing_enemies(b: Dictionary) -> void:
 	check(content.province_enemies("germania") == content.provinces.germania.ordinary, "every Germanic enemy is drawn")
-	check(content.province_enemies("parthia").is_empty(), "a province with no art has no enemies")
+	check(content.province_enemies("britannia").is_empty(), "a province with no art has no enemies")
 
 
 func test_every_content_entry_has_a_name_and_text(b: Dictionary) -> void:
@@ -1499,7 +1499,7 @@ func test_a_province_turns_on_with_its_ground_and_draws_it(b: Dictionary) -> voi
 	check(not Content.load_all(art).ready("provinces", "gaul"), "without its ground it stays hidden")
 	var s := Sim.new(b, c, {"seed": 5, "province": "gaul"})
 	check(s.province == "gaul" and Content.ground_path("gaul") == "res://assets/grounds/gaul.png", "Gaul draws its own ground")
-	check(Content.ground_path("parthia") == "res://assets/grounds/germania.png", "a province without a file falls back to Germania's ground")
+	check(Content.ground_path("britannia") == "res://assets/grounds/germania.png", "a province without a file falls back to Germania's ground")
 
 
 func test_province_only_spawns_its_ready_enemies(b: Dictionary) -> void:
@@ -2206,8 +2206,8 @@ func test_demo_offers_three_commanders(b: Dictionary) -> void:
 	check(Game.commanders(content, b) == ready, "the full game lists every drawn commander whose unlock province is playable")
 	check("engineer" in Game.commanders(content, b), "the engineer is offered now that Gaul is drawn")
 	var later := Content.load_all(Content.available_art())
-	later.commanders.engineer.unlock = {"type": "win", "province": "parthia"}
-	check(not "engineer" in Game.commanders(later, b), "a commander won in a province not drawn yet, such as Parthia, waits for it")
+	later.commanders.engineer.unlock = {"type": "win", "province": "britannia"}
+	check(not "engineer" in Game.commanders(later, b), "a commander won in a province not drawn yet, such as Britannia, waits for it")
 	check(Game.province_allowed("gaul", b), "the full game opens every province")
 	check(Game.run_cap(b) == 0.0, "the full game has no cap")
 	Game.demo_forced = true
@@ -5489,6 +5489,347 @@ func test_the_dacian_king_leaps_in_his_second_phase(b: Dictionary) -> void:
 		t += 1.0 / 60.0
 	check(h.e_pos[h.chieftain_index()].distance_to(Vector2.ZERO) < 40.0, "landing on it")
 	check(s.commander.hp < hp0, "and crushing those under him")
+
+
+func _parthia_sim(b: Dictionary, seed_value: int) -> Sim:
+	var s := _gaul_sim(b, seed_value, "parthia")
+	s.horde.storm_cd = 1e9
+	return s
+
+
+func test_winning_dacia_opens_parthia(b: Dictionary) -> void:
+	check(content.ready("provinces", "parthia"), "Parthia is drawn")
+	check(content.province_before("parthia") == "dacia", "the drawn province before Parthia is Dacia")
+	var p := _fresh_profile()
+	var s := Sim.new(b, content, {"seed": 960, "province": "dacia"})
+	s.time = 900.0
+	s.over = true
+	s.victory = true
+	p.record_run(s)
+	check(p.province_unlocked("parthia"), "winning in Dacia opens Parthia")
+	_cleanup_profile_files()
+	p.free()
+
+
+func test_parthia_is_open_desert_with_oases_walls_and_dunes(b: Dictionary) -> void:
+	var area := Rect2(-4000, -4000, 8000, 8000)
+	var t := Terrain.new(961, b.forest, b.ravines)
+	t.desert = b.deserts.parthia
+	var g := Terrain.new(961, b.forest, b.ravines)
+	var kinds := {}
+	var solid := 0
+	for pr in t.props_in(area):
+		kinds[pr[0]] = kinds.get(pr[0], 0) + 1
+		if pr[2] > 0.0:
+			solid += 1
+	var forest_solid := 0
+	for pr in g.props_in(area):
+		if pr[2] > 0.0:
+			forest_solid += 1
+	check(kinds.has("palm") and kinds.has("ruined_wall") and kinds.has("dune"), "the desert holds palms, ruined walls and dunes (%s)" % str(kinds.keys()))
+	check(not kinds.has("oak") and not kinds.has("fir") and not kinds.has("pine") and not kinds.has("log"), "and no forest")
+	check(solid * 3 < forest_solid, "far fewer obstacles than Germania (%d against %d)" % [solid, forest_solid])
+	check(Terrain.SOLID.has("palm") and Terrain.SOLID.has("ruined_wall") and not Terrain.SOLID.has("dune"), "palms and walls are solid and dunes are not")
+	# Palms grow in small clusters: every palm has another close by.
+	var palms: Array = []
+	for pr in t.props_in(area):
+		if pr[0] == "palm":
+			palms.append(pr[1])
+	var lone := 0
+	for p in palms:
+		var mate := false
+		for q in palms:
+			mate = mate or (q != p and q.distance_to(p) < float(b.deserts.parthia.oasis_radius) * 2.0)
+		if not mate:
+			lone += 1
+	check(lone * 4 < palms.size(), "palms stand in oases (%d of %d alone)" % [lone, palms.size()])
+	check(not t.ravines_in(area).is_empty(), "dry wadis still cut the desert")
+
+
+func test_dunes_slow_the_march(b: Dictionary) -> void:
+	var s := _parthia_sim(b, 962)
+	s.terrain.add_clearing(Vector2(0, 400), 1.0, [["dune", Vector2(0, 400), 0.0]])
+	check(s.terrain.on_dune(Vector2(0, 390)) and not s.terrain.on_dune(Vector2(0, 300)), "the soft sand lies over the dune")
+	s.commander.pos = Vector2(0, 200)
+	s.update(1.0 / 60.0, Vector2.RIGHT, false)
+	var pace := s.speed()
+	s.commander.pos = Vector2(0, 392)
+	s.update(1.0 / 60.0, Vector2.RIGHT, false)
+	check(s.on_sand and is_equal_approx(s.speed(), pace * (1.0 - float(b.deserts.parthia.dune_slow))), "on a dune the legion marches slower (%.0f against %.0f)" % [s.speed(), pace])
+	var g := _gaul_sim(b, 962)
+	check(not g.terrain.on_dune(Vector2.ZERO), "and other provinces have no dunes")
+
+
+func test_horse_archers_ride_off_and_shoot_back(b: Dictionary) -> void:
+	var s := _parthia_sim(b, 963)
+	var h := s.horde
+	var cfg: Dictionary = content.enemies.horse_archer
+	s.commander.pos = Vector2.ZERO
+	s.legion.place_all(s.facing_angle)
+	s._rebuild_grids()
+	var close := h.spawn("horse_archer", Vector2(s.legion_reach + float(cfg.kite.near) * 0.5, 0))
+	var far := h.spawn("horse_archer", Vector2(0, s.legion_reach + float(cfg.kite.near) + 40.0))
+	h.e_cd[close] = 0.0
+	var gap0 := h.e_pos[close].length()
+	var far0 := h.e_pos[far].length()
+	h._move(1.0 / 60.0, s)
+	check(h.e_pos[close].length() > gap0, "with soldiers close he rides away")
+	check(h.sp_pos.size() >= 1 and h.sp_vel[0].dot(Vector2.LEFT) > 0.0, "shooting back at the legion as he goes")
+	check(absf(h.e_pos[far].length() - far0) < 1.0, "further off he rides round the legion at range")
+	for k in 10:
+		h.e_cd[close] = 0.0
+		h._move(1.0 / 60.0, s)
+	check(h.e_ammo[close] == 0, "until his arrows are spent")
+	var gap1 := h.e_pos[close].length()
+	h._move(1.0 / 60.0, s)
+	check(h.e_pos[close].length() < gap1, "then he rides in to fight")
+	check(float(cfg.speed) * float(cfg.kite.speed_mult) > float(content.base_commander.speed), "he outrides the legion")
+	check(float(cfg.hp) < float(content.enemies.cataphract.hp), "but falls easily")
+
+
+func test_cataphracts_charge_with_the_lance_and_turn_arrows(b: Dictionary) -> void:
+	var s := _parthia_sim(b, 964)
+	var h := s.horde
+	var cfg: Dictionary = content.enemies.cataphract
+	s.commander.pos = Vector2.ZERO
+	s.soldiers.clear()
+	s._rebuild_grids()
+	var i := h.spawn("cataphract", Vector2(140, 0))
+	h.e_cd[i] = 0.0
+	h._move(1.0 / 60.0, s)
+	check(h.e_dash[i] > 0.0 and h.e_dir[i].dot(Vector2.LEFT) > 0.99, "he lowers his lance and charges straight at the legion")
+	var hp0: float = s.commander.hp
+	for k in 60:
+		s._rebuild_grids()
+		h._move(1.0 / 60.0, s)
+		if s.commander.hp < hp0:
+			break
+	check(hp0 - s.commander.hp >= float(cfg.dps) * float(cfg.lance.burst_mult) * 0.99, "the lance strikes hard (%.1f)" % (hp0 - s.commander.hp))
+	check(h.e_strike[i] == h.time, "with a thrust of the lance")
+	var c := h.spawn("cataphract", Vector2(600, 0))
+	var a := h.spawn("horse_archer", Vector2(600, 200))
+	s._rebuild_grids()
+	s.shoot("arrow", Vector2(560, 0), h.e_pos[c], 300.0, 10.0, 0)
+	s.shoot("arrow", Vector2(560, 200), h.e_pos[a], 300.0, 10.0, 0)
+	var c0 := h.e_hp[c]
+	var a0 := h.e_hp[a]
+	for k in 20:
+		s._move_shots(1.0 / 60.0)
+	check(is_equal_approx(c0 - h.e_hp[c], 10.0 * (1.0 - float(cfg.armour.arrows))), "his armour turns part of an arrow (%.1f)" % (c0 - h.e_hp[c]))
+	check(is_equal_approx(a0 - h.e_hp[a], 10.0), "an unarmoured rider takes it in full")
+
+
+func test_camel_riders_thrust_through_two_ranks(b: Dictionary) -> void:
+	var s := _parthia_sim(b, 965)
+	var h := s.horde
+	var cfg: Dictionary = content.enemies.camel_rider
+	var i := h.spawn("camel_rider", Vector2(100, 0))
+	var front: Dictionary = s.soldiers[0]
+	var back: Dictionary = s.soldiers[1]
+	var side: Dictionary = s.soldiers[2]
+	front.pos = Vector2(86, 0)
+	back.pos = Vector2(70, 0)
+	side.pos = Vector2(86, 30)
+	for u in [front, back, side]:
+		u.max_hp = 1e6
+		u.hp = 1e6
+	h._slash(i, front.pos - h.e_pos[i], 1.0, s)
+	check(front.hp < 1e6 and back.hp < 1e6, "his spear goes through the front man into the one behind")
+	check(side.hp == 1e6, "but not the man beside them")
+	check(is_equal_approx(1e6 - front.hp, float(cfg.dps) * float(cfg.thrust.damage_mult)), "and strikes hard")
+	check(float(cfg.speed) > float(content.enemies.cataphract.speed) and float(cfg.hp) > float(content.enemies.horse_archer.hp) * 2.0, "he is fast and tough")
+	check(cfg.has("sprint"), "and runs in, so the hunt sends camels after a legion that runs")
+
+
+func test_slingers_stones_leave_soldiers_reeling(b: Dictionary) -> void:
+	var s := _parthia_sim(b, 966)
+	var h := s.horde
+	var cfg: Dictionary = content.enemies.parthian_slinger
+	s.commander.pos = Vector2.ZERO
+	s.legion.place_all(s.facing_angle)
+	s._rebuild_grids()
+	var i := h.spawn("parthian_slinger", Vector2(s.legion_reach + 60.0, 0))
+	h.e_cd[i] = 0.0
+	h._move(1.0 / 60.0, s)
+	check(h.sp_pos.size() == int(cfg.sling.stones), "he looses a volley of %d stones" % int(cfg.sling.stones))
+	var stones := true
+	for k in h.sp_kind:
+		stones = stones and k == 2
+	check(stones, "drawn as stones")
+	h.sp_pos.clear(); h.sp_vel.clear(); h.sp_dmg.clear(); h.sp_life.clear(); h.sp_kind.clear()
+	var u: Dictionary = s.soldiers[0]
+	u.max_hp = 1e6
+	u.hp = 1e6
+	h._throw(u.pos + Vector2(20, 0), Vector2.LEFT, 1.0, 2)
+	s._rebuild_grids()
+	for k in 30:
+		h._spears(1.0 / 60.0, s)
+	var struck: Dictionary = {}
+	for so in s.soldiers:
+		if so.get("dazed", 0.0) > 0.0:
+			struck = so
+	check(not struck.is_empty() and is_equal_approx(float(struck.dazed), float(cfg.sling.stun)), "a stone leaves the soldier it strikes reeling")
+	struck.cd = 0.0
+	h.spawn("horse_archer", struck.pos + Vector2(10, 0))
+	s._rebuild_grids()
+	s.legion.update(1.0 / 60.0, s)
+	check(float(struck.get("struck_at", -1.0)) != s.time and float(struck.dazed) < float(cfg.sling.stun), "and he cannot fight while he reels")
+	s.commander.dazed = 0.0
+	h._throw(s.commander.pos + Vector2(0, -12), Vector2.DOWN, 0.0, 2)
+	s.soldiers.clear()
+	s._rebuild_grids()
+	for k in 10:
+		h._spears(1.0 / 60.0, s)
+	check(float(s.commander.get("dazed", 0.0)) == 0.0, "the commander keeps his head")
+
+
+func test_the_cataphract_leader_leads_a_wedge_down_his_lane(b: Dictionary) -> void:
+	var s := _parthia_sim(b, 967)
+	var h := s.horde
+	var cfg: Dictionary = content.enemies.cataphract_charge.wedge
+	s.commander.pos = Vector2.ZERO
+	s.legion.place_all(s.facing_angle)
+	for u in s.units:
+		u.max_hp = 1e6
+		u.hp = 1e6
+	var i := h.spawn("cataphract_charge", Vector2(220, 0), true)
+	var st: Dictionary = h.boss_state(i)
+	st.wedge_cd = 0.0
+	var n0 := h.e_pos.size()
+	s._rebuild_grids()
+	h._bosses(1.0 / 60.0, s)
+	check(st.rush_warn > 0.0 and is_equal_approx(st.rush_len, float(cfg.length)) and is_equal_approx(st.rush_width, float(cfg.width)), "he marks his lane first")
+	check(h.e_pos.size() - n0 == int(cfg.riders) and st.wedge.size() == int(cfg.riders), "and %d cataphracts fall in behind him" % int(cfg.riders))
+	var behind := true
+	for w in st.wedge:
+		var j := h.e_id.find(w[0])
+		behind = behind and h.kind_ids[h.e_kind[j]] == "cataphract" and h.e_pos[j].x > h.e_pos[i].x
+	check(behind, "in a wedge behind him")
+	var start := h.e_pos[i]
+	while st.rush_warn > 0.0:
+		h._bosses(1.0 / 60.0, s)
+		s._rebuild_grids()
+		h._move(1.0 / 60.0, s)
+		h._bosses_after()
+	check(h.e_pos[i] == start, "they wait while the lane fills")
+	var hurt := 0
+	while st.rush_left > 0.0:
+		h._bosses(1.0 / 60.0, s)
+		h._bosses_after()
+	for u in s.units:
+		if u.hp < 1e6:
+			hurt += 1
+	check(h.e_pos[i].distance_to(start) > float(cfg.length) * 0.8, "then they gallop the length of the lane")
+	check(hurt >= 3, "riding down the soldiers in their path (%d)" % hurt)
+	check(st.wedge.is_empty() and h.e_pos.size() - n0 == int(cfg.riders), "and the riders stay on the field once it is spent")
+
+
+func test_the_war_elephant_tramples_and_its_tower_shoots(b: Dictionary) -> void:
+	var s := _parthia_sim(b, 968)
+	var h := s.horde
+	var info: Dictionary = content.enemies.war_elephant
+	var cfg: Dictionary = info.trample
+	check(float(info.scale) >= 1.6 and float(info.scale) <= 1.8, "it is drawn well larger than its art")
+	check(float(info.radius) >= float(content.enemies.cataphract_charge.radius) * 1.6, "and stands as wide as it is drawn")
+	check(float(info.hp) > float(content.enemies.cataphract_charge.hp) * 1.5, "with great health")
+	s.commander.pos = Vector2.ZERO
+	s.legion.place_all(s.facing_angle)
+	for u in s.units:
+		u.max_hp = 1e6
+		u.hp = 1e6
+	# Late in the run the elephant uses its abilities at full pace.
+	h.time = 600.0
+	var i := h.spawn("war_elephant", Vector2(240, 0), true)
+	var st: Dictionary = h.boss_state(i)
+	st.trample_cd = 0.0
+	st.tower_cd = 0.0
+	s._rebuild_grids()
+	h._bosses(1.0 / 60.0, s)
+	check(st.rush_warn > 0.0 and is_equal_approx(st.rush_len, float(cfg.length)), "it marks the line it will trample")
+	var arrows := h.sp_pos.size()
+	check(arrows == int(info.tower.arrows), "while the archers in its tower shoot")
+	var before: Array = []
+	for u in s.soldiers:
+		before.append(u.pos)
+	s.shake = 0.0
+	while st.rush_warn > 0.0:
+		h._bosses(1.0 / 60.0, s)
+	check(s.shake >= float(cfg.shake) * 0.99, "its stomp shakes the screen")
+	while st.rush_left > 0.0:
+		h._bosses(1.0 / 60.0, s)
+		h._bosses_after()
+	var thrown := 0
+	for k in s.soldiers.size():
+		if s.soldiers[k].hp < 1e6 and s.soldiers[k].pos.distance_to(before[k]) > float(cfg.throw) * 0.9:
+			thrown += 1
+	check(thrown >= 2, "and the soldiers in its path are trampled and thrown aside (%d)" % thrown)
+	check(h.sp_pos.size() > arrows, "the tower kept shooting through the trample")
+
+
+func test_the_shahs_arrow_storm_and_camel_train(b: Dictionary) -> void:
+	var s := _parthia_sim(b, 969)
+	var h := s.horde
+	var cfg: Dictionary = content.enemies.shah.attacks.storm
+	s.commander.pos = Vector2.ZERO
+	s.legion.place_all(s.facing_angle)
+	var ci := h.spawn_chieftain(Vector2(400, 0))
+	var guards := 0
+	for k in h.e_pos.size():
+		if h.e_guard[k] != Vector2.ZERO and h.kind_ids[h.e_kind[k]] == "cataphract":
+			guards += 1
+	check(guards > 0 and guards == h.guards_alive, "the shah comes with a guard of cataphracts")
+	var n0 := h.e_pos.size()
+	h.start_storm(ci, s)
+	check(h.e_pos.size() - n0 == int(cfg.riders), "his storm brings %d horse archers to ring the legion" % int(cfg.riders))
+	var lobs := 0
+	var t := 0.0
+	while t < float(cfg.delay) + 0.05:
+		h._arrow_storm(1.0 / 60.0, s)
+		t += 1.0 / 60.0
+	for l in h.foe_lobs:
+		if l.get("volley", false):
+			lobs += 1
+	check(lobs == int(cfg.zones), "their volleys fall on %d marked rings" % int(cfg.zones))
+	h.arrow_storm.quiver = int(cfg.train_at)
+	h._arrow_storm(1.0 / 60.0, s)
+	check(h.arrow_storm.waiting and h.arrow_storm.train.size() == int(cfg.train), "when the quivers run low a camel train comes with fresh arrows")
+	var camel := h.e_id.find(h.arrow_storm.train[0])
+	h.e_pos[camel] = Vector2(float(cfg.resupply) - 10.0, 0)
+	h._arrow_storm(1.0 / 60.0, s)
+	check(h.arrow_storm.quiver == int(cfg.quiver) and not h.arrow_storm.waiting, "and the storm goes on once it reaches the riders")
+	h.arrow_storm.quiver = int(cfg.train_at)
+	h._arrow_storm(1.0 / 60.0, s)
+	for id in h.arrow_storm.train.duplicate():
+		h.remove_at(h.e_id.find(id))
+	h.arrow_storm.quiver = 0
+	h._arrow_storm(1.0 / 60.0, s)
+	check(h.arrow_storm.is_empty(), "but cutting down the camels ends the storm when the arrows run out")
+	h.start_storm(ci, s)
+	for id in h.arrow_storm.riders.duplicate():
+		h.remove_at(h.e_id.find(id))
+	h._arrow_storm(1.0 / 60.0, s)
+	check(h.arrow_storm.is_empty(), "as does cutting down every rider")
+
+
+func test_the_shah_calls_in_his_elephants_when_hurt(b: Dictionary) -> void:
+	var s := _parthia_sim(b, 970)
+	var h := s.horde
+	var call: Dictionary = content.enemies.shah.fury.call
+	s.commander.pos = Vector2.ZERO
+	var ci := h.spawn_chieftain(Vector2(300, 0))
+	var elephants := func() -> int:
+		var n := 0
+		for k in h.e_pos.size():
+			if h.kind_ids[h.e_kind[k]] == "war_elephant":
+				n += 1
+		return n
+	h._chieftain(1.0 / 60.0, s)
+	check(elephants.call() == 0, "no elephants while he is whole")
+	h.e_hp[ci] = h.e_max[ci] * 0.49
+	h._chieftain(1.0 / 60.0, s)
+	check(h.chief_fury and elephants.call() == int(call.count), "below half health he calls in %d war elephants" % int(call.count))
+	check(h.guards_alive == 0, "and sends his guard in")
+	check(not str(content.enemies.shah.text).contains("riding"), "he fights on foot among them")
 
 
 ## How many steps of the route map round the commander pass through a solid prop, from each open square's centre to the next open square's.

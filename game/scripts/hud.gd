@@ -311,7 +311,7 @@ func boss_names(sim: Sim) -> Array:
 		if i < 0 or h.e_tag[i] == Horde.CHIEF:
 			continue
 		var type: String = h.kind_ids[h.e_kind[i]]
-		var tall: float = atlas.units[type].idle.south.frames[0][3] if atlas != null and atlas.units.has(type) else 40.0
+		var tall: float = (atlas.units[type].idle.south.frames[0][3] if atlas != null and atlas.units.has(type) else 40.0) * float(sim.content.enemies[type].get("scale", 1.0))
 		var p: Vector2 = h.e_pos[i] - sim.commander.pos + Ui.view / 2.0
 		var name := str(sim.content.enemies[type].name).to_upper()
 		var w := Ui.width_at(name, Ui.px)

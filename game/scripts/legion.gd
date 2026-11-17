@@ -404,6 +404,10 @@ func update(dt: float, sim: Sim) -> void:
 	_rate = sim.attack_rate()
 	_hurt_ready = false
 	for s in soldiers:
+		# A soldier struck by a sling stone reels and cannot fight until he gathers himself.
+		if s.get("dazed", 0.0) > 0.0:
+			s.dazed -= dt
+			continue
 		var info: Dictionary = s.info
 		match info.attack:
 			"melee":

@@ -44,6 +44,8 @@ var facing_angle := 0.0
 var moving := false
 ## The legion's march on the ice, which follows the way it is steered only slowly, so it slides.
 var glide := Vector2.ZERO
+## Whether the commander stands on a dune's soft sand, which slows the march.
+var on_sand := false
 # How many barbarians were locked in melee with the legion on the last update.
 var pressing := 0
 
@@ -174,6 +176,7 @@ func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
 	terrain.field = b.get("fields", {}).get(province, {})
 	terrain.mountain = b.get("mountains", {}).get(province, {})
 	terrain.stream_cfg = b.get("streams", {}).get(province, {})
+	terrain.desert = b.get("deserts", {}).get(province, {})
 	terrain.clear_radius = float(b.get("terrain_clear_radius", 200.0))
 	terrain.fell_seconds = float(b.felling.seconds)
 	objectives.place_start(self, options.get("objectives_near", false))
@@ -243,7 +246,8 @@ func speed() -> float:
 	var held := 1.0 - float(b.press.per_enemy) * pressing
 	var cursed := 1.0 - horde.curse_slow if horde.curse_left > 0.0 else 1.0
 	var frozen := 1.0 - horde.frost_slow
-	return v * maxf(float(b.press.slowest), held * cursed * frozen * (b.testudo_speed if testudo_left > 0.0 else 1.0))
+	var sand := 1.0 - float(terrain.desert.get("dune_slow", 0.0)) if on_sand else 1.0
+	return v * maxf(float(b.press.slowest), held * cursed * frozen * sand * (b.testudo_speed if testudo_left > 0.0 else 1.0))
 
 
 func range_mult() -> float:
@@ -384,6 +388,7 @@ func _track(dt: float) -> void:
 
 func _move_legion(dt: float, move: Vector2) -> void:
 	moving = move.length() > 0.15
+	on_sand = terrain.on_dune(commander.pos)
 	var want := Vector2.ZERO
 	if moving:
 		var dir := move.normalized() if move.length() > 1.0 else move
@@ -775,7 +780,9 @@ func _move_shots(dt: float) -> void:
 						continue
 					var r := horde.k_radius[horde.e_kind[j]] + 3.0
 					if (horde.e_pos[j] - s.pos).length_squared() < r * r:
-						hit(j, s.dmg, s.burn, s.src, s.pos - s.vel.normalized() * 30.0)
+						# A cataphract's scale armour turns part of every arrow.
+						var armour: float = horde.k_armour[horde.e_kind[j]] if s.kind == "arrow" else 0.0
+						hit(j, s.dmg * (1.0 - armour), s.burn, s.src, s.pos - s.vel.normalized() * 30.0)
 						if s.pin > 0.0:
 							horde.e_stun[j] = maxf(horde.e_stun[j], s.pin)
 						if s.knock > 0.0:

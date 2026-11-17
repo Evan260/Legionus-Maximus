@@ -68,6 +68,15 @@ var k_howl := PackedByteArray()
 # Arrows each archer looses in a salvo (0 for kinds that do not), and how far apart they spread.
 var k_salvo := PackedInt32Array()
 var k_salvo_spread := PackedFloat32Array()
+# A horse archer rides away while soldiers are this close beyond the legion's edge, at this multiple of his pace; 0 for kinds that stand and fight.
+var k_kite := PackedFloat32Array()
+var k_kite_mult := PackedFloat32Array()
+# 1 for a cataphract, whose dash is a lowered lance, and the share of an arrow's harm his armour turns.
+var k_lance := PackedByteArray()
+var k_armour := PackedFloat32Array()
+# Stones each slinger looses at once (0 for kinds that do not) and how far apart they spread.
+var k_sling := PackedInt32Array()
+var k_sling_spread := PackedFloat32Array()
 ## The radius of the biggest kind of enemy, so searches by edge reach far enough while one that size is on the field.
 var max_radius := 0.0
 ## How many enemies wider than Terrain.MAX_UNIT are on the field.
@@ -167,8 +176,10 @@ var sp_pos := PackedVector2Array()
 var sp_vel := PackedVector2Array()
 var sp_dmg := PackedFloat32Array()
 var sp_life := PackedFloat32Array()
-# 0 for a thrown axe, 1 for an arrow.
+# 0 for a thrown axe, 1 for an arrow, 2 for a sling stone.
 var sp_kind := PackedByteArray()
+# How long a sling stone leaves the soldier it strikes reeling.
+var sling_stun := 0.0
 # The archers' salvo drum: seconds between salvos (0 where no archer looses them), seconds to the next, and whether it beats this update.
 var salvo_every := 0.0
 var salvo_cd := 0.0
@@ -187,6 +198,9 @@ var sweep := {}
 var leap := {}
 # The king's wall of guards, from content.json: how many must stand, the arc they hold before him, the share of a blow from in front they turn and how far out they stand.
 var king_wall := {}
+# The shah's arrow storm: {left, quiver, next, riders, train, waiting} while it rages, or empty; and when the next may start.
+var arrow_storm := {}
+var storm_cd := 0.0
 var chests: Array = []
 var elite_ids: Array = []
 ## The elites that came on the boss timer, as opposed to an objective's defenders.
@@ -256,6 +270,11 @@ func _init(balance: Dictionary, game_content: Content, random: RandomNumberGener
 			mult = float(c.speed_mult)
 			secs = float(c.seconds)
 			burst = float(info.dps) * float(c.burst_mult)
+		elif info.has("lance"):
+			every = float(info.lance.every)
+			mult = float(info.lance.speed_mult)
+			secs = float(info.lance.seconds)
+			burst = float(info.dps) * float(info.lance.burst_mult)
 		elif info.has("rush"):
 			every = float(info.rush.every)
 			mult = float(info.rush.speed_mult)
@@ -277,7 +296,8 @@ func _init(balance: Dictionary, game_content: Content, random: RandomNumberGener
 		var flank: Dictionary = info.get("flank", {})
 		k_flank_cos.append(cos(float(flank.get("arrive", 0.0))))
 		k_flank_gap.append(float(flank.get("gap", 1.0)))
-		var slash: Dictionary = info.get("slash", {})
+		# A camel rider's spear thrust is a narrow, long slash.
+		var slash: Dictionary = info.get("slash", info.get("thrust", {}))
 		k_slash_every.append(float(slash.get("every", 0.0)))
 		k_slash_mult.append(float(slash.get("damage_mult", 0.0)))
 		k_slash_arc.append(float(slash.get("arc", 0.0)))
@@ -303,11 +323,21 @@ func _init(balance: Dictionary, game_content: Content, random: RandomNumberGener
 		k_howl.append(1 if not howl.is_empty() else 0)
 		k_salvo.append(int(salvo.get("arrows", 0)))
 		k_salvo_spread.append(float(salvo.get("spread", 0.0)))
+		var kite: Dictionary = info.get("kite", {})
+		k_kite.append(float(kite.get("near", 0.0)))
+		k_kite_mult.append(float(kite.get("speed_mult", 1.0)))
+		k_lance.append(1 if info.has("lance") else 0)
+		k_armour.append(float(info.get("armour", {}).get("arrows", 0.0)))
+		var sling: Dictionary = info.get("sling", {})
+		k_sling.append(int(sling.get("stones", 0)))
+		k_sling_spread.append(float(sling.get("spread", 0.0)))
 	ordinary = content.province_enemies(province)
 	for id in ordinary:
 		if content.enemies[id].has("salvo"):
 			salvo_every = float(content.enemies[id].salvo.every)
 			salvo_cd = salvo_every
+		if content.enemies[id].has("sling"):
+			sling_stun = float(content.enemies[id].sling.stun)
 	for id in content.provinces[province].elites:
 		if content.ready("enemies", id):
 			elites.append(id)
@@ -328,6 +358,7 @@ func _init(balance: Dictionary, game_content: Content, random: RandomNumberGener
 	sweep_cd = float(attacks.get("sweep", {}).get("every", 7.0)) * 0.5
 	rockfall_cd = float(attacks.get("rockfall", {}).get("every", 14.0)) * 0.5
 	leap_cd = float(attacks.get("leap", {}).get("every", 9.0)) * 0.5
+	storm_cd = float(attacks.get("storm", {}).get("every", 16.0)) * 0.5
 	king_wall = content.enemies[chief].get("wall", {})
 	var sworn: Dictionary = content.enemies[chief].get("sworn", {})
 	sworn_min = int(sworn.get("min", 0))
@@ -547,6 +578,7 @@ func update(dt: float, sim: Sim) -> void:
 	_foe_lobs(dt, sim)
 	_marks(dt, sim)
 	_storms(dt, sim)
+	_arrow_storm(dt, sim)
 	_spears(dt, sim)
 	_carts(dt, sim)
 	_chests(sim)
@@ -793,6 +825,8 @@ func _chieftain(dt: float, sim: Sim) -> void:
 	sweep_cd -= dt * rate
 	rockfall_cd -= dt * rate
 	leap_cd -= dt * rate
+	if arrow_storm.is_empty():
+		storm_cd -= dt * rate
 	chief_hold = maxf(0.0, chief_hold - dt)
 	_sweep_and_leap(ci, dt, sim)
 	if cleave_cd <= 0.0 and atk.has("cleave"):
@@ -805,6 +839,9 @@ func _chieftain(dt: float, sim: Sim) -> void:
 	# The leap is his second phase's attack, once his wall has gone in.
 	if leap_cd <= 0.0 and atk.has("leap") and chief_fury and chief_hold <= 0.0:
 		leap_cd = float(atk.leap.every) if start_leap(ci, sim) else 1.0
+	if storm_cd <= 0.0 and atk.has("storm") and arrow_storm.is_empty():
+		storm_cd = float(atk.storm.every)
+		start_storm(ci, sim)
 	if cry_cd <= 0.0 and atk.has("war_cry"):
 		war_cry(ci, sim)
 		cry_cd = float(atk.war_cry.every)
@@ -841,8 +878,11 @@ func _roar(ci: int, sim: Sim) -> void:
 	sim.objectives.notice = {"kind": "roar", "at": time}
 	sim.event("bellow", e_pos[ci])
 	sim.effects.append({"kind": "cry", "pos": e_pos[ci], "t": 0.0, "radius": 120.0})
-	if content.enemies[kind_ids[e_kind[ci]]].get("fury", {}).get("release", false):
+	var fury: Dictionary = content.enemies[kind_ids[e_kind[ci]]].get("fury", {})
+	if fury.get("release", false):
 		release_guards()
+	if fury.has("call"):
+		call_in(ci, fury.call, sim)
 
 
 ## The king's sworn guards leave their places round him and run at the legion.
@@ -1100,7 +1140,7 @@ func _rally(dt: float, sim: Sim) -> void:
 
 
 const ABILITY_TIMERS := {"whirlwind": "whirl_cd", "shield_wall": "shield_cd", "call_band": "band_cd", "mend": "mend_cd", "curse": "curse_cd", "blink": "blink_cd",
-	"duel": "duel_cd", "blast": "blast_cd", "onrush": "onrush_cd", "blizzard": "blizzard_cd"}
+	"duel": "duel_cd", "blast": "blast_cd", "onrush": "onrush_cd", "blizzard": "blizzard_cd", "wedge": "wedge_cd", "trample": "trample_cd", "tower": "tower_cd"}
 
 
 ## The timers and state of elite i, made the first time he is asked for, each timer starting half way so a new boss acts soon.
@@ -1110,7 +1150,7 @@ func boss_state(i: int) -> Dictionary:
 		return boss[id]
 	var info: Dictionary = content.enemies[kind_ids[e_kind[i]]]
 	var st := {"hold": 0.0, "at": e_pos[i], "shield": 0.0, "shield_dir": Vector2.ZERO, "duel": 0.0, "duel_at": Vector2.ZERO, "duel_r": 0.0, "scorned": false,
-		"rush_warn": 0.0, "rush_total": 0.0, "rush_left": 0.0, "rush_from": Vector2.ZERO, "rush_dir": Vector2.ZERO, "rush_n": 0}
+		"rush_warn": 0.0, "rush_total": 0.0, "rush_left": 0.0, "rush_from": Vector2.ZERO, "rush_dir": Vector2.ZERO, "rush_n": 0, "rush_len": 0.0, "rush_width": 0.0, "wedge": []}
 	for key in ABILITY_TIMERS:
 		if info.has(key):
 			st[ABILITY_TIMERS[key]] = float(info[key].every) * 0.5
@@ -1189,7 +1229,16 @@ func _bosses(dt: float, sim: Sim) -> void:
 				if st.duel_cd <= 0.0 and gap < float(cfg.range):
 					duel(i, st, cfg, sim)
 		if st.has("onrush_cd"):
-			_onrush(i, st, info.onrush, dt, paced, gap, sim)
+			_onrush(i, st, info.onrush, "onrush_cd", dt, paced, gap, sim)
+		if st.has("wedge_cd"):
+			_onrush(i, st, info.wedge, "wedge_cd", dt, paced, gap, sim)
+		if st.has("trample_cd"):
+			_onrush(i, st, info.trample, "trample_cd", dt, paced, gap, sim)
+		if st.has("tower_cd"):
+			st.tower_cd -= paced
+			if st.tower_cd <= 0.0 and gap < sim.legion_reach + float(info.tower.range):
+				st.tower_cd = float(info.tower.every)
+				_tower(i, info.tower, sim)
 		if st.has("blizzard_cd"):
 			st.blizzard_cd -= paced
 			var cfg: Dictionary = info.blizzard
@@ -1213,8 +1262,9 @@ func _bosses(dt: float, sim: Sim) -> void:
 					break
 
 
-## The falx band leader marks a lane to the legion, then charges down it while the warriors round him rush in beside him.
-func _onrush(i: int, st: Dictionary, cfg: Dictionary, dt: float, paced: float, gap: float, sim: Sim) -> void:
+## A charge down a marked lane to the legion: the falx band leader's, with the warriors round him rushing in beside him,
+## the cataphract leader's, at the head of a wedge of riders, and the war elephant's trample, which shakes the ground.
+func _onrush(i: int, st: Dictionary, cfg: Dictionary, timer: String, dt: float, paced: float, gap: float, sim: Sim) -> void:
 	var p := e_pos[i]
 	if st.rush_left > 0.0:
 		st.rush_left = maxf(0.0, st.rush_left - dt)
@@ -1223,24 +1273,27 @@ func _onrush(i: int, st: Dictionary, cfg: Dictionary, dt: float, paced: float, g
 		_hold_boss(st, at, st.rush_left)
 		e_pos[i] = at
 		e_face[i] = st.rush_dir
-		var reach := k_radius[e_kind[i]] + Sim.UNIT_RADIUS + 2.0
-		var side: Vector2 = st.rush_dir.orthogonal()
 		var mark := e_id[i] * 1000 + int(st.rush_n)
-		var hit_any := false
-		for u in sim.units:
-			var off: Vector2 = u.pos - at
-			if off.length_squared() > reach * reach or u.get("rushed", -1) == mark:
-				continue
-			u.rushed = mark
-			u.hp -= k_dps[e_kind[i]] * float(cfg.damage_mult) * e_power[i] * sim.frenzy_guard()
-			u.flash = 0.12
-			hit_any = true
-			if not is_same(u, sim.commander):
-				u.pos += side * (float(cfg.throw) if off.dot(side) >= 0.0 else -float(cfg.throw))
-				sim.units_moved()
+		var dmg := k_dps[e_kind[i]] * float(cfg.damage_mult) * e_power[i] * sim.frenzy_guard()
+		var hit_any := _ride_down(at, k_radius[e_kind[i]], st.rush_dir, mark, dmg, float(cfg.throw), sim)
+		for w in st.wedge:
+			var j := e_id.find(w[0])
+			if j >= 0:
+				e_pos[j] = _in_wedge(at, st.rush_dir, w[1])
+				e_face[j] = st.rush_dir
+				hit_any = _ride_down(e_pos[j], k_radius[e_kind[j]], st.rush_dir, mark, dmg * float(cfg.rider_mult), float(cfg.throw), sim) or hit_any
+		if cfg.has("shake"):
+			sim.shake = maxf(sim.shake, float(cfg.shake) * 0.5)
 		if hit_any:
-			sim.shake = maxf(sim.shake, float(sim.b.shake.chieftain))
+			sim.shake = maxf(sim.shake, float(cfg.get("shake", sim.b.shake.chieftain)))
 			sim.legion.remove_fallen(sim)
+		if st.rush_left <= 0.0:
+			# The spent wedge breaks up into ordinary riders, each soon ready to charge again on his own.
+			for w in st.wedge:
+				var j := e_id.find(w[0])
+				if j >= 0:
+					e_cd[j] = k_dash_every[e_kind[j]] * rng.randf()
+			st.wedge = []
 		return
 	if st.rush_warn > 0.0:
 		st.rush_warn -= dt
@@ -1248,23 +1301,195 @@ func _onrush(i: int, st: Dictionary, cfg: Dictionary, dt: float, paced: float, g
 			st.rush_left = float(cfg.seconds)
 			st.rush_n += 1
 			e_strike[i] = time
-			var r2 := float(cfg.band_radius) * float(cfg.band_radius)
-			for j in e_pos.size():
-				if e_tag[j] == ORDINARY and (e_pos[j] - p).length_squared() <= r2:
-					e_slow[j] = maxf(e_slow[j], float(cfg.band_rush))
+			_hold_boss(st, p, st.rush_left)
+			if cfg.has("band_radius"):
+				var r2 := float(cfg.band_radius) * float(cfg.band_radius)
+				for j in e_pos.size():
+					if e_tag[j] == ORDINARY and (e_pos[j] - p).length_squared() <= r2:
+						e_slow[j] = maxf(e_slow[j], float(cfg.band_rush))
+				sim.effects.append({"kind": "cry", "pos": p, "t": 0.0, "radius": float(cfg.band_radius)})
+			if cfg.has("shake"):
+				sim.shake = maxf(sim.shake, float(cfg.shake))
+				sim.event("slam", p)
 			sim.event("charge", p)
-			sim.effects.append({"kind": "cry", "pos": p, "t": 0.0, "radius": float(cfg.band_radius)})
 		return
-	st.onrush_cd -= paced
-	if st.onrush_cd <= 0.0 and st.hold <= 0.0 and gap < sim.legion_reach + float(cfg.range):
-		st.onrush_cd = float(cfg.every)
+	st[timer] -= paced
+	if st[timer] <= 0.0 and st.hold <= 0.0 and gap < sim.legion_reach + float(cfg.range):
+		st[timer] = float(cfg.every)
 		st.rush_warn = float(cfg.warn)
 		st.rush_total = float(cfg.warn)
 		st.rush_from = p
 		st.rush_dir = (commander.pos - p).normalized() if commander.pos != p else Vector2.RIGHT
+		st.rush_len = float(cfg.length)
+		st.rush_width = float(cfg.width)
 		e_face[i] = st.rush_dir
 		_hold_boss(st, p, float(cfg.warn))
+		if cfg.has("riders"):
+			_form_wedge(i, st, cfg)
 		sim.event("rage", p)
+
+
+## Riders fall in behind the cataphract leader in a wedge, two to a row, each row wider than the last.
+func _form_wedge(i: int, st: Dictionary, cfg: Dictionary) -> void:
+	var kind := str(cfg.kind)
+	if not content.ready("enemies", kind):
+		return
+	var gap := float(cfg.spacing)
+	st.wedge = []
+	for k in int(cfg.riders):
+		if e_pos.size() >= int(b.max_enemies):
+			break
+		var row := k / 2 + 1
+		var off := Vector2(-row * gap, row * gap * 0.8 * (1.0 if k % 2 == 0 else -1.0))
+		var j := spawn(kind, _in_wedge(e_pos[i], st.rush_dir, off))
+		e_cd[j] = INF
+		e_face[j] = st.rush_dir
+		st.wedge.append([e_id[j], off])
+
+
+## Where a rider at `off` (behind, beside) in a wedge stands when its point is at `at` heading along `dir`.
+func _in_wedge(at: Vector2, dir: Vector2, off: Vector2) -> Vector2:
+	return at + dir * off.x + dir.orthogonal() * off.y
+
+
+## Rides down the Romans a charging rider at p reaches: each is hurt once per charge (`mark`) and thrown to the side.
+func _ride_down(p: Vector2, radius: float, dir: Vector2, mark: int, dmg: float, throw: float, sim: Sim) -> bool:
+	var reach := radius + Sim.UNIT_RADIUS + 2.0
+	var side: Vector2 = dir.orthogonal()
+	var hit_any := false
+	for u in sim.units:
+		var off: Vector2 = u.pos - p
+		if off.length_squared() > reach * reach or u.get("rushed", -1) == mark:
+			continue
+		u.rushed = mark
+		u.hp -= dmg
+		u.flash = 0.12
+		hit_any = true
+		if not is_same(u, sim.commander):
+			u.pos += side * (throw if off.dot(side) >= 0.0 else -throw)
+			sim.units_moved()
+	return hit_any
+
+
+## The archers in a war elephant's tower shoot at the nearest Romans while it fights or tramples.
+func _tower(i: int, cfg: Dictionary, sim: Sim) -> void:
+	var p := e_pos[i] + Vector2(0, -k_radius[e_kind[i]] * 0.8)
+	var aim: Vector2 = commander.pos - p
+	var best := aim.length_squared()
+	for u in sim.units:
+		var off: Vector2 = u.pos - p
+		if off.length_squared() < best:
+			best = off.length_squared()
+			aim = off
+	var n := int(cfg.arrows)
+	for a in n:
+		_throw(p, aim.normalized().rotated((a - (n - 1) / 2.0) * float(cfg.spread)), float(cfg.damage) * e_power[i], 1)
+	sim.tally(1, p)
+
+
+## The shah's arrow storm: horse archers ride in to ring the legion, and while their quivers last their volleys fall on marked ground round it.
+func start_storm(ci: int, sim: Sim) -> void:
+	var cfg: Dictionary = content.enemies[kind_ids[e_kind[ci]]].attacks.storm
+	var kind := str(cfg.kind)
+	if not content.ready("enemies", kind):
+		return
+	var riders: Array = []
+	var n := int(cfg.riders)
+	var turn := rng.randf() * TAU
+	for k in n:
+		if e_pos.size() >= int(b.max_enemies):
+			break
+		var a := turn + TAU * k / n
+		var j := spawn(kind, open_point(commander.pos + Vector2(cos(a) * 1.15, sin(a) * 0.75) * float(cfg.ring) * 1.6))
+		riders.append(e_id[j])
+	arrow_storm = {"left": float(cfg.seconds), "quiver": int(cfg.quiver), "next": float(cfg.delay), "riders": riders, "train": [], "waiting": false}
+	e_strike[ci] = time
+	sim.event("summon", e_pos[ci])
+	sim.effects.append({"kind": "cry", "pos": e_pos[ci], "t": 0.0, "radius": 120.0})
+
+
+## Runs the arrow storm: volleys fall on rings near the legion, fewer as the riders die. When the quivers run low a camel train
+## comes in with fresh arrows, and the storm ends when its time runs out, every rider is down or the train is cut down before it arrives.
+func _arrow_storm(dt: float, sim: Sim) -> void:
+	if arrow_storm.is_empty():
+		return
+	var ci := chieftain_index()
+	if ci < 0:
+		arrow_storm = {}
+		return
+	var st := arrow_storm
+	var cfg: Dictionary = content.enemies[kind_ids[e_kind[ci]]].attacks.storm
+	st.left -= dt
+	var riders: Array = []
+	for id in st.riders:
+		if e_id.has(id):
+			riders.append(id)
+	st.riders = riders
+	var train: Array = []
+	for id in st.train:
+		var j := e_id.find(id)
+		if j < 0:
+			continue
+		train.append(id)
+		if (e_pos[j] - commander.pos).length() < float(cfg.resupply):
+			# The train has reached the riders' ring with fresh arrows.
+			st.quiver = int(cfg.quiver)
+			st.waiting = false
+			train = []
+			sim.event("summon", e_pos[j])
+			sim.effects.append({"kind": "cry", "pos": e_pos[j], "t": 0.0, "radius": 60.0})
+			break
+	st.train = train
+	if st.waiting and train.is_empty():
+		st.waiting = false
+		st.cut = true
+	if st.left <= 0.0 or riders.is_empty() or (st.quiver <= 0 and not st.waiting):
+		arrow_storm = {}
+		return
+	if st.quiver <= int(cfg.train_at) and not st.waiting and not st.get("cut", false):
+		_send_train(cfg)
+	st.next -= dt
+	if st.next > 0.0 or st.quiver <= 0:
+		return
+	st.next = float(cfg.volley_every)
+	st.quiver -= 1
+	var zones := mini(int(cfg.zones), (riders.size() + 1) / 2)
+	for k in zones:
+		var from := e_pos[e_id.find(riders[rng.randi_range(0, riders.size() - 1)])]
+		var at: Vector2 = commander.pos
+		if k > 0:
+			at += Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(float(cfg.radius), float(cfg.spread) + sim.legion_reach * 0.5)
+		foe_lobs.append({"from": from, "to": at, "t": 0.0, "dur": float(cfg.delay), "radius": float(cfg.radius), "dmg": float(cfg.damage), "volley": true})
+	sim.event("arrow", commander.pos)
+
+
+## A camel train rides in from the edge of the field with fresh arrows for the storm.
+func _send_train(cfg: Dictionary) -> void:
+	var kind := str(cfg.train_kind)
+	if not content.ready("enemies", kind):
+		return
+	arrow_storm.waiting = true
+	var side := rng.randf() * TAU
+	var at := open_point(commander.pos + Vector2(cos(side) * 1.15, sin(side) * 0.75) * float(b.spawn_radius))
+	var n := int(cfg.train)
+	for k in n:
+		if e_pos.size() >= int(b.max_enemies):
+			break
+		var j := spawn(kind, at + Vector2.from_angle(side).orthogonal() * (k - (n - 1) / 2.0) * 22.0)
+		arrow_storm.train.append(e_id[j])
+
+
+## In his second phase the shah calls in his war elephants from the edge of the field.
+func call_in(ci: int, cfg: Dictionary, sim: Sim) -> void:
+	var kind := str(cfg.kind)
+	if not content.ready("enemies", kind):
+		return
+	var side := rng.randf() * TAU
+	var n := int(cfg.count)
+	for k in n:
+		var a := side + (k - (n - 1) / 2.0) * 0.5
+		spawn(kind, open_point(commander.pos + Vector2(cos(a) * 1.15, sin(a) * 0.75) * float(b.spawn_radius)), true)
+	sim.event("boss", e_pos[ci])
 
 
 ## The champion calls out the commander: a ring stands round them both, inside which blows on him land harder.
@@ -1371,6 +1596,12 @@ func _bosses_after() -> void:
 		if i < 0:
 			continue
 		e_pos[i] = st.at
+		# The wedge's riders keep their places behind their leader while he waits and while he charges.
+		for w in st.wedge:
+			var j := e_id.find(w[0])
+			if j >= 0:
+				e_pos[j] = _in_wedge(st.at, st.rush_dir, w[1])
+				e_face[j] = st.rush_dir
 		if st.shield > 0.0:
 			e_face[i] = st.shield_dir
 
@@ -1529,6 +1760,7 @@ func _move(dt: float, sim: Sim) -> void:
 	var rush_fade: float = (float(b.war_band.get("rush", 1.0)) - 1.0) / float(b.war_band.get("rush_seconds", 1.0))
 	var wall := 1.0 - float(b.drills.shield_wall) * sim.rank("shield_wall")
 	var throw_every: float = b.ranged.every
+	var strike_secs := Atlas.ATTACK_FRAMES / Atlas.ATTACK_FPS
 	var bare := sim.frenzy_guard()
 	var dash_min: float = b.charger.min_distance
 	var dash_max: float = b.charger.max_distance
@@ -1631,8 +1863,15 @@ func _move(dt: float, sim: Sim) -> void:
 		var throwing := (beh == RANGED and e_ammo[i] > 0) or lobber
 		if throwing:
 			if d <= k_range[kind] + legion_reach:
-				# Between throws he circles the legion at half pace rather than standing still, so he never looks stuck.
-				v = Vector2(-to.y, to.x) / maxf(d, 0.001) * spd * 0.5 * (1.0 if e_id[i] % 2 == 0 else -1.0)
+				var kite := k_kite[kind]
+				if kite > 0.0 and d < legion_reach + kite:
+					# The Parthian shot: with soldiers closing in he rides straight away, still shooting back over his shoulder,
+					# so he faces the way he rides except while he looses an arrow.
+					circling = time - e_strike[i] >= strike_secs
+					v = -to / maxf(d, 0.001) * spd * k_kite_mult[kind]
+				else:
+					# Between throws he circles the legion rather than standing still, so he never looks stuck; a horse archer rides his circles at full pace.
+					v = Vector2(-to.y, to.x) / maxf(d, 0.001) * spd * (1.0 if kite > 0.0 else 0.5) * (1.0 if e_id[i] % 2 == 0 else -1.0)
 				e_cd[i] -= dt
 				if lobber:
 					if e_cd[i] <= 0.0 and k_lob[kind] == 1:
@@ -1655,12 +1894,16 @@ func _move(dt: float, sim: Sim) -> void:
 						for a in n:
 							_throw(p, aim.normalized().rotated((a - (n - 1) / 2.0) * k_salvo_spread[kind]), k_dps[kind] * salvo_every / n * power, 1)
 						_salvo_fired += 1
+					elif k_sling[kind] > 0:
+						var n := k_sling[kind]
+						for a in n:
+							_throw(p, aim.normalized().rotated((a - (n - 1) / 2.0) * k_sling_spread[kind]), k_dps[kind] * throw_every / n * power, 2)
 					else:
-						_throw(p, aim.normalized(), k_dps[kind] * throw_every)
+						_throw(p, aim.normalized(), k_dps[kind] * throw_every, 1 if kite > 0.0 else 0)
 					e_ammo[i] -= 1
 					e_strike[i] = time
 					e_face[i] = aim.normalized()
-		elif k_dash_every[kind] > 0.0:
+		elif k_dash_every[kind] > 0.0 and g == Vector2.ZERO:
 			if e_dash[i] > 0.0:
 				e_dash[i] -= dt
 				dashing = true
@@ -1674,7 +1917,7 @@ func _move(dt: float, sim: Sim) -> void:
 					if d < 300.0:
 						if beh == BEAST:
 							_bite(p, sim)
-						elif k_flank_off[kind] > 0.0:
+						elif k_flank_off[kind] > 0.0 or k_lance[kind] == 1:
 							sim.event("charge", p)
 					if k_flank_off[kind] > 0.0:
 						# A flank rider aims beside the legion, each on his own side, so his charge runs along its ranks.
@@ -1750,7 +1993,7 @@ func _move(dt: float, sim: Sim) -> void:
 				if dashing:
 					u.hp -= k_burst[kind] * guard * power
 					e_dash[i] = 0.0
-					if k_flank_off[kind] > 0.0:
+					if k_flank_off[kind] > 0.0 or k_lance[kind] == 1:
 						e_strike[i] = time
 				elif k_slash_every[kind] > 0.0:
 					e_cd[i] -= dt
@@ -2046,6 +2289,9 @@ func _spears(dt: float, sim: Sim) -> void:
 					var target: Dictionary = sim.legion.shield(u)
 					target.hp -= sp_dmg[i] * sim.frenzy_guard()
 					u.flash = 0.08
+					# A sling stone leaves the soldier it strikes reeling for a moment; the commander keeps his head.
+					if sp_kind[i] == 2 and not is_same(target, sim.commander):
+						target.dazed = sling_stun
 					gone = true
 					struck = true
 		if gone:

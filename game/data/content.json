@@ -1328,101 +1328,166 @@
   },
   "horse_archer": {
    "name": "Horse archer",
-   "text": "He rides circles round the legion, firing as he goes.",
+   "text": "The Parthian shot: he keeps his distance and shoots, and when soldiers close in he rides away, shooting back over his shoulder. Once his arrows are spent he rides in with his sword. He is fast but falls easily.",
    "history": "Parthian horsemen would shoot backwards as they rode away, the famous Parthian shot.",
    "behaviour": "ranged",
-   "hp": 24,
-   "speed": 65,
-   "dps": 4,
+   "hp": 12,
+   "speed": 66,
+   "dps": 0.2,
    "radius": 7,
-   "coins": 2,
+   "coins": 1,
    "art": [
     "unit:horse_archer"
    ],
-   "range": 130
+   "range": 150,
+   "kite": {
+    "near": 70,
+    "speed_mult": 1.25
+   }
   },
   "cataphract": {
    "name": "Cataphract",
-   "text": "A rider in full scale armour on an armoured horse.",
+   "text": "A rider in full scale armour on an armoured horse. He lowers his lance and charges in a straight line, and arrows glance off his armour.",
    "history": "Cataphracts were riders in full scale armour, and so were their horses.",
    "behaviour": "charger",
-   "hp": 70,
-   "speed": 55,
-   "dps": 7,
+   "hp": 24,
+   "speed": 44,
+   "dps": 1.3,
    "radius": 9,
-   "coins": 3,
+   "coins": 2,
    "art": [
     "unit:cataphract"
-   ]
+   ],
+   "lance": {
+    "every": 5.0,
+    "speed_mult": 3.6,
+    "seconds": 1.1,
+    "burst_mult": 3.0
+   },
+   "armour": {
+    "arrows": 0.4
+   },
+   "arrives": 100
   },
   "camel_rider": {
    "name": "Camel rider",
-   "text": "A rider whose camel frightens the legion's horses.",
+   "text": "Fast and tough. He rides in at a run and thrusts his long spear through the front rank into the man behind.",
    "history": "Camels carried desert armies over ground that stopped most other horses and mules.",
-   "behaviour": "charger",
-   "hp": 50,
-   "speed": 52,
-   "dps": 6,
+   "behaviour": "melee",
+   "hp": 30,
+   "speed": 56,
+   "dps": 1.8,
    "radius": 8,
-   "coins": 3,
+   "coins": 2,
    "art": [
     "unit:camel_rider"
-   ]
+   ],
+   "sprint": {
+    "every": 6.0,
+    "speed_mult": 1.8,
+    "seconds": 1.2
+   },
+   "thrust": {
+    "every": 3.0,
+    "damage_mult": 2.0,
+    "arc": 0.5,
+    "reach": 22
+   },
+   "arrives": 200
   },
   "parthian_slinger": {
    "name": "Slinger",
-   "text": "He slings lead shot from the dunes.",
+   "text": "He whirls his sling and looses a volley of stones. A soldier struck by one reels and cannot fight for a moment.",
    "history": "Slingers in the Parthian armies fought alongside the archers to thin out an advancing force.",
    "behaviour": "ranged",
-   "hp": 20,
+   "hp": 18,
    "speed": 38,
-   "dps": 4,
+   "dps": 1.3,
    "radius": 6,
    "coins": 2,
    "art": [
     "unit:parthian_slinger"
    ],
-   "range": 125
+   "range": 135,
+   "sling": {
+    "stones": 3,
+    "spread": 0.22,
+    "stun": 0.9
+   },
+   "arrives": 140
   },
   "cataphract_charge": {
-   "name": "Cataphract charge",
-   "text": "A wall of armoured horsemen at full gallop.",
+   "name": "Cataphract charge leader",
+   "text": "He marks a lane and leads a wedge of cataphracts down it at full gallop, riding down the soldiers in its path. The wedge stays on the field when the charge is spent.",
    "history": "A cataphract charge could break an infantry line, as it did at Carrhae.",
-   "behaviour": "charger",
-   "hp": 8400,
-   "speed": 62,
-   "dps": 20,
-   "radius": 19,
+   "behaviour": "melee",
+   "hp": 6400,
+   "speed": 50,
+   "dps": 26,
+   "radius": 16,
    "coins": 0,
    "art": [
     "unit:cataphract_charge"
    ],
-   "elite": true
+   "elite": true,
+   "wedge": {
+    "every": 13.0,
+    "range": 240,
+    "warn": 1.4,
+    "width": 70,
+    "length": 320,
+    "seconds": 0.7,
+    "damage_mult": 0.8,
+    "throw": 24,
+    "riders": 4,
+    "kind": "cataphract",
+    "spacing": 22,
+    "rider_mult": 0.5
+   }
   },
   "war_elephant": {
    "name": "War elephant",
-   "text": "It tramples whatever stands before it.",
+   "text": "A great beast with archers in a tower on its back, shooting all the while. It marks a line and tramples down it, throwing soldiers aside, and takes a long time to bring down.",
    "history": "Eastern kings used war elephants to scare horses and to break the ranks of foot soldiers.",
-   "behaviour": "beast",
-   "hp": 13200,
-   "speed": 38,
-   "dps": 26,
-   "radius": 24,
+   "behaviour": "melee",
+   "hp": 11000,
+   "speed": 34,
+   "dps": 24,
+   "radius": 38,
    "coins": 0,
    "art": [
     "unit:war_elephant"
    ],
-   "elite": true
+   "elite": true,
+   "scale": 1.7,
+   "trample": {
+    "every": 11.0,
+    "range": 260,
+    "warn": 1.5,
+    "width": 80,
+    "length": 300,
+    "seconds": 1.1,
+    "damage_mult": 1.0,
+    "throw": 34,
+    "shake": 0.45
+   },
+   "tower": {
+    "every": 1.4,
+    "range": 220,
+    "arrows": 2,
+    "spread": 0.12,
+    "damage": 2.5
+   }
   },
   "shah": {
    "name": "Shah",
-   "text": "The shah of Parthia, riding into battle on an elephant.",
+   "text": "The shah fights among his cataphracts and war elephants. His horse archers ride round the legion while their volleys fall on marked ground, and camel trains bring them fresh arrows, so the storm goes on until the camels are cut down. When hurt he calls in his elephants.",
    "history": "In 53 BC at Carrhae, the Parthian army crushed seven Roman legions led by Crassus.",
-   "behaviour": "beast",
-   "hp": 39600,
-   "speed": 26,
-   "dps": 42,
-   "radius": 30,
+   "behaviour": "melee",
+   "hp": 28000,
+   "speed": 24,
+   "dps": 30,
+   "radius": 26,
    "coins": 0,
    "art": [
     "unit:shah"
@@ -1433,40 +1498,38 @@
      "every": 5.0,
      "reach": 34,
      "arc": 2.0,
-     "damage_mult": 1.2,
+     "damage_mult": 1.4,
      "retry": 0.25
     },
-    "charge": {
-     "every": 11.0,
-     "speed_mult": 4.0,
-     "seconds": 0.7,
-     "burst_mult": 1.5,
-     "warn": 1.0,
-     "range": 40,
-     "throw": 26
-    },
-    "war_cry": {
-     "every": 18.0,
-     "radius": 240,
-     "seconds": 4.0,
-     "speed_mult": 1.5
-    },
-    "slam": {
-     "every": 9.0,
-     "windup": 1.2,
-     "radius": 56,
-     "damage_mult": 1.2,
-     "retry": 0.5
-    },
-    "horn": {
-     "every": 30.0
+    "storm": {
+     "every": 16.0,
+     "riders": 8,
+     "ring": 230,
+     "seconds": 22.0,
+     "volley_every": 1.2,
+     "zones": 3,
+     "radius": 26,
+     "delay": 1.3,
+     "spread": 120,
+     "damage": 9,
+     "quiver": 8,
+     "train": 3,
+     "resupply": 280,
+     "train_kind": "camel_rider",
+     "kind": "horse_archer",
+     "train_at": 2
     }
    },
    "fury": {
     "below": 0.5,
-    "rate_mult": 1.4,
-    "bands": 2
-   }
+    "rate_mult": 1.3,
+    "release": true,
+    "call": {
+     "kind": "war_elephant",
+     "count": 2
+    }
+   },
+   "guard": "cataphract"
   }
  },
  "provinces": {
@@ -1599,6 +1662,7 @@
    "art": [
     "prop:dune",
     "prop:palm",
+    "prop:ruined_wall",
     "ground:parthia"
    ]
   }

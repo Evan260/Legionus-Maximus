@@ -29,6 +29,8 @@ var _kinds_of: Sim
 var _k_type := PackedStringArray()
 var _k_attack := PackedByteArray()
 var _k_shadow := PackedFloat32Array()
+# How much larger than its art each kind is drawn, such as the war elephant.
+var _k_scale := PackedFloat32Array()
 # Every enemy kind's walk, attack and stance frames, so drawing the horde reads arrays instead of the atlas's JSON: slot (kind * 3 + action) * 8 + direction gives where its frames start in _f_rect, how many there are and the anchor.
 var _f_start := PackedInt32Array()
 var _f_count := PackedInt32Array()
@@ -40,6 +42,9 @@ var _prop_frames := {}
 var ravine_edge: Texture2D
 # The ice laid along every frozen stream, repeated across the world.
 var ice: Texture2D
+# Soldiers reeling from a sling stone, and the camels bringing the shah's riders fresh arrows, marked over their heads this frame.
+var _dazed := PackedVector2Array()
+var _train_marks := PackedVector2Array()
 # The ground and the wheat fields are drawn by two layers behind this node, so the wheat can have a shader of its own that frays its edges.
 var _floor := Node2D.new()
 var _wheat := Node2D.new()
@@ -150,6 +155,10 @@ func _draw() -> void:
 					f = atlas.prop_frame(pr[0])
 					_prop_frames[pr[0]] = f
 				var at: Vector2 = pr[1]
+				if pr[0] == "dune":
+					# A dune is walked over, so it is drawn on the ground under everything that stands on it.
+					_add(at.y - 60000.0, f[0], at - f[1], white)
+					continue
 				if not chops.is_empty() and chops.has(at) and sim.time - float(chops[at][1]) < shaking:
 					_felling.append([at, float(chops[at][0])])
 					at += Vector2(roundf(sin(sim.time * 45.0 + at.x) * 1.2), 0)
@@ -177,9 +186,13 @@ func _draw() -> void:
 	var cursed := Color(0.78, 0.55, 1.0)
 	var stunned := Color(0.78, 0.74, 0.62)
 	var cheering := sim.triumph_left > 0.0
+	_dazed.clear()
+	_train_marks.clear()
 	for u in [sim.commander] + sim.soldiers:
 		var f := _cheer_frame(u) if cheering and not u.moving else _legion_frame(u)
 		var mod := white
+		if u.get("dazed", 0.0) > 0.0:
+			_dazed.append(u.pos)
 		if u.flash > 0.0:
 			mod = Color(1.0, 0.55, 0.55)
 		elif sim.horde.curse_left > 0.0:
@@ -234,13 +247,20 @@ func _draw() -> void:
 			draw_texture(shadow, _snap(p - Vector2(8, 3)))
 		else:
 			draw_texture_rect(shadow, Rect2(_snap(p - Vector2(sw / 2.0, sw * 0.1875)), Vector2(sw, sw * 0.375)), false)
-		_add(p.y, rect, p - anchor, mod, true)
+		var sc := _k_scale[kind]
+		if sc != 1.0:
+			_add(p.y, rect, p - anchor * sc, mod, true, rect.size * sc)
+		else:
+			_add(p.y, rect, p - anchor, mod, true)
+		if not h.arrow_storm.is_empty() and h.arrow_storm.train.has(h.e_id[i]):
+			_train_marks.append(p)
 
 	for e in sim.effects:
 		if e.kind == "death" or e.kind == "fallen":
 			var f := atlas.unit_frame(e.type, "idle", Sim.dir_name(e.facing), 0.0)
 			var a: float = 1.0 - e.t / 0.45
-			_add(e.pos.y, f[0], e.pos - f[1] + Vector2(0, e.t * 8.0), Color(0.75, 0.35, 0.3, a))
+			var sc := _scale_of(e.type)
+			_add(e.pos.y, f[0], e.pos - f[1] * sc + Vector2(0, e.t * 8.0), Color(0.75, 0.35, 0.3, a), false, f[0].size * sc)
 		elif e.kind == "plunge":
 			# The body shrinks and darkens as it drops into the gorge; a boss shudders at the lip first.
 			var f := atlas.unit_frame(e.type, "idle", Sim.dir_name(e.facing), 0.0)
@@ -266,6 +286,7 @@ func _draw() -> void:
 
 	_draw_shots(tex)
 	_draw_spears()
+	_draw_dazed_and_trains()
 	_draw_boss_heads(view)
 	_draw_lobs(tex)
 	_draw_effects()
@@ -382,11 +403,13 @@ func _index_kinds() -> void:
 	_k_type.resize(h.kind_ids.size())
 	_k_attack.resize(h.kind_ids.size())
 	_k_shadow.resize(h.kind_ids.size())
+	_k_scale.resize(h.kind_ids.size())
 	for k in h.kind_ids.size():
 		_k_type[k] = h.kind_ids[k]
 		_k_attack[k] = 1 if atlas.units.has(h.kind_ids[k]) and atlas.units[h.kind_ids[k]].has("attack") else 0
 		# A small barbarian keeps the 16 px shadow; a boss's grows with his body.
 		_k_shadow[k] = maxf(16.0, h.k_radius[k] * 2.4)
+		_k_scale[k] = _scale_of(h.kind_ids[k])
 	var slots := h.kind_ids.size() * 24
 	_f_start.resize(slots)
 	_f_count.resize(slots)
@@ -520,8 +543,7 @@ func _draw_warnings() -> void:
 	for id in h.boss:
 		var st: Dictionary = h.boss[id]
 		if st.get("rush_warn", 0.0) > 0.0:
-			var cfg: Dictionary = sim.content.enemies.falx_band.onrush
-			_draw_lane(st.rush_from, st.rush_dir, float(cfg.length), float(cfg.width), clampf(1.0 - st.rush_warn / st.rush_total, 0.0, 1.0))
+			_draw_lane(st.rush_from, st.rush_dir, st.rush_len, st.rush_width, clampf(1.0 - st.rush_warn / st.rush_total, 0.0, 1.0))
 	if not h.sweep.is_empty():
 		var k: float = clampf(h.sweep.t / h.sweep.dur, 0.0, 1.0)
 		var a: float = h.sweep.dir.angle()
@@ -769,6 +791,12 @@ func _draw_spears() -> void:
 			# The Dacian archers' arrows are fletched dark red, so they never pass for the legion's own.
 			_big_shot(p, dir, 16.0, false, Color(0.32, 0.2, 0.12), Color(0.62, 0.16, 0.12))
 			continue
+		if h.sp_kind[i] == 2:
+			# A sling stone is a small grey pebble with a faint trail.
+			draw_line(p - dir * 10.0, p - dir * 2.0, Color(1.0, 1.0, 0.9, 0.2), 2.0)
+			draw_rect(Rect2(p.round() - Vector2(1, 1), Vector2(3, 3)), ink)
+			draw_rect(Rect2(p.round() - Vector2(1, 1), Vector2(2, 2)), Color(0.72, 0.7, 0.66))
+			continue
 		draw_line(p - dir * 20.0, p - dir * 4.0, Color(1.0, 1.0, 0.85, 0.22), 4.0)
 		var spin := Vector2.from_angle(sim.time * 18.0 + float(i) * 1.7)
 		var side := spin.orthogonal()
@@ -780,6 +808,29 @@ func _draw_spears() -> void:
 		draw_colored_polygon(blade, ink)
 		var inner := PackedVector2Array([head + side * 1.5, head + side * 5.0 + spin * 1.8, head + side * 5.5 - spin * 1.8, head - spin * 1.0])
 		draw_colored_polygon(inner, Color(0.85, 0.86, 0.88))
+
+
+## How much larger than its art an enemy kind is drawn; 1 for every other kind and for the legion's soldiers.
+func _scale_of(type: String) -> float:
+	return float(sim.content.enemies.get(type, {}).get("scale", 1.0))
+
+
+## Spinning stars over a soldier reeling from a sling stone, and a bundle of arrows over each camel of a train bringing them.
+func _draw_dazed_and_trains() -> void:
+	for p in _dazed:
+		for n in 3:
+			var a := sim.time * 6.0 + n * TAU / 3.0
+			var q := (p + Vector2(cos(a) * 7.0, -32.0 + sin(a) * 2.0)).round()
+			draw_rect(Rect2(q - Vector2(2, 1), Vector2(5, 3)), Color(0.16, 0.1, 0.08))
+			draw_rect(Rect2(q - Vector2(1, 2), Vector2(3, 5)), Color(0.16, 0.1, 0.08))
+			draw_rect(Rect2(q - Vector2(1, 0), Vector2(3, 1)), Color(1.0, 0.9, 0.4))
+			draw_rect(Rect2(q - Vector2(0, 1), Vector2(1, 3)), Color(1.0, 0.9, 0.4))
+	for p in _train_marks:
+		var top := (p + Vector2(-3, -40)).round()
+		draw_rect(Rect2(top - Vector2(1, 1), Vector2(8, 10)), Color(0.16, 0.1, 0.08))
+		for k in 3:
+			draw_line(top + Vector2(k * 2 + 1, 0), top + Vector2(k * 2 + 1, 8), Color(0.85, 0.7, 0.4), 1.0)
+		draw_rect(Rect2(top + Vector2(0, 7), Vector2(6, 1)), Color(0.62, 0.16, 0.12))
 
 
 ## Over each boss: a raised shield in front of a war band leader and a health bar; the HUD writes the elite's name over it.
@@ -795,7 +846,7 @@ func _draw_boss_heads(view: Rect2) -> void:
 			continue
 		var type: String = h.kind_ids[h.e_kind[i]]
 		var p: Vector2 = h.e_pos[i]
-		var tall: float = atlas.units[type].idle.south.frames[0][3] if atlas.units.has(type) else 40.0
+		var tall: float = (atlas.units[type].idle.south.frames[0][3] if atlas.units.has(type) else 40.0) * _scale_of(type)
 		var st: Dictionary = h.boss.get(id, {})
 		if not st.is_empty() and st.duel > 0.0:
 			# The champion's ring, with an arc that shrinks as the duel runs out.
