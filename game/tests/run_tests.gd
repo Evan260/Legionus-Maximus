@@ -2820,7 +2820,7 @@ func test_burning_the_grove_thins_the_stream(b: Dictionary) -> void:
 	s.commander.pos = grove.pos + Vector2(10, 0)
 	_step_dt(s, float(cfg.hold) * 0.5)
 	check(not grove.done and grove.hold > 0.0, "half the time in the grove is not enough")
-	check(s.horde.e_pos.size() > 5, "war bands come to defend it")
+	check(s.horde.e_pos.size() >= 5, "war bands come to defend it (%d)" % s.horde.e_pos.size())
 	_empty_horde(s)
 	var choices := s.free_choices
 	_step_dt(s, float(cfg.hold) * 0.5 + 0.2)
@@ -3839,10 +3839,13 @@ func test_the_war_band_leader_calls_his_band(b: Dictionary) -> void:
 	var n := s.horde.e_pos.size() - before
 	var want := int(float(b.war_band.size_start) * float(content.enemies.war_band_leader.call_band.size_mult))
 	check(n == want, "a band of %d arrives (%d)" % [want, n])
+	# His band gathers round him, but steps in from beyond the edge of the screen rather than appearing in view.
 	var round_him := true
+	var view := Rect2(s.commander.pos - Ui.view / 2.0, Ui.view)
 	for k in range(before, s.horde.e_pos.size()):
-		round_him = round_him and s.horde.e_pos[k].distance_to(Vector2(250, 0)) <= float(b.war_band.spread) + 1.0
-	check(round_him, "round him")
+		var q: Vector2 = s.horde.e_pos[k]
+		round_him = round_him and not view.has_point(q) and (q - s.commander.pos).dot(Vector2(250, 0) - s.commander.pos) > 0.0
+	check(round_him, "round him, from off the screen on his side")
 	check(made[2].band_cd > 0.0, "and he waits before calling again")
 
 

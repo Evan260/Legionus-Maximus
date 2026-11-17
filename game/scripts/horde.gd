@@ -540,12 +540,23 @@ func open_point(p: Vector2) -> Vector2:
 	var owner: Sim = sim_ref.get_ref() if sim_ref != null else null
 	if owner == null:
 		return p
+	p = beyond_screen(p)
 	var at := p
 	for k in 8:
 		if owner.terrain.is_open(at):
 			return at
-		at = commander.pos + (p - commander.pos).rotated(0.2 * (k / 2 + 1) * (1 if k % 2 == 0 else -1))
+		at = beyond_screen(commander.pos + (p - commander.pos).rotated(0.2 * (k / 2 + 1) * (1 if k % 2 == 0 else -1)))
 	return owner.terrain.out_of_fields(p, Terrain.MAX_UNIT)
+
+
+## Moves p out along its line from the commander until it stands beyond the edge of the screen with room for a body, so newcomers never appear in view.
+func beyond_screen(p: Vector2) -> Vector2:
+	var off: Vector2 = p - commander.pos
+	if off.length_squared() < 1.0:
+		return p
+	var half := Ui.view / 2.0 + Vector2(48.0, 64.0)
+	var t := minf(half.x / maxf(absf(off.x), 0.001), half.y / maxf(absf(off.y), 0.001))
+	return commander.pos + off * maxf(1.0, t)
 
 
 ## An ordinary enemy for the stream: the first in the province's list most often, the rest more often as the run goes on.
@@ -840,7 +851,7 @@ func war_band_at(sim: Sim, centre: Vector2, mult := 1.0) -> void:
 	for i in n:
 		if e_pos.size() >= int(b.max_enemies):
 			break
-		spawn(_pick_ordinary(), centre + Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(0.0, float(wb.spread)))
+		spawn(_pick_ordinary(), beyond_screen(centre + Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(0.0, float(wb.spread))))
 	sim.event("surge", commander.pos)
 
 
