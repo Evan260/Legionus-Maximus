@@ -46,9 +46,12 @@ def call(method, path, body=None):
         headers={"Authorization": f"Bearer {token()}", "Content-Type": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=180) as r:
-            return json.loads(r.read() or b"null")
+            reply = json.loads(r.read() or b"null")
     except urllib.error.HTTPError as e:
         sys.exit(f"HTTP {e.code}: {e.read().decode()[:1500]}")
+    if isinstance(reply, dict) and reply.get("status") != "processing" and isinstance(reply.get("usage"), dict):
+        SPENT.append(float(reply["usage"].get("usd") or 0))
+    return reply
 
 
 def balance():
@@ -56,10 +59,14 @@ def balance():
     return b["credits"]["usd"], b["subscription"].get("generations", 0)
 
 
+SPENT = []
+
+
 def record(kind, name, before, after):
     # The ledger shows what each asset really cost, since PixelLab's listed prices are only estimates.
+    # A job's own reported usage is used when there is one, so jobs running side by side do not count each other's cost.
     new = not LEDGER.exists()
-    usd = before[0] - after[0]
+    usd = sum(SPENT) if SPENT else before[0] - after[0]
     gens = before[1] - after[1]
     with LEDGER.open("a", newline="") as f:
         w = csv.writer(f)
