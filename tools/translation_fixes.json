@@ -1725,6 +1725,11 @@
       "ko": "나무를 베어 목재를 모은 뒤, 협곡 가장자리에서 다리를 놓으세요",
       "zh_CN": "砍树获取木材，然后在峡谷边缘架桥",
       "zh_TW": "砍樹取得木材，然後在峽谷邊緣架橋"
+    },
+    "content.enemies.chariot_charge.history": {
+      "en": "Later writers told of British chariots with scythes on their wheels, though Caesar never mentions them.",
+      "es": "Autores posteriores hablaron de carros britanos con guadañas en las ruedas, aunque César nunca los menciona.",
+      "pt_BR": "Autores posteriores falaram de carros bretões com foices nas rodas, embora César nunca os mencione."
     }
   }
 }
