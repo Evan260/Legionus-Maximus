@@ -1345,7 +1345,8 @@ func _move(dt: float, sim: Sim) -> void:
 		var throwing := (beh == RANGED and e_ammo[i] > 0) or lobber
 		if throwing:
 			if d <= k_range[kind] + legion_reach:
-				v = Vector2.ZERO
+				# Between throws he circles the legion at half pace rather than standing still, so he never looks stuck.
+				v = Vector2(-to.y, to.x) / maxf(d, 0.001) * spd * 0.5 * (1.0 if e_id[i] % 2 == 0 else -1.0)
 				e_cd[i] -= dt
 				if lobber:
 					if e_cd[i] <= 0.0 and k_lob[kind] == 1:
@@ -1508,6 +1509,9 @@ func _move(dt: float, sim: Sim) -> void:
 			var into := v.dot(to)
 			if into > 0.0:
 				v -= to * (into / (d * d) * minf(1.0, e_block[i] / (r * crowd_give)))
+				if v.length_squared() < spd * spd * 0.09:
+					# A barbarian with nobody to slide past sidesteps round the crowd to find a gap, rather than waiting behind it.
+					v += Vector2(-to.y, to.x) / maxf(d, 0.001) * spd * 0.6 * (1.0 if e_id[i] % 2 == 0 else -1.0)
 		var np := p + v * dt + push * 0.6
 		# Trees and rocks push the barbarian back out, read straight from the terrain grid since this runs for the whole horde.
 		# Barbarians well off the screen pass through, since nobody sees them and the check is costly for a full horde.
