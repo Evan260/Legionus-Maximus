@@ -14,8 +14,8 @@ OUT = ROOT / "game" / "assets" / "map.png"
 
 W, H = 640, 360
 # The projection is equirectangular with longitude scaled by cos 42°, the same as in game/scripts/screens/map.gd.
-WEST, NORTH = -13.0, 58.8
-PX_PER_DEG = 10.8
+WEST, NORTH = -11.5, 58.9
+PX_PER_DEG = 13.8
 COS = math.cos(math.radians(42.0))
 SS = 4
 
@@ -43,17 +43,43 @@ SKIP_LAKES = {"Rybinsk Reservoir", "Kremenchuk Reservoir", "Kakhovka Reservoir",
               "Razzaza Lake", "Lake Habbaniyah"}
 # Rivers whose banks stay green through the desert.
 GREEN_BANKS = {"Nile", "Rosetta Branch", "Damietta Branch", "Euphrates", "Al Furat", "Firat", "Tigris", "Dicle", "Shatt al Arab"}
-SNOWY = {"ALPS", "CAUCASUS MTS.", "PYRENEES", "ELBURZ MTS.", "HAUT ATLAS", "Lesser Caucasus", "S. Nevada"}
-HALF_SNOW = {"CARPATHIAN MOUNTAINS", "ZAGROS MOUNTAINS"}
+# Only the Pyrenees and the Caucasus are snowy throughout; the Alps carry snow on their high core alone.
+SNOWY = {"CAUCASUS MTS.", "PYRENEES"}
+HALF_SNOW = {"ALPS"}
 DESERT_ROCK = {"HEJAZ MTS.", "AHAGGAR MTS.", "TIBESTI MTS.", "KUH RUD MOUNTAINS", "Anti Atlas", "ATLAS SAHARIEN"}
 DESERTS = {"ARABIAN PENINSULA"}
 # Ranges Natural Earth leaves out of its region polygons, as (lon, lat) outlines.
 EXTRA_RANGES = {
     "TAURUS": [(29.6, 37.3), (31.5, 37.6), (33.0, 37.6), (34.5, 37.6), (36.0, 38.0), (37.8, 38.4), (38.0, 37.9), (36.2, 37.5),
                (34.6, 37.1), (33.0, 36.9), (31.4, 37.0), (29.8, 36.9)],
-    "LEBANON": [(35.8, 34.6), (36.6, 34.4), (36.2, 33.4), (35.6, 33.4)],
+    "LEBANON": [(35.9, 34.6), (36.4, 34.4), (35.9, 33.3), (35.5, 33.4)],
     "ARMENIA": [(38.5, 40.0), (41.5, 40.6), (44.5, 39.9), (44.0, 38.4), (41.0, 38.5), (38.6, 38.8)],
 }
+# Ranges too thin or too short in Natural Earth, as (lon, lat) crest lines with a half width in degrees and a kind.
+RIDGES = {
+    "Apennines": ([(8.2, 44.3), (9.3, 44.55), (10.3, 44.3), (11.3, 44.0), (12.2, 43.6), (12.9, 43.0), (13.5, 42.4), (14.2, 41.85),
+                   (14.9, 41.3), (15.5, 40.7), (15.9, 40.1), (16.2, 39.5), (16.3, 39.0), (16.1, 38.5), (15.9, 38.1)], 0.3, "rock"),
+    "Dinaric Alps": ([(14.2, 45.8), (15.1, 45.1), (16.1, 44.3), (17.2, 43.6), (18.4, 42.9), (19.4, 42.4), (20.2, 41.9)], 0.4, "rock"),
+    "Haemus": ([(22.4, 43.7), (23.2, 43.2), (24.0, 42.85), (25.0, 42.75), (26.0, 42.75), (27.0, 42.75), (27.7, 42.7)], 0.22, "rock"),
+    "Pindus": ([(20.5, 40.7), (20.9, 40.1), (21.2, 39.5), (21.5, 39.0), (21.9, 38.7), (22.4, 38.6)], 0.28, "rock"),
+    "Peloponnese": ([(21.9, 38.0), (22.3, 37.6), (22.4, 37.1), (22.3, 36.6)], 0.22, "light"),
+    "Pyrenees": ([(-1.9, 43.05), (-1.0, 42.95), (0.0, 42.75), (1.0, 42.6), (2.0, 42.45), (2.9, 42.4)], 0.32, "snow"),
+    "Cantabrian": ([(-7.0, 42.85), (-6.0, 43.0), (-5.0, 43.05), (-4.2, 43.05), (-3.4, 43.1), (-2.6, 43.05)], 0.22, "rock"),
+    "Sistema Central": ([(-7.6, 40.3), (-6.6, 40.25), (-5.6, 40.25), (-4.8, 40.4), (-4.0, 40.8), (-3.4, 41.1)], 0.22, "rock"),
+    "Sistema Iberico": ([(-3.2, 42.0), (-2.4, 41.7), (-1.7, 41.1), (-1.2, 40.5), (-0.9, 40.1)], 0.25, "light"),
+    "Baetic": ([(-5.4, 36.6), (-4.6, 36.85), (-3.6, 37.05), (-2.8, 37.25), (-2.0, 37.7), (-1.2, 38.2), (-0.4, 38.6)], 0.3, "rock"),
+    "Highlands": ([(-5.0, 58.3), (-4.8, 57.7), (-4.6, 57.2), (-4.2, 56.85), (-3.5, 56.9), (-2.8, 57.0)], 0.42, "rock"),
+    "Massif Central": ([(2.7, 45.8), (2.9, 45.2), (3.3, 44.7), (3.7, 44.3)], 0.42, "light"),
+    "Rhodope": ([(23.4, 41.95), (24.2, 41.65), (25.0, 41.5), (25.6, 41.45)], 0.22, "light"),
+    "Carpathians": ([(17.6, 48.6), (18.8, 49.1), (20.0, 49.2), (21.4, 49.3), (22.7, 49.0), (23.9, 48.3), (24.9, 47.7), (25.6, 47.0),
+                     (25.95, 46.2), (26.1, 45.6), (25.4, 45.4), (24.4, 45.45), (23.3, 45.35), (22.5, 45.2), (22.1, 44.8)], 0.33, "rock"),
+    "Apuseni": ([(22.2, 47.0), (22.7, 46.6), (23.1, 46.3)], 0.25, "light"),
+    "Corsica": ([(9.1, 42.6), (9.15, 42.1), (9.2, 41.7)], 0.15, "rock"),
+    "Sardinia": ([(9.0, 40.4), (9.3, 40.0), (9.4, 39.6)], 0.18, "light"),
+    "Sicily": ([(13.3, 37.85), (14.2, 37.9), (14.95, 37.75)], 0.18, "light"),
+}
+# Natural Earth's Carpathian polygon covers the Transylvanian basin inside the arc, so the arc is drawn by hand instead.
+SKIP_RANGES = {"CARPATHIAN MOUNTAINS"}
 
 # How dry the land is, 0 for wet green to 1 for sand, at known places; the field between them is interpolated.
 DRYNESS = [
@@ -291,6 +317,18 @@ def carve(land, points):
             last = (px, py)
 
 
+def ridge_mask(spine, half_width):
+    """The land within half_width degrees of a crest line."""
+    line = np.zeros((H, W), bool)
+    x, y = to_px([p[0] for p in spine], [p[1] for p in spine])
+    pts = list(zip(x, y))
+    for a, c in zip(pts, pts[1:]):
+        for px, py in line_px(a, c):
+            if 0 <= px < W and 0 <= py < H:
+                line[py, px] = True
+    return ndimage.distance_transform_edt(~line) <= half_width * PX_PER_DEG
+
+
 def peak_sprite(size, snow):
     """A mountain peak as rows of pixel keys: o outline, L lit side, D shaded side, S snow, s shaded snow."""
     h = size
@@ -315,13 +353,35 @@ def peak_sprite(size, snow):
     return rows
 
 
-def draw_peaks(img, land, ranges, rng):
+def draw_peaks(img, land, shore, ranges, rng):
     peaks = []
-    for name, mask, kind in ranges:
+    for name, mask, kind, spine in ranges:
         ys, xs = np.nonzero(mask)
         if len(xs) == 0:
             continue
         dist = ndimage.distance_transform_edt(mask)
+        if spine is not None:
+            # A hand ridge sets its peaks along its crest, so a range on a narrow peninsula still shows.
+            x, y = to_px([p[0] for p in spine], [p[1] for p in spine])
+            step, carry, k = (10.0 if kind == "light" else 7.0), 0.0, 0
+            for a, c in zip(zip(x, y), zip(x[1:], y[1:])):
+                length = math.dist(a, c)
+                nx, ny = -(c[1] - a[1]) / length, (c[0] - a[0]) / length
+                d = carry
+                while d < length:
+                    # Peaks step either side of the crest so the range reads as massed mountains, not a line.
+                    side = (2.0 if k % 2 else -2.0) if kind != "light" else 0.0
+                    px = int(round(a[0] + (c[0] - a[0]) * d / length + nx * side))
+                    py = int(round(a[1] + (c[1] - a[1]) * d / length + ny * side))
+                    if not (0 <= px < W and 0 <= py < H and land[py, px]):
+                        px, py = int(round(a[0] + (c[0] - a[0]) * d / length)), int(round(a[1] + (c[1] - a[1]) * d / length))
+                    if 0 <= px < W and 0 <= py < H and shore[py, px]:
+                        size = 4 if kind == "light" else 5 + (1 if dist[py, px] > 3 and rng.random() < 0.5 else 0)
+                        peaks.append((py, px, size, kind == "snow", False, True))
+                    d += step
+                    k += 1
+                carry = d - length
+            continue
         spacing = 8
         for gy in range(ys.min() - spacing, ys.max() + spacing, spacing - 2):
             for gx in range(xs.min() - spacing, xs.max() + spacing, spacing + 2):
@@ -330,12 +390,12 @@ def draw_peaks(img, land, ranges, rng):
                 if not (0 <= x < W and 0 <= y < H) or not mask[y, x] or not land[y, x]:
                     continue
                 core = dist[y, x]
-                if rng.random() < 0.25:
+                if rng.random() < (0.55 if kind == "light" else 0.25):
                     continue
-                size = 4 + (1 if core > 2 and rng.random() < 0.7 else 0) + (1 if core > 4 and rng.random() < 0.6 else 0)
+                size = 4 if kind == "light" else 4 + (1 if core > 2 and rng.random() < 0.7 else 0) + (1 if core > 4 and rng.random() < 0.6 else 0)
                 snow = kind == "snow" or (kind == "half" and core > 3)
-                peaks.append((y, x, size, snow, kind == "desert"))
-    for y, x, size, snow, desert in sorted(peaks):
+                peaks.append((y, x, size, snow, kind == "desert", False))
+    for y, x, size, snow, desert, narrow in sorted(peaks):
         sprite = peak_sprite(size, snow)
         top = y - size + 1
         left = x - (size - 1)
@@ -343,7 +403,7 @@ def draw_peaks(img, land, ranges, rng):
         for sy, row in enumerate(sprite):
             for sx, ch in enumerate(row):
                 px, py = left + sx, top + sy
-                if ch == "." or not (0 <= px < W and 0 <= py < H) or not land[py, px]:
+                if ch == "." or not (0 <= px < W and 0 <= py < H) or not (shore if narrow else land)[py, px]:
                     continue
                 img[py, px] = {"o": C["peak_line"], "L": hi, "D": lo, "S": C["snow"], "s": C["snow_lo"]}[ch]
 
@@ -450,13 +510,16 @@ def main():
         if cla != "Range/mtn":
             continue
         kind = "snow" if name in SNOWY else "half" if name in HALF_SNOW else "desert" if name in DESERT_ROCK else "rock"
-        ranges.append((name, area_mask(rings, 0.3), kind))
+        if name not in SKIP_RANGES:
+            ranges.append((name, area_mask(rings, 0.3), kind, None))
     for name, pts in EXTRA_RANGES.items():
-        ranges.append((name, poly_mask(pts), "half" if name == "ARMENIA" else "rock"))
-    for name, mask, kind in ranges:
+        ranges.append((name, poly_mask(pts), "rock", None))
+    for name, (spine, half_width, kind) in RIDGES.items():
+        ranges.append((name, ridge_mask(spine, half_width), kind, spine))
+    for name, mask, kind, _ in ranges:
         hi, lo = (C["drock_hi"], C["drock_lo"]) if kind == "desert" else (C["rock_hi"], C["rock_lo"])
         core = ndimage.distance_transform_edt(mask)
-        density = np.clip(core / 4.0, 0, 1) * 0.5
+        density = np.clip(core / 4.0, 0, 1) * (0.25 if kind == "light" else 0.5)
         rough = land & mask & (b < density)
         img[rough & (n2 < 0.5)] = hi
         img[rough & (n2 >= 0.5)] = lo
@@ -491,7 +554,8 @@ def main():
     img[coast] = C["coast"]
 
 
-    draw_peaks(img, land & ~lakes & ~coast, ranges, rng)
+    # A hand ridge on a peninsula a few pixels wide may draw its peaks over the coastline.
+    draw_peaks(img, land & ~lakes & ~coast, land & ~lakes, ranges, rng)
 
     open_sea = sea & (dist_sea > 9)
     for y in range(2, H, 7):

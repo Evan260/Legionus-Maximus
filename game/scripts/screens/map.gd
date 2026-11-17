@@ -3,14 +3,14 @@ extends RefCounted
 ## The map: the painted frontier with the legion's road from Rome through the provinces in the order they open, and a panel for the one selected.
 
 const MODES := [["hard", "Hard"], ["endless", "Endless"], ["decimatio", "Decimatio"]]
-## The painted map's projection, the same as tools/art/make_map.py: equirectangular from 13°W and 58.8°N, with longitude scaled by cos 42°.
-const WEST := -13.0
-const NORTH := 58.8
-const PX_PER_DEG := 10.8
+## The painted map's projection, the same as tools/art/make_map.py: equirectangular from 11.5°W and 58.9°N, with longitude scaled by cos 42°.
+const WEST := -11.5
+const NORTH := 58.9
+const PX_PER_DEG := 13.8
 const LON_SCALE := 0.7431448
-## Where each province lies, as longitude and latitude.
+## Where each province lies, as longitude and latitude; Parthia sits north of Ctesiphon (33°N) to stay above the key hints at the map's foot.
 const PLACES := {"roma": Vector2(12.5, 41.9), "germania": Vector2(9.0, 51.5), "britannia": Vector2(-1.0, 52.0), "gaul": Vector2(2.5, 47.0),
-	"dacia": Vector2(24.5, 46.0), "parthia": Vector2(44.5, 33.0)}
+	"dacia": Vector2(24.5, 46.0), "parthia": Vector2(44.5, 35.2)}
 ## The towns and passes each march goes by, as longitude and latitude, so the road keeps to the land and crosses the sea at the straits.
 const ROUTES := {
 	"roma>germania": [Vector2(11.0, 45.4), Vector2(11.5, 47.0), Vector2(10.9, 48.4), Vector2(8.3, 50.0)],
@@ -19,7 +19,7 @@ const ROUTES := {
 	"gaul>dacia": [Vector2(6.0, 47.2), Vector2(8.2, 47.5), Vector2(12.1, 48.9), Vector2(16.9, 48.1), Vector2(19.0, 47.5), Vector2(20.5, 44.8),
 		Vector2(22.6, 44.6)],
 	"dacia>parthia": [Vector2(24.5, 43.7), Vector2(29.0, 41.0), Vector2(32.9, 39.9), Vector2(34.6, 37.8), Vector2(36.2, 36.2), Vector2(37.9, 37.05),
-		Vector2(40.7, 34.75), Vector2(42.8, 33.6)],
+		Vector2(40.4, 35.7), Vector2(42.6, 35.3)],
 }
 const PICTURE := Vector2(640, 360)
 const NODE_R := 9.0
@@ -118,7 +118,7 @@ static func spot(id: String) -> Vector2:
 
 ## The panel with the selected province's records and modes, over the steppe at the top right.
 static func panel_rect() -> Rect2:
-	return Rect2(Ui.W - 254, 8, 246, 68) if Ui.scale == 1 else Rect2(Ui.W - 260, 8, 252, 136)
+	return Rect2(Ui.W - 254, 8, 246, 68) if Ui.scale == 1 else Rect2(Ui.W - 260, 8, 252, 172)
 
 
 ## The road from one province to the next: a smooth curve through the towns on its route, or a bent line where it has none.

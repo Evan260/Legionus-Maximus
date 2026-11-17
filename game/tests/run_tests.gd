@@ -5232,7 +5232,8 @@ func test_a_screen_can_send_a_key_to_a_chosen_button(_b: Dictionary) -> void:
 
 
 func test_the_map_puts_each_province_where_it_lies(_b: Dictionary) -> void:
-	check(MapScreen.spot("parthia") == MapScreen.project(Vector2(44.5, 33.0)).round(), "a province sits at its longitude and latitude")
+	check(MapScreen.spot("dacia") == MapScreen.project(Vector2(24.5, 46.0)).round(), "a province sits at its longitude and latitude")
+	check(Rect2(0, 0, Ui.W, Ui.H - 24).has_point(MapScreen.spot("parthia")), "Parthia lies on the map above the key hints")
 	check(MapScreen.spot("britannia").x < MapScreen.spot("gaul").x and MapScreen.spot("britannia").y < MapScreen.spot("gaul").y, "Britannia lies north-west of Gaul")
 	var road := MapScreen.route("roma", "germania", 0.0)
 	var alps := MapScreen.project(Vector2(11.5, 47.0))

@@ -23,7 +23,7 @@ Godot is `C:\Users\evand\AppData\Local\Microsoft\WinGet\Packages\GodotEngine.God
   - `--god=jupiter|neptune|mars|vulcan|apollo` with `--autoplay` calls that god at `--god-at=S` (default 2); `--god=choose` fills the favour and holds the choice of gods open
   - `--lang=CODE`, `--text-size=1|2`, `--commander=ID`, `--as-demo`, `--card=ID` (an achievement card), `--give=ID,ID:RANK` (arms and drills to start with), `--timber=N` with `--autoplay` (timber to start with, for a look at the bridge hint)
 - Windows build: `godot --headless --path game --export-release "Windows"` writes `builds/windows/Legionus Maximus.exe` with the slim engine from Fishus. Run it with `-- --autoplay --shot=PATH --at=10` to check it.
-- Campaign map: `python tools/art/make_map.py` draws `game/assets/map.png` from the Natural Earth data in `tools/art/geo/`, with no PixelLab; its projection constants must match `WEST`, `NORTH`, `PX_PER_DEG` and `LON_SCALE` in `screens/map.gd`, which places the provinces and the road's towns by longitude and latitude.
+- Campaign map: `python tools/art/make_map.py` draws `game/assets/map.png` from the Natural Earth data in `tools/art/geo/` (Europe from 11.5°W to 51°E and 59°N to 33°N), with no PixelLab; its projection constants must match `WEST`, `NORTH`, `PX_PER_DEG` and `LON_SCALE` in `screens/map.gd`, which places the provinces and the road's towns by longitude and latitude.
 - Boot splash: `python tools/art/make_boot_splash.py` after the logo changes, then copy the colour it prints into `boot_splash/bg_color` in `project.godot`.
 
 ## Layout
