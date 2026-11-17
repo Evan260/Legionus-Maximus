@@ -211,8 +211,8 @@ func _draw() -> void:
 		elif _k_attack[kind] == 1 and h.e_fighting[i] == 1 and h.e_tag[i] != Horde.CHIEF:
 			slot += 8
 			fi = posmod(int(loop_t + h.e_phase[i]), _f_count[slot])
-		elif h.e_fighting[i] == 0 and h.e_pace[i] < Horde.STILL_PACE and _f_count[slot + 16] > 0:
-			# A barbarian held in place shows his stance instead of running on the spot.
+		elif (h.e_fighting[i] == 1 or h.e_pace[i] < Horde.STILL_PACE) and _f_count[slot + 16] > 0:
+			# A barbarian held in place, or fighting between blows with no swing of his own, shows his stance instead of a frozen stride.
 			slot += 16
 			fi = 0
 		else:
