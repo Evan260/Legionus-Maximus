@@ -14,7 +14,7 @@
     "column": {"wake": 300, "guards": 4, "guard_ring": 24, "reach": 40, "band_from": 160},
     "grove": {"ring": 96, "oak_step": 22, "gaps": 3, "gap_width": 0.6, "inside": 80, "hold": 5.0, "band_every": 2.5, "band_from": 230, "calm_seconds": 60, "calm_mult": 0.5, "burn_seconds": 10}
   },
-  "fort": {"near": 900, "far": 1200, "arc": 0.9, "clearing": 200, "half": 90, "hold": 4.0, "inside_margin": 8, "seen_within": [290, 150], "tries": 16, "tower_x": 34, "tower_radius": 12, "stake_gap": 12, "stake_radius": 6},
+  "fort": {"near": 900, "far": 1200, "arc": 0.9, "clearing": 200, "half": 90, "room_margin": 16, "hold": 4.0, "inside_margin": 8, "seen_within": [290, 150], "tries": 16, "tower_x": 34, "tower_radius": 12, "stake_gap": 12, "stake_radius": 6},
   "forest": {"ridge_chance": 0.55, "line_chance": 0.25, "width": [60, 110], "length": [600, 1400], "tree_step": 22, "jitter": 3, "turn": 0.006, "wander": 0.0009, "end_taper": 80, "pass_chance": 0.5, "pass_width": 70, "fir_share": 0.55},
   "ravines": {"region": 1800, "chance": 0.6, "inset": 170, "width": [80, 160], "length": [640, 1280], "step": 16, "turn": 0.0035, "wander": 0.00008, "end_taper": 140, "end_width": 0.3, "land_bridge_chance": 0.5, "land_bridge": [56, 84], "band": 90, "start_clear": 380, "tries": 8},
   "fields": {"gaul": {"scatter": ["stones"], "village_chance": 0.4, "hedge_chance": 0.3, "wheat_chance": 0.25, "villages": [1, 3], "village_gap": [300, 360], "village_hedge": 0.6, "village_houses": [[-72, -8], [64, -28], [-4, 62]], "house_blockers": [[0, -26, 34], [0, -48, 26]], "village_reach": 150, "hedge_length": [220, 460], "hedge_span": 56, "hedge_blockers": 4, "hedge_radius": 9, "gate_chance": 0.6, "field_size": [[200, 320], [120, 220]], "village_fields": [1, 2], "village_field_size": [[160, 260], [100, 180]], "village_field_reach": [300, 440], "field_tries": 6, "field_wing": 0.5, "field_lane": 150, "field_least": [100, 70], "field_inset": 10, "field_corner": 16}},
@@ -65,6 +65,8 @@
     "follow_speed": 1.5,
     "bridge_lead": 90,
     "bridge_side": 30,
+    "file_gap_min": 12,
+    "gate_lead": 40,
     "fallen_kept": 100,
     "lorica_hp": 0.2,
     "revive_interval": 60

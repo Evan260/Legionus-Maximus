@@ -10,6 +10,7 @@ extends Node
 ##   --go-to=KIND       with --autoplay, start beside the camp, column or grove, inside a fort raised at once, or burning-camp;
 ##                      ravine stands the legion at the lip of the nearest ravine, bridge lays a bridge there and marches onto it,
 ##                      ravine-end stands it just past one end of the nearest ravine
+##                      fort-gate stands it south of a freshly raised fort and marches it in through the gate
 ##                      crowd gives it 80 men on cleared ground ringed by a full late horde
 ##   --hold-choice      with --autoplay, give a level at once and leave its choices open
 ##   --hard, --endless, --decimatio   start the run in that mode
@@ -41,6 +42,8 @@ var choices: Array = []
 var selected := 0
 ## The march an autoplay look holds to instead of circling, or INF.
 var look_march := Vector2.INF
+# With --go-to=fort-gate the look marches north until the commander stands in the middle of the fort.
+var march_to_fort := false
 var args := {}
 var shot_at := -1.0
 var clock := 0.0
@@ -230,10 +233,21 @@ func _go_to(kind: String) -> void:
 	var burn := kind == "burning-camp"
 	if burn:
 		kind = "camp"
+	if kind == "fort-gate":
+		sim.objectives.raise_fort(sim)
+		sim.commander.pos = sim.objectives.fort.pos + Vector2(0, 260)
+		sim.facing_angle = -PI / 2.0
+		sim.commander.facing = Vector2.UP
+		sim.legion.place_all(sim.facing_angle)
+		sim.terrain.refresh(sim.commander.pos)
+		sim.horde.next_band = 1e9
+		look_march = Vector2.UP
+		march_to_fort = true
+		return
 	if kind == "fort":
 		sim.objectives.raise_fort(sim)
 		# The commander stands just inside the gate, where the whole fort is on screen.
-		sim.commander.pos = sim.objectives.fort.centre + Vector2(0, float(balance.fort.half) * 0.5)
+		sim.commander.pos = sim.objectives.fort.centre + Vector2(0, float(sim.objectives.fort.half) * 0.5)
 		sim.legion.place_all(sim.facing_angle)
 		return
 	for o in sim.objectives.list:
@@ -467,8 +481,10 @@ func _process(dt: float) -> void:
 			var testudo := Input.is_action_just_pressed("testudo")
 			var build := Input.is_action_just_pressed("build")
 			if args.has("autoplay"):
+				if march_to_fort and sim.commander.pos.y <= sim.objectives.fort.centre.y + 20.0:
+					look_march = Vector2.ZERO
 				move = Vector2(cos(sim.time * 0.4), sin(sim.time * 0.4)) if look_march == Vector2.INF else look_march
-				testudo = int(sim.time) % 20 == 5
+				testudo = int(sim.time) % 20 == 5 and not march_to_fort
 				build = sim.timber >= int(balance.palisade.cost) and look_march == Vector2.INF
 			if build:
 				sim.build_palisade()

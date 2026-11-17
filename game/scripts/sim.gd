@@ -867,6 +867,8 @@ func win(pos: Vector2) -> void:
 	event("triumph", commander.pos)
 	event("fanfare", commander.pos)
 	objectives.fort_reached = true
+	moving = false
+	commander.moving = false
 	triumph_left = float(b.triumph.seconds)
 	triumph_t = 0.0
 	if endless and endless_since < 0.0:
@@ -887,6 +889,10 @@ func _triumph(dt: float) -> void:
 		i -= 1
 	if kills > before:
 		legion.veterans(kills - before, self)
+	# Men still filing into the fort walk on to their places while the rest cheer.
+	legion.follow(dt, self)
+	for so in soldiers:
+		so.pos = terrain.push_out(so.pos, UNIT_RADIUS)
 	c_pull.fill(1)
 	_coins(dt, float(cfg.coin_speed))
 	_effects(dt)

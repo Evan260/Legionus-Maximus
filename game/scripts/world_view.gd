@@ -175,7 +175,7 @@ func _draw() -> void:
 	var stunned := Color(0.78, 0.74, 0.62)
 	var cheering := sim.triumph_left > 0.0
 	for u in [sim.commander] + sim.soldiers:
-		var f := _cheer_frame(u) if cheering else _legion_frame(u)
+		var f := _cheer_frame(u) if cheering and not u.moving else _legion_frame(u)
 		var mod := white
 		if u.flash > 0.0:
 			mod = Color(1.0, 0.55, 0.55)
@@ -187,7 +187,7 @@ func _draw() -> void:
 			mod = gold
 		draw_texture(shadow, _snap(u.pos - Vector2(8, 3)))
 		var hop := Vector2.ZERO
-		if cheering:
+		if cheering and not u.moving:
 			hop.y = -absf(sin(sim.triumph_t * float(sim.b.triumph.cheer) + float(u.anim))) * float(sim.b.triumph.hop)
 		_add(u.pos.y, f[0], u.pos - f[1] + hop, mod, true)
 
@@ -632,7 +632,7 @@ func _draw_objective_marks(view: Rect2) -> void:
 func _draw_fort_ring(view: Rect2) -> void:
 	var fort: Dictionary = sim.objectives.fort
 	if not fort.is_empty() and not sim.objectives.fort_reached and view.grow(120.0).has_point(fort.centre):
-		_hold_ring(fort.centre, float(sim.b.fort.half) * 0.7, float(fort.hold) / float(sim.b.fort.hold))
+		_hold_ring(fort.centre, float(fort.half) * 0.7, float(fort.hold) / float(sim.b.fort.hold))
 
 
 ## True for a stake of the fort's east or west wall, below its north corner.
@@ -640,7 +640,7 @@ func _on_fort_side(at: Vector2) -> bool:
 	var fort: Dictionary = sim.objectives.fort
 	if fort.is_empty():
 		return false
-	var half := float(sim.b.fort.half)
+	var half := float(fort.half)
 	var d: Vector2 = at - fort.centre
 	return absf(absf(d.x) - half) < 0.5 and d.y < half - 0.5
 

@@ -28,6 +28,8 @@ var _form_places: Array = []
 # The soldiers' indices in row-major order of the places they were last sorted for, front row first and left to right.
 var _order: Array = []
 var _order_of: Array = []
+## How far in from the fort's gate the towers reach, so a man is only in the yard once past them.
+const GATE_DEPTH := 30.0
 # The commander and soldiers below full health this update, in roll order, gathered for the medici; only they can be the worst hurt.
 var _hurt: Array = []
 var _hurt_ready := false
@@ -184,10 +186,13 @@ func place_all(angle: float) -> void:
 func follow(dt: float, sim: Sim) -> void:
 	var places := formation()
 	var column := _column(places, sim)
+	var fort: Dictionary = sim.objectives.fort
 	var step := sim.speed() * float(_l.follow_speed) * (1.0 + float(_b.drills.close_order) * sim.rank("close_order")) * dt
 	for i in soldiers.size():
 		var s: Dictionary = soldiers[i]
 		var target: Vector2 = column[i] if not column.is_empty() else commander.pos + places[i].rotated(sim.facing_angle)
+		if not fort.is_empty():
+			target = _via_gate(i, s.pos, target, fort)
 		s.target = target
 		s.anim += dt * 10.0
 		if s.sortie != 0:
@@ -209,47 +214,127 @@ func follow(dt: float, sim: Sim) -> void:
 	assign_guards()
 
 
-## While the legion crosses a bridge or comes up to one too wide for its deck, the men file over in rows that fit the deck, as one place on the field each; [] when no bridge is near or the formation fits.
+## Where the men head instead of their formation places, one place on the field each, or [] for the formation: a block filling the fort while the commander is inside it, or rows that fit a bridge's deck or the fort's gate while the legion crosses or comes up to one.
 func _column(places: Array, sim: Sim) -> Array:
-	var bridges: Array = sim.terrain.bridges
-	if bridges.is_empty() or soldiers.is_empty():
+	if soldiers.is_empty():
+		return []
+	var fort: Dictionary = sim.objectives.fort
+	if not fort.is_empty() and sim.objectives.in_fort(commander.pos, sim):
+		return _fort_block(places, fort)
+	var lanes := _lanes(sim)
+	if lanes.is_empty():
 		return []
 	var width := 0.0
 	var front := -INF
 	for p in places:
 		width = maxf(width, absf(p.y))
 		front = maxf(front, p.x)
-	var gap := float(_l.col_gap)
-	var row_gap := float(_l.row_gap)
-	for br in bridges:
-		var room: float = br.half_w - Sim.UNIT_RADIUS
+	var facing := Vector2.from_angle(sim.facing_angle)
+	for lane in lanes:
+		var room: float = lane.half_w - Sim.UNIT_RADIUS - 1.0
 		if width <= room:
 			continue
-		var cols := maxi(1, floori(2.0 * room / gap) + 1)
-		var lead := (ceili(float(soldiers.size()) / cols) + 1) * row_gap + float(_l.bridge_lead)
-		var off: Vector2 = commander.pos - br.pos
-		var along: float = off.dot(br.dir)
-		var side: Vector2 = br.dir.orthogonal()
-		if absf(along) > br.half_len + lead or absf(off.dot(side)) > br.half_w + float(_l.bridge_side):
+		var files := _files(room)
+		var file_gap: float = float(files[1]) - float(files[0]) if files.size() > 1 else 0.0
+		var lead := (ceili(float(soldiers.size()) / files.size()) + 1) * float(_l.row_gap) + float(lane.lead)
+		var off: Vector2 = commander.pos - lane.pos
+		var along: float = off.dot(lane.dir)
+		var side: Vector2 = lane.dir.orthogonal()
+		var ahead: bool = absf(along) <= lane.half_len + lead if lane.both_ways else along >= -lead and along <= lane.half_len
+		if not ahead or absf(off.dot(side)) > lane.side:
 			continue
-		var way := 1.0 if Vector2.from_angle(sim.facing_angle).dot(br.dir) >= 0.0 else -1.0
+		var way := 1.0 if facing.dot(lane.dir) >= 0.0 else -1.0
+		if not lane.both_ways and way < 0.0:
+			continue
 		var order := _row_major(places)
 		var out: Array = []
 		out.resize(soldiers.size())
 		var k := 0
 		var row := 0
 		while k < order.size():
-			var x := front - row * row_gap
+			var x := front - row * float(_l.row_gap)
 			row += 1
 			# The row level with the commander is left empty, since he walks in it.
-			if absf(x) < row_gap * 0.6:
+			if absf(x) < float(_l.row_gap) * 0.6:
 				continue
-			var in_row := mini(cols, order.size() - k)
+			var in_row := mini(files.size(), order.size() - k)
 			for c in in_row:
-				out[order[k]] = br.pos + br.dir * (along + way * x) + side * ((c - (in_row - 1) / 2.0) * gap)
+				out[order[k]] = lane.pos + lane.dir * (along + way * x) + side * (c - (in_row - 1) / 2.0) * file_gap
 				k += 1
 		return out
 	return []
+
+
+## The bridges' decks and the fort's gate as lanes the legion files through: centre, direction, half length and half width, how far to the side the commander may be, and the extra lead.
+func _lanes(sim: Sim) -> Array:
+	var out: Array = []
+	for br in sim.terrain.bridges:
+		out.append({"pos": br.pos, "dir": br.dir, "half_len": br.half_len, "half_w": br.half_w, "side": br.half_w + float(_l.bridge_side),
+			"lead": float(_l.bridge_lead), "both_ways": true})
+	var fort: Dictionary = sim.objectives.fort
+	if not fort.is_empty() and not sim.objectives.fort_reached:
+		out.append({"pos": fort.pos, "dir": Vector2.UP, "half_len": float(fort.half), "half_w": float(fort.gate_half), "side": float(fort.half),
+			"lead": float(_l.gate_lead), "both_ways": false})
+	return out
+
+
+## The files across a lane `room` either side of its middle, as offsets from it, closed up when the full gap would leave too few.
+func _files(room: float) -> Array:
+	var gap := float(_l.col_gap)
+	var cols := maxi(1, floori(2.0 * room / float(_l.file_gap_min)) + 1)
+	if cols > 1:
+		gap = minf(gap, 2.0 * room / (cols - 1))
+	var out: Array = []
+	for c in cols:
+		out.append((c - (cols - 1) / 2.0) * gap)
+	return out
+
+
+## The width and depth of the square block that `n` men stand in inside the fort.
+static func block_size(n: int, l: Dictionary) -> Vector2:
+	var cols := maxi(1, ceili(sqrt(float(n))))
+	var rows := ceili(float(n) / cols)
+	return Vector2((cols - 1) * float(l.col_gap), (rows - 1) * float(l.row_gap))
+
+
+## A square block centred in the fort, the men taking its places in the order they stand in the formation, front row to the north.
+func _fort_block(places: Array, fort: Dictionary) -> Array:
+	var n := soldiers.size()
+	var cols := maxi(1, ceili(sqrt(float(n))))
+	var size := block_size(n, _l)
+	var order := _row_major(places)
+	var out: Array = []
+	out.resize(n)
+	for k in n:
+		var row: int = k / cols
+		var in_row := mini(cols, n - row * cols)
+		out[order[k]] = fort.centre + Vector2((k % cols - (in_row - 1) / 2.0) * float(_l.col_gap), row * float(_l.row_gap) - size.y / 2.0)
+	return out
+
+
+## Whether p is in the fort's yard; the passage between the gate towers counts as outside.
+static func _in_yard(p: Vector2, fort: Dictionary) -> bool:
+	var off: Vector2 = p - fort.centre
+	var half: float = fort.half
+	if absf(off.x) >= half or off.y >= half:
+		return false
+	return not (absf(off.x) <= float(fort.gate_half) and off.y > half - GATE_DEPTH)
+
+
+## Where a man whose target lies on the other side of the fort's walls walks now: into line with the gate on his own side, then straight through it.
+func _via_gate(k: int, p: Vector2, target: Vector2, fort: Dictionary) -> Vector2:
+	var inside := _in_yard(p, fort)
+	if inside == _in_yard(target, fort):
+		return target
+	var foot: Vector2 = fort.pos
+	var room: float = float(fort.gate_half) - Sim.UNIT_RADIUS - 1.0
+	var dx := p.x - foot.x
+	var near := foot.y - GATE_DEPTH - 4.0 if inside else foot.y + GATE_DEPTH
+	var far := foot.y + GATE_DEPTH if inside else foot.y - GATE_DEPTH - 4.0
+	if absf(dx) <= room + 0.5 and (inside or p.y >= foot.y - GATE_DEPTH):
+		return Vector2(foot.x + clampf(dx, -room, room), far)
+	var files := _files(room)
+	return Vector2(foot.x + float(files[k % files.size()]), near)
 
 
 ## The soldiers' indices sorted by their places, front row first and each row from left to right, so a man keeps his turn in the column.

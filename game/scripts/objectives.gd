@@ -8,7 +8,7 @@ const CART_FADE := 1.5
 const KINDS := ["camp", "column", "grove"]
 
 var list: Array = []
-## Empty until the fort appears; then {pos: foot of the gate, gate: its opening, centre, hold: seconds held, seen: been on screen}.
+## Empty until the fort appears; then {pos: foot of the gate, gate: its opening, centre, half: half its side, gate_half: half the gap between the gate towers, hold: seconds held, seen: been on screen}.
 var fort := {}
 var fort_reached := false
 ## Denarii the finished objectives add to what the run banks.
@@ -119,11 +119,14 @@ func raise_fort(sim: Sim) -> void:
 			best = p
 		if n == 0.0:
 			break
-	var half := float(cfg.half)
+	var sr := float(cfg.stake_radius)
+	# The yard holds the largest legion the game allows, standing in its block, with room to spare.
+	var block: Vector2 = Legion.block_size(int(sim.b.legion_cap), sim.b.legion)
+	var half := maxf(float(cfg.half), maxf(block.x, block.y) / 2.0 + Sim.UNIT_RADIUS + sr + float(cfg.room_margin))
 	var foot := best + Vector2(0, half)
 	var tx := float(cfg.tower_x)
-	var pieces: Array = [["fort_gate", foot, 0.0], ["", foot + Vector2(-tx, -8), float(cfg.tower_radius)], ["", foot + Vector2(tx, -8), float(cfg.tower_radius)]]
-	var sr := float(cfg.stake_radius)
+	var tr := float(cfg.tower_radius)
+	var pieces: Array = [["fort_gate", foot, 0.0], ["", foot + Vector2(-tx, -8), tr], ["", foot + Vector2(tx, -8), tr]]
 	var steps := int(ceilf(2.0 * half / float(cfg.stake_gap)))
 	var corners := [Vector2(-half, -half), Vector2(half, -half), Vector2(half, half), Vector2(-half, half)]
 	for side in 4:
@@ -132,10 +135,12 @@ func raise_fort(sim: Sim) -> void:
 		for k in steps:
 			var at: Vector2 = a.lerp(to, float(k) / steps)
 			# The south wall leaves the gate's width open; its towers close the rest.
-			if side == 2 and absf(at.x) < tx + 20.0 - 0.01 and at.y > 0.0:
+			if side == 2 and absf(at.x) < tx + tr + sr - 0.01 and at.y > 0.0:
 				continue
 			pieces.append(["stake", best + at, sr])
-	fort = {"pos": foot, "gate": foot + Vector2(0, -12), "centre": best, "hold": 0.0, "seen": false, "entered": false}
+	for edge in [-1.0, 1.0]:
+		pieces.append(["stake", foot + Vector2(edge * (tx + tr + sr * 0.5), 0.0), sr])
+	fort = {"pos": foot, "gate": foot + Vector2(0, -12), "centre": best, "half": half, "gate_half": tx - tr, "hold": 0.0, "seen": false, "entered": false}
 	sim.terrain.add_clearing(best, room, pieces)
 	notice = {"kind": "fort", "at": sim.time}
 
@@ -144,7 +149,7 @@ func raise_fort(sim: Sim) -> void:
 func in_fort(p: Vector2, sim: Sim) -> bool:
 	if fort.is_empty():
 		return false
-	var inner := float(sim.b.fort.half) - float(sim.b.fort.inside_margin)
+	var inner := float(fort.half) - float(sim.b.fort.inside_margin)
 	var off: Vector2 = p - fort.centre
 	return absf(off.x) < inner and absf(off.y) < inner
 

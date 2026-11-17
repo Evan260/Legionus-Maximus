@@ -3094,7 +3094,7 @@ func test_the_fort_is_a_walled_square_with_its_gate_towards_the_legion(b: Dictio
 	var s := _fort_sim(b, 400)
 	var fort: Dictionary = s.objectives.fort
 	var c: Vector2 = fort.centre
-	var half := float(cfg.half)
+	var half := float(fort.half)
 	check(fort.pos.is_equal_approx(c + Vector2(0, half)), "the gate stands in the middle of the south wall")
 	check(c.y < s.commander.pos.y and absf(c.x - s.commander.pos.x) < c.distance_to(s.commander.pos), "the fort stands to the north, so the legion comes on its gate")
 	var gate := false
@@ -3119,8 +3119,56 @@ func test_the_fort_is_a_walled_square_with_its_gate_towards_the_legion(b: Dictio
 	check(closed, "a barbarian cannot slip between the stakes")
 	var way: Vector2 = fort.pos + Vector2(0, -4)
 	check(s.terrain.push_out(way, Sim.UNIT_RADIUS) == way, "but the gate is open")
-	check(2.0 * (half - float(cfg.stake_radius)) >= 150.0, "inside there is room for a legion of forty")
+	var block: Vector2 = Legion.block_size(int(b.legion_cap), b.legion)
+	check(half - float(cfg.stake_radius) - Sim.UNIT_RADIUS > maxf(block.x, block.y) / 2.0, "inside there is room for the largest legion, %d men, in a block" % int(b.legion_cap))
 	check(2.0 * half + 40.0 <= 360.0, "and the whole fort fits on the screen")
+
+
+func test_a_full_legion_files_through_the_gate_and_stands_inside(b: Dictionary) -> void:
+	var s := _fort_sim(b, 402)
+	s.commander.max_hp = 1e9
+	s.commander.hp = 1e9
+	while s.soldiers.size() < int(b.legion_cap):
+		s.legion.add(["legionary", "archer", "slinger"][s.soldiers.size() % 3])
+	var fort: Dictionary = s.objectives.fort
+	s.commander.pos = fort.pos + Vector2(0, 320)
+	s.facing_angle = -PI / 2.0
+	s.legion.place_all(s.facing_angle)
+	s.terrain.refresh(s.commander.pos)
+	var dt := 1.0 / 30.0
+	var k := 0
+	while not s.objectives.in_fort(s.commander.pos, s) and k < 20 * 30:
+		s.update(dt, Vector2.UP, false)
+		k += 1
+	check(s.objectives.in_fort(s.commander.pos, s), "the commander marches in through the gate (%.1f s)" % (k * dt))
+	s.update(dt, Vector2.UP * 0.5, false)
+	var settle := 0
+	var all_in := false
+	# The hold is kept from winning, so the run goes on while the legion settles.
+	while settle < 8 * 30 and not all_in:
+		fort.hold = 0.0
+		s.update(dt, Vector2.ZERO, false)
+		settle += 1
+		all_in = true
+		for so in s.soldiers:
+			all_in = all_in and s.objectives.in_fort(so.pos, s)
+	check(all_in, "every one of the %d soldiers is inside the walls %.1f s later" % [s.soldiers.size(), settle * dt])
+	for j in 3 * 30:
+		fort.hold = 0.0
+		s.update(dt, Vector2.ZERO, false)
+	var shoves := 0
+	var drift := 0.0
+	for j in 30:
+		fort.hold = 0.0
+		var before: Array = []
+		for so in s.soldiers:
+			before.append(so.pos)
+		s.terrain.legion_shoves = 0
+		s.update(dt, Vector2.ZERO, false)
+		shoves += s.terrain.legion_shoves
+		for i in s.soldiers.size():
+			drift = maxf(drift, s.soldiers[i].pos.distance_to(before[i]))
+	check(shoves == 0 and drift < 0.5, "and once settled no man is pushed by a wall or keeps moving (%d pushes, %.2f px)" % [shoves, drift])
 
 
 func test_holding_the_fort_wins_the_run(b: Dictionary) -> void:
@@ -4060,7 +4108,7 @@ func _reaches_everything(s: Sim) -> bool:
 	var goals: Array = []
 	for o in s.objectives.list:
 		goals.append([o.pos, float(s.b.objectives.clearing) * 0.5])
-	goals.append([s.objectives.fort.centre, float(s.b.fort.half) * 0.5])
+	goals.append([s.objectives.fort.centre, float(s.objectives.fort.half) * 0.5])
 	var box := Rect2(Vector2.ZERO, Vector2.ZERO)
 	for g in goals:
 		box = box.expand(g[0])
@@ -4351,9 +4399,9 @@ func test_a_big_legion_files_over_a_bridge_without_being_shoved(b: Dictionary) -
 		var before: Array = []
 		for so in s.soldiers:
 			before.append(so.pos)
-		s.terrain.ravine_shoves = 0
+		s.terrain.legion_shoves = 0
 		s.update(dt, Vector2.DOWN, false)
-		shoves += s.terrain.ravine_shoves
+		shoves += s.terrain.legion_shoves
 		for i in s.soldiers.size():
 			worst = maxf(worst, s.soldiers[i].pos.distance_to(before[i]))
 	check(s.commander.pos.y > 500.0, "the legion of %d marches over (%.0f)" % [s.soldiers.size() + 1, s.commander.pos.y])

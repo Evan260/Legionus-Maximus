@@ -73,8 +73,8 @@ var _ready_to_fall: Array = []
 var ravine_cfg: Dictionary
 ## Bridges laid by the legion, as {pos: middle, dir: along the deck, half_len, half_w}; they last the whole run.
 var bridges: Array = []
-## How many times a ravine or a bridge's side has moved the commander or a soldier, for the tests.
-var ravine_shoves := 0
+## How many times a prop, a field, a ravine or a bridge's side has moved the commander or a soldier, for the tests.
+var legion_shoves := 0
 # The ravine of each ravine region once worked out, {} for a region without one.
 var _ravines := {}
 # Ravines laid by hand, for tests and looks.
@@ -981,6 +981,7 @@ func flow_at(p: Vector2) -> Vector2:
 
 ## Moves a circle at p with radius r out of every solid prop it overlaps and returns where it ends up; a legion unit passes its time step as `chop` to cut the trees it presses.
 func push_out(p: Vector2, r: float, chop := 0.0) -> Vector2:
+	var from := p
 	var gx := floori((p.x - origin.x) / CELL)
 	var gy := floori((p.y - origin.y) / CELL)
 	if gx < 0 or gy < 0 or gx >= GN or gy >= GN:
@@ -999,10 +1000,9 @@ func push_out(p: Vector2, r: float, chop := 0.0) -> Vector2:
 	if fd_start[cell] < fd_start[cell + 1]:
 		p = field_push(p, r)
 	if rv_start[cell] < rv_start[cell + 1]:
-		var was := p
 		p = ravine_push(p, r)
-		if chop > 0.0 and p != was:
-			ravine_shoves += 1
+	if chop > 0.0 and p != from:
+		legion_shoves += 1
 	return p
 
 
