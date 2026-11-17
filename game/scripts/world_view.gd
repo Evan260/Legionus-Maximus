@@ -2,6 +2,10 @@ extends Node2D
 ## Draws the field around the commander: ground, scattered props, coins, the legion and the horde in depth order,
 ## then missiles and effects.
 
+# How far the wheat tile is laid past each field for its frayed edge, and how many fields the shader holds (its `fields` array).
+const FIELD_FRAY := 20.0
+const FIELD_SHAPES := 32
+
 
 var sim: Sim
 var atlas: Atlas
@@ -34,6 +38,9 @@ var _f_rect: Array[Rect2] = []
 var _prop_frames := {}
 # The rocky lip drawn along every ravine.
 var ravine_edge: Texture2D
+# The ground and the wheat fields are drawn by two layers behind this node, so the wheat can have a shader of its own that frays its edges.
+var _floor := Node2D.new()
+var _wheat := Node2D.new()
 
 
 func _ready() -> void:
@@ -50,6 +57,14 @@ func _ready() -> void:
 	ravine_edge = load("res://assets/ravine_edge.png")
 	# The ravine lip repeats along each gorge; every other picture is drawn inside its own rectangle, so repeating changes nothing for it.
 	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	for layer in [_floor, _wheat]:
+		layer.show_behind_parent = true
+		add_child(layer)
+	_floor.draw.connect(_draw_floor)
+	var fray := ShaderMaterial.new()
+	fray.shader = load("res://scripts/wheat_field.gdshader")
+	_wheat.material = fray
+	_wheat.draw.connect(_draw_fields)
 
 
 ## The ten digits as 3 by 5 pixel shapes in one strip, four pixels apart.
@@ -76,6 +91,8 @@ func _process(dt: float) -> void:
 		sim.gods.quake = maxf(0.0, sim.gods.quake - dt)
 		position = (get_viewport_rect().size / 2.0 - sim.commander.pos).round() + jolt
 		queue_redraw()
+		_floor.queue_redraw()
+		_wheat.queue_redraw()
 
 
 func _add(y: float, rect: Rect2, dest: Vector2, mod: Color, moving := false, size := Vector2.ZERO) -> void:
@@ -98,18 +115,6 @@ func _draw() -> void:
 	_cam = cam
 	var screen := get_viewport_rect().size
 	var top_left := cam - screen / 2.0
-	if sim.province != _ground_of:
-		_ground_of = sim.province
-		ground = load(Content.ground_path(_ground_of))
-	var gw := ground.get_width()
-	var gh := ground.get_height()
-	var gx0 := floori(top_left.x / gw)
-	var gy0 := floori(top_left.y / gh)
-	for gx in range(gx0, gx0 + ceili(screen.x / gw) + 2):
-		for gy in range(gy0, gy0 + ceili(screen.y / gh) + 2):
-			draw_texture(ground, Vector2(gx * gw, gy * gh))
-
-	_draw_fields(view_for(top_left))
 	_draw_ravines(view_for(top_left).grow(80.0))
 	_draw_fort_ring(view_for(top_left))
 	_draw_ground_zones(view_for(top_left))
@@ -280,25 +285,70 @@ func _legion_frame(u: Dictionary) -> Array:
 	return atlas.unit_frame(u.type, "move" if u.moving else "idle", Sim.dir_name(u.facing), u.anim)
 
 
-## Gaul's wheat fields: the wheat tile repeated over each field, lined up with the world so neighbouring fields share their rows, inside a dark furrow.
-func _draw_fields(view: Rect2) -> void:
-	var fields := sim.terrain.fields_in(view)
+## The province's ground repeated under the whole screen.
+func _draw_floor() -> void:
+	if not sim:
+		return
+	var screen := get_viewport_rect().size
+	var top_left: Vector2 = sim.commander.pos - screen / 2.0
+	if sim.province != _ground_of:
+		_ground_of = sim.province
+		ground = load(Content.ground_path(_ground_of))
+	var gw := ground.get_width()
+	var gh := ground.get_height()
+	var gx0 := floori(top_left.x / gw)
+	var gy0 := floori(top_left.y / gh)
+	for gx in range(gx0, gx0 + ceili(screen.x / gw) + 2):
+		for gy in range(gy0, gy0 + ceili(screen.y / gh) + 2):
+			_floor.draw_texture(ground, Vector2(gx * gw, gy * gh))
+
+
+## Gaul's wheat fields: the wheat tile repeated over each field, lined up with the world so neighbouring fields share their rows.
+## The tile is laid a little past each field and wheat_field.gdshader thins it out towards a wavering edge.
+func _draw_fields() -> void:
+	if not sim:
+		return
+	var cam: Vector2 = sim.commander.pos
+	var view := view_for(cam - get_viewport_rect().size / 2.0)
+	var fields := sim.terrain.fields_in(view.grow(FIELD_FRAY * 4.0))
 	if fields.is_empty() or not atlas.props.has("wheat_field"):
 		return
+	var shapes := PackedVector4Array()
+	for f in fields:
+		if shapes.size() < FIELD_SHAPES:
+			shapes.append(_field_shape(f, fields))
+	_wheat.material.set_shader_parameter("fields", shapes)
+	_wheat.material.set_shader_parameter("count", shapes.size())
 	var src: Rect2 = atlas.prop_frame("wheat_field")[0]
 	var tw := src.size.x
 	var th := src.size.y
-	var edge := Color(0.24, 0.17, 0.08, 0.7)
 	for f in fields:
-		draw_rect(f.grow(2.0), edge)
-	for f in fields:
-		var area: Rect2 = f.intersection(view)
+		var area: Rect2 = f.grow(FIELD_FRAY).intersection(view)
 		for tx in range(floori(area.position.x / tw), floori((area.end.x - 0.01) / tw) + 1):
 			for ty in range(floori(area.position.y / th), floori((area.end.y - 0.01) / th) + 1):
 				var tile := Rect2(tx * tw, ty * th, tw, th).intersection(area)
 				if tile.size.x <= 0.0 or tile.size.y <= 0.0:
 					continue
-				draw_texture_rect_region(atlas.texture, tile, Rect2(src.position + tile.position - Vector2(tx * tw, ty * th), tile.size))
+				_wheat.draw_texture_rect_region(atlas.texture, tile, Rect2(src.position + tile.position - Vector2(tx * tw, ty * th), tile.size))
+
+
+## A field as the shader's x, y, width, height, pushed into any field whose side it lies along, so the seam of an L-shaped field gets no edge.
+func _field_shape(f: Rect2, fields: Array) -> Vector4:
+	var r := f
+	for g: Rect2 in fields:
+		if g == f:
+			continue
+		var along_y := f.position.y >= g.position.y - 0.5 and f.end.y <= g.end.y + 0.5
+		var along_x := f.position.x >= g.position.x - 0.5 and f.end.x <= g.end.x + 0.5
+		if along_y and absf(f.position.x - g.end.x) < 0.5:
+			r = r.grow_individual(FIELD_FRAY * 3.0, 0, 0, 0)
+		elif along_y and absf(f.end.x - g.position.x) < 0.5:
+			r = r.grow_individual(0, 0, FIELD_FRAY * 3.0, 0)
+		elif along_x and absf(f.position.y - g.end.y) < 0.5:
+			r = r.grow_individual(0, FIELD_FRAY * 3.0, 0, 0)
+		elif along_x and absf(f.end.y - g.position.y) < 0.5:
+			r = r.grow_individual(0, 0, 0, FIELD_FRAY * 3.0)
+	return Vector4(r.position.x, r.position.y, r.size.x, r.size.y)
 
 
 ## The gold ring of the triumph running out from the commander, with a second fainter one behind it.
