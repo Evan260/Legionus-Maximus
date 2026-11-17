@@ -155,8 +155,8 @@ func _draw() -> void:
 					f = atlas.prop_frame(pr[0])
 					_prop_frames[pr[0]] = f
 				var at: Vector2 = pr[1]
-				if pr[0] == "dune":
-					# A dune is walked over, so it is drawn on the ground under everything that stands on it.
+				if pr[0] == "dune" or pr[0] == "bog" or pr[0] == "heather":
+					# Dunes, bog pools and heather are walked over, so they are drawn on the ground under everything that stands on them.
 					_add(at.y - 60000.0, f[0], at - f[1], white)
 					continue
 				if not chops.is_empty() and chops.has(at) and sim.time - float(chops[at][1]) < shaking:
@@ -197,6 +197,8 @@ func _draw() -> void:
 			mod = Color(1.0, 0.55, 0.55)
 		elif sim.horde.curse_left > 0.0:
 			mod = cursed
+		elif u.get("afraid", 0.0) > 0.0:
+			mod = Color(0.72, 0.8, 1.0)
 		elif sim.horde.blast_left > 0.0:
 			mod = stunned
 		elif sim.testudo_left > 0.0:
@@ -512,7 +514,7 @@ func _draw_lobs(tex: Texture2D) -> void:
 			var fall: float = clampf(l.t / l.dur, 0.0, 1.0)
 			_lob_sprite(tex, "rock", l.to + Vector2(0, -(1.0 - fall * fall) * 220.0 + 10.0))
 			continue
-		if l.get("slam", false):
+		if l.get("slam", false) or l.get("sky", false):
 			continue
 		var k: float = l.t / l.dur
 		var ground: Vector2 = l.from.lerp(l.to, k)
@@ -558,10 +560,19 @@ func _draw_warnings() -> void:
 		draw_colored_polygon(fill, Color(0.95, 0.35, 0.15, 0.25))
 		cone.append(h.sweep.pos)
 		draw_polyline(cone, Color(0.95, 0.25, 0.15, 0.85), 1.0)
+	if not h.drive.is_empty() and h.drive.t < h.drive.warn:
+		_draw_path(h.drive.pts, h.drive.lens, h.drive.width, clampf(h.drive.t / h.drive.warn, 0.0, 1.0))
 	for st in h.storms:
 		_draw_storm(st)
 	for l in sim.horde.foe_lobs:
 		var k: float = clampf(l.t / l.dur, 0.0, 1.0)
+		if l.get("sky", false):
+			# Fire from the sky is marked by an orange ring with a glow gathering over it.
+			draw_circle(l.to, l.radius, Color(0.85, 0.35, 0.05, 0.14 + 0.2 * k))
+			draw_arc(l.to, l.radius, 0.0, TAU, 32, Color(1.0, 0.6, 0.15, 0.9), 1.0)
+			draw_circle(l.to, l.radius * k, Color(1.0, 0.7, 0.25, 0.3))
+			draw_circle(l.to + Vector2(0, -60.0 * (1.0 - k)), 3.0 + 3.0 * k, Color(1.0, 0.8, 0.35, 0.4 + 0.5 * k))
+			continue
 		draw_circle(l.to, l.radius, Color(0.75, 0.12, 0.08, 0.12 + 0.18 * k))
 		draw_arc(l.to, l.radius, 0.0, TAU, 32, Color(0.95, 0.25, 0.15, 0.85), 1.0)
 		draw_circle(l.to, l.radius * k, Color(0.95, 0.35, 0.15, 0.25))
@@ -575,6 +586,10 @@ func _draw_warnings() -> void:
 			draw_circle(at, m.radius, Color(0.2, 0.75, 0.3, 0.06 + 0.1 * k))
 			draw_arc(at, m.radius, 0.0, TAU, 64, Color(0.45, 1.0, 0.5, 0.9), 1.0)
 			draw_arc(at, m.radius * k, 0.0, TAU, 64, Color(0.6, 1.0, 0.6, 0.8), 2.0)
+		elif m.kind == "fire":
+			draw_circle(at, m.radius, Color(0.75, 0.25, 0.05, 0.12 + 0.18 * k))
+			draw_arc(at, m.radius, 0.0, TAU, 40, Color(1.0, 0.55, 0.15, 0.95), 1.0)
+			draw_circle(at, m.radius * k, Color(1.0, 0.5, 0.15, 0.3))
 		elif m.kind == "blizzard":
 			draw_circle(at, m.radius, Color(0.75, 0.88, 1.0, 0.12 + 0.18 * k))
 			draw_arc(at, m.radius, 0.0, TAU, 48, Color(0.85, 0.95, 1.0, 0.95), 1.0)
@@ -599,11 +614,48 @@ func _draw_lane(from: Vector2, dir: Vector2, length: float, width: float, k: flo
 	draw_line(from, from.lerp(end, k), Color(0.95, 0.35, 0.15, 0.25), width)
 
 
-## A priest's blizzard: a pale ring of driving snow, fading in and out.
+## A curved charge path, drawn like a lane along each of its pieces and filling from where it starts as it nears.
+func _draw_path(pts: PackedVector2Array, lens: PackedFloat32Array, width: float, k: float) -> void:
+	var left := PackedVector2Array()
+	var right := PackedVector2Array()
+	for n in pts.size():
+		var along: Vector2 = (pts[mini(n + 1, pts.size() - 1)] - pts[maxi(n - 1, 0)]).normalized()
+		left.append(pts[n] + along.orthogonal() * width / 2.0)
+		right.append(pts[n] - along.orthogonal() * width / 2.0)
+	draw_polyline(pts, Color(0.75, 0.12, 0.08, 0.12 + 0.18 * k), width)
+	draw_polyline(left, Color(0.95, 0.25, 0.15, 0.85), 1.0)
+	draw_polyline(right, Color(0.95, 0.25, 0.15, 0.85), 1.0)
+	draw_line(left[left.size() - 1], right[right.size() - 1], Color(0.95, 0.25, 0.15, 0.85), 1.0)
+	var reach := lens[lens.size() - 1] * k
+	var filled := PackedVector2Array([pts[0]])
+	for n in range(1, pts.size()):
+		if lens[n] <= reach:
+			filled.append(pts[n])
+		else:
+			filled.append(pts[n - 1].lerp(pts[n], (reach - lens[n - 1]) / maxf(lens[n] - lens[n - 1], 0.001)))
+			break
+	if filled.size() > 1:
+		draw_polyline(filled, Color(0.95, 0.35, 0.15, 0.25), width)
+
+
+## A priest's blizzard: a pale ring of driving snow, fading in and out. The warrior queen's burning land is a scorched ring of flickering fire.
 func _draw_storm(st: Dictionary) -> void:
 	var fade: float = clampf((st.life - st.t) / 1.0, 0.0, 1.0) * clampf(st.t / 0.3, 0.0, 1.0)
 	var p: Vector2 = st.pos
 	var r: float = st.radius
+	if st.get("fire", false):
+		var beat := int(sim.time * 10.0)
+		draw_circle(p, r, Color(0.2, 0.07, 0.03, 0.5 * fade))
+		draw_arc(p, r, 0.0, TAU, 48, Color(1.0, 0.45, 0.1, 0.7 * fade), 1.0)
+		var n := int(r / 2.5) + 3
+		for i in n:
+			var a := i * 2.4
+			var d := r * sqrt((i + 0.5) / n) * 0.92
+			var base := p + Vector2(cos(a) * d, sin(a) * d)
+			var h := 2 + (beat + i * 3) % 4
+			draw_rect(Rect2(base.round() + Vector2(0, -h), Vector2(2, h)), Color(1.0, 0.5, 0.12, 0.9 * fade))
+			draw_rect(Rect2(base.round() + Vector2(0, -h + 1), Vector2(1, maxi(1, h - 2))), Color(1.0, 0.86, 0.35, 0.9 * fade))
+		return
 	draw_circle(p, r, Color(0.82, 0.9, 1.0, 0.22 * fade))
 	draw_arc(p, r, 0.0, TAU, 48, Color(0.92, 0.97, 1.0, 0.8 * fade), 1.0)
 	for n in 3:
@@ -744,6 +796,14 @@ func _add_flames(view: Rect2) -> void:
 	if not atlas.props.has("flame"):
 		return
 	var cfg: Dictionary = sim.b.objectives.grove
+	for n in sim.horde.storms.size():
+		var st: Dictionary = sim.horde.storms[n]
+		if not st.get("fire", false) or not view.grow(st.radius).has_point(st.pos):
+			continue
+		var fade: float = clampf((st.life - st.t) / 1.0, 0.0, 1.0) * clampf(st.t / 0.3, 0.0, 1.0)
+		for k in 5:
+			var off: Vector2 = Vector2.from_angle(k * 2.4 + n) * st.radius * (0.25 + 0.15 * k) * Vector2(1.0, 0.7)
+			_add_flame(st.pos + off, Vector2.ZERO, n * 5 + k, k, fade)
 	for o in sim.objectives.list:
 		if not view.grow(120.0).has_point(o.pos):
 			continue
@@ -955,6 +1015,14 @@ func _draw_effects() -> void:
 			for n in 3:
 				var a: float = k * TAU * 1.5 + n * TAU / 3.0
 				draw_arc(e.pos, e.radius * (0.5 + 0.5 * k), a, a + 1.4, 10, Color(1.0, 0.85, 0.7, 1.0 - k), 2.0)
+		elif e.kind == "skyfire":
+			# Fire falling from the sky: a column of flame and an orange swirl spreading over the ring.
+			var k: float = e.t / 0.45
+			draw_circle(e.pos, e.radius * (0.5 + 0.5 * k), Color(1.0, 0.55, 0.12, 0.45 * (1.0 - k)))
+			draw_line(e.pos + Vector2(0, -90.0 * (1.0 - k)), e.pos, Color(1.0, 0.8, 0.35, 0.8 * (1.0 - k)), 6.0 * (1.0 - k) + 1.0)
+			for n in 3:
+				var a: float = k * TAU * 1.5 + n * TAU / 3.0
+				draw_arc(e.pos, e.radius * (0.4 + 0.6 * k), a, a + 1.4, 10, Color(1.0, 0.6, 0.15, 1.0 - k), 2.0)
 		elif e.kind == "mend":
 			var k: float = e.t / 0.45
 			draw_arc(e.pos, e.radius * (0.3 + 0.7 * k), 0.0, TAU, 64, Color(0.5, 1.0, 0.55, 1.0 - k), 3.0)

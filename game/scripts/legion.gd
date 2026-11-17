@@ -408,6 +408,10 @@ func update(dt: float, sim: Sim) -> void:
 		if s.get("dazed", 0.0) > 0.0:
 			s.dazed -= dt
 			continue
+		# A soldier frightened by a painted warrior's battle cry strikes more slowly until he steadies.
+		if s.get("afraid", 0.0) > 0.0:
+			s.afraid -= dt
+			s.haste *= 1.0 - float(s.fear)
 		var info: Dictionary = s.info
 		match info.attack:
 			"melee":

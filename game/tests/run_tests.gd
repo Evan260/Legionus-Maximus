@@ -492,7 +492,7 @@ func test_content_without_art_is_hidden(b: Dictionary) -> void:
 
 func test_germania_has_the_existing_enemies(b: Dictionary) -> void:
 	check(content.province_enemies("germania") == content.provinces.germania.ordinary, "every Germanic enemy is drawn")
-	check(content.province_enemies("britannia").is_empty(), "a province with no art has no enemies")
+	check(_with_undrawn(content).province_enemies("hibernia").is_empty(), "a province with no art has no enemies")
 
 
 func test_every_content_entry_has_a_name_and_text(b: Dictionary) -> void:
@@ -1469,11 +1469,11 @@ func test_the_berserker_goes_round_to_the_rear(b: Dictionary) -> void:
 
 func test_chargers_dash_in_a_line(b: Dictionary) -> void:
 	var s := Sim.new(b, Content.with_all_art(), {"seed": 99})
-	var i: int = s.horde.spawn("chariot", Vector2(200, 0))
+	var i: int = s.horde.spawn("cataphract", Vector2(200, 0))
 	s.horde.e_cd[i] = 0.0
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
-	check(s.horde.e_dash[i] > 0.0, "the chariot starts a dash")
-	var speed: float = float(content.enemies.chariot.speed)
+	check(s.horde.e_dash[i] > 0.0, "the cataphract starts a dash")
+	var speed: float = float(content.enemies.cataphract.speed)
 	var from: Vector2 = s.horde.e_pos[i]
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
 	check(from.distance_to(s.horde.e_pos[i]) / (1.0 / 60.0) > speed * 2.0, "the dash is much faster than a walk")
@@ -1499,7 +1499,7 @@ func test_a_province_turns_on_with_its_ground_and_draws_it(b: Dictionary) -> voi
 	check(not Content.load_all(art).ready("provinces", "gaul"), "without its ground it stays hidden")
 	var s := Sim.new(b, c, {"seed": 5, "province": "gaul"})
 	check(s.province == "gaul" and Content.ground_path("gaul") == "res://assets/grounds/gaul.png", "Gaul draws its own ground")
-	check(Content.ground_path("britannia") == "res://assets/grounds/germania.png", "a province without a file falls back to Germania's ground")
+	check(Content.ground_path("hibernia") == "res://assets/grounds/germania.png", "a province without a file falls back to Germania's ground")
 
 
 func test_province_only_spawns_its_ready_enemies(b: Dictionary) -> void:
@@ -1580,7 +1580,7 @@ func test_endless_keeps_going_after_the_chieftain(b: Dictionary) -> void:
 	Profile.data = Profile.defaults()
 	Profile.record_run(s)
 	check(bool(Profile.record_of(s.province).won), "the win is recorded")
-	check(Profile.province_unlocked("britannia"), "and opens the next province")
+	check(Profile.province_unlocked("gaul"), "and opens the next province")
 	Profile.data = saved
 	var plain := _mode_sim(b, {"seed": 110})
 	var since := s.time
@@ -1777,7 +1777,7 @@ func test_winning_germania_unlocks_the_archer_captain(b: Dictionary) -> void:
 	p.record_run(s)
 	check(p.commander_unlocked("archer_captain"), "winning in Germania unlocks the archer captain")
 	check(p.record_of("germania").won and is_equal_approx(p.record_of("germania").best_time, 900.0), "the win and its time are recorded")
-	check(p.province_unlocked("britannia"), "the next province opens")
+	check(p.province_unlocked("gaul"), "the next province opens")
 	check(not p.commander_unlocked("legate") and not p.commander_unlocked("engineer"), "the others stay locked")
 	var faster := Sim.new(b, all, {"seed": 133, "hard": true})
 	faster.time = 700.0
@@ -2206,8 +2206,9 @@ func test_demo_offers_three_commanders(b: Dictionary) -> void:
 	check(Game.commanders(content, b) == ready, "the full game lists every drawn commander whose unlock province is playable")
 	check("engineer" in Game.commanders(content, b), "the engineer is offered now that Gaul is drawn")
 	var later := Content.load_all(Content.available_art())
-	later.commanders.engineer.unlock = {"type": "win", "province": "britannia"}
-	check(not "engineer" in Game.commanders(later, b), "a commander won in a province not drawn yet, such as Britannia, waits for it")
+	later = _with_undrawn(later)
+	later.commanders.engineer.unlock = {"type": "win", "province": "hibernia"}
+	check(not "engineer" in Game.commanders(later, b), "a commander won in a province not drawn yet waits for it")
 	check(Game.province_allowed("gaul", b), "the full game opens every province")
 	check(Game.run_cap(b) == 0.0, "the full game has no cap")
 	Game.demo_forced = true
@@ -4849,13 +4850,32 @@ func _gaul_sim(b: Dictionary, seed_value: int, province := "gaul") -> Sim:
 	return s
 
 
-func test_winning_germania_opens_gaul_while_britannia_waits_for_art(b: Dictionary) -> void:
-	check(content.ready("provinces", "gaul") and not content.ready("provinces", "britannia"), "Gaul is drawn and Britannia is not")
-	check(content.province_before("gaul") == "germania", "the drawn province before Gaul is Germania")
-	check(content.province_before("germania") == "", "nothing comes before Germania")
-	check(Content.with_all_art().province_before("gaul") == "britannia", "once Britannia is drawn it comes between them")
+## A copy of the content with a made-up province, Hibernia, between Germania and Gaul, whose ground, props and enemy are not drawn.
+func _with_undrawn(base: Content) -> Content:
+	var c := Content.load_all(base.available.duplicate())
+	c.enemies["hibernian_raider"] = {"name": "Raider", "text": "A raider.", "history": "Made up for the tests.", "behaviour": "melee", "hp": 10, "speed": 40,
+		"dps": 1, "radius": 6, "coins": 1, "art": ["unit:hibernian_raider"]}
+	var order := {}
+	for id in c.provinces:
+		order[id] = c.provinces[id]
+		if id == "germania":
+			order["hibernia"] = {"name": "Hibernia", "text": "Made up for the tests.", "ground": "bog", "props": [], "ordinary": ["hibernian_raider"],
+				"elites": [], "chieftain": "chieftain", "art": ["prop:hibernian_bog", "ground:hibernia"]}
+	c.provinces = order
+	return c
+
+
+func test_winning_germania_opens_gaul_while_an_undrawn_province_waits_for_art(b: Dictionary) -> void:
+	var c := _with_undrawn(content)
+	check(c.ready("provinces", "gaul") and not c.ready("provinces", "hibernia"), "Gaul is drawn and the made-up Hibernia is not")
+	check(c.province_before("gaul") == "germania", "the drawn province before Gaul is Germania")
+	check(c.province_before("germania") == "", "nothing comes before Germania")
+	var drawn := _with_undrawn(content)
+	drawn.available["prop:hibernian_bog"] = true
+	drawn.available["ground:hibernia"] = true
+	check(drawn.province_before("gaul") == "hibernia", "once it is drawn it comes between them")
 	var p := _fresh_profile()
-	var s := Sim.new(b, content, {"seed": 901})
+	var s := Sim.new(b, c, {"seed": 901})
 	s.time = 900.0
 	s.over = true
 	s.victory = true
@@ -5830,6 +5850,423 @@ func test_the_shah_calls_in_his_elephants_when_hurt(b: Dictionary) -> void:
 	check(h.chief_fury and elephants.call() == int(call.count), "below half health he calls in %d war elephants" % int(call.count))
 	check(h.guards_alive == 0, "and sends his guard in")
 	check(not str(content.enemies.shah.text).contains("riding"), "he fights on foot among them")
+
+
+func _britannia_sim(b: Dictionary, seed_value: int) -> Sim:
+	var s := _gaul_sim(b, seed_value, "britannia")
+	for t in ["drive_cd", "tribes_cd", "burn_cd"]:
+		s.horde.set(t, 1e9)
+	s.horde.salvo_cd = 1e9
+	s.commander.pos = Vector2.ZERO
+	s.legion.place_all(s.facing_angle)
+	s._rebuild_grids()
+	return s
+
+
+func test_winning_parthia_opens_britannia(b: Dictionary) -> void:
+	check(content.ready("provinces", "britannia"), "Britannia is drawn")
+	check(content.provinces.keys().back() == "britannia", "Britannia is the last province on the road")
+	check(content.province_before("britannia") == "parthia" and content.province_before("gaul") == "germania", "it follows Parthia, and Gaul follows Germania")
+	var p := _fresh_profile()
+	var before: Dictionary = p.data.duplicate(true)
+	var s := Sim.new(b, content, {"seed": 980, "province": "parthia"})
+	s.time = 900.0
+	s.over = true
+	s.victory = true
+	p.record_run(s)
+	check(p.province_unlocked("britannia"), "winning in Parthia opens Britannia")
+	var lines: Array = SummaryScreen.unlocks(before, p.data, content, "parthia")
+	var said := false
+	for u in lines:
+		said = said or (u.kind == "province" and u.id == "britannia" and str(u.text) == "Britannia is open")
+	check(said, "and the summary says Britannia is open")
+	var old := _fresh_profile()
+	old.data.records["germania"] = {"best_time": 900.0, "longest": 900.0, "won": true, "hard_won": false}
+	old.data.unlocked.provinces = ["germania", "britannia"]
+	old.open_won_provinces(content)
+	check(old.province_unlocked("gaul") and not old.province_unlocked("britannia"), "a profile that opened Britannia straight after Germania waits for Parthia now")
+	old.free()
+	_cleanup_profile_files()
+	p.free()
+
+
+func test_the_map_shows_all_five_provinces_in_order(b: Dictionary) -> void:
+	var host_script := GDScript.new()
+	host_script.source_code = "extends Node\nvar content\nvar balance\nvar run_setup := {}\n"
+	host_script.reload()
+	var host: Node = Node.new()
+	host.set_script(host_script)
+	host.content = content
+	host.balance = b
+	host.run_setup = {"province": "germania"}
+	var map := MapScreen.new(host)
+	check(map.road() == ["germania", "gaul", "dacia", "parthia", "britannia"], "the road runs Germania, Gaul, Dacia, Parthia, Britannia (%s)" % str(map.road()))
+	var saved: Dictionary = Profile.data
+	Profile.data = Profile.defaults()
+	check(map.state_of("germania") == "open" and map.state_of("gaul") == "locked" and map.state_of("britannia") == "locked", "a new profile has only Germania open and no province in fog")
+	check(map.locked_text("britannia") == "Win in Parthia to open", "Britannia waits for a win in Parthia")
+	for id in ["germania", "gaul", "dacia", "parthia"]:
+		Profile.data.records[id] = {"best_time": 900.0, "longest": 900.0, "won": true, "hard_won": false}
+	Profile.open_won_provinces(content)
+	check(map.state_of("parthia") == "won" and map.state_of("britannia") == "open", "with Parthia won Britannia is open")
+	check(MapScreen.route("parthia", "britannia", 0.0)[0] == MapScreen.spot("parthia"), "and the road runs on from Parthia to it")
+	Profile.data = saved
+	host.free()
+
+
+func test_britannia_is_moorland_with_stone_circles_bogs_and_heather(b: Dictionary) -> void:
+	var area := Rect2(-4000, -4000, 8000, 8000)
+	var t := Terrain.new(981, b.forest, b.ravines)
+	t.moor = b.moors.britannia
+	var g := Terrain.new(981, b.forest, b.ravines)
+	var kinds := {}
+	var circles: Array = []
+	var stones := {}
+	var blockers := 0
+	for pr in t.props_in(area):
+		kinds[pr[0]] = kinds.get(pr[0], 0) + 1
+		if pr[0] == "stone_circle":
+			circles.append(pr[1])
+		elif pr[0] == "" and is_equal_approx(pr[2], float(b.moors.britannia.stone_radius)):
+			blockers += 1
+			stones[pr[1]] = true
+	var trees := 0
+	var forest_trees := 0
+	for pr in t.props_in(area):
+		trees += 1 if Terrain.TREES.has(pr[0]) else 0
+	for pr in g.props_in(area):
+		forest_trees += 1 if Terrain.TREES.has(pr[0]) else 0
+	check(kinds.has("stone_circle") and kinds.has("bog") and kinds.has("heather"), "the moor holds stone circles, bog pools and heather (%s)" % str(kinds.keys()))
+	check(trees > 0 and trees * 2 < forest_trees, "with a few forest ridges, far fewer trees than Germania (%d against %d)" % [trees, forest_trees])
+	var missing := 0
+	for c in circles:
+		if area.grow(-200.0).has_point(c):
+			for off in b.moors.britannia.circle_stones:
+				missing += 0 if stones.has(c + Vector2(float(off[0]), float(off[1]))) else 1
+	check(blockers > 0 and missing == 0, "every standing stone is solid (%d missing)" % missing)
+	check(not Terrain.SOLID.has("bog") and not Terrain.SOLID.has("heather"), "bogs and heather do not block")
+	# A whole circle's stones stand round one middle, with a gap where stones are missing.
+	var cfg: Dictionary = b.moors.britannia
+	var biggest := 0.0
+	var first: Vector2 = circles[0]
+	var ring: Array = circles.filter(func(q: Vector2) -> bool: return q.distance_to(first) <= float(cfg.circle_radius) * 2.0 + 1.0)
+	var angles: Array = []
+	var mid := Vector2.ZERO
+	for q in ring:
+		mid += q
+	mid /= ring.size()
+	for q in ring:
+		angles.append((q - mid).angle())
+	angles.sort()
+	for k in angles.size():
+		var next: float = angles[(k + 1) % angles.size()] + (TAU if k == angles.size() - 1 else 0.0)
+		biggest = maxf(biggest, next - angles[k])
+	check(ring.size() <= int(cfg.circle_count) - int(cfg.circle_gap) and biggest > TAU / float(cfg.circle_count) * 2.5, "each circle has an opening to march in by")
+
+
+func test_bogs_slow_the_march_more_than_dunes(b: Dictionary) -> void:
+	var s := _britannia_sim(b, 982)
+	s.terrain.add_clearing(Vector2(0, 400), 1.0, [["bog", Vector2(0, 400), 0.0]])
+	var lift := float(b.moors.britannia.bog_lift)
+	check(s.terrain.in_bog(Vector2(0, 400 - lift)) and not s.terrain.in_bog(Vector2(0, 300)), "the water lies over the pool")
+	s.commander.pos = Vector2(0, 200)
+	s.update(1.0 / 60.0, Vector2.RIGHT, false)
+	var pace := s.speed()
+	s.commander.pos = Vector2(0, 400 - lift)
+	s.update(1.0 / 60.0, Vector2.RIGHT, false)
+	check(s.in_bog and is_equal_approx(s.speed(), pace * (1.0 - float(b.moors.britannia.bog_slow))), "in a bog the legion marches slower (%.0f against %.0f)" % [s.speed(), pace])
+	check(float(b.moors.britannia.bog_slow) > float(b.deserts.parthia.dune_slow), "slower than on a dune")
+	check(not _gaul_sim(b, 982).terrain.in_bog(Vector2.ZERO), "and other provinces have no bogs")
+
+
+func test_painted_warriors_charge_through_the_crowd_and_frighten(b: Dictionary) -> void:
+	var s := _britannia_sim(b, 983)
+	var h := s.horde
+	var cfg: Dictionary = content.enemies.painted_warrior.fearless
+	var i := h.spawn("painted_warrior", Vector2(s.legion_reach + 90.0, 0))
+	for k in 6:
+		h.spawn("painted_warrior", Vector2(s.legion_reach + 70.0 - k * 2.0, (k - 2.5) * 3.0))
+	for k in h.e_pos.size():
+		h.e_cd[k] = 1e9
+	h.e_cd[i] = 0.0
+	h.rebuild_grid()
+	h._move(1.0 / 60.0, s)
+	check(h.e_dash[i] > 0.0, "he starts a charge")
+	var x0 := h.e_pos[i].x
+	for k in 6:
+		h.rebuild_grid()
+		h._move(1.0 / 60.0, s)
+	var want := float(content.enemies.painted_warrior.speed) * float(cfg.speed_mult) * 6.0 / 60.0
+	check(absf((x0 - h.e_pos[i].x) - want) < 1.0, "the crowd in front does not shove him aside (%.1f of %.1f)" % [x0 - h.e_pos[i].x, want])
+	for u in s.soldiers:
+		u.afraid = 0.0
+	var front: Dictionary = s.soldiers[0]
+	for u in s.soldiers:
+		if u.pos.x > front.pos.x:
+			front = u
+	h.e_pos[i] = front.pos + Vector2(Sim.UNIT_RADIUS + 6.0, 0)
+	h.e_dash[i] = 0.5
+	h.e_dir[i] = Vector2.LEFT
+	s._rebuild_grids()
+	h._move(1.0 / 60.0, s)
+	var scared := 0
+	for u in s.soldiers:
+		if float(u.get("afraid", 0.0)) > 0.0:
+			scared += 1
+	check(scared >= 1 and float(front.get("afraid", 0.0)) > 0.0, "his battle cry frightens the soldiers he strikes (%d)" % scared)
+	s.legion.update(1.0 / 60.0, s)
+	check(is_equal_approx(float(front.haste), 1.0 - float(cfg.cry_slow)), "who strike more slowly while it lasts")
+	front.afraid = 0.0
+	s.legion.update(1.0 / 60.0, s)
+	check(is_equal_approx(float(front.haste), 1.0), "and at full pace once they steady")
+
+
+func test_briton_slingers_loose_stone_volleys_from_far_off(b: Dictionary) -> void:
+	var s := _britannia_sim(b, 984)
+	var h := s.horde
+	var cfg: Dictionary = content.enemies.briton_slinger
+	check(float(cfg.range) > float(content.enemies.parthian_slinger.range) + 30.0, "they throw from further off than Parthia's slingers")
+	var far := s.legion_reach + float(cfg.range) - 10.0
+	h.spawn("briton_slinger", Vector2(far, 0))
+	h.spawn("briton_slinger", Vector2(0, far))
+	h.rebuild_grid()
+	h.salvo_now = false
+	h._move(1.0 / 60.0, s)
+	check(h.sp_pos.size() == 0, "they hold their stones until the volley")
+	h.salvo_now = true
+	h._move(1.0 / 60.0, s)
+	check(h.sp_pos.size() == 2 * int(cfg.salvo.arrows), "then loose together, %d stones each" % int(cfg.salvo.arrows))
+	var stones := true
+	for k in h.sp_kind:
+		stones = stones and k == 2
+	check(stones, "drawn as stones")
+	h.sp_pos.clear(); h.sp_vel.clear(); h.sp_dmg.clear(); h.sp_life.clear(); h.sp_kind.clear()
+	for so in s.soldiers:
+		so.max_hp = 1e6
+		so.hp = 1e6
+	var u: Dictionary = s.soldiers[0]
+	h._throw(u.pos + Vector2(20, 0), Vector2.LEFT, 1.0, 2)
+	s._rebuild_grids()
+	for k in 30:
+		h._spears(1.0 / 60.0, s)
+	var dazed := false
+	var hurt := false
+	for so in s.soldiers:
+		dazed = dazed or float(so.get("dazed", 0.0)) > 0.0
+		hurt = hurt or so.hp < 1e6
+	check(hurt and not dazed, "their stones hurt but do not stun")
+
+
+func test_druid_acolytes_tend_the_warriors_round_them(b: Dictionary) -> void:
+	var s := _britannia_sim(b, 985)
+	var h := s.horde
+	var cfg: Dictionary = content.enemies.druid_acolyte
+	var at := Vector2(s.legion_reach + float(cfg.range) - 10.0, 0)
+	var a := h.spawn("druid_acolyte", at)
+	var w := h.spawn("painted_warrior", at + Vector2(-30, 0))
+	var far := h.spawn("painted_warrior", at + Vector2(0, float(cfg.tend.radius) + 40.0))
+	for j in [w, far]:
+		h.e_hp[j] = h.e_max[j] * 0.3
+		h.e_cd[j] = 1e9
+	h.e_cd[a] = 0.0
+	h.rebuild_grid()
+	h._move(1.0 / 60.0, s)
+	check(is_equal_approx(h.e_hp[w], h.e_max[w] * (0.3 + float(cfg.tend.share))), "he heals the wounded warrior beside him")
+	check(is_equal_approx(h.e_hp[far], h.e_max[far] * 0.3), "but not one beyond his reach")
+	check(h.sp_pos.is_empty() and h.e_ammo[a] == int(b.ranged.throws), "he throws nothing and keeps to his work")
+	check(float(cfg.hp) < float(content.enemies.painted_warrior.hp) and float(cfg.tend.share) < float(content.enemies.war_priest.mend.share), "he is fragile, and weaker than a war priest")
+	var d0 := h.e_pos[a].length()
+	for k in 60:
+		h.rebuild_grid()
+		h._move(1.0 / 60.0, s)
+	check(h.e_pos[a].length() > s.legion_reach + 20.0 and absf(h.e_pos[a].length() - d0) < 30.0, "and he stays back from the legion")
+
+
+func test_chariots_pass_along_the_flank_throwing_javelins(b: Dictionary) -> void:
+	var s := _britannia_sim(b, 986)
+	var h := s.horde
+	var cfg: Dictionary = content.enemies.chariot
+	check(float(cfg.scale) >= 1.4 and float(cfg.radius) >= float(content.enemies.painted_warrior.radius) * 1.8, "a chariot is drawn larger than a foot soldier, and as wide")
+	var i := h.spawn("chariot", Vector2(500, 60))
+	h.e_ammo[i] = 0
+	var nearest := INF
+	var passes := 0
+	var close := false
+	var thrown := 0
+	for k in 900:
+		h.rebuild_grid()
+		var before := h.sp_pos.size()
+		h._move(1.0 / 60.0, s)
+		thrown += maxi(0, h.sp_pos.size() - before)
+		h.sp_pos.clear(); h.sp_vel.clear(); h.sp_dmg.clear(); h.sp_life.clear(); h.sp_kind.clear()
+		var d := h.e_pos[i].length()
+		nearest = minf(nearest, d)
+		if d < s.legion_reach + float(cfg.drive.gap) + 40.0 and not close:
+			close = true
+			passes += 1
+		elif d > s.legion_reach + float(cfg.drive.gap) + 120.0:
+			close = false
+	check(nearest > s.legion_reach + 4.0, "it never drives into the ranks (%.0f against a reach of %.0f)" % [nearest, s.legion_reach])
+	check(passes >= 2, "it passes the legion and swings round for another pass (%d)" % passes)
+	check(thrown >= 3, "throwing javelins as it goes (%d)" % thrown)
+	check(h.e_fighting[i] == 0, "and never stops to fight")
+	var j := h.spawn("chariot", Vector2(s.legion_reach + float(cfg.drive.gap) + 20.0, -60))
+	h.e_ammo[j] = 1
+	h.e_dir[j] = Vector2.DOWN
+	var n0 := h.e_pos.size()
+	for k in 40:
+		h.rebuild_grid()
+		h._move(1.0 / 60.0, s)
+	var dropped := 0
+	for k in range(n0, h.e_pos.size()):
+		dropped += 1 if h.kind_ids[h.e_kind[k]] == str(cfg.drop.kind) else 0
+	check(dropped == int(cfg.drop.count) and h.e_ammo[j] == 0, "a chariot carrying warriors sets %d down beside the legion, once" % int(cfg.drop.count))
+
+
+func test_the_scythed_chariot_cuts_down_its_lane_and_comes_again(b: Dictionary) -> void:
+	var s := _britannia_sim(b, 987)
+	var h := s.horde
+	var cfg: Dictionary = content.enemies.chariot_charge.scythe
+	for u in s.units:
+		u.max_hp = 1e6
+		u.hp = 1e6
+	var i := h.spawn("chariot_charge", Vector2(220, 0), true)
+	var st: Dictionary = h.boss_state(i)
+	st.scythe_cd = 0.0
+	s._rebuild_grids()
+	h._bosses(1.0 / 60.0, s)
+	check(st.rush_warn > 0.0 and is_equal_approx(st.rush_len, float(cfg.length)), "it marks its lane first")
+	var start := h.e_pos[i]
+	while st.rush_warn > 0.0:
+		h._bosses(1.0 / 60.0, s)
+		h._bosses_after()
+	check(h.e_pos[i] == start, "and waits while the lane fills")
+	while st.rush_left > 0.0:
+		h._bosses(1.0 / 60.0, s)
+		h._bosses_after()
+	var cut := 0
+	for u in s.units:
+		if u.hp < 1e6:
+			cut += 1
+	check(h.e_pos[i].distance_to(start) > float(cfg.length) * 0.8, "then drives the length of the lane, through and past the legion")
+	check(cut >= 4, "cutting every soldier it passes (%d)" % cut)
+	check(st.rush_warn > 0.0 and is_equal_approx(st.rush_total, float(cfg.again_warn)) and st.rush_dir.dot(-h.e_pos[i].normalized()) > 0.9, "then turns and marks a new lane back at the legion")
+	while st.rush_warn > 0.0 or st.rush_left > 0.0:
+		h._bosses(1.0 / 60.0, s)
+		h._bosses_after()
+	check(st.rush_warn <= 0.0 and st.passes == 0 and st.scythe_cd > 0.0, "after %d passes it rests (%.2f %d %.1f)" % [int(cfg.passes), st.rush_warn, st.passes, st.scythe_cd])
+
+
+func test_the_druid_calls_fire_from_the_sky_and_rouses_warriors(b: Dictionary) -> void:
+	var s := _britannia_sim(b, 988)
+	var h := s.horde
+	var info: Dictionary = content.enemies.druid
+	var i := h.spawn("druid", Vector2(200, 0), true)
+	var st: Dictionary = h.boss_state(i)
+	st.rouse_cd = 1e9
+	st.fire_cd = 0.0
+	h._bosses(1.0 / 60.0, s)
+	var rings: Array = h.foe_lobs.filter(func(l: Dictionary) -> bool: return l.get("sky", false))
+	check(rings.size() == int(info.sky_fire.count), "he marks %d rings for fire from the sky" % int(info.sky_fire.count))
+	var spread := 0.0
+	var later := true
+	for k in rings.size():
+		spread = maxf(spread, rings[k].to.distance_to(rings[0].to))
+		if k > 0:
+			later = later and rings[k].dur > rings[k - 1].dur
+	check(spread > float(info.sky_fire.radius) * 2.0 and later, "in a line across the legion, falling one after another")
+	var hp0: float = s.commander.hp
+	for k in 180:
+		h._foe_lobs(1.0 / 60.0, s)
+	check(h.foe_lobs.is_empty() and s.commander.hp < hp0, "the fire burns those under it")
+	var fx := s.effects.filter(func(e: Dictionary) -> bool: return e.kind == "skyfire")
+	check(fx.size() == int(info.sky_fire.count), "each ring ends in a swirl of flame")
+	var w := h.spawn("painted_warrior", h.e_pos[i] + Vector2(40, 0))
+	h.e_hp[w] = h.e_max[w] * 0.4
+	h.rebuild_grid()
+	st.rouse_cd = 0.0
+	st.fire_cd = 1e9
+	h._bosses(1.0 / 60.0, s)
+	check(is_equal_approx(h.e_hp[w], h.e_max[w] * (0.4 + float(info.rouse.share))) and h.e_slow[w] > 1.0, "his chant heals the warriors round him and sends them running in")
+	check(not info.has("mend") and not info.has("curse") and not info.has("blink"), "unlike the war priest")
+
+
+func test_the_warrior_queen_drives_round_the_legion(b: Dictionary) -> void:
+	var s := _britannia_sim(b, 989)
+	var h := s.horde
+	var cfg: Dictionary = content.enemies.warrior_queen.attacks.drive
+	for k in 16:
+		s.add_soldier("legionary")
+	s.legion.place_all(s.facing_angle)
+	s._rebuild_grids()
+	for u in s.units:
+		u.max_hp = 1e6
+		u.hp = 1e6
+	var ci := h.spawn_chieftain(Vector2(250, 0))
+	var guards := 0
+	for k in h.e_pos.size():
+		guards += 1 if h.e_guard[k] != Vector2.ZERO and h.kind_ids[h.e_kind[k]] == "painted_warrior" else 0
+	check(guards > 0, "she comes with painted warriors round her")
+	h.drive_cd = 0.0
+	h._chieftain(1.0 / 60.0, s)
+	check(not h.drive.is_empty() and h.drive.t < h.drive.warn, "she marks her path first")
+	var pts: PackedVector2Array = h.drive.pts
+	var turned := 0.0
+	var mid := pts[pts.size() / 2]
+	for k in range(2, pts.size() - 1):
+		turned += absf((pts[k] - pts[k - 1]).angle_to(pts[k - 1] - pts[k - 2]))
+	check(turned > 2.5 and mid.length() < s.legion_reach + float(cfg.outer) + 1.0, "a path that sweeps round the legion through its outer ranks")
+	var start := h.e_pos[ci]
+	var t := 0.0
+	while t < float(cfg.warn) - 0.05:
+		h._chieftain(1.0 / 60.0, s)
+		h._chieftain_after(s)
+		t += 1.0 / 60.0
+	check(h.e_pos[ci] == start, "and waits while it fills")
+	var far := 0.0
+	while not h.drive.is_empty():
+		h._chieftain(1.0 / 60.0, s)
+		h._chieftain_after(s)
+		far = maxf(far, h.e_pos[ci].distance_to(start))
+	var hurt := 0
+	for u in s.units:
+		if u.hp < 1e6:
+			hurt += 1
+	check(far > 150.0 and hurt >= 3, "then drives her chariot along it, riding down the soldiers in her way (%d)" % hurt)
+
+
+func test_the_warrior_queen_calls_the_tribes_and_burns_the_land(b: Dictionary) -> void:
+	var s := _britannia_sim(b, 990)
+	var h := s.horde
+	var atk: Dictionary = content.enemies.warrior_queen.attacks
+	var ci := h.spawn_chieftain(Vector2(300, 0))
+	var n0 := h.e_pos.size()
+	h.tribes_cd = 0.0
+	h._chieftain(1.0 / 60.0, s)
+	var sides := {}
+	for k in range(n0, h.e_pos.size()):
+		sides[int(round(h.e_pos[k].angle() / (TAU / 8.0)))] = true
+	check(h.e_pos.size() - n0 >= 3 * 4 and sides.size() >= int(atk.tribes.sides), "she calls the tribes from %d sides at once (%d warriors)" % [sides.size(), h.e_pos.size() - n0])
+	h.burn_cd = 0.0
+	h._chieftain(1.0 / 60.0, s)
+	check(h.marks.filter(func(m: Dictionary) -> bool: return m.kind == "fire").is_empty(), "she does not burn the land while she is whole")
+	h.e_hp[ci] = h.e_max[ci] * 0.49
+	h.burn_cd = 0.0
+	h._chieftain(1.0 / 60.0, s)
+	var fires: Array = h.marks.filter(func(m: Dictionary) -> bool: return m.kind == "fire")
+	check(h.chief_fury and fires.size() == int(atk.burn.rings), "below half health she marks %d rings to burn" % int(atk.burn.rings))
+	check(fires.any(func(m: Dictionary) -> bool: return m.pos == s.commander.pos), "one on the commander")
+	for k in int(float(atk.burn.warn) * 60.0) + 2:
+		h._marks(1.0 / 60.0, s)
+	var burning: Array = h.storms.filter(func(z: Dictionary) -> bool: return z.get("fire", false))
+	check(burning.size() == int(atk.burn.rings) and h.marks.is_empty(), "each catches fire when its warning runs out")
+	var hp0: float = s.commander.hp
+	for k in 60:
+		h._storms(1.0 / 60.0, s)
+	check(s.commander.hp < hp0 and h.frost_slow == 0.0, "and burns those in it without slowing the march")
+	for k in int(float(atk.burn.seconds) * 60.0):
+		h._storms(1.0 / 60.0, s)
+	check(h.storms.is_empty(), "until the fire dies down")
 
 
 ## How many steps of the route map round the commander pass through a solid prop, from each open square's centre to the next open square's.

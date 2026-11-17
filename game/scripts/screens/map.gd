@@ -11,15 +11,16 @@ const LON_SCALE := 0.7431448
 ## Where each province lies, as longitude and latitude; Parthia sits north of Ctesiphon (33°N) to stay above the key hints at the map's foot.
 const PLACES := {"roma": Vector2(12.5, 41.9), "germania": Vector2(9.0, 51.5), "britannia": Vector2(-1.0, 52.0), "gaul": Vector2(2.5, 47.0),
 	"dacia": Vector2(24.5, 46.0), "parthia": Vector2(44.5, 35.2)}
-## The towns and passes each march goes by, as longitude and latitude, so the road keeps to the land and crosses the sea at the straits.
+## The towns, passes and sea lanes each march goes by, as longitude and latitude, so the road keeps to the land except where it sails.
 const ROUTES := {
 	"roma>germania": [Vector2(11.0, 45.4), Vector2(11.5, 47.0), Vector2(10.9, 48.4), Vector2(8.3, 50.0)],
-	"germania>britannia": [Vector2(6.4, 51.6), Vector2(1.6, 50.7), Vector2(1.3, 51.1), Vector2(-0.1, 51.5)],
-	"britannia>gaul": [Vector2(-0.8, 50.8), Vector2(1.1, 49.4), Vector2(2.35, 48.85)],
+	"germania>gaul": [Vector2(6.95, 50.9), Vector2(6.6, 49.75), Vector2(4.0, 49.25)],
 	"gaul>dacia": [Vector2(6.0, 47.2), Vector2(8.2, 47.5), Vector2(12.1, 48.9), Vector2(16.9, 48.1), Vector2(19.0, 47.5), Vector2(20.5, 44.8),
 		Vector2(22.6, 44.6)],
 	"dacia>parthia": [Vector2(24.5, 43.7), Vector2(29.0, 41.0), Vector2(32.9, 39.9), Vector2(34.6, 37.8), Vector2(36.2, 36.2), Vector2(37.9, 37.05),
 		Vector2(40.4, 35.7), Vector2(42.6, 35.3)],
+	"parthia>britannia": [Vector2(36.0, 36.1), Vector2(32.5, 34.3), Vector2(24.5, 34.4), Vector2(15.0, 36.0), Vector2(11.0, 38.3), Vector2(8.0, 38.6),
+		Vector2(6.5, 40.6), Vector2(5.0, 43.2), Vector2(4.8, 45.8), Vector2(3.0, 48.5), Vector2(1.6, 50.7), Vector2(0.6, 51.2)],
 }
 const PICTURE := Vector2(640, 360)
 const NODE_R := 9.0

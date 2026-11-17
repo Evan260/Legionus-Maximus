@@ -796,101 +796,168 @@
   },
   "painted_warrior": {
    "name": "Painted warrior",
-   "text": "A warrior painted blue for battle.",
+   "text": "Fearless, painted blue with woad. He charges straight through the crowd at a run, and his battle cry frightens the soldiers he crashes into, so they strike more slowly for a moment.",
    "history": "Britons were said to dye their bodies blue with woad, to look fearsome in battle.",
    "behaviour": "melee",
-   "hp": 22,
-   "speed": 45,
-   "dps": 3,
+   "hp": 20,
+   "speed": 46,
+   "dps": 2.0,
    "radius": 6,
    "coins": 1,
    "art": [
     "unit:painted_warrior"
-   ]
+   ],
+   "fearless": {
+    "every": 6.0,
+    "speed_mult": 2.4,
+    "seconds": 0.8,
+    "burst_mult": 1.2,
+    "cry_radius": 40,
+    "cry_seconds": 2.0,
+    "cry_slow": 0.2
+   }
   },
   "briton_slinger": {
    "name": "Slinger",
-   "text": "He slings stones from a distance.",
+   "text": "The slingers loose their stones together in volleys from further off than any other thrower. Their stones hurt but do not stun.",
    "history": "Slingers fought across Iron Age Britain, and hillforts kept stockpiles of sling stones.",
    "behaviour": "ranged",
-   "hp": 18,
+   "hp": 16,
    "speed": 38,
-   "dps": 3,
+   "dps": 1.0,
    "radius": 6,
    "coins": 2,
    "art": [
     "unit:briton_slinger"
    ],
-   "range": 120
+   "range": 185,
+   "arrives": 120,
+   "salvo": {
+    "every": 3.0,
+    "arrows": 3,
+    "spread": 0.14,
+    "missile": "stone"
+   }
   },
   "chariot": {
    "name": "Chariot",
-   "text": "A light chariot that drives straight at the legion.",
+   "text": "A light chariot that drives fast along the legion's flank. The warrior on board throws javelins as it passes, and sometimes leaps down with a friend to fight on foot.",
    "history": "Britons fought from chariots long after the rest of Europe had given them up.",
-   "behaviour": "charger",
-   "hp": 40,
-   "speed": 69,
-   "dps": 6,
-   "radius": 8,
+   "behaviour": "driver",
+   "hp": 34,
+   "speed": 74,
+   "dps": 1.2,
+   "radius": 12,
    "coins": 3,
    "art": [
     "unit:chariot"
-   ]
+   ],
+   "arrives": 90,
+   "scale": 1.5,
+   "drive": {
+    "gap": 40,
+    "turn": 2.4,
+    "lock": 110,
+    "far": 200,
+    "every": 1.0,
+    "range": 90
+   },
+   "drop": {
+    "chance": 0.5,
+    "count": 2,
+    "kind": "painted_warrior"
+   }
   },
   "druid_acolyte": {
    "name": "Druid acolyte",
-   "text": "A druid in training, who curses the legion from afar.",
+   "text": "He keeps behind the warriors and tends their wounds, healing those round him. He falls at the first blow.",
    "history": "Druid trainees spent up to twenty years memorising law and lore, since nothing was written down.",
    "behaviour": "ranged",
-   "hp": 26,
-   "speed": 35,
-   "dps": 4,
+   "hp": 10,
+   "speed": 36,
+   "dps": 0,
    "radius": 6,
    "coins": 2,
    "art": [
     "unit:druid_acolyte"
    ],
-   "range": 100
+   "range": 70,
+   "arrives": 180,
+   "tend": {
+    "every": 3.0,
+    "radius": 80,
+    "share": 0.1
+   }
   },
   "chariot_charge": {
-   "name": "Chariot charge",
-   "text": "Several chariots drive in together.",
-   "history": "British charioteers raced along the front line, throwing spears before dropping to fight on foot.",
-   "behaviour": "charger",
-   "hp": 6240,
-   "speed": 75,
-   "dps": 16,
-   "radius": 17,
+   "name": "Scythed chariot",
+   "text": "Blades whirl on its wheels. It marks a lane and drives down it at full gallop, cutting every soldier it passes, then turns and comes again.",
+   "history": "Later writers told of British chariots with scythes on their wheels, though Caesar never mentions them.",
+   "behaviour": "melee",
+   "hp": 6200,
+   "speed": 52,
+   "dps": 24,
+   "radius": 20,
    "coins": 0,
    "art": [
     "unit:chariot_charge"
    ],
+   "scale": 1.2,
+   "scythe": {
+    "every": 12.0,
+    "range": 260,
+    "warn": 1.4,
+    "width": 64,
+    "length": 440,
+    "seconds": 0.8,
+    "damage_mult": 0.7,
+    "throw": 10,
+    "blade": 14,
+    "passes": 2,
+    "again_warn": 0.9
+   },
    "elite": true
   },
   "druid": {
    "name": "Druid",
-   "text": "An old priest of the oak groves, said to call down fire.",
+   "text": "An old priest of the oak groves. He calls fire down from the sky in a line of marked rings across the legion, and his chant heals the warriors round him and sends them running in.",
    "history": "The druids were priests, judges and teachers, and Rome attacked their island stronghold at Mona.",
-   "behaviour": "ranged",
-   "hp": 5520,
-   "speed": 38,
-   "dps": 14,
+   "behaviour": "lobber",
+   "hp": 5200,
+   "speed": 36,
+   "dps": 0,
    "radius": 14,
    "coins": 0,
    "art": [
     "unit:druid"
    ],
-   "elite": true,
-   "range": 130
+   "range": 170,
+   "sky_fire": {
+    "every": 11.0,
+    "range": 320,
+    "count": 4,
+    "step": 46,
+    "radius": 30,
+    "delay": 1.3,
+    "stagger": 0.25,
+    "damage": 16
+   },
+   "rouse": {
+    "every": 9.0,
+    "radius": 170,
+    "share": 0.25,
+    "rush": 1.8
+   },
+   "elite": true
   },
   "warrior_queen": {
    "name": "Warrior queen",
-   "text": "A queen who rides a war chariot against Rome.",
+   "text": "Boudica drives her chariot in sweeping charges round the legion, down a marked path, and calls the tribes to fall on it from every side. When hurt she sets the land on fire, and the marked rings burn for a while.",
    "history": "In 60 AD Boudica led the Iceni in a revolt that burned Londinium to the ground.",
-   "behaviour": "charger",
-   "hp": 27000,
-   "speed": 40,
-   "dps": 34,
+   "behaviour": "melee",
+   "hp": 29000,
+   "speed": 30,
+   "dps": 32,
    "radius": 26,
    "coins": 0,
    "art": [
@@ -902,40 +969,43 @@
      "every": 5.0,
      "reach": 34,
      "arc": 2.0,
-     "damage_mult": 1.2,
+     "damage_mult": 1.4,
      "retry": 0.25
     },
-    "charge": {
-     "every": 11.0,
-     "speed_mult": 4.0,
-     "seconds": 0.7,
-     "burst_mult": 1.5,
-     "warn": 1.0,
-     "range": 40,
-     "throw": 26
+    "drive": {
+     "every": 12.0,
+     "warn": 1.4,
+     "speed": 260,
+     "arc": 3.4,
+     "inner": 0.8,
+     "outer": 20,
+     "exit": 90,
+     "damage_mult": 1.0,
+     "throw": 26,
+     "range": 420
     },
-    "war_cry": {
-     "every": 18.0,
-     "radius": 240,
-     "seconds": 4.0,
-     "speed_mult": 1.5
+    "tribes": {
+     "every": 30.0,
+     "sides": 3,
+     "fury_sides": 4,
+     "mult": 0.8
     },
-    "slam": {
-     "every": 9.0,
-     "windup": 1.2,
-     "radius": 56,
-     "damage_mult": 1.2,
-     "retry": 0.5
-    },
-    "horn": {
-     "every": 30.0
+    "burn": {
+     "every": 8.0,
+     "rings": 3,
+     "radius": 44,
+     "warn": 1.5,
+     "seconds": 8.0,
+     "dps": 8,
+     "spread": 150
     }
    },
    "fury": {
     "below": 0.5,
-    "rate_mult": 1.4,
-    "bands": 2
-   }
+    "rate_mult": 1.3,
+    "release": true
+   },
+   "guard": "painted_warrior"
   },
   "gaul_swordsman": {
    "name": "Swordsman",
@@ -1561,32 +1631,6 @@
     "ground:germania"
    ]
   },
-  "britannia": {
-   "name": "Britannia",
-   "text": "Wet moorland at the edge of the known world.",
-   "ground": "wet moorland",
-   "props": [
-    "heather",
-    "bog",
-    "stone_circle"
-   ],
-   "ordinary": [
-    "painted_warrior",
-    "briton_slinger",
-    "chariot",
-    "druid_acolyte"
-   ],
-   "elites": [
-    "chariot_charge",
-    "druid"
-   ],
-   "chieftain": "warrior_queen",
-   "art": [
-    "prop:heather",
-    "prop:bog",
-    "ground:britannia"
-   ]
-  },
   "gaul": {
    "name": "Gaul",
    "text": "Farmland, hedges and villages.",
@@ -1664,6 +1708,33 @@
     "prop:palm",
     "prop:ruined_wall",
     "ground:parthia"
+   ]
+  },
+  "britannia": {
+   "name": "Britannia",
+   "text": "Wet moorland at the edge of the known world.",
+   "ground": "wet moorland",
+   "props": [
+    "heather",
+    "bog",
+    "stone_circle"
+   ],
+   "ordinary": [
+    "painted_warrior",
+    "briton_slinger",
+    "chariot",
+    "druid_acolyte"
+   ],
+   "elites": [
+    "chariot_charge",
+    "druid"
+   ],
+   "chieftain": "warrior_queen",
+   "art": [
+    "prop:heather",
+    "prop:bog",
+    "prop:stone_circle",
+    "ground:britannia"
    ]
   }
  },

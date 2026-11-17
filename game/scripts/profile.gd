@@ -315,8 +315,14 @@ func record_run(sim: Sim) -> void:
 func open_won_provinces(content: Content) -> void:
 	for p in content.provinces:
 		var before: String = content.province_before(p)
-		if before != "" and bool(record_of(before).won) and not province_unlocked(p):
+		if not content.ready("provinces", p):
+			continue
+		var won := before == "" or bool(record_of(before).won)
+		if won and before != "" and not province_unlocked(p):
 			data.unlocked.provinces.append(p)
+		# A province stays open only while the one before it on the road is won, unless it has been won itself.
+		elif not won and province_unlocked(p) and not bool(record_of(p).won):
+			data.unlocked.provinces.erase(p)
 
 
 func _unlock(sim: Sim) -> void:

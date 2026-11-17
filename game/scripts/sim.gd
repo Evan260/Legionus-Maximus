@@ -46,6 +46,8 @@ var moving := false
 var glide := Vector2.ZERO
 ## Whether the commander stands on a dune's soft sand, which slows the march.
 var on_sand := false
+## Whether the commander stands in a bog pool, which slows the march more than sand.
+var in_bog := false
 # How many barbarians were locked in melee with the legion on the last update.
 var pressing := 0
 
@@ -177,6 +179,7 @@ func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
 	terrain.mountain = b.get("mountains", {}).get(province, {})
 	terrain.stream_cfg = b.get("streams", {}).get(province, {})
 	terrain.desert = b.get("deserts", {}).get(province, {})
+	terrain.moor = b.get("moors", {}).get(province, {})
 	terrain.clear_radius = float(b.get("terrain_clear_radius", 200.0))
 	terrain.fell_seconds = float(b.felling.seconds)
 	objectives.place_start(self, options.get("objectives_near", false))
@@ -247,7 +250,8 @@ func speed() -> float:
 	var cursed := 1.0 - horde.curse_slow if horde.curse_left > 0.0 else 1.0
 	var frozen := 1.0 - horde.frost_slow
 	var sand := 1.0 - float(terrain.desert.get("dune_slow", 0.0)) if on_sand else 1.0
-	return v * maxf(float(b.press.slowest), held * cursed * frozen * sand * (b.testudo_speed if testudo_left > 0.0 else 1.0))
+	var bog := 1.0 - float(terrain.moor.get("bog_slow", 0.0)) if in_bog else 1.0
+	return v * maxf(float(b.press.slowest), held * cursed * frozen * sand * bog * (b.testudo_speed if testudo_left > 0.0 else 1.0))
 
 
 func range_mult() -> float:
@@ -389,6 +393,7 @@ func _track(dt: float) -> void:
 func _move_legion(dt: float, move: Vector2) -> void:
 	moving = move.length() > 0.15
 	on_sand = terrain.on_dune(commander.pos)
+	in_bog = terrain.in_bog(commander.pos)
 	var want := Vector2.ZERO
 	if moving:
 		var dir := move.normalized() if move.length() > 1.0 else move

@@ -50,6 +50,10 @@ var mountain: Dictionary
 var stream_cfg: Dictionary
 ## A desert province's scatter, oases, ruined walls and dunes from balance.json `deserts`, in place of ridges and lines.
 var desert: Dictionary
+## A moorland province's scatter, stone circles, bog pools and heather from balance.json `moors`, with a few forest ridges.
+var moor: Dictionary
+# The middle and reach of the stone circle of each moorland region that has one, kept free of the trees of ridges nearby.
+var _henges := {}
 # The frozen stream of each stream region once worked out, {} for a region without one, and streams laid by hand.
 var _streams := {}
 var _laid_streams: Array = []
@@ -270,7 +274,7 @@ func chunk(cx: int, cy: int) -> Array:
 		return out
 	var r := RandomNumberGenerator.new()
 	r.seed = hash([seed_value, key])
-	var scatter: Array = field.get("scatter", mountain.get("scatter", desert.get("scatter", SCATTER)))
+	var scatter: Array = field.get("scatter", mountain.get("scatter", desert.get("scatter", moor.get("scatter", SCATTER))))
 	for i in r.randi_range(0, 2):
 		var p := Vector2((cx + r.randf()) * CHUNK, (cy + r.randf()) * CHUNK)
 		if p.length() > 90.0:
@@ -281,12 +285,17 @@ func chunk(cx: int, cy: int) -> Array:
 	var ry := floori(box.position.y / REGION)
 	# A ridge reaches up to two regions past its own; where two ridges cover one lattice square they grow the same tree, kept once.
 	var seen := {}
+	var henges: Array = []
 	for x in range(rx - 2, rx + 3):
 		for y in range(ry - 2, ry + 3):
 			for p in _bucket(x, y).get(key, []):
 				if not seen.has(p[1]):
 					seen[p[1]] = true
 					out.append(_standing(p[0], p[1]) if TREES.has(p[0]) else p)
+			if _henges.has(Vector2i(x, y)):
+				henges.append(_henges[Vector2i(x, y)])
+	if not henges.is_empty():
+		out = out.filter(func(p: Array) -> bool: return not (TREES.has(p[0]) or p[0] == "stump") or not _near_henge(p[1], henges))
 	_chunks[key] = out
 	return out
 
@@ -326,9 +335,11 @@ func _region(rx: int, ry: int) -> Array:
 	var out: Array = []
 	var roll := r.randf()
 	var centre := (Vector2(rx, ry) + Vector2(r.randf_range(0.25, 0.75), r.randf_range(0.25, 0.75))) * REGION
-	var ridges := float(mountain.get("ridge_chance", forest.ridge_chance))
+	var ridges := float(mountain.get("ridge_chance", moor.get("ridge_chance", forest.ridge_chance)))
 	if not desert.is_empty():
 		out = _desert_feature(r, roll, centre)
+	elif not moor.is_empty():
+		out = _ridge(r, centre) if roll < ridges else _moor_feature(r, roll - ridges, centre)
 	elif roll < ridges:
 		out = _ridge(r, centre)
 	elif roll < ridges + float(mountain.get("line_chance", forest.line_chance)):
@@ -397,6 +408,62 @@ func on_dune(p: Vector2) -> bool:
 			continue
 		# A dune's drawn mound sits above the point it stands on, so its middle is half a mound higher.
 		var off: Vector2 = p - pr[1] + Vector2(0.0, ry)
+		if (off.x * off.x) / (rx * rx) + (off.y * off.y) / (ry * ry) <= 1.0:
+			return true
+	return false
+
+
+## A moorland region holds a stone circle, a spread of bog pools, a patch of heather or open moor.
+## A circle is a ring of standing stones round a clear middle, each group of stones solid, with an opening on one side.
+func _moor_feature(r: RandomNumberGenerator, roll: float, centre: Vector2) -> Array:
+	var cfg := moor
+	var out: Array = []
+	var circle := float(cfg.circle_chance)
+	var bogs := circle + float(cfg.bog_chance)
+	if roll < circle:
+		var n := int(cfg.circle_count)
+		var turn := r.randf() * TAU
+		_henges[Vector2i(floori(centre.x / REGION), floori(centre.y / REGION))] = [centre, float(cfg.circle_radius) + float(cfg.circle_clear)]
+		for k in range(int(cfg.circle_gap), n):
+			var at := centre + Vector2.from_angle(turn + TAU * k / n) * float(cfg.circle_radius)
+			var group: Array = [["stone_circle", at, 0.0]]
+			for off in cfg.circle_stones:
+				group.append(["", at + Vector2(float(off[0]), float(off[1])), float(cfg.stone_radius)])
+			# A group of stones is kept or left out whole, so no stone stands solid without its picture.
+			var ok := true
+			for g in group:
+				ok = ok and g[1].length() > clear_radius and not _in_clearing(g[1]) and not _by_ravine(g[1])
+			if ok:
+				out.append_array(group)
+	elif roll < bogs:
+		for k in r.randi_range(int(cfg.bogs[0]), int(cfg.bogs[1])):
+			out.append(["bog", centre + Vector2(r.randf_range(-1.0, 1.0), r.randf_range(-0.6, 0.6)) * float(cfg.bog_spread), 0.0])
+	elif roll < bogs + float(cfg.heather_chance):
+		for k in r.randi_range(int(cfg.heathers[0]), int(cfg.heathers[1])):
+			out.append(["heather", centre + Vector2(r.randf_range(-1.0, 1.0), r.randf_range(-0.7, 0.7)) * float(cfg.heather_spread), 0.0])
+	return out
+
+
+func _near_henge(p: Vector2, henges: Array) -> bool:
+	for hg in henges:
+		if p.distance_to(hg[0]) < hg[1]:
+			return true
+	return false
+
+
+## Whether p stands in a bog pool, which slows the legion's march more than sand.
+func in_bog(p: Vector2) -> bool:
+	if moor.is_empty():
+		return false
+	var size: Array = moor.bog_size
+	var rx := float(size[0])
+	var ry := float(size[1])
+	var lift := float(moor.bog_lift)
+	for pr in props_in(Rect2(p - Vector2(rx, ry), Vector2(rx * 2.0, ry * 2.0 + lift))):
+		if pr[0] != "bog":
+			continue
+		# The pool's water lies above the point the picture stands on.
+		var off: Vector2 = p - pr[1] + Vector2(0.0, lift)
 		if (off.x * off.x) / (rx * rx) + (off.y * off.y) / (ry * ry) <= 1.0:
 			return true
 	return false
