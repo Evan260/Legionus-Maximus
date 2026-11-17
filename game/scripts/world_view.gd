@@ -695,13 +695,24 @@ func _draw_scorch(view: Rect2) -> void:
 			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
-## Spears thrown by the horde are drawn as short pixel lines.
+## Axes thrown by the horde spin end over end, drawn large and outlined so they read like the archers' arrows.
 func _draw_spears() -> void:
 	var h: Horde = sim.horde
+	var ink := Color(0.16, 0.1, 0.08)
 	for i in h.sp_pos.size():
+		var p: Vector2 = h.sp_pos[i]
 		var dir: Vector2 = h.sp_vel[i].normalized()
-		draw_line(h.sp_pos[i] - dir * 7.0, h.sp_pos[i], Color(0.45, 0.3, 0.16), 1.0)
-		draw_rect(Rect2(h.sp_pos[i].round(), Vector2(1, 1)), Color(0.85, 0.85, 0.8))
+		draw_line(p - dir * 20.0, p - dir * 4.0, Color(1.0, 1.0, 0.85, 0.22), 4.0)
+		var spin := Vector2.from_angle(sim.time * 18.0 + float(i) * 1.7)
+		var side := spin.orthogonal()
+		var butt := p - spin * 7.0
+		var head := p + spin * 6.0
+		draw_line(butt, head, ink, 4.0)
+		draw_line(butt, head, Color(0.55, 0.36, 0.2), 2.0)
+		var blade := PackedVector2Array([head + side * 1.0, head + side * 6.0 + spin * 3.0, head + side * 7.0 - spin * 3.0, head - spin * 2.0])
+		draw_colored_polygon(blade, ink)
+		var inner := PackedVector2Array([head + side * 1.5, head + side * 5.0 + spin * 1.8, head + side * 5.5 - spin * 1.8, head - spin * 1.0])
+		draw_colored_polygon(inner, Color(0.85, 0.86, 0.88))
 
 
 ## Over each boss: a raised shield in front of a war band leader and a health bar; the HUD writes the elite's name over it.
