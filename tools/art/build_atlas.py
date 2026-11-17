@@ -27,7 +27,9 @@ UNITS = {"commander": "walking", "legionary": "walking", "archer": "walking",
          "gaul_swordsman": "running", "gaul_horseman": "running", "gaul_archer": "running", "boar": "running",
          "champion": "running", "horn_blower": "running", "gaul_king": "running",
          "falx_warrior": "running", "dacian_archer": "running", "wolf_standard_bearer": "running", "mountain_bear": "running",
-         "falx_band": "running", "priest": "running", "dacian_king": "running"}
+         "falx_band": "running", "priest": "running", "dacian_king": "running",
+         "horse_archer": "running", "cataphract": "running", "camel_rider": "running", "parthian_slinger": "running",
+         "cataphract_charge": "running", "war_elephant": "running", "shah": "running"}
 PROPS = {"oak": "props2/oak.png", "fir": "props2/fir.png", "rock": "props2/rock.png", "log": "props2/log.png",
          "stones": "props/stones.png", "coin": "props/coin.png", "pilum": "props2/pilum.png",
          "stake": "props3/stake.png", "caltrops": "props3/caltrops.png", "fire_pot": "props3/fire_pot.png",
@@ -35,7 +37,8 @@ PROPS = {"oak": "props2/oak.png", "fir": "props2/fir.png", "rock": "props2/rock.
          "fort_gate": "props3/fort_gate.png", "hut": "props3/hut.png", "eagle_standard": "props3/eagle_standard.png",
          "altar": "props3/altar.png", "stump": "props3/stump.png", "timber": "props3/timber.png",
          "wheat": "props3/wheat.png", "hedge": "props3/hedge.png", "village": "props3/village.png", "roundhouse": "roundhouse/house_a.png",
-         "wheat_field": "wheat_field/field_tile.png", "pine": "props3/pine.png", "frozen_stream": "frozen_stream/ice_tile.png"}
+         "wheat_field": "wheat_field/field_tile.png", "pine": "props3/pine.png", "frozen_stream": "frozen_stream/ice_tile.png",
+         "dune": "props4/dune.png", "palm": "props4/palm.png", "ruined_wall": "props4/ruined_wall.png"}
 # Props drawn as several frames side by side on one sheet, played in turn.
 SHEETS = {"flame": "props3/flame_sheet_b.png"}
 # Props toned down after drawing, as (how much the light parts darken, how much colour is taken out), so the
@@ -44,10 +47,11 @@ TONE = {"stones": (0.4, 0.5), "stump": (0.4, 0.2)}
 # The bosses are drawn from their larger remakes; the small originals stay on disk.
 FOLDERS = {"berserker": "berserker_big", "war_band_leader": "war_band_leader_big", "war_priest": "war_priest_big",
            "chieftain": "chieftain_big", "champion": "champion_big", "horn_blower": "horn_blower_big", "gaul_king": "gaul_king_big",
-           "falx_band": "falx_band_big", "priest": "priest_big", "dacian_king": "dacian_king_big"}
-WIDTH = 4096
-# GL Compatibility on older GPUs guarantees 4096 px textures, so the atlas never grows past it.
-MAX_SIDE = 4096
+           "falx_band": "falx_band_big", "priest": "priest_big", "dacian_king": "dacian_king_big",
+           "cataphract_charge": "cataphract_charge_big", "war_elephant": "war_elephant_big", "shah": "shah_big"}
+# The atlas stays one page so the horde draws in one batch, and grows wide before tall.
+WIDTH = 8192
+MAX_SIDE = 8192
 
 
 def crop_set(images, anchor):
@@ -175,6 +179,7 @@ def main():
     shutil.copy(RAW / "ground" / "grass_tile_b.png", OUT / "grounds" / "germania.png")
     shutil.copy(RAW / "ground" / "gaul_tile.png", OUT / "grounds" / "gaul.png")
     shutil.copy(RAW / "ground" / "dacia_tile_b.png", OUT / "grounds" / "dacia.png")
+    shutil.copy(RAW / "ground" / "parthia_tile.png", OUT / "grounds" / "parthia.png")
     shutil.copy(RAW / "frozen_stream" / "ice_tile.png", OUT / "ice.png")
     print(f"atlas {atlas.size[0]}x{atlas.size[1]}, {len(flat)} sprites")
 
