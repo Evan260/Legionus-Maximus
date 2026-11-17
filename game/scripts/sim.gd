@@ -243,6 +243,11 @@ func slot_of(soldier: Dictionary) -> Vector2:
 	return legion.slot_of(soldier, facing_angle)
 
 
+## The commander's own march before any upgrade, which the pace of the barbarians on foot is measured against.
+func base_pace() -> float:
+	return float(content.base_commander.speed) * float(content.commanders[commander_id].get("speed_mult", 1.0))
+
+
 func speed() -> float:
 	var v: float = content.base_commander.speed * (1.0 + 0.08 * rank("march") + bonus_amount("move_speed")) * float(content.commanders[commander_id].get("speed_mult", 1.0))
 	# Barbarians locked in melee hold the legion back, so marching into a crowd bogs it down instead of passing through.

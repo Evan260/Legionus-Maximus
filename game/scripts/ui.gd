@@ -237,6 +237,7 @@ func panel(c: CanvasItem, r: Rect2, fill: Color = PARCH) -> void:
 
 static func fit_view(size: Vector2) -> void:
 	view = size
+	Horde.view = size
 	offset = ((size - Vector2(W, H)) / 2.0).floor()
 
 

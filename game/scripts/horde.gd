@@ -23,6 +23,8 @@ var content: Content
 var rng: RandomNumberGenerator
 var commander: Dictionary
 var province: String
+## The size of the view in world pixels, which Ui.fit_view keeps up to date, so the headless bots that cannot load Ui still spawn beyond the screen.
+static var view := Vector2(640, 360)
 var time := 0.0
 
 # Per kind, indexed by e_kind. Every enemy in content.json has a slot, whether or not it is drawn yet.
@@ -95,6 +97,14 @@ var k_pass_far := PackedFloat32Array()
 var k_pass_every := PackedFloat32Array()
 var k_pass_range := PackedFloat32Array()
 var k_drop := PackedFloat32Array()
+# 1 for a kind that fights on foot, whose pace is held below the legion's march; beasts, riders, chariots and bosses are not.
+var k_foot := PackedByteArray()
+# How far out from the legion's ranks a foot warrior starts his charge or sprint, so it is a lunge and never a way to run the legion down; -1 for the rest.
+var k_dash_reach := PackedFloat32Array()
+# How often a kind is picked from the later stream against the others (1 by default), how many of it may be alive at once (0 for no limit), and how many are.
+var k_share := PackedFloat32Array()
+var k_most := PackedInt32Array()
+var k_alive := PackedInt32Array()
 ## The radius of the biggest kind of enemy, so searches by edge reach far enough while one that size is on the field.
 var max_radius := 0.0
 ## How many enemies wider than Terrain.MAX_UNIT are on the field.
@@ -253,6 +263,8 @@ var e_fury := PackedFloat32Array()
 var e_power := PackedFloat32Array()
 ## 1 for a hunter sent after a running legion, who carries no coins.
 var e_bare := PackedByteArray()
+## When each enemy was last tended by a druid acolyte, so several acolytes round one warrior heal him no faster than one.
+var e_tended := PackedFloat32Array()
 # Each elite's own ability timers and state, by enemy id, since there are only ever a few of them.
 var boss := {}
 ## How hard the horde hunts a legion that keeps marching without fighting, or never moves: 1 brings hunters from all round, and it climbs on to `cap`.
@@ -377,6 +389,12 @@ func _init(balance: Dictionary, game_content: Content, random: RandomNumberGener
 		k_pass_every.append(float(pass_cfg.get("every", 1.0)))
 		k_pass_range.append(float(pass_cfg.get("range", 0.0)))
 		k_drop.append(float(info.get("drop", {}).get("chance", 0.0)))
+		k_foot.append(1 if (beh == MELEE or beh == RANGED) and not info.get("mounted", false) and not info.get("elite", false) and not info.get("chieftain", false) else 0)
+		var dash: Dictionary = info.get("fearless", info.get("sprint", {}))
+		k_dash_reach.append(float(dash.get("reach", -1.0)) if k_foot[k_foot.size() - 1] == 1 else -1.0)
+		k_share.append(float(info.get("share", 1.0)))
+		k_most.append(int(info.get("most", 0)))
+		k_alive.append(0)
 	ordinary = content.province_enemies(province)
 	for id in ordinary:
 		if content.enemies[id].has("salvo"):
@@ -426,11 +444,12 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 		tag = ELITE
 		elite_ids.append(next_id)
 	var hp := float(info.hp)
-	if tag == ORDINARY:
-		hp *= 1.0 + float(b.enemy_health_growth) * time + float(b.get("enemy_health_curve", 0.0)) * pow(time / 60.0, 2.0)
 	var power := 1.0
+	if tag == ORDINARY:
+		hp *= (1.0 + float(b.enemy_health_growth) * time + float(b.get("enemy_health_curve", 0.0)) * pow(time / 60.0, 2.0)) * difficulty("health")
+		power = difficulty("damage")
 	if tag == ELITE:
-		power = early_boss_mult()
+		power = early_boss_mult() * difficulty("elites")
 		hp *= early_boss_health() * (1.0 + float(b.bosses.health_growth) * time)
 	if hard:
 		hp *= float(b.hard.health_mult)
@@ -449,6 +468,7 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 	e_kind.append(kind)
 	if k_radius[kind] > Terrain.MAX_UNIT:
 		big_alive += 1
+	k_alive[kind] += 1
 	e_burn.append(0.0)
 	e_burn_dps.append(0.0)
 	e_burn_src.append(-1)
@@ -488,6 +508,7 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 	e_fury.append(1.0)
 	e_power.append(power)
 	e_bare.append(0)
+	e_tended.append(-INF)
 	if beh == DRIVER:
 		# A chariot comes in heading for the legion, and only some carry warriors to set down.
 		var last := e_id.size() - 1
@@ -554,7 +575,7 @@ func beyond_screen(p: Vector2) -> Vector2:
 	var off: Vector2 = p - commander.pos
 	if off.length_squared() < 1.0:
 		return p
-	var half := Ui.view / 2.0 + Vector2(48.0, 64.0)
+	var half := view / 2.0 + Vector2(48.0, 64.0)
 	var t := minf(half.x / maxf(absf(off.x), 0.001), half.y / maxf(absf(off.y), 0.001))
 	return commander.pos + off * maxf(1.0, t)
 
@@ -563,15 +584,27 @@ func beyond_screen(p: Vector2) -> Vector2:
 ## An enemy with an "arrives" time in content.json joins the stream only from that second.
 func _pick_ordinary() -> String:
 	var open: Array = []
-	for id in ordinary:
-		if float(content.enemies[id].get("arrives", 0.0)) <= time:
+	var weight := 0.0
+	for k in range(1, ordinary.size()):
+		var id: String = ordinary[k]
+		var kind: int = kind_of[id]
+		if float(content.enemies[id].get("arrives", 0.0)) <= time and (k_most[kind] == 0 or k_alive[kind] < k_most[kind]):
 			open.append(id)
-	if open.size() <= 1:
-		return ordinary[0]
+			weight += k_share[kind]
 	var later := float(b.spawn_mix.later_start) + time / float(b.spawn_mix.later_seconds)
-	if rng.randf() < later:
-		return open[rng.randi_range(1, open.size() - 1)]
-	return open[0]
+	if open.is_empty() or rng.randf() >= later:
+		return ordinary[0]
+	var roll := rng.randf() * weight
+	for id in open:
+		roll -= k_share[kind_of[id]]
+		if roll < 0.0:
+			return id
+	return open[open.size() - 1]
+
+
+## A number from this province's `difficulty` block in balance.json, 1 where it sets none.
+func difficulty(key: String) -> float:
+	return float(b.get("difficulty", {}).get(province, {}).get(key, 1.0))
 
 
 func cidx(p: Vector2) -> int:
@@ -651,7 +684,7 @@ func update(dt: float, sim: Sim) -> void:
 
 
 func _spawn(dt: float, sim: Sim) -> void:
-	spawn_acc += (b.spawn_per_second_start + b.spawn_per_second_growth * time) * (float(b.hard.spawn_mult) if hard else 1.0) * sim.objectives.spawn_mult(time) * dt
+	spawn_acc += (b.spawn_per_second_start + b.spawn_per_second_growth * time) * (float(b.hard.spawn_mult) if hard else 1.0) * sim.objectives.spawn_mult(time) * difficulty("spawn") * dt
 	while spawn_acc >= 1.0:
 		spawn_acc -= 1.0
 		if e_pos.size() < int(b.max_enemies) and not ordinary.is_empty():
@@ -664,7 +697,7 @@ func _spawn(dt: float, sim: Sim) -> void:
 		sim.event("surge", commander.pos)
 		# A surge comes from one side as a crowd, so the legion can see it coming and turn.
 		var side := rng.randf() * TAU
-		var n := int(b.surge_size_start + b.surge_size_growth * time)
+		var n := int((b.surge_size_start + b.surge_size_growth * time) * difficulty("spawn"))
 		for i in n:
 			if e_pos.size() >= int(b.max_enemies) or ordinary.is_empty():
 				break
@@ -740,6 +773,9 @@ func _hunt(sim: Sim, cfg: Dictionary, moved: Vector2) -> void:
 		var a := ahead + rng.randf_range(-wide, wide)
 		var r := float(b.spawn_radius) + rng.randf_range(0.0, 60.0)
 		spawn(fast[rng.randi_range(0, fast.size() - 1)], open_point(commander.pos + Vector2(cos(a) * 1.15, sin(a) * 0.75) * r))
+	# Hunters come at full strength in every province, so an easier province is no safer to run through.
+	tough /= difficulty("health")
+	fierce /= difficulty("damage")
 	for i in range(first, e_pos.size()):
 		e_slow[i] = float(b.war_band.get("rush", 1.0))
 		e_bare[i] = 1
@@ -847,7 +883,7 @@ func war_band_at(sim: Sim, centre: Vector2, mult := 1.0) -> void:
 	if ordinary.is_empty():
 		return
 	var wb: Dictionary = b.war_band
-	var n := int((float(wb.size_start) + float(wb.size_growth) * time) * mult)
+	var n := int((float(wb.size_start) + float(wb.size_growth) * time) * mult * difficulty("bands"))
 	for i in n:
 		if e_pos.size() >= int(b.max_enemies):
 			break
@@ -1995,6 +2031,8 @@ func _move(dt: float, sim: Sim) -> void:
 	var bare := sim.frenzy_guard()
 	var dash_min: float = b.charger.min_distance
 	var dash_max: float = b.charger.max_distance
+	var foot_cap := float(b.get("foot_pace", INF)) * sim.base_pace()
+	var hunt_pace := float(b.get("pursuit", {}).get("pace", 0.0)) * sim.base_pace()
 	var sep_range: float = b.separation_range
 	var crowd_give: float = b.get("crowd_give", 0.3)
 	var spacing: float = b.get("crowd_spacing", 1.0)
@@ -2061,11 +2099,15 @@ func _move(dt: float, sim: Sim) -> void:
 			e_slow[i] = minf(1.0, slow + dt * slow_recover)
 		elif slow > 1.0:
 			e_slow[i] = maxf(1.0, slow - dt * rush_fade)
-		var spd := k_speed[kind] * slow * e_fury[i]
+		# A hunter sent after a running legion keeps up with its march.
+		var spd := (maxf(k_speed[kind], hunt_pace) if e_bare[i] == 1 else k_speed[kind]) * slow * e_fury[i]
 		var power := e_power[i]
 		if e_haste[i] > 0.0:
 			e_haste[i] -= dt
 			spd *= haste_mult
+		# However hastened, a warrior on foot never outpaces the legion's march; hunters sent after a running legion may.
+		if k_foot[kind] == 1 and e_tag[i] == ORDINARY and e_bare[i] == 0:
+			spd = minf(spd, foot_cap)
 		var v := to / maxf(d, 0.001) * spd
 		var beh := k_beh[kind]
 		if k_howl[kind] == 1:
@@ -2149,7 +2191,7 @@ func _move(dt: float, sim: Sim) -> void:
 				v = e_dir[i] * spd * k_dash_mult[kind]
 			else:
 				e_cd[i] -= dt
-				if e_cd[i] <= 0.0 and d > dash_min and d < dash_max and not circling:
+				if e_cd[i] <= 0.0 and d > dash_min and d < (legion_reach + k_dash_reach[kind] if k_dash_reach[kind] >= 0.0 and e_bare[i] == 0 else dash_max) and not circling:
 					e_cd[i] = k_dash_every[kind]
 					e_dir[i] = to / maxf(d, 0.001)
 					e_dash[i] = k_dash_secs[kind]
@@ -2459,8 +2501,9 @@ func _tend(i: int, sim: Sim) -> void:
 	var p := e_pos[i]
 	var healed := false
 	for j in near(p, k_tend_r[kind]):
-		if j != i and e_tag[j] == ORDINARY and e_hp[j] < e_max[j]:
+		if j != i and e_tag[j] == ORDINARY and e_hp[j] < e_max[j] and time - e_tended[j] >= k_tend[kind]:
 			e_hp[j] = minf(e_max[j], e_hp[j] + e_max[j] * k_tend_share[kind])
+			e_tended[j] = time
 			healed = true
 	if not healed:
 		return
@@ -2824,6 +2867,7 @@ func remove_at(i: int) -> void:
 		rally_cd.erase(e_id[i])
 	if k_radius[e_kind[i]] > Terrain.MAX_UNIT:
 		big_alive -= 1
+	k_alive[e_kind[i]] -= 1
 	var last := e_pos.size() - 1
 	e_id[i] = e_id[last]; e_id.resize(last)
 	e_pos[i] = e_pos[last]; e_pos.resize(last)
@@ -2860,3 +2904,4 @@ func remove_at(i: int) -> void:
 	e_fury[i] = e_fury[last]; e_fury.resize(last)
 	e_power[i] = e_power[last]; e_power.resize(last)
 	e_bare[i] = e_bare[last]; e_bare.resize(last)
+	e_tended[i] = e_tended[last]; e_tended.resize(last)

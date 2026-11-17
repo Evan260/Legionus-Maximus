@@ -281,10 +281,34 @@ func test_a_war_band_arrives_together(b: Dictionary) -> void:
 	check(tight, "its men stand close together")
 
 
-func test_a_sprinting_clubman_outruns_the_commander(b: Dictionary) -> void:
-	var info: Dictionary = content.enemies.barbarian_club
-	check(float(info.speed) * float(info.sprint.speed_mult) > float(content.base_commander.speed), "his sprint is faster than the commander")
-	check(float(info.speed) < float(content.base_commander.speed), "but his walk is slower")
+func test_warriors_on_foot_never_outpace_the_legion(b: Dictionary) -> void:
+	var cap := float(b.foot_pace) * float(content.base_commander.speed)
+	check(cap < float(content.base_commander.speed), "the cap is below the legion's march")
+	for province in content.provinces:
+		var s := Sim.new(b, Content.with_all_art(), {"seed": 130, "province": province})
+		s.commander.max_hp = 1e9
+		s.commander.hp = 1e9
+		var h := s.horde
+		for id in h.ordinary:
+			var i := h.spawn(id, s.commander.pos + Vector2(300, 0))
+			# Hastened by a rally and rushing with a war band at once, he still walks no faster than the cap.
+			h.e_haste[i] = 10.0
+			h.haste_mult = 2.0
+			h.e_slow[i] = float(b.war_band.rush)
+			h.e_cd[i] = 1e9
+			var from := h.e_pos[i]
+			h.rebuild_grid()
+			h._move(0.1, s)
+			var pace := h.e_pos[i].distance_to(from) / 0.1
+			if h.k_foot[h.e_kind[i]] == 1:
+				check(pace <= cap + 0.5, "a %s in %s walks at %.0f, within %.0f" % [id, province, pace, cap])
+			h.remove_at(i)
+	var s := Sim.new(b, Content.with_all_art(), {"seed": 131})
+	var w := s.horde.spawn("wolf", s.commander.pos + Vector2(300, 0))
+	var from := s.horde.e_pos[w]
+	s.horde.rebuild_grid()
+	s.horde._move(0.1, s)
+	check(s.horde.e_pos[w].distance_to(from) / 0.1 > cap, "a wolf still runs faster")
 
 
 func test_every_full_choice_holds_a_recruit(b: Dictionary) -> void:
@@ -472,7 +496,8 @@ func test_far_barbarians_come_round_again(b: Dictionary) -> void:
 	var s := Sim.new(b, content, {"seed": 17})
 	s.horde.spawn("barbarian_club", Vector2(2000, 0))
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
-	check(s.horde.e_pos[0].length() <= float(b.spawn_radius) + 5.0, "brought back to the edge")
+	var back: Vector2 = s.horde.e_pos[0] - s.commander.pos
+	check(back.length() < float(b.recycle_radius) and (absf(back.x) >= Horde.view.x / 2.0 or absf(back.y) >= Horde.view.y / 2.0), "brought back to just beyond the screen (%s)" % back)
 
 
 func test_every_direction_has_a_name(b: Dictionary) -> void:
@@ -1272,7 +1297,7 @@ func test_chieftain_war_cry_speeds_the_horde(b: Dictionary) -> void:
 	var cried := Sim.new(b, Content.with_all_art(), {"seed": 97})
 	for s in [calm, cried]:
 		s.horde.spawn("chieftain", Vector2(400, 0))
-		s.horde.spawn("barbarian_club", Vector2(350, 150))
+		s.horde.spawn("wolf", Vector2(350, 150))
 		s.horde.cry_cd = 1e9
 		s.horde.cleave_cd = 1e9
 	cried.horde.war_cry(cried.horde.chieftain_index(), cried)
@@ -5277,7 +5302,7 @@ func test_a_falx_cuts_through_the_testudo(b: Dictionary) -> void:
 	s._rebuild_grids()
 	s.horde._move(1.0 / 60.0, s)
 	var cfg: Dictionary = content.enemies.falx_warrior
-	check(hp0 - s.commander.hp >= float(cfg.dps) * float(cfg.falx.damage_mult), "and every few seconds he lands a heavy chop")
+	check(hp0 - s.commander.hp >= float(cfg.dps) * float(cfg.falx.damage_mult) * s.horde.difficulty("damage"), "and every few seconds he lands a heavy chop")
 	check(s.horde.e_strike[i] == s.time, "which plays his swing")
 
 
@@ -5627,7 +5652,7 @@ func test_cataphracts_charge_with_the_lance_and_turn_arrows(b: Dictionary) -> vo
 		h._move(1.0 / 60.0, s)
 		if s.commander.hp < hp0:
 			break
-	check(hp0 - s.commander.hp >= float(cfg.dps) * float(cfg.lance.burst_mult) * 0.99, "the lance strikes hard (%.1f)" % (hp0 - s.commander.hp))
+	check(hp0 - s.commander.hp >= float(cfg.dps) * float(cfg.lance.burst_mult) * h.difficulty("damage") * 0.99, "the lance strikes hard (%.1f)" % (hp0 - s.commander.hp))
 	check(h.e_strike[i] == h.time, "with a thrust of the lance")
 	var c := h.spawn("cataphract", Vector2(600, 0))
 	var a := h.spawn("horse_archer", Vector2(600, 200))
@@ -6077,6 +6102,13 @@ func test_druid_acolytes_tend_the_warriors_round_them(b: Dictionary) -> void:
 	h._move(1.0 / 60.0, s)
 	check(is_equal_approx(h.e_hp[w], h.e_max[w] * (0.3 + float(cfg.tend.share))), "he heals the wounded warrior beside him")
 	check(is_equal_approx(h.e_hp[far], h.e_max[far] * 0.3), "but not one beyond his reach")
+	var other := h.spawn("druid_acolyte", at + Vector2(0, 10))
+	h.e_cd[other] = 0.0
+	h.e_cd[a] = 1e9
+	h.rebuild_grid()
+	h._move(1.0 / 60.0, s)
+	check(is_equal_approx(h.e_hp[w], h.e_max[w] * (0.3 + float(cfg.tend.share))), "a second acolyte beside him heals the same warrior no faster")
+	h.remove_at(other)
 	check(h.sp_pos.is_empty() and h.e_ammo[a] == int(b.ranged.throws), "he throws nothing and keeps to his work")
 	check(float(cfg.hp) < float(content.enemies.painted_warrior.hp) and float(cfg.tend.share) < float(content.enemies.war_priest.mend.share), "he is fragile, and weaker than a war priest")
 	var d0 := h.e_pos[a].length()
@@ -6084,6 +6116,19 @@ func test_druid_acolytes_tend_the_warriors_round_them(b: Dictionary) -> void:
 		h.rebuild_grid()
 		h._move(1.0 / 60.0, s)
 	check(h.e_pos[a].length() > s.legion_reach + 20.0 and absf(h.e_pos[a].length() - d0) < 30.0, "and he stays back from the legion")
+
+
+func test_only_a_few_druid_acolytes_are_alive_at_once(b: Dictionary) -> void:
+	var s := _britannia_sim(b, 987)
+	var h := s.horde
+	var most := int(content.enemies.druid_acolyte.most)
+	for k in most:
+		h.spawn("druid_acolyte", Vector2(300, k * 20))
+	h.time = 1200.0
+	var more := 0
+	for k in 400:
+		more += 1 if h._pick_ordinary() == "druid_acolyte" else 0
+	check(most > 0 and more == 0, "with %d acolytes alive the stream sends no more" % most)
 
 
 func test_chariots_pass_along_the_flank_throwing_javelins(b: Dictionary) -> void:
@@ -6251,7 +6296,8 @@ func test_the_warrior_queen_calls_the_tribes_and_burns_the_land(b: Dictionary) -
 	var sides := {}
 	for k in range(n0, h.e_pos.size()):
 		sides[int(round(h.e_pos[k].angle() / (TAU / 8.0)))] = true
-	check(h.e_pos.size() - n0 >= 3 * 4 and sides.size() >= int(atk.tribes.sides), "she calls the tribes from %d sides at once (%d warriors)" % [sides.size(), h.e_pos.size() - n0])
+	var per_side := int((float(b.war_band.size_start) + float(b.war_band.size_growth) * h.time) * float(atk.tribes.mult) * h.difficulty("bands"))
+	check(h.e_pos.size() - n0 >= int(atk.tribes.sides) * per_side and sides.size() >= int(atk.tribes.sides), "she calls the tribes from %d sides at once (%d warriors)" % [sides.size(), h.e_pos.size() - n0])
 	h.burn_cd = 0.0
 	h._chieftain(1.0 / 60.0, s)
 	check(h.marks.filter(func(m: Dictionary) -> bool: return m.kind == "fire").is_empty(), "she does not burn the land while she is whole")
@@ -6978,7 +7024,9 @@ func test_a_war_band_runs_down_a_marching_legion(b: Dictionary) -> void:
 	_step_dt(s, 1.0)
 	var band_ran: float = before[0] - s.horde.e_pos[0].distance_to(s.commander.pos)
 	var plain_ran: float = plain_from - s.horde.e_pos[n].distance_to(s.commander.pos)
-	check(band_ran > plain_ran * (float(cfg.rush) - 0.3), "a war band rushes in about %.1f times as fast as the stream (%.0f vs %.0f px)" % [float(cfg.rush), band_ran, plain_ran])
+	# A warrior on foot rushes only up to the cap on his pace.
+	var rush := minf(float(cfg.rush), float(b.foot_pace) * float(content.base_commander.speed) / float(content.enemies.barbarian_club.speed))
+	check(band_ran > plain_ran * (rush - 0.15), "a war band rushes in about %.1f times as fast as the stream (%.0f vs %.0f px)" % [rush, band_ran, plain_ran])
 	_step_dt(s, float(cfg.rush_seconds))
 	check(s.horde.e_slow[0] == 1.0, "and slows to a walk after %.0f s" % float(cfg.rush_seconds))
 	var camp := _quiet_sim(b, 1661)

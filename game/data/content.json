@@ -574,11 +574,6 @@
    "dps": 2.5,
    "radius": 6,
    "coins": 1,
-   "sprint": {
-    "every": 5.0,
-    "speed_mult": 2.2,
-    "seconds": 1.0
-   },
    "art": [
     "unit:barbarian_club"
    ]
@@ -814,7 +809,8 @@
     "burst_mult": 1.2,
     "cry_radius": 40,
     "cry_seconds": 2.0,
-    "cry_slow": 0.2
+    "cry_slow": 0.2,
+    "reach": 100
    }
   },
   "briton_slinger": {
@@ -862,10 +858,11 @@
     "range": 90
    },
    "drop": {
-    "chance": 0.5,
+    "chance": 0.25,
     "count": 2,
     "kind": "painted_warrior"
-   }
+   },
+   "share": 0.45
   },
   "druid_acolyte": {
    "name": "Druid acolyte",
@@ -886,7 +883,9 @@
     "every": 3.0,
     "radius": 80,
     "share": 0.1
-   }
+   },
+   "most": 3,
+   "share": 0.35
   },
   "chariot_charge": {
    "name": "Scythed chariot",
@@ -986,7 +985,7 @@
      "every": 30.0,
      "sides": 3,
      "fury_sides": 4,
-     "mult": 0.8
+     "mult": 0.65
     },
     "burn": {
      "every": 8.0,
@@ -1411,7 +1410,8 @@
    "kite": {
     "near": 70,
     "speed_mult": 1.25
-   }
+   },
+   "mounted": true
   },
   "cataphract": {
    "name": "Cataphract",
@@ -1461,7 +1461,8 @@
     "arc": 0.5,
     "reach": 22
    },
-   "arrives": 200
+   "arrives": 200,
+   "mounted": true
   },
   "parthian_slinger": {
    "name": "Slinger",

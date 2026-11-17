@@ -2,6 +2,7 @@ extends SceneTree
 ## Plays whole runs headless with four bots (standing still, marching straight, circling, turning to face the crowd, and facing with recruits first until the legion has 30)
 ## and prints when each dies, for tuning balance.json. Optional overrides go in tests/balance_overrides.json.
 ## `"upgrades": "two_thirds"` (or --upgrades=two_thirds) plays with every quartermaster upgrade at two-thirds of its ranks, as a player well into the game.
+## `--upgrades=full` plays with every upgrade at its last rank and three triumphs, as the most upgraded player.
 ## `--until=SECONDS` ends each run there (default 1200), so a round that only asks who reaches 12:00 can stop at 720.
 
 func run(balance: Dictionary, content: Content, seed: int, mode: String, province := "germania", bonuses := {}, until := 1200.0) -> String:
@@ -55,8 +56,13 @@ func run(balance: Dictionary, content: Content, seed: int, mode: String, provinc
 func _init() -> void:
 	var balance: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/balance.json"))
 	var over: Dictionary = {}
-	if FileAccess.file_exists("res://tests/balance_overrides.json"):
-		over = JSON.parse_string(FileAccess.get_file_as_string("res://tests/balance_overrides.json"))
+	# --overrides=PATH reads another file in place of balance_overrides.json, so rounds trying different numbers can run at once.
+	var over_path := "res://tests/balance_overrides.json"
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--overrides="):
+			over_path = a.trim_prefix("--overrides=")
+	if FileAccess.file_exists(over_path):
+		over = JSON.parse_string(FileAccess.get_file_as_string(over_path))
 	balance.merge(over.get("balance", {}), true)
 	var content := Content.load_all(Content.available_art())
 	content.base_commander.merge(over.get("commander", {}), true)
@@ -80,6 +86,9 @@ func _init() -> void:
 		for id in content.quartermaster:
 			if not content.quartermaster[id].get("repeat", false):
 				bonuses[id] = roundi(int(content.quartermaster[id].ranks) * 2.0 / 3.0)
+	elif over.get("upgrades", "") == "full":
+		for id in content.quartermaster:
+			bonuses[id] = 3 if content.quartermaster[id].get("repeat", false) else int(content.quartermaster[id].ranks)
 	for mode in over.get("modes", ["idle", "straight", "circle", "face", "smart"]):
 		for seed in over.get("seeds", [1, 2, 3, 4, 5, 6]):
 			print(run(balance, content, seed, mode, str(over.get("province", "germania")), bonuses, float(over.get("until", 1200.0))))
