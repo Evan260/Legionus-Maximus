@@ -853,7 +853,6 @@
     "unit:chariot"
    ],
    "arrives": 90,
-   "scale": 1.5,
    "drive": {
     "gap": 40,
     "turn": 2.4,
@@ -902,7 +901,6 @@
    "art": [
     "unit:chariot_charge"
    ],
-   "scale": 1.2,
    "scythe": {
     "every": 12.0,
     "range": 260,
@@ -1529,7 +1527,6 @@
     "unit:war_elephant"
    ],
    "elite": true,
-   "scale": 1.7,
    "trample": {
     "every": 11.0,
     "range": 260,

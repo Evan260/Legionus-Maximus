@@ -5752,7 +5752,8 @@ func test_the_war_elephant_tramples_and_its_tower_shoots(b: Dictionary) -> void:
 	var h := s.horde
 	var info: Dictionary = content.enemies.war_elephant
 	var cfg: Dictionary = info.trample
-	check(float(info.scale) >= 1.6 and float(info.scale) <= 1.8, "it is drawn well larger than its art")
+	var art := Atlas.new()
+	check(float(art.units.war_elephant.idle.south.frames[0][3]) >= float(art.units.cataphract_charge.idle.south.frames[0][3]) * 1.5, "it stands far taller than a cataphract champion")
 	check(float(info.radius) >= float(content.enemies.cataphract_charge.radius) * 1.6, "and stands as wide as it is drawn")
 	check(float(info.hp) > float(content.enemies.cataphract_charge.hp) * 1.5, "with great health")
 	s.commander.pos = Vector2.ZERO
@@ -6089,7 +6090,8 @@ func test_chariots_pass_along_the_flank_throwing_javelins(b: Dictionary) -> void
 	var s := _britannia_sim(b, 986)
 	var h := s.horde
 	var cfg: Dictionary = content.enemies.chariot
-	check(float(cfg.scale) >= 1.4 and float(cfg.radius) >= float(content.enemies.painted_warrior.radius) * 1.8, "a chariot is drawn larger than a foot soldier, and as wide")
+	var art := Atlas.new()
+	check(float(art.units.chariot.idle.south.frames[0][3]) >= float(art.units.painted_warrior.idle.south.frames[0][3]) * 1.4 and float(cfg.radius) >= float(content.enemies.painted_warrior.radius) * 1.8, "a chariot is drawn larger than a foot soldier, and as wide")
 	var i := h.spawn("chariot", Vector2(500, 60))
 	h.e_ammo[i] = 0
 	var nearest := INF

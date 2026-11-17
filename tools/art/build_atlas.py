@@ -47,12 +47,12 @@ SHEETS = {"flame": "props3/flame_sheet_b.png"}
 # Props toned down after drawing, as (how much the light parts darken, how much colour is taken out), so the
 # scattered stones and felled stumps do not shine like coins on the grass.
 TONE = {"stones": (0.4, 0.5), "stump": (0.4, 0.2)}
-# The bosses are drawn from their larger remakes; the small originals stay on disk.
+# The bosses and the chariot are drawn from their larger remakes; the small originals stay on disk.
 FOLDERS = {"berserker": "berserker_big", "war_band_leader": "war_band_leader_big", "war_priest": "war_priest_big",
            "chieftain": "chieftain_big", "champion": "champion_big", "horn_blower": "horn_blower_big", "gaul_king": "gaul_king_big",
            "falx_band": "falx_band_big", "priest": "priest_big", "dacian_king": "dacian_king_big",
-           "cataphract_charge": "cataphract_charge_big", "war_elephant": "war_elephant_big", "shah": "shah_big",
-           "druid": "druid_big", "chariot_charge": "chariot_charge_big", "warrior_queen": "warrior_queen_big"}
+           "cataphract_charge": "cataphract_charge_big", "war_elephant": "war_elephant_136", "shah": "shah_big",
+           "druid": "druid_big", "chariot_charge": "chariot_charge_96", "chariot": "chariot_72", "warrior_queen": "warrior_queen_big"}
 # The atlas stays one page so the horde draws in one batch, and grows wide before tall.
 WIDTH = 8192
 MAX_SIDE = 8192
