@@ -29,7 +29,8 @@ func _ready() -> void:
 	_rng.randomize()
 	cfg = JSON.parse_string(FileAccess.get_file_as_string("res://data/balance.json")).audio
 	_kinds = cfg.kinds
-	var with_sound := "--with-sound" in OS.get_cmdline_user_args()
+	# The everything-unlocked mode is for playing, so it keeps its sound though it never saves.
+	var with_sound := "--with-sound" in OS.get_cmdline_user_args() or "--max-state" in OS.get_cmdline_user_args()
 	enabled = (not Profile.disabled or with_sound) and DisplayServer.get_name() != "headless"
 	if not enabled:
 		set_process(false)
