@@ -8,6 +8,9 @@ extends Node
 const MIX := ["legionary", "legionary", "archer"]
 ## How far down the end card's field is moved, in game pixels, so the legion stands below the logo.
 const END_DROP := 75.0
+## How far below a wheat field the legion marches in the Gaul shot, and how far west of one it stands on the end card, in game pixels.
+const FIELD_SIDE := 80.0
+const END_SIDE := 170.0
 ## The level-up shot: when the level comes, when the archers are picked out and when they are taken, in seconds.
 const LEVEL_AT := 1.0
 const PICK_AT := 2.0
@@ -203,11 +206,56 @@ func _shot_fort(sim: Sim) -> void:
 	main.look_march = Vector2.ZERO
 
 
-## A legion in the wheat with no one about and no interface over it, behind the end card.
+## The legion marches west along the foot of a wheat field, on the grass between the wheat and a village.
+func _shot_field(sim: Sim) -> void:
+	var spot := _wheat_by_village(sim)
+	if spot.is_empty():
+		return
+	var f: Rect2 = spot[0]
+	_stand(sim, Vector2(f.end.x - 20.0, f.end.y + FIELD_SIDE), PI)
+	main.look_march = Vector2(-0.5, 0.0)
+
+
+## The legion stands on the grass beside a wheat field with no one about and no interface over it, behind the end card.
 func _shot_endcard(sim: Sim) -> void:
 	main.hud.visible = false
-	main.look_march = Vector2(0.3, 0.0)
 	_quiet(sim)
+	var area := Rect2(-2500, -2500, 5000, 5000)
+	var fields := sim.terrain.fields_in(area)
+	fields.sort_custom(func(f: Rect2, g: Rect2) -> bool: return f.get_center().length() < g.get_center().length())
+	var props := sim.terrain.props_in(area).filter(func(p: Array) -> bool: return p[2] > 0.0 or p[0] in ["roundhouse", "hedge"])
+	for f: Rect2 in fields:
+		var at := Vector2(f.position.x - END_SIDE, f.get_center().y)
+		# The card moves the field down by END_DROP, so more of the ground above the legion is in view.
+		var view := Rect2(at - Vector2(320.0, 180.0 + END_DROP), Vector2(640.0, 360.0))
+		if f.size.y >= 140.0 and sim.terrain.ravines_in(view).is_empty() and not props.any(func(p: Array) -> bool: return view.has_point(p[1])):
+			_stand(sim, at, 0.0)
+			break
+	main.look_march = Vector2.ZERO
+
+
+## The wheat field nearest the start with a village below it, across a strip of grass the legion can march along, as [field, a house].
+func _wheat_by_village(sim: Sim) -> Array:
+	var area := Rect2(-2500, -2500, 5000, 5000)
+	var houses: Array = sim.terrain.props_in(area).filter(func(p: Array) -> bool: return p[0] == "roundhouse")
+	var best: Array = []
+	for f: Rect2 in sim.terrain.fields_in(area):
+		for h in houses:
+			var at: Vector2 = h[1]
+			var gap := at.y - f.end.y
+			if at.x > f.position.x - 40.0 and at.x < f.end.x + 40.0 and gap > 180.0 and gap < 360.0:
+				if best.is_empty() or f.get_center().length() < (best[0] as Rect2).get_center().length():
+					best = [f, at]
+	return best
+
+
+## Stands the legion at p facing `angle`.
+func _stand(sim: Sim, p: Vector2, angle: float) -> void:
+	sim.commander.pos = p
+	sim.facing_angle = angle
+	sim.commander.facing = Vector2.from_angle(angle)
+	sim.legion.place_all(angle)
+	sim.terrain.refresh(p)
 
 
 ## Stops the run's own stream of barbarians and its bands, so only the staged ones are on the field, and holds the legion still.
