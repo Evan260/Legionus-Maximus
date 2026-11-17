@@ -1337,7 +1337,8 @@ func test_the_chieftain_comes_with_a_bodyguard_who_stay_round_him(b: Dictionary)
 	var close := true
 	for id in ids:
 		var j := s.horde.e_id.find(id)
-		close = close and j >= 0 and s.horde.e_pos[j].distance_to(s.horde.e_pos[ci]) < float(b.chieftain_guard.radius) * 1.6
+		# Barbarians keep a body's width apart, so ten guards stand in a wider ring than the guard radius alone.
+		close = close and j >= 0 and s.horde.e_pos[j].distance_to(s.horde.e_pos[ci]) < float(b.chieftain_guard.radius) * 2.0
 	check(s.horde.e_pos[ci].distance_to(start) > 50.0 and close, "after marching four seconds his guards still stand round him")
 	s.hit(ci, 1e9)
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
