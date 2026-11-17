@@ -35,6 +35,7 @@ extends Node
 ##   --province=ID      start the run in that province, for looking at it
 ##   --god=ID           with --autoplay, call that god at --god-at seconds (default 2) of the look; --god=choose fills the favour and holds the choice open
 ##   --seed=N           lay out the field and run from a fixed seed, so a look comes out the same every time
+##   --max-state        open every province, mode and commander with a million denarii, without reading or touching the real save
 ##   --trailer-shot=NAME  stage a trailer shot with tools/trailer/shots.gd
 
 var balance: Dictionary
@@ -76,6 +77,8 @@ func _ready() -> void:
 	content = Content.load_all(Content.available_art())
 	Steamworks.content = content
 	Profile.open_won_provinces(content)
+	if args.has("max-state"):
+		Profile.max_out(content)
 	Lang.changed.connect(_language_changed)
 	if args.has("chieftain-at"):
 		balance.chieftain_at = float(args["chieftain-at"])

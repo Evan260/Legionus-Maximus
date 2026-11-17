@@ -4,7 +4,7 @@ extends Node
 
 const DEFAULT_PATH := "user://profile.json"
 const NO_SAVE_FLAGS := ["run-tests", "bench", "autoplay", "skip", "shot", "at", "screen", "page", "text-size", "lang", "card", "hard", "endless", "decimatio",
-	"commander", "chieftain-at", "as-demo", "objectives-near", "boss", "boss-act", "god", "god-at", "give", "go-to", "hold-choice", "win-at", "timber"]
+	"commander", "chieftain-at", "as-demo", "objectives-near", "boss", "boss-act", "god", "god-at", "give", "go-to", "hold-choice", "win-at", "timber", "max-state"]
 
 const SETTING_DEFAULTS := {"master": 0.8, "music": 0.8, "effects": 0.8, "fullscreen": false, "shake": true, "numbers": true,
 	"text_size": 1, "bindings": {}, "language": ""}
@@ -251,6 +251,26 @@ func buy_commander(id: String, content: Content) -> bool:
 	data.unlocked.commanders.append(id)
 	save()
 	return true
+
+
+## Opens every drawn province with its modes, every commander and the whole codex, with denarii to spare, for --max-state; it is never saved.
+func max_out(content: Content) -> void:
+	data.denarii = 1000000
+	for p in content.provinces:
+		if not content.ready("provinces", p):
+			continue
+		if not province_unlocked(p):
+			data.unlocked.provinces.append(p)
+		var rec := record_of(p)
+		rec.won = true
+		rec.hard_won = true
+		data.records[p] = rec
+	for id in content.commanders:
+		if not data.unlocked.commanders.has(id):
+			data.unlocked.commanders.append(id)
+	for kind in Content.GROUPS.keys() + ["enemies", "commanders", "gods"]:
+		for id in content.get(kind):
+			data.seen[id] = true
 
 
 func province_unlocked(id: String) -> bool:
