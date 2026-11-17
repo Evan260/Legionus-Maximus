@@ -4055,7 +4055,7 @@ func test_the_start_objectives_and_fort_stay_clear_of_ravines(b: Dictionary) -> 
 	check(clear_fort, "no ravine cuts into the fort's clearing")
 
 
-## Whether a soldier can walk from the start to every objective and the fort without crossing a ravine or a rock, cutting through trees as the legion can.
+## Whether a soldier can walk from the start to every objective and the fort without crossing a ravine, a rock or a wheat field, cutting through trees as the legion can.
 func _reaches_everything(s: Sim) -> bool:
 	var goals: Array = []
 	for o in s.objectives.list:
@@ -4088,6 +4088,13 @@ func _reaches_everything(s: Sim) -> bool:
 			for gy in range(maxi(0, floori((pr[1].y - r - box.position.y) / cell)), mini(ny, ceili((pr[1].y + r - box.position.y) / cell))):
 				if (box.position + (Vector2(gx, gy) + Vector2(0.5, 0.5)) * cell).distance_to(pr[1]) < r:
 					blocked[gx + gy * nx] = 1
+	if not s.terrain.field.is_empty():
+		for rc in s.terrain.field_solids(s.terrain.fields_in(box)):
+			var body := Rect2(rc.x, rc.y, rc.z - rc.x, rc.w - rc.y).grow(Sim.UNIT_RADIUS)
+			for gx in range(maxi(0, floori((body.position.x - box.position.x) / cell)), mini(nx, ceili((body.end.x - box.position.x) / cell))):
+				for gy in range(maxi(0, floori((body.position.y - box.position.y) / cell)), mini(ny, ceili((body.end.y - box.position.y) / cell))):
+					if body.has_point(box.position + (Vector2(gx, gy) + Vector2(0.5, 0.5)) * cell):
+						blocked[gx + gy * nx] = 1
 	var seen := PackedByteArray()
 	seen.resize(nx * ny)
 	var start := floori(-box.position.x / cell) + floori(-box.position.y / cell) * nx
@@ -4127,6 +4134,19 @@ func test_the_legion_can_reach_every_objective_and_the_fort_past_the_ravines(b: 
 			stuck.append(900 + k)
 	check(ravines >= 30, "the runs tried have ravines round their objectives (%d)" % ravines)
 	check(stuck.is_empty(), "from the start the legion reaches every objective and the fort in every run (cut off in %s)" % str(stuck))
+
+
+func test_the_legion_can_reach_every_objective_and_the_fort_past_the_wheat(b: Dictionary) -> void:
+	var stuck: Array = []
+	var fields := 0
+	for k in 30:
+		var s := Sim.new(b, content, {"seed": 930 + k, "province": "gaul"})
+		s.objectives.raise_fort(s)
+		fields += s.terrain.fields_in(Rect2(-2400, -2400, 4800, 4800)).size()
+		if not _reaches_everything(s):
+			stuck.append(930 + k)
+	check(fields >= 60, "the Gaulish runs tried have wheat fields round their objectives (%d)" % fields)
+	check(stuck.is_empty(), "from the start the legion reaches every objective and the fort past the fields in every Gaulish run (cut off in %s)" % str(stuck))
 
 
 func test_the_legion_cannot_walk_into_a_ravine(b: Dictionary) -> void:
@@ -4785,20 +4805,16 @@ func test_gaul_is_farmland_with_villages_hedges_and_wheat(b: Dictionary) -> void
 	check(forest.has("oak") and not forest.has("wheat") and not forest.has("roundhouse") and g.fields_in(Rect2(-3000, -3000, 6000, 6000)).is_empty(), "Germania keeps its forest and has no fields")
 
 
-func test_hedges_and_villages_block_and_wheat_does_not(b: Dictionary) -> void:
+func test_hedges_and_villages_block(b: Dictionary) -> void:
 	var t := Terrain.new(903, b.forest, {})
 	t.field = b.fields.gaul
 	var hedge := Vector2.INF
 	var village := Vector2.INF
-	var wheat_solid := false
 	for pr in t.props_in(Rect2(-3000, -3000, 6000, 6000)):
 		if pr[0] == "hedge" and hedge == Vector2.INF:
 			hedge = pr[1]
 		elif pr[0] == "roundhouse" and village == Vector2.INF:
 			village = pr[1]
-		elif pr[0] == "wheat" and pr[2] > 0.0:
-			wheat_solid = true
-	check(not wheat_solid, "wheat never blocks")
 	check(hedge != Vector2.INF and village != Vector2.INF, "a hedge and a village were found")
 	t.refresh(hedge)
 	var at := hedge + Vector2(3, -6)
@@ -5765,11 +5781,14 @@ func test_a_war_band_runs_down_a_marching_legion(b: Dictionary) -> void:
 	check(camp.horde.e_slow[0] == 1.0, "an objective's defenders do not rush")
 
 
-func test_wheat_fields_are_open_ground_away_from_the_start(b: Dictionary) -> void:
+func test_wheat_fields_stand_away_from_the_start_with_lanes_between(b: Dictionary) -> void:
+	var lane := float(b.fields.gaul.field_lane)
+	var inset := float(b.fields.gaul.field_inset)
 	for seed_value in [1, 2, 3]:
 		var s := Sim.new(b, content, {"seed": seed_value, "province": "gaul"})
-		var fields := s.terrain.fields_in(Rect2(-2500, -2500, 5000, 5000))
-		check(not fields.is_empty(), "seed %d has wheat fields" % seed_value)
+		var area := Rect2(-2500, -2500, 5000, 5000)
+		var fields := s.terrain.fields_in(area)
+		check(fields.size() >= 4, "seed %d has wheat fields (%d)" % [seed_value, fields.size()])
 		var clear := true
 		var away := true
 		for f in fields:
@@ -5778,12 +5797,127 @@ func test_wheat_fields_are_open_ground_away_from_the_start(b: Dictionary) -> voi
 				var near := Vector2(clampf(c[0].x, f.position.x, f.end.x), clampf(c[0].y, f.position.y, f.end.y))
 				clear = clear and near.distance_to(c[0]) >= c[1]
 		check(away and clear, "no field covers the start or an objective's clearing (seed %d)" % seed_value)
-		if fields.is_empty():
-			continue
-		var mid: Vector2 = fields[0].get_center()
-		s.terrain.refresh(mid)
-		var p := s.terrain.push_out(mid, Sim.UNIT_RADIUS)
-		check(p == mid or s.terrain.props_in(Rect2(mid - Vector2(30, 30), Vector2(60, 60))).any(func(pr: Array) -> bool: return pr[2] > 0.0), "the legion walks through standing wheat")
+		# Parts of one field touch; two separate fields, and a field and a hedge or house, keep a lane the legion can march down.
+		var narrowest := INF
+		for f in fields:
+			var body: Rect2 = f.grow(-inset)
+			for g in fields:
+				if g != f and Terrain._rect_gap(f, g) > 0.5:
+					narrowest = minf(narrowest, Terrain._rect_gap(body, g.grow(-inset)))
+			for pr in s.terrain.props_in(f.grow(lane + 60.0)):
+				if pr[0] == "" and pr[2] > 0.0:
+					narrowest = minf(narrowest, Terrain._rect_gap(body, Rect2(pr[1], Vector2.ZERO)) - pr[2])
+		check(narrowest >= lane - 0.5, "every field keeps a lane of %.0f px from the next field, hedge or house (narrowest %.0f, seed %d)" % [lane, narrowest, seed_value])
+
+
+## A quiet Gaulish run on its own farmland, and the wheat field nearest the start that has no strip off its corner.
+func _wheat_sim(b: Dictionary, seed_value: int) -> Array:
+	var s := Sim.new(b, Content.with_all_art(), {"seed": seed_value, "province": "gaul"})
+	s.b = b.duplicate()
+	s.b.spawn_per_second_start = 0.0
+	s.b.spawn_per_second_growth = 0.0
+	s.horde.next_surge = 1e9
+	s.horde.next_band = 1e9
+	s.horde.next_cart = 1e9
+	s.horde.next_boss = 1e9
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	var fields := s.terrain.fields_in(Rect2(-2500, -2500, 5000, 5000))
+	var best := Rect2()
+	for f in fields:
+		var lone := fields.all(func(g: Rect2) -> bool: return g == f or Terrain._rect_gap(f, g) > 0.5)
+		if lone and (best.size == Vector2.ZERO or f.get_center().length() < best.get_center().length()):
+			best = f
+	return [s, best]
+
+
+## Stands the commander at p facing east, with his legion round him.
+func _stand_at(s: Sim, p: Vector2) -> void:
+	s.commander.pos = p
+	s.facing_angle = 0.0
+	s.legion.place_all(0.0)
+	s.terrain.refresh(p)
+	s.terrain.update_flow(p)
+
+
+func test_the_legion_cannot_walk_into_a_wheat_field(b: Dictionary) -> void:
+	var got := _wheat_sim(b, 1801)
+	var s: Sim = got[0]
+	var f: Rect2 = got[1]
+	check(f.size != Vector2.ZERO, "a wheat field lies near the start")
+	var inset := float(b.fields.gaul.field_inset)
+	var body := f.grow(-inset)
+	for k in 8:
+		s.add_soldier("legionary")
+	_stand_at(s, Vector2(f.position.x - 90.0, f.get_center().y))
+	var commander_in := false
+	var soldiers_in := false
+	var nearest := INF
+	for k in 10 * 60:
+		s.update(1.0 / 60.0, Vector2.RIGHT, false)
+		commander_in = commander_in or body.has_point(s.commander.pos)
+		nearest = minf(nearest, Terrain._rect_gap(body, Rect2(s.commander.pos, Vector2.ZERO)))
+		for so in s.soldiers:
+			soldiers_in = soldiers_in or body.has_point(so.pos)
+	check(not commander_in, "the commander marching at a field never enters it")
+	check(not soldiers_in, "nor do his soldiers")
+	check(nearest < Sim.UNIT_RADIUS + 2.0, "he comes right up to the wheat's ragged edge (%.0f px from its solid ground)" % nearest)
+	check(s.commander.pos.x > body.position.x, "and turns along its side rather than standing pressed against it")
+	_stand_at(s, Vector2(f.get_center().x, f.end.y + 30.0))
+	for k in 4 * 60:
+		s.update(1.0 / 60.0, Vector2(1.0, -0.4), false)
+	check(s.commander.pos.x > f.get_center().x + 60.0 and not body.has_point(s.commander.pos), "marching slantwise into it, he slides along its side")
+
+
+func test_a_barbarian_walks_round_a_wheat_field(b: Dictionary) -> void:
+	var got := _wheat_sim(b, 1802)
+	var s: Sim = got[0]
+	var f: Rect2 = got[1]
+	var body := f.grow(-float(b.fields.gaul.field_inset))
+	_stand_at(s, Vector2(f.get_center().x, f.end.y + 80.0))
+	check(not s.terrain.is_open(f.get_center()) and s.terrain.is_open(Vector2(f.get_center().x, f.end.y + 60.0)), "the route map closes the wheat and leaves the ground beside it open")
+	var i := s.horde.spawn(s.horde.ordinary[0], Vector2(f.get_center().x, f.position.y - 50.0))
+	var entered := false
+	var reached := false
+	for k in 30 * 60:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+		if i >= s.horde.e_pos.size():
+			break
+		entered = entered or body.has_point(s.horde.e_pos[i])
+		reached = reached or s.horde.e_pos[i].distance_to(s.commander.pos) < s.legion_reach + 30.0
+		if reached:
+			break
+	check(not entered, "a barbarian across a field never walks into the wheat")
+	check(reached, "he finds his way round it to the legion")
+
+
+func test_nothing_comes_onto_the_field_inside_the_wheat(b: Dictionary) -> void:
+	var got := _wheat_sim(b, 1803)
+	var s: Sim = got[0]
+	var f: Rect2 = got[1]
+	var body := f.grow(-float(b.fields.gaul.field_inset))
+	var mid := f.get_center()
+	_stand_at(s, mid + Vector2(0.0, float(b.spawn_radius) * 0.75))
+	var h := s.horde
+	var i := h.spawn(h.ordinary[0], mid)
+	check(not body.has_point(h.e_pos[i]), "a barbarian sent to the middle of a field arrives at its edge")
+	check(not body.has_point(h.open_point(mid)), "a newcomer's place is never in the wheat")
+	var ring_in := 0
+	for k in 300:
+		if body.has_point(h.ring_point()):
+			ring_in += 1
+	check(ring_in == 0, "none of the stream comes in inside the field (%d of 300)" % ring_in)
+	var far := h.spawn(h.ordinary[0], s.commander.pos + (s.commander.pos - mid).normalized() * (float(b.recycle_radius) + 40.0))
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(h.e_pos[far].distance_to(s.commander.pos) < float(b.recycle_radius) and not body.has_point(h.e_pos[far]), "a barbarian left behind comes round again beside the wheat, not in it")
+	var start := Sim.new(b, Content.with_all_art(), {"seed": 1804, "province": "gaul"})
+	var stuck := 0
+	for k in 600:
+		start.update(1.0 / 30.0, Vector2(1.0, 0.3), false)
+	for p in start.horde.e_pos:
+		if start.terrain.in_field(p):
+			stuck += 1
+	check(stuck == 0, "after twenty seconds of a run no barbarian stands in a field (%d)" % stuck)
 
 
 func test_a_legion_marching_in_a_loop_meets_a_band_across_it(b: Dictionary) -> void:

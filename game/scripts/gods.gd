@@ -224,6 +224,11 @@ func _quake(dt: float, sim: Sim) -> void:
 		if v == null:
 			continue
 		var to: Vector2 = h.e_pos[i] + v * dt
+		var held := sim.terrain.field_push(to, h.k_radius[h.e_kind[i]])
+		if held != to:
+			_thrown.erase(h.e_id[i])
+			h.e_pos[i] = held
+			continue
 		# A barbarian thrown over a ravine falls in; a boss is too heavy and stops at the lip.
 		if sim.terrain.over_ravine(to, 4.0):
 			_thrown.erase(h.e_id[i])

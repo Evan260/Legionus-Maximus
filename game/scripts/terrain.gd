@@ -63,9 +63,9 @@ var _queue := PackedInt32Array()
 var empty := false
 var _chunks := {}
 var _regions := {}
-# The wheat fields of each farmland region, as rectangles anyone can walk through, and those of the region being built.
+# The wheat fields of each farmland region, as rectangles, and each farmland region as first laid out.
 var _fields := {}
-var _new_fields: Array = []
+var _raw := {}
 var _buckets := {}
 var _extra_at := {}
 var _ready_to_fall: Array = []
@@ -83,6 +83,11 @@ var rv_seg := PackedVector4Array()
 var rv_half := PackedVector2Array()
 var rv_start := PackedInt32Array()
 var rv_items := PackedInt32Array()
+# The wheat fields near the commander as the solid rectangles (x0, y0, x1, y1) nobody may enter, and the grid cells listing them.
+const FIELD_REACH := 64.0
+var fd_rect := PackedVector4Array()
+var fd_start := PackedInt32Array()
+var fd_items := PackedInt32Array()
 
 
 func _init(run_seed: int, forest_cfg: Dictionary, ravines_cfg := {}) -> void:
@@ -167,6 +172,9 @@ func _blocks(centre: Vector2, gx: int, gy: int) -> bool:
 		var y0 := clampi(floori((minf(sg.y, sg.w) - reach - flow_origin.y) / FLOW_CELL), 0, FN - 1)
 		var y1 := clampi(floori((maxf(sg.y, sg.w) + reach - flow_origin.y) / FLOW_CELL), 0, FN - 1)
 		if gx >= x0 and gx <= x1 and gy >= y0 and gy <= y1 and _seg_edge(k, centre) < 8.0 and on_bridge(centre) < 0:
+			return true
+	for rc in fd_rect:
+		if _square_in_field(rc, centre.x, centre.y):
 			return true
 	return false
 
@@ -298,16 +306,14 @@ func _region(rx: int, ry: int) -> Array:
 	var key := Vector2i(rx, ry)
 	if _regions.has(key):
 		return _regions[key]
+	if not field.is_empty():
+		_regions[key] = _farmland(key)
+		return _regions[key]
 	var r := RandomNumberGenerator.new()
 	r.seed = hash([seed_value, "region", key])
 	var out: Array = []
 	var roll := r.randf()
 	var centre := (Vector2(rx, ry) + Vector2(r.randf_range(0.25, 0.75), r.randf_range(0.25, 0.75))) * REGION
-	if not field.is_empty():
-		_new_fields = []
-		_regions[key] = _farmland(r, roll, centre)
-		_fields[key] = _new_fields
-		return _regions[key]
 	if roll < float(forest.ridge_chance):
 		out = _ridge(r, centre)
 	elif roll < float(forest.ridge_chance) + float(forest.line_chance):
@@ -384,9 +390,35 @@ func _ridge(r: RandomNumberGenerator, centre: Vector2) -> Array:
 
 ## A farmland region holds a few villages with hedges off their sides and fields beside them, a hedgerow running east and west, or a large field of wheat.
 ## A piece of a feature that falls in a clearing or by a ravine takes its whole village or hedge bush with it, so nothing is left half solid.
-func _farmland(r: RandomNumberGenerator, roll: float, centre: Vector2) -> Array:
+func _farmland(key: Vector2i) -> Array:
+	var raw: Dictionary = _farm_raw(key)
+	var kept: Array = []
+	for g in raw.groups:
+		var ok := true
+		for p in g:
+			if p[1].length() <= clear_radius or _in_clearing(p[1]) or _by_ravine(p[1]):
+				ok = false
+				break
+		if ok:
+			kept.append_array(g)
+	var fields: Array = []
+	for parts in raw.fields:
+		fields.append_array(_placed_field(key, parts))
+	_fields[key] = fields
+	return kept
+
+
+## A farmland region as first laid out, before anything round it is weighed: {groups: the villages' and hedges' pieces, fields: each field's parts}.
+func _farm_raw(key: Vector2i) -> Dictionary:
+	if _raw.has(key):
+		return _raw[key]
+	var r := RandomNumberGenerator.new()
+	r.seed = hash([seed_value, "region", key])
+	var roll := r.randf()
+	var centre := (Vector2(key) + Vector2(r.randf_range(0.25, 0.75), r.randf_range(0.25, 0.75))) * REGION
 	var f := field
 	var groups: Array = []
+	var fields: Array = []
 	if roll < float(f.village_chance):
 		var n := r.randi_range(int(f.villages[0]), int(f.villages[1]))
 		var a0 := r.randf() * TAU
@@ -398,27 +430,95 @@ func _farmland(r: RandomNumberGenerator, roll: float, centre: Vector2) -> Array:
 			if r.randf() < float(f.village_hedge):
 				var side := 1.0 if r.randf() < 0.5 else -1.0
 				groups.append_array(_hedge_line(r, at + Vector2(side * float(f.village_reach), 0.0), side, r.randi_range(2, 4), false))
-		var built: Array = []
-		for g in groups:
-			for p in g:
-				built.append(p[1])
+		var reach: Array = f.village_field_reach
 		for k in r.randi_range(int(f.village_fields[0]), int(f.village_fields[1])):
-			_wheat_field(r, centre + Vector2.from_angle(r.randf() * TAU) * r.randf_range(170.0, 260.0), f.village_field_size, built)
+			for attempt in int(f.field_tries):
+				var parts := _fit_field(_wheat_field(r, centre + Vector2.from_angle(r.randf() * TAU) * r.randf_range(float(reach[0]), float(reach[1])), f.village_field_size), groups, fields)
+				if not parts.is_empty():
+					fields.append(parts)
+					break
 	elif roll < float(f.village_chance) + float(f.hedge_chance):
 		var length := r.randf_range(float(f.hedge_length[0]), float(f.hedge_length[1]))
 		groups.append_array(_hedge_line(r, centre - Vector2(length / 2.0, 0.0), 1.0, int(length / float(f.hedge_span)), r.randf() < float(f.gate_chance)))
 	elif roll < float(f.village_chance) + float(f.hedge_chance) + float(f.wheat_chance):
-		_wheat_field(r, centre, f.field_size)
-	var kept: Array = []
+		fields.append(_wheat_field(r, centre, f.field_size))
+	_raw[key] = {"groups": groups, "fields": fields}
+	return _raw[key]
+
+
+## A field cut back from every blocker of these groups and every one of these fields until a lane the legion can march down is left
+## round its solid ground, or [] when too little wheat would be left; a strip off its corner goes whole, or not at all.
+func _fit_field(parts: Array, groups: Array, fields: Array) -> Array:
+	var inset := float(field.field_inset)
+	var main: Rect2 = parts[0].grow(-inset)
+	var cut := _cut_back(main, groups, fields)
+	if cut.size == Vector2.ZERO:
+		return []
+	if cut != main or parts.size() == 1:
+		return [cut.grow(inset)]
+	var wing: Rect2 = parts[1].grow(-inset)
+	return parts if _cut_back(wing, groups, fields) == wing else [parts[0]]
+
+
+## A field's solid ground cut back, one side at a time and always the side that keeps the most, until it keeps the lane from everything given.
+func _cut_back(body: Rect2, groups: Array, fields: Array) -> Rect2:
+	var lane := float(field.field_lane)
+	var inset := float(field.field_inset)
+	var least: Array = field.field_least
+	var keep: Array = []
 	for g in groups:
-		var ok := true
 		for p in g:
-			if p[1].length() <= clear_radius or _in_clearing(p[1]) or _by_ravine(p[1]):
-				ok = false
-				break
-		if ok:
-			kept.append_array(g)
-	return kept
+			if p[2] > 0.0:
+				keep.append([Rect2(p[1], Vector2.ZERO), lane + p[2]])
+	for other in fields:
+		for o in other:
+			keep.append([o.grow(-inset), lane])
+	for k in keep:
+		var ob: Rect2 = k[0]
+		var gap: float = k[1]
+		if _rect_gap(body, ob) >= gap:
+			continue
+		var best := Rect2()
+		for c in [Rect2(Vector2(ob.end.x + gap, body.position.y), Vector2(body.end.x - ob.end.x - gap, body.size.y)),
+				Rect2(body.position, Vector2(ob.position.x - gap - body.position.x, body.size.y)),
+				Rect2(Vector2(body.position.x, ob.end.y + gap), Vector2(body.size.x, body.end.y - ob.end.y - gap)),
+				Rect2(body.position, Vector2(body.size.x, ob.position.y - gap - body.position.y))]:
+			var fits: bool = c.size.x + inset * 2.0 >= float(least[0]) and c.size.y + inset * 2.0 >= float(least[1])
+			if fits and body.encloses(c) and c.get_area() > best.get_area():
+				best = c
+		if best.size == Vector2.ZERO:
+			return Rect2()
+		body = best
+	return body
+
+
+## How far apart two rectangles are, 0 where they touch or overlap.
+static func _rect_gap(a: Rect2, b: Rect2) -> float:
+	var dx := maxf(0.0, maxf(a.position.x - b.end.x, b.position.x - a.end.x))
+	var dy := maxf(0.0, maxf(a.position.y - b.end.y, b.position.y - a.end.y))
+	return sqrt(dx * dx + dy * dy)
+
+
+## A region's field as it stands once the regions round it are weighed: cut back to keep a lane from their villages and hedges and from
+## the fields of the regions listed before it, and left out where it would touch the start, a clearing or a ravine.
+func _placed_field(key: Vector2i, parts: Array) -> Array:
+	var groups: Array = []
+	var fields: Array = []
+	for x in range(key.x - 2, key.x + 3):
+		for y in range(key.y - 2, key.y + 3):
+			var other := Vector2i(x, y)
+			if other == key:
+				continue
+			var raw: Dictionary = _farm_raw(other)
+			groups.append_array(raw.groups)
+			if y < key.y or (y == key.y and x < key.x):
+				fields.append_array(raw.fields)
+	var out := _fit_field(parts, groups, fields)
+	for part in out:
+		for q in [part.position, part.end, Vector2(part.position.x, part.end.y), Vector2(part.end.x, part.position.y), part.get_center()]:
+			if q.length() <= clear_radius + 40.0 or _in_clearing(q) or _by_ravine(q):
+				return []
+	return out
 
 
 ## One village: a cluster of roundhouses, each drawn with no solid of its own and made solid by unseen circles over its wall.
@@ -449,9 +549,9 @@ func _hedge_line(r: RandomNumberGenerator, from: Vector2, dir: float, count: int
 	return groups
 
 
-## A field of standing wheat centred on `at`, sized from [[least, most width], [least, most height]], sometimes with a second
-## strip off one corner so it reads as a worked field rather than a box; a field that would touch the start, a clearing or a ravine is left out.
-func _wheat_field(r: RandomNumberGenerator, at: Vector2, size: Array, built: Array = []) -> void:
+## A field of standing wheat centred on `at`, sized from [[least, most width], [least, most height]], as one rectangle or, sometimes,
+## with a second strip off one corner so it reads as a worked field rather than a box.
+func _wheat_field(r: RandomNumberGenerator, at: Vector2, size: Array) -> Array:
 	var w := snappedf(r.randf_range(float(size[0][0]), float(size[0][1])), 4.0)
 	var h := snappedf(r.randf_range(float(size[1][0]), float(size[1][1])), 4.0)
 	var parts: Array = [Rect2((at - Vector2(w, h) / 2.0).snapped(Vector2(4, 4)), Vector2(w, h))]
@@ -464,16 +564,7 @@ func _wheat_field(r: RandomNumberGenerator, at: Vector2, size: Array, built: Arr
 		var x := main.end.x if right else main.position.x - ww
 		var y := main.end.y - wh if down else main.position.y
 		parts.append(Rect2(x, y, ww, wh))
-	for part in parts:
-		for q in [part.position, part.end, Vector2(part.position.x, part.end.y), Vector2(part.end.x, part.position.y), part.get_center()]:
-			if q.length() <= clear_radius + 40.0 or _in_clearing(q) or _by_ravine(q):
-				return
-		# A field keeps clear of the villages and hedges it was laid out beside.
-		var room: Rect2 = part.grow(float(field.get("field_gap", 0.0)))
-		for p in built:
-			if room.has_point(p):
-				return
-	_new_fields.append_array(parts)
+	return parts
 
 
 ## Every wheat field that reaches into the rectangle.
@@ -530,6 +621,165 @@ func _in_clearing(p: Vector2) -> bool:
 	return false
 
 
+## The solid ground of these wheat fields as (x0, y0, x1, y1): each field drawn a little smaller, so its ragged edge can be brushed past,
+## and the strip off a field's corner reaching into the field it belongs to, so the two hold together with no seam between them.
+func field_solids(fields: Array) -> PackedVector4Array:
+	var inset := float(field.field_inset)
+	var join := inset + float(field.field_corner)
+	var out := PackedVector4Array()
+	for f: Rect2 in fields:
+		var x0 := f.position.x + inset
+		var y0 := f.position.y + inset
+		var x1 := f.end.x - inset
+		var y1 := f.end.y - inset
+		for g: Rect2 in fields:
+			if g == f:
+				continue
+			var along_y := f.position.y >= g.position.y - 0.5 and f.end.y <= g.end.y + 0.5
+			var along_x := f.position.x >= g.position.x - 0.5 and f.end.x <= g.end.x + 0.5
+			if along_y and absf(f.position.x - g.end.x) < 0.5:
+				x0 -= join
+			elif along_y and absf(f.end.x - g.position.x) < 0.5:
+				x1 += join
+			elif along_x and absf(f.position.y - g.end.y) < 0.5:
+				y0 -= join
+			elif along_x and absf(f.end.y - g.position.y) < 0.5:
+				y1 += join
+		out.append(Vector4(x0, y0, x1, y1))
+	return out
+
+
+## Lists the wheat fields' solid ground near the commander in every grid cell it could touch a unit or a boss from.
+func _grid_fields(area: Rect2) -> void:
+	fd_rect = PackedVector4Array() if field.is_empty() or empty else field_solids(fields_in(area))
+	fd_start.resize(GN * GN + 1)
+	fd_start.fill(0)
+	fd_items.clear()
+	if fd_rect.is_empty():
+		return
+	var cells: Array = []
+	cells.resize(GN * GN)
+	for i in cells.size():
+		cells[i] = PackedInt32Array()
+	for idx in fd_rect.size():
+		var rc := fd_rect[idx]
+		var x0 := clampi(floori((rc.x - FIELD_REACH - origin.x) / CELL), 0, GN - 1)
+		var x1 := clampi(floori((rc.z + FIELD_REACH - origin.x) / CELL), 0, GN - 1)
+		var y0 := clampi(floori((rc.y - FIELD_REACH - origin.y) / CELL), 0, GN - 1)
+		var y1 := clampi(floori((rc.w + FIELD_REACH - origin.y) / CELL), 0, GN - 1)
+		for gx in range(x0, x1 + 1):
+			for gy in range(y0, y1 + 1):
+				cells[gx + gy * GN].append(idx)
+	for i in cells.size():
+		fd_start[i] = fd_items.size()
+		fd_items.append_array(cells[i])
+	fd_start[GN * GN] = fd_items.size()
+
+
+## Whether a field's solid ground, a rectangle with rounded corners, covers any of the flow square centred on (cx, cy).
+func _square_in_field(rc: Vector4, cx: float, cy: float) -> bool:
+	var c := minf(float(field.field_corner), minf(rc.z - rc.x, rc.w - rc.y) / 2.0)
+	var dx := maxf(0.0, maxf(rc.x + c - cx, cx - rc.z + c) - FLOW_CELL / 2.0)
+	var dy := maxf(0.0, maxf(rc.y + c - cy, cy - rc.w + c) - FLOW_CELL / 2.0)
+	return dx * dx + dy * dy < c * c
+
+
+## Moves a circle out of one field's solid ground, a rectangle with rounded corners, the shortest way.
+func _out_of_rect(rc: Vector4, p: Vector2, r: float) -> Vector2:
+	var c := minf(float(field.field_corner), minf(rc.z - rc.x, rc.w - rc.y) / 2.0)
+	var x0 := rc.x + c
+	var y0 := rc.y + c
+	var x1 := rc.z - c
+	var y1 := rc.w - c
+	var qx := clampf(p.x, x0, x1)
+	var qy := clampf(p.y, y0, y1)
+	var dx := p.x - qx
+	var dy := p.y - qy
+	var d2 := dx * dx + dy * dy
+	var reach := c + r
+	if d2 >= reach * reach:
+		return p
+	if d2 > 0.000001:
+		var d := sqrt(d2)
+		return Vector2(qx + dx / d * reach, qy + dy / d * reach)
+	var left := p.x - x0
+	var right := x1 - p.x
+	var up := p.y - y0
+	var down := y1 - p.y
+	var least := minf(minf(left, right), minf(up, down))
+	if least == left:
+		return Vector2(x0 - reach, p.y)
+	if least == right:
+		return Vector2(x1 + reach, p.y)
+	if least == up:
+		return Vector2(p.x, y0 - reach)
+	return Vector2(p.x, y1 + reach)
+
+
+## The way along a wheat field's side for a man at p walking almost straight into it along `dir`: the way his step leans, or towards
+## the nearer end of the side when it leans neither way. Zero when no field stands in his way.
+func round_field(p: Vector2, r: float, dir: Vector2) -> Vector2:
+	if fd_rect.is_empty():
+		return Vector2.ZERO
+	var gx := floori((p.x - origin.x) / CELL)
+	var gy := floori((p.y - origin.y) / CELL)
+	if gx < 0 or gy < 0 or gx >= GN or gy >= GN:
+		return Vector2.ZERO
+	var cell := gx + gy * GN
+	for t in range(fd_start[cell], fd_start[cell + 1]):
+		var rc := fd_rect[fd_items[t]]
+		var out := _out_of_rect(rc, p, r + 1.0)
+		if out == p:
+			continue
+		var n := (out - p).normalized()
+		if n.dot(dir) > -0.9:
+			return Vector2.ZERO
+		var along := n.orthogonal()
+		var lean := along.dot(dir)
+		if absf(lean) > 0.05:
+			return along * signf(lean)
+		var mid := Vector2((rc.x + rc.z) / 2.0, (rc.y + rc.w) / 2.0)
+		return along if along.dot(mid - p) < 0.0 else -along
+	return Vector2.ZERO
+
+
+## Moves a circle out of the wheat fields near the commander; a second pass settles one pushed from a field into the strip joined to it.
+func field_push(p: Vector2, r: float) -> Vector2:
+	if fd_rect.is_empty():
+		return p
+	var gx := floori((p.x - origin.x) / CELL)
+	var gy := floori((p.y - origin.y) / CELL)
+	if gx < 0 or gy < 0 or gx >= GN or gy >= GN:
+		return p
+	var cell := gx + gy * GN
+	for k in 2:
+		var before := p
+		for t in range(fd_start[cell], fd_start[cell + 1]):
+			p = _out_of_rect(fd_rect[fd_items[t]], p, r)
+		if p == before:
+			break
+	return p
+
+
+## Moves a circle anywhere on the field out of the wheat, for placing things beyond the grid round the commander.
+func out_of_fields(p: Vector2, r: float) -> Vector2:
+	if field.is_empty() or empty:
+		return p
+	var solids := field_solids(fields_in(Rect2(p, Vector2.ZERO).grow(r + float(field.field_corner) + 40.0)))
+	for k in 3:
+		var before := p
+		for rc in solids:
+			p = _out_of_rect(rc, p, r)
+		if p == before:
+			break
+	return p
+
+
+## Whether a circle at p overlaps any wheat field's solid ground.
+func in_field(p: Vector2, r := 0.0) -> bool:
+	return out_of_fields(p, r) != p
+
+
 ## Rebuilds the grid of solid props around p when p has moved into another chunk; push_out only sees props in this grid.
 func refresh(p: Vector2) -> void:
 	var c := Vector2i(floori(p.x / CHUNK), floori(p.y / CHUNK))
@@ -578,6 +828,7 @@ func refresh(p: Vector2) -> void:
 				items[fill[cell]] = idx
 				fill[cell] += 1
 	_grid_ravines(area)
+	_grid_fields(area)
 	_mark_blocked()
 
 
@@ -619,6 +870,15 @@ func _mark_blocked() -> void:
 			for gy in range(y0, y1 + 1):
 				var centre := flow_origin + (Vector2(gx, gy) + Vector2(0.5, 0.5)) * FLOW_CELL
 				if blocked[gx + gy * FN] == 0 and _seg_edge(k, centre) < 8.0 and on_bridge(centre) < 0:
+					blocked[gx + gy * FN] = 1
+	for rc in fd_rect:
+		var x0 := clampi(floori((rc.x - flow_origin.x) / FLOW_CELL), 0, FN - 1)
+		var x1 := clampi(floori((rc.z - flow_origin.x) / FLOW_CELL), 0, FN - 1)
+		var y0 := clampi(floori((rc.y - flow_origin.y) / FLOW_CELL), 0, FN - 1)
+		var y1 := clampi(floori((rc.w - flow_origin.y) / FLOW_CELL), 0, FN - 1)
+		for gx in range(x0, x1 + 1):
+			for gy in range(y0, y1 + 1):
+				if _square_in_field(rc, cxs[gx], cys[gy]):
 					blocked[gx + gy * FN] = 1
 	_flow_goal = Vector2i(1 << 30, 0)
 
@@ -734,6 +994,8 @@ func push_out(p: Vector2, r: float, chop := 0.0) -> Vector2:
 			if chop > 0.0 and solid_tree[items[t]] == 1 and reach - d > 0.05:
 				_chop(Vector2(s.x, s.y), chop, chop)
 			p = Vector2(s.x, s.y) + (away / d if d > 0.001 else Vector2.RIGHT) * reach
+	if fd_start[cell] < fd_start[cell + 1]:
+		p = field_push(p, r)
 	if rv_start[cell] < rv_start[cell + 1]:
 		p = ravine_push(p, r)
 	return p
@@ -764,7 +1026,7 @@ func push_out_wide(p: Vector2, r: float) -> Vector2:
 				if d2 < reach * reach:
 					var d := sqrt(d2)
 					p = Vector2(s.x, s.y) + (away / d if d > 0.001 else Vector2.RIGHT) * reach
-	return ravine_push(p, r, true)
+	return ravine_push(field_push(p, r), r, true)
 
 
 ## Adds dt of chopping to the tree at at, `by_legion` of it done by the legion.

@@ -303,6 +303,8 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 	var since: float = owner_sim.endless_since if owner_sim != null else -1.0
 	if since >= 0.0 and tag != CHIEF:
 		hp *= 1.0 + float(b.endless.health_per_minute) * floorf((time - since) / float(b.endless.step_seconds))
+	if owner_sim != null:
+		pos = owner_sim.terrain.out_of_fields(pos, k_radius[kind])
 	e_id.append(next_id)
 	next_id += 1
 	e_pos.append(pos)
@@ -385,7 +387,7 @@ func open_point(p: Vector2) -> Vector2:
 		if owner.terrain.is_open(at):
 			return at
 		at = commander.pos + (p - commander.pos).rotated(0.2 * (k / 2 + 1) * (1 if k % 2 == 0 else -1))
-	return p
+	return owner.terrain.out_of_fields(p, Terrain.MAX_UNIT)
 
 
 ## An ordinary enemy for the stream: the first in the province's list most often, the rest more often as the run goes on.
@@ -1266,6 +1268,8 @@ func _move(dt: float, sim: Sim) -> void:
 	var t_solid := sim.terrain.solid
 	var t_tree := sim.terrain.solid_tree
 	var rv_start := sim.terrain.rv_start
+	var fd_start := sim.terrain.fd_start
+	var fields_near := not sim.terrain.fd_rect.is_empty()
 	var chop_rate: float = b.felling.barbarian_rate * dt
 	var t_cell := Terrain.CELL
 	var t_n := Terrain.GN
@@ -1540,6 +1544,20 @@ func _move(dt: float, sim: Sim) -> void:
 				# Inside a wood there is no gap to slide through, so he slips between the trunks along the route map out to open ground.
 				e_stuck[i] = -stuck_slip
 				e_detour[i] = maxf(e_detour[i], stuck_slip)
+		# Wheat holds everyone in the grid, near or far and even while slipping through trees, since a field is too wide to pop out of unseen.
+		if fields_near and gx >= 0 and gy >= 0 and gx < t_n and gy < t_n and fd_start[gx + gy * t_n] < fd_start[gx + gy * t_n + 1]:
+			var kept := sim.terrain.field_push(np, r)
+			if kept != np:
+				if dashing and k_rush_stun[kind] > 0.0:
+					e_dash[i] = 0.0
+					e_stun[i] = k_rush_stun[kind]
+				if v != Vector2.ZERO:
+					var out_of := (kept - np).normalized()
+					if e_detour[i] <= 0.0:
+						e_side[i] = 1 if Vector2(-out_of.y, out_of.x).dot(_route(p, to, sim)) >= 0.0 else -1
+					e_way[i] = out_of
+					e_detour[i] = detour_seconds
+				np = kept
 		# Every barbarian in the grid is held at a ravine's lip every other update, which is enough since one step is shorter than his radius.
 		if (i + frame) % 2 == 0 and gx >= 0 and gy >= 0 and gx < t_n and gy < t_n and rv_start[gx + gy * t_n] < rv_start[gx + gy * t_n + 1]:
 			var kept := sim.terrain.ravine_push(np, r, r > Terrain.MAX_UNIT)

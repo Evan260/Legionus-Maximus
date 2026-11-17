@@ -381,7 +381,9 @@ func _move_legion(dt: float, move: Vector2) -> void:
 	moving = move.length() > 0.15
 	if moving:
 		var dir := move.normalized() if move.length() > 1.0 else move
-		commander.pos += dir * speed() * dt
+		# Marching head-on into a wheat field, the legion turns along its edge rather than standing pressed against it.
+		var along := terrain.round_field(commander.pos + dir * speed() * dt, UNIT_RADIUS, dir.normalized())
+		commander.pos += (along * dir.length() if along != Vector2.ZERO else dir) * speed() * dt
 		facing_angle = lerp_angle(facing_angle, move.angle(), minf(1.0, dt * 5.0))
 		commander.facing = move.normalized()
 	commander.pos = terrain.push_out(commander.pos, UNIT_RADIUS, dt)

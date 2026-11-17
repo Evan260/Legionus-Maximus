@@ -218,7 +218,7 @@ func _go_to(kind: String) -> void:
 		if fields.is_empty():
 			return
 		fields.sort_custom(func(f: Rect2, g: Rect2) -> bool: return f.get_center().length() < g.get_center().length())
-		sim.commander.pos = fields[0].get_center()
+		sim.commander.pos = sim.terrain.out_of_fields(Vector2(fields[0].get_center().x, fields[0].end.y + 40.0), 60.0)
 		sim.legion.place_all(sim.facing_angle)
 		look_march = Vector2.ZERO
 		return

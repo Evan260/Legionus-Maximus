@@ -14,6 +14,8 @@ func _class(sim: Sim, i: int) -> String:
 	var tag := ("boss " if h.e_tag[i] != Horde.ORDINARY else "") + ("" if sim.terrain.is_open(p) else "closed ")
 	if sim.terrain.ravine_edge(p, 300.0) < r + 6.0:
 		return tag + "ravine"
+	if sim.terrain.in_field(p, r + 6.0):
+		return tag + "wheat"
 	for pr in sim.terrain.props_in(Rect2(p - Vector2(60, 60), Vector2(120, 120))):
 		if pr[2] > 0.0 and p.distance_to(pr[1]) < pr[2] + r + 6.0:
 			return tag + ("blocker" if pr[0] == "" else str(pr[0]))
