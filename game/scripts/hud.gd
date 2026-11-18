@@ -116,7 +116,8 @@ func _scene() -> void:
 		for b in bosses:
 			text(b.name, Vector2(b.rect.position.x, b.rect.position.y + Ui.px), GOLD_LIGHT)
 		if sim.triumph_left <= 0.0:
-			var avoid: Array = bosses.map(func(b: Dictionary) -> Rect2: return b.rect)
+			# The names' shading and the badges' glow reach past their rects, so the names keep a margin.
+			var avoid: Array = bosses.map(func(b: Dictionary) -> Rect2: return b.rect.grow(4.0))
 			var chief := chieftain_rect(sim)
 			if chief.has_area():
 				avoid.append(chief)
