@@ -5864,6 +5864,7 @@ func test_the_war_elephant_tramples_and_its_tower_shoots(b: Dictionary) -> void:
 	check(st.rush_warn > 0.0 and is_equal_approx(st.rush_len, float(cfg.length)), "it marks the line it will trample")
 	var arrows := h.sp_pos.size()
 	check(arrows == int(info.tower.arrows), "while the archers in its tower shoot")
+	check(s._tally_n[Sim.COUNTED.find("arrow")] == 1 and s._tally_n[Sim.COUNTED.find("kill")] == 0, "and the volley sounds as arrows, not as a death")
 	var before: Array = []
 	for u in s.soldiers:
 		before.append(u.pos)

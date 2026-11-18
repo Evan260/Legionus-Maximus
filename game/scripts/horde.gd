@@ -1659,7 +1659,7 @@ func _tower(i: int, cfg: Dictionary, sim: Sim) -> void:
 	var n := int(cfg.arrows)
 	for a in n:
 		_throw(p, aim.normalized().rotated((a - (n - 1) / 2.0) * float(cfg.spread)), float(cfg.damage) * e_power[i], 1)
-	sim.tally(1, p)
+	sim.tally(3, p)
 
 
 ## The shah's arrow storm: horse archers ride in to ring the legion, and while their quivers last their volleys fall on marked ground round it.
