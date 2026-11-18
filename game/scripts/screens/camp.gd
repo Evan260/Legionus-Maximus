@@ -7,6 +7,9 @@ const BOARDS := [["quartermaster", "Quartermaster"], ["tablinum", "Tablinum"], [
 ## Where the gilded statues of the triumphs stand: on the arch's top in the arch picture's pixels, then on the ground to its left.
 const STATUE_SPOTS := [Vector2(30, 22), Vector2(52, 18), Vector2(74, 22), Vector2(-16, 117), Vector2(-40, 117), Vector2(-28, 100), Vector2(-52, 100)]
 
+## The bottom left of the arch on the screen.
+const ARCH_FOOT := Vector2(96, 192)
+
 var main: Node
 var _arch: Texture2D
 var _statue: Texture2D
@@ -30,9 +33,14 @@ func sub_line(id: String) -> String:
 	return ""
 
 
+## The ground the arch and its statues stand on, as [centre, radius] from the camp's commander, cleared of props since the arch is drawn over the field.
+static func arch_clearing() -> Array:
+	return [ARCH_FOOT + Vector2(26, -2) - Vector2(Ui.W, Ui.H) / 2.0, 180.0]
+
+
 func draw(c: CanvasItem, ui: Ui) -> void:
 	var big := Ui.scale > 1
-	_monument(c, Vector2(96, 192 if not big else 186))
+	_monument(c, ARCH_FOOT - Vector2(0, 0 if not big else 6))
 	var plate := Color(0.12, 0.08, 0.06, 0.78)
 	var title := tr("The camp").to_upper()
 	var tw := Ui.width_at(title, Ui.px)

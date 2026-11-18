@@ -479,6 +479,9 @@ func _sample_profile() -> void:
 func _enter_camp(focus_id := "march") -> void:
 	camp_sim = Sim.new(balance, content, _run_options())
 	camp_sim.show_numbers = bool(Profile.setting("numbers"))
+	if Profile.rank("triumphal_arch") > 0:
+		var spot: Array = CampScreen.arch_clearing()
+		camp_sim.terrain.add_clearing(camp_sim.commander.pos + spot[0], spot[1], [])
 	world.sim = camp_sim
 	state = "camp"
 	ui.focus = focus_id
