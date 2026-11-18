@@ -3208,9 +3208,11 @@ func test_the_fort_is_a_walled_square_with_its_gate_towards_the_legion(b: Dictio
 	var on_wall := true
 	for pr in s.terrain.extras:
 		gate = gate or (pr[0] == "fort_gate" and pr[1] == fort.pos)
-		if pr[0] == "stake":
+		var walled: bool = absf(maxf(absf(pr[1].x - c.x), absf(pr[1].y - c.y)) - half) < 1.0
+		# The side walls draw only some of their stakes and block with unseen posts between them.
+		if pr[0] == "stake" or (pr[0] == "" and walled):
 			stakes += 1
-			on_wall = on_wall and pr[2] > 0.0 and absf(maxf(absf(pr[1].x - c.x), absf(pr[1].y - c.y)) - half) < 1.0
+			on_wall = on_wall and pr[2] > 0.0 and walled
 	check(gate, "the gate is the fort's entrance")
 	s.terrain.refresh(c)
 	check(stakes > int(8.0 * half / float(cfg.stake_gap)) - 12 and on_wall, "solid stakes run along all four walls (%d)" % stakes)

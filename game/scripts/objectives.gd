@@ -148,7 +148,9 @@ func raise_fort(sim: Sim) -> void:
 			# The south wall leaves the gate's width open; its towers close the rest.
 			if side == 2 and absf(at.x) < tx + tr + sr - 0.01 and at.y > 0.0:
 				continue
-			pieces.append(["stake", best + at, sr])
+			# A stake is taller than the gap, so down the east and west walls every second one is drawn and the rest only block.
+			var shown := side % 2 == 0 or k % 2 == 0
+			pieces.append(["stake" if shown else "", best + at, sr])
 	for edge in [-1.0, 1.0]:
 		pieces.append(["stake", foot + Vector2(edge * (tx + tr + sr * 0.5), 0.0), sr])
 	fort = {"pos": foot, "gate": foot + Vector2(0, -12), "centre": best, "half": half, "gate_half": tx - tr, "hold": 0.0, "seen": false, "entered": false}

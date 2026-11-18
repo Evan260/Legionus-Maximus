@@ -170,10 +170,6 @@ func _draw() -> void:
 				elif pr[0] == "fort_gate" and at.y > cam.y and Rect2(at - f[1], f[0].size).intersects(him):
 					mod = Color(1, 1, 1, 0.55)
 				_add(pr[1].y, f[0], at - f[1], mod)
-				if pr[0] == "stake" and _on_fort_side(at):
-					# The side walls are seen end on, so a second, staggered stake between each pair closes the gaps into a wall.
-					var mid: Vector2 = at + Vector2(2.0 if int(at.y) % 2 == 0 else -2.0, float(sim.b.fort.stake_gap) / 2.0)
-					_add(mid.y, f[0], mid - f[1], mod)
 	if not sim.terrain.posts.is_empty():
 		var sf := atlas.prop_frame("stake")
 		var fade := float(sim.b.palisade.fade)
@@ -770,16 +766,6 @@ func _draw_fort_ring(view: Rect2) -> void:
 	var fort: Dictionary = sim.objectives.fort
 	if not fort.is_empty() and not sim.objectives.fort_reached and view.grow(120.0).has_point(fort.centre):
 		_hold_ring(fort.centre, float(fort.half) * 0.7, float(fort.hold) / float(sim.b.fort.hold))
-
-
-## True for a stake of the fort's east or west wall, below its north corner.
-func _on_fort_side(at: Vector2) -> bool:
-	var fort: Dictionary = sim.objectives.fort
-	if fort.is_empty():
-		return false
-	var half := float(fort.half)
-	var d: Vector2 = at - fort.centre
-	return absf(absf(d.x) - half) < 0.5 and d.y < half - 0.5
 
 
 ## A faint ring round a place to hold, filling clockwise from the top as the hold goes on.
