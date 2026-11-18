@@ -115,7 +115,11 @@ func _scene() -> void:
 		for b in bosses:
 			text(b.name, Vector2(b.rect.position.x, b.rect.position.y + Ui.px), GOLD_LIGHT)
 		if sim.triumph_left <= 0.0:
-			_objective_arrows(sim, bosses.map(func(b: Dictionary) -> Rect2: return b.rect))
+			var avoid: Array = bosses.map(func(b: Dictionary) -> Rect2: return b.rect)
+			var chief := chieftain_rect(sim)
+			if chief.has_area():
+				avoid.append(chief)
+			_objective_arrows(sim, avoid)
 	_god_banner(sim)
 	_victory_banner(sim)
 	if choosing:
@@ -301,6 +305,22 @@ func _health(sim: Sim) -> void:
 	draw_rect(Rect2(r.position, Vector2(roundf(r.size.x * share), 1)), fill.lightened(0.35))
 	var label := "%d / %d" % [ceili(c.hp), ceili(c.max_hp)]
 	text(label, Vector2(r.position.x, r.end.y - 2.0), CREAM, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
+
+
+## The chieftain's sprite on screen in screen pixels, so the objective badges stand clear of him; empty when he is not alive.
+func chieftain_rect(sim: Sim) -> Rect2:
+	var h: Horde = sim.horde
+	var ci := h.chieftain_index()
+	if ci < 0:
+		return Rect2()
+	var atlas: Atlas = main.world.atlas
+	var type: String = h.kind_ids[h.e_kind[ci]]
+	var size := Vector2(112, 112)
+	if atlas != null and atlas.units.has(type):
+		var f: Array = atlas.units[type].idle.south.frames[0]
+		size = Vector2(f[2], f[3])
+	var p: Vector2 = h.e_pos[ci] - sim.commander.pos + Ui.view / 2.0
+	return Rect2(p - Vector2(size.x / 2.0, size.y), size).intersection(Rect2(Vector2.ZERO, Ui.view))
 
 
 ## Each elite's name over his head, as {name, rect} in screen pixels, drawn here so it follows the text size.
@@ -551,6 +571,9 @@ func _objective_arrows(sim: Sim, avoid: Array) -> void:
 	var view := Ui.view
 	var big := Ui.scale > 1
 	var top := 16.0 + 8.0 * Ui.scale + (22.0 if big else 11.0)
+	# The chieftain's name and health bar run under the clock, so the badges start below them.
+	if sim.horde.chieftain_index() >= 0:
+		top += 12.0
 	var note: Dictionary = sim.objectives.notice
 	var lines: Array = []
 	var spot := Rect2()
