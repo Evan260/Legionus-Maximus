@@ -171,14 +171,14 @@ func _chieftain_line(sim: Sim, W: float, y1: float, big: bool) -> void:
 	var ci := sim.horde.chieftain_index()
 	var y3 := y1 + (11.0 if not big else 22.0)
 	if ci >= 0:
-		text(tr("The chieftain").to_upper(), Vector2(0, y3), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
+		text(chief_name(sim).to_upper(), Vector2(0, y3), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
 		draw_rect(Rect2(W / 2 - 101, y3 + 4, 202, 6), INK)
 		draw_rect(Rect2(W / 2 - 100, y3 + 5, 200 * clampf(sim.horde.e_hp[ci] / sim.horde.e_max[ci], 0, 1), 4), RED)
 	elif sim.endless and sim.endless_since >= 0.0:
 		var extra := int(sim.endless_seconds())
 		text((tr("Endless  +%d:%02d") % [extra / 60, extra % 60]).to_upper(), Vector2(0, y3), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
 	elif sim.time > float(sim.b.chieftain_at) - 30.0 and sim.horde.chieftain_id == -1:
-		text(tr("The chieftain is coming"), Vector2(0, y3), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
+		text((tr("The %s is coming") % chief_name(sim)).to_upper(), Vector2(0, y3), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
 
 
 ## The logs of timber the legion carries, above the testudo's name, gold once there are enough for a palisade, and the notice when there are not.
@@ -307,6 +307,12 @@ func _health(sim: Sim) -> void:
 	text(label, Vector2(r.position.x, r.end.y - 2.0), CREAM, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
 
 
+## The name of this province's last enemy (the war chief, a king, the shah or the queen), as the HUD calls him.
+func chief_name(sim: Sim) -> String:
+	var kind: String = sim.horde.chief_kind if sim.horde.chief_kind != "" else "chieftain"
+	return str(sim.content.enemies[kind].name)
+
+
 ## The chieftain's sprite on screen in screen pixels, so the objective badges stand clear of him; empty when he is not alive.
 func chieftain_rect(sim: Sim) -> Rect2:
 	var h: Horde = sim.horde
@@ -380,7 +386,7 @@ func _victory_banner(sim: Sim) -> void:
 	draw_string(Ui.font(), Vector2(0, y + Ui.leading() + Ui.px * 0.6), line.to_upper(), HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x, Ui.px, Color(CREAM, a))
 
 
-func _notice_text(kind: String) -> String:
+func _notice_text(kind: String, sim: Sim) -> String:
 	match kind:
 		"camp":
 			return tr("The eagle is ours again")
@@ -389,9 +395,9 @@ func _notice_text(kind: String) -> String:
 		"grove":
 			return tr("The sacred grove burns")
 		"chieftain":
-			return tr("The chieftain falls: now hold the fort")
+			return tr("The %s falls: now hold the fort") % chief_name(sim)
 		"roar":
-			return tr("The chieftain roars in fury")
+			return tr("The %s roars in fury") % chief_name(sim)
 		"ravine":
 			return tr("Fell trees for timber, then bridge the ravine at its edge")
 	return tr("A Roman fort is in sight: hold it")
@@ -578,7 +584,7 @@ func _objective_arrows(sim: Sim, avoid: Array) -> void:
 	var lines: Array = []
 	var spot := Rect2()
 	if not note.is_empty() and sim.time - float(note.at) < float(note.get("seconds", sim.b.objectives.notice_seconds)):
-		lines = Ui.lines_of(_notice_text(note.kind).to_upper(), view.x - 24.0)
+		lines = Ui.lines_of(_notice_text(note.kind, sim).to_upper(), view.x - 24.0)
 		var nw := 0.0
 		for line in lines:
 			nw = maxf(nw, Ui.width_at(line, Ui.px))

@@ -2965,6 +2965,54 @@
       "ko": "Testudo 더 오래 버틴다.",
       "zh_CN": "Testudo能坚持更久。",
       "zh_TW": "Testudo能撐得更久。"
+    },
+    "The %s is coming": {
+      "en": "The %s is coming",
+      "fr": "%s arrive",
+      "de": "%s kommt",
+      "es": "%s se acerca",
+      "it": "%s sta arrivando",
+      "pt_BR": "%s está chegando",
+      "pl": "%s nadchodzi",
+      "tr": "%s geliyor",
+      "ru": "%s идёт",
+      "uk": "%s іде",
+      "ja": "%sが来る",
+      "ko": "%s 접근 중",
+      "zh_CN": "%s来了",
+      "zh_TW": "%s來了"
+    },
+    "The %s falls: now hold the fort": {
+      "en": "The %s falls: now hold the fort",
+      "fr": "%s tombe : tenez maintenant le fort",
+      "de": "%s fällt: jetzt haltet die Stellung",
+      "es": "%s cae: ahora defiende el fuerte",
+      "it": "%s cade: ora tieni il forte",
+      "pt_BR": "%s cai: agora defenda o forte",
+      "pl": "%s upada: teraz utrzymaj fort",
+      "tr": "%s düştü: şimdi kaleyi tut",
+      "ru": "%s падает: теперь удержите форт",
+      "uk": "%s падає: тепер утримайте форт",
+      "ja": "%sが倒れた: 今こそ砦を守れ",
+      "ko": "%s 쓰러짐: 이제 요새를 지켜라",
+      "zh_CN": "%s倒下了：现在守住堡垒",
+      "zh_TW": "%s倒下了：現在守住堡壘"
+    },
+    "The %s roars in fury": {
+      "en": "The %s roars in fury",
+      "fr": "%s rugit de fureur",
+      "de": "%s brüllt vor Wut",
+      "es": "%s ruge de furia",
+      "it": "%s ruggisce di furia",
+      "pt_BR": "%s ruge de fúria",
+      "pl": "%s ryczy z wściekłości",
+      "tr": "%s öfkeyle kükrüyor",
+      "ru": "%s рычит в ярости",
+      "uk": "%s реве в люті",
+      "ja": "%sが怒りの咆哮を上げる",
+      "ko": "%s 분노의 포효",
+      "zh_CN": "%s愤怒地咆哮",
+      "zh_TW": "%s憤怒地咆哮"
     }
   }
 }
