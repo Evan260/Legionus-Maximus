@@ -137,10 +137,13 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	var cap_y := top + brow * (BARS + 1) + 8.0
 	var gained: Array = unlocks(main.profile_at_start, Profile.data, main.content, sim.province) if not main.profile_at_start.is_empty() else []
 	if not gained.is_empty():
-		cap_y = _unlocked(c, ui, gained, Rect2(lx, cap_y - 2.0, r.size.x - 24.0, 0.0)) + 8.0
+		var room := r.end.y - (30.0 if s > 1 else 22.0) - 14.0 - 6.0 - (40.0 if s == 1 else 0.0) - (cap_y - 2.0) - 8.0
+		cap_y = _unlocked(c, ui, gained, Rect2(lx, cap_y - 2.0, r.size.x - 24.0, room)) + 8.0
 	var h := 30.0 if s > 1 else 22.0
 	var chart := Rect2(lx, cap_y + 6.0, r.size.x - 24.0, r.end.y - h - 14.0 - (cap_y + 6.0))
-	_chart(c, ui, sim, chart, cap_y)
+	# With large text and a long unlock list there is no room left for the chart, so it is left out rather than crushed.
+	if chart.size.y >= 30.0 * s:
+		_chart(c, ui, sim, chart, cap_y)
 	var bw := button_width()
 	ui.button(c, Rect2(r.end.x - 12.0 - 2.0 * bw - 8.0, r.end.y - h - 6.0, bw, h), "camp", tr("Camp").to_upper(), "", true, null, true)
 	ui.button(c, Rect2(r.end.x - 12.0 - bw, r.end.y - h - 6.0, bw, h), "title", tr("Title").to_upper(), "", true, null, true)
@@ -149,21 +152,33 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 		ui.button(c, Rect2(r.end.x - 12.0 - 2.0 * bw - 16.0 - wide, r.end.y - h - 6.0, wide, h), "wishlist", tr("Wishlist").to_upper(), "", true, null, true)
 
 
-## The gold band of what the run unlocked, each with its picture, appearing one after another; returns the y below it.
+## The gold band of what the run unlocked, each with its picture, appearing one after another, kept within `area`'s height; returns the y below it.
 func _unlocked(c: CanvasItem, ui: Ui, gained: Array, area: Rect2) -> float:
 	var s := Ui.scale
 	var pic := 16.0 * s
-	var cols := 2
-	var col_w := floorf(area.size.x / cols)
 	var row_h := pic + 4.0
-	var rows := ceili(gained.size() / float(cols))
+	var fit_rows := maxi(1, floori((area.size.y - Ui.leading() - 8.0) / row_h))
+	# A long list spreads into three columns, and past that the last place says how many more there are.
+	var cols := 2 if gained.size() <= fit_rows * 2 else 3
+	var col_w := floorf(area.size.x / cols)
+	var shown := gained
+	var more := 0
+	if gained.size() > fit_rows * cols:
+		shown = gained.slice(0, fit_rows * cols - 1)
+		more = gained.size() - shown.size()
+	var rows := ceili((shown.size() + (1 if more > 0 else 0)) / float(cols))
 	var band := Rect2(area.position.x, area.position.y, area.size.x, Ui.leading() + rows * row_h + 8.0)
 	c.draw_rect(band.grow(1), Ui.GOLD)
 	c.draw_rect(band, Color(0.24, 0.15, 0.1))
 	c.draw_rect(Rect2(band.position, Vector2(band.size.x, 1)), Ui.GOLD_LIGHT)
 	ui.text(c, tr("Unlocked").to_upper(), Vector2(band.position.x + 6.0, band.position.y + 2.0 + Ui.px), Ui.GOLD_LIGHT)
 	var age: float = main.clock - main.opened_at
-	for k in gained.size():
+	if more > 0:
+		var k_more := shown.size()
+		var at_more := Vector2(band.position.x + 6.0 + (k_more % cols) * col_w, band.position.y + Ui.leading() + 4.0 + (k_more / cols) * row_h)
+		var a_more := clampf((age - k_more * UNLOCK_STEP) * 4.0, 0.0, 1.0)
+		ui.fit_text(c, tr("And %d more") % more, col_w - 10.0, at_more + Vector2(0, pic / 2.0 + Ui.px * 0.4), Color(Ui.GOLD_LIGHT, a_more))
+	for k in shown.size():
 		var a := clampf((age - k * UNLOCK_STEP) * 4.0, 0.0, 1.0)
 		if a <= 0.0:
 			continue
@@ -172,8 +187,8 @@ func _unlocked(c: CanvasItem, ui: Ui, gained: Array, area: Rect2) -> float:
 		var lift := (1.0 - a) * 4.0
 		var box := Rect2(at + Vector2(0, lift), Vector2(pic, pic))
 		c.draw_rect(box.grow(1), Color(Ui.GOLD, a))
-		_unlock_picture(c, ui, gained[k], box, a)
-		ui.fit_text(c, str(gained[k].text), col_w - pic - 14.0, Vector2(box.end.x + 5.0, box.position.y + pic / 2.0 + Ui.px * 0.4), Color(Ui.CREAM, a))
+		_unlock_picture(c, ui, shown[k], box, a)
+		ui.fit_text(c, str(shown[k].text), col_w - pic - 14.0, Vector2(box.end.x + 5.0, box.position.y + pic / 2.0 + Ui.px * 0.4), Color(Ui.CREAM, a))
 	return band.end.y
 
 
