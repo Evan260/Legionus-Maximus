@@ -39,6 +39,15 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	for id in ids:
 		var b: Dictionary = Ui.block(content.commanders[id].text, text_w, 2)
 		extra = maxf(extra, (mini(b.lines, 2) - 1) * Ui.lead_for(b.size))
+	# A lock tag too long for the name's line gets a line of its own under the name, and then every row makes room for it.
+	var tag_line := false
+	for id in ids:
+		var info: Dictionary = content.commanders[id]
+		if not Profile.commander_unlocked(id):
+			var room: float = r.size.x - 24.0 - Ui.width_at(str(info.name).to_upper(), Ui.px) - 32.0
+			tag_line = tag_line or Ui.width_at(locked_tag(info, content).to_upper(), Ui.px) > room
+	if tag_line:
+		extra += Ui.leading()
 	var h := (40.0 if Ui.scale == 1 else 58.0) + extra
 	var step := h + 4.0
 	var visible := int((r.size.y - 36.0) / step)
@@ -64,4 +73,9 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 		if open:
 			tag = tr("Chosen").to_upper() if main.run_setup.commander == id else ""
 		if tag != "":
-			ui.fit_text(c, tag, rect.size.x - 150, Vector2(0, rect.position.y + 8 + 8 * Ui.scale), (Color(0.2, 0.45, 0.15) if affordable else Ui.RED) if not open else Ui.BROWN, HORIZONTAL_ALIGNMENT_RIGHT, rect.end.x - 8)
+			var tag_col: Color = (Color(0.2, 0.45, 0.15) if affordable else Ui.RED) if not open else Ui.BROWN
+			var name_y: float = rect.position.y + 8 + 8 * Ui.scale
+			if tag_line and not open:
+				ui.fit_text(c, tag, rect.size.x - 16, Vector2(rect.position.x + 8, name_y + Ui.leading()), tag_col)
+			else:
+				ui.fit_text(c, tag, rect.size.x - 150, Vector2(0, name_y), tag_col, HORIZONTAL_ALIGNMENT_RIGHT, rect.end.x - 8)
