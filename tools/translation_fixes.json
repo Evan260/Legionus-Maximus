@@ -2552,6 +2552,57 @@
     "content.achievements.win_germania.name": {
       "en": "Victory in Germania",
       "tr": "Germanya'da zafer"
+    },
+    "Win in %s": {
+      "en": "Win in %s",
+      "fr": "Gagnez en %s",
+      "de": "Siege in %s",
+      "es": "Gana en %s",
+      "it": "Vinci in %s",
+      "pt_BR": "Vença em %s",
+      "pl": "Wygraj w prowincji %s",
+      "tr": "%s eyaletinde kazan",
+      "ru": "Победите в провинции %s",
+      "uk": "Переможіть у провінції %s",
+      "ja": "%sで勝利する",
+      "ko": "%s에서 승리",
+      "zh_CN": "在%s获胜",
+      "zh_TW": "在%s獲勝"
+    },
+    "Win in every province": {
+      "en": "Win in every province",
+      "fr": "Gagnez dans chaque province",
+      "de": "Siege in jeder Provinz",
+      "es": "Gana en todas las provincias",
+      "it": "Vinci in ogni provincia",
+      "pt_BR": "Vença em todas as províncias",
+      "pl": "Wygraj w każdej prowincji",
+      "tr": "Her eyalette kazan",
+      "ru": "Победите во всех провинциях",
+      "uk": "Переможіть у всіх провінціях",
+      "ja": "すべての属州で勝利する",
+      "ko": "모든 속주에서 승리",
+      "zh_CN": "在每个行省获胜",
+      "zh_TW": "在每個行省獲勝"
+    },
+    "%s, or %d denarii": {
+      "en": "%s, or %d denarii",
+      "de": "%s oder %d Denare",
+      "pl": "%s lub %d denarów",
+      "tr": "%s ya da %d denari",
+      "uk": "%s, або %d денаріїв",
+      "ja": "%s、または%dデナリウス",
+      "ko": "%s 또는 %d 데나리우스",
+      "zh_CN": "%s，或 %d 银币",
+      "zh_TW": "%s，或 %d 銀幣"
+    },
+    "Defeat %d barbarians in total": {
+      "en": "Defeat %d barbarians in total",
+      "fr": "Vainquez %d barbares au total",
+      "ru": "Одолейте всего %d варваров",
+      "uk": "Здолайте загалом %d варварів",
+      "zh_CN": "共击败 %d 名野蛮人",
+      "zh_TW": "共擊敗 %d 名野蠻人"
     }
   }
 }
