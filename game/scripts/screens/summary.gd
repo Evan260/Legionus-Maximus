@@ -230,13 +230,7 @@ func _unlock_picture(c: CanvasItem, ui: Ui, u: Dictionary, box: Rect2, a: float)
 				c.draw_texture_rect_region(atlas.texture, Rect2(box.get_center() - size / 2.0 + Vector2(0, -1), size), src, tint)
 		_:
 			c.draw_rect(box, Color(0.36, 0.22, 0.12, a))
-			var mid := box.get_center()
-			for side in [-1.0, 1.0]:
-				for i in 6:
-					var ang := deg_to_rad(120.0 + 20.0 * i)
-					var p := mid + Vector2(cos(ang) * side, -sin(ang)) * box.size.x * 0.33
-					c.draw_rect(Rect2(floorf(p.x) - 1.0, floorf(p.y) - 1.0, 2, 2), Color(Ui.GOLD if i % 2 == 0 else Ui.GOLD_LIGHT, a))
-			c.draw_rect(Rect2(mid.x - 1.5, mid.y - 1.5, 3, 3), Color(Ui.RED if u.kind == "achievement" else Ui.CREAM, a))
+			c.draw_texture_rect(Hud.LAUREL, box, false, tint)
 
 
 func _bars(c: CanvasItem, ui: Ui, sim: Sim, area: Rect2, row: float) -> void:

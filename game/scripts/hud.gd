@@ -3,6 +3,7 @@ extends Node2D
 ## Everything drawn over the field: the top bar, the testudo charge, the favour of the gods, the chieftain's health and the level-up and god choices.
 ## The title, pause, summary, settings and camp are screens drawn through the shared Ui.
 
+const LAUREL := preload("res://assets/icons/laurel.png")
 const W := 640.0
 const H := 360.0
 const INK := Color(0.16, 0.1, 0.08)
@@ -92,7 +93,8 @@ func _card() -> void:
 	var slide := Steamworks.card_slide()
 	var r := Rect2(lerpf(W + 2.0, W - 6.0 - w, slide), 44.0 if not big else 68.0, w, h)
 	panel(r)
-	_laurel(r.position + Vector2(18.0, h / 2.0))
+	var wreath: Texture2D = LAUREL
+	draw_texture(wreath, (r.position + Vector2(18.0, h / 2.0) - wreath.get_size() / 2.0).round())
 	var tx := r.position.x + 34.0
 	ui.fit_text(self, tr("Achievement").to_upper(), room, Vector2(tx, r.position.y + 6.0 + Ui.px * 3 / 4), BROWN_TEXT)
 	ui.wrap_fit(self, str(card.name).to_upper(), Vector2(tx, r.position.y + 6.0 + Ui.px * 3 / 4 + Ui.leading()), room, INK, 2)
