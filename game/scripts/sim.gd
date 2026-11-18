@@ -886,7 +886,8 @@ func _kill(i: int) -> void:
 	if horde.e_id[i] == horde.chieftain_id:
 		# His death wins only once the fort has been on screen; before that the legion still has to hold the fort.
 		if objectives.fort_seen():
-			win(horde.e_pos[i])
+			if not victory:
+				win(horde.e_pos[i])
 		else:
 			objectives.notice = {"kind": "chieftain", "at": time}
 	horde.remove_at(i)

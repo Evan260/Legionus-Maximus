@@ -468,6 +468,19 @@ func test_the_chieftain_comes_and_his_death_wins(b: Dictionary) -> void:
 	check(s.over and s.victory, "once the fort has been seen, his death ends the run in victory, after its triumph")
 
 
+func test_the_chieftain_killed_by_the_triumph_does_not_win_again(b: Dictionary) -> void:
+	var s := Sim.new(b, content, {"seed": 13})
+	s.time = float(b.chieftain_at) - 0.01
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	s.objectives.fort.seen = true
+	s.win(s.commander.pos)
+	s.events.clear()
+	s.triumph_left = 1.0
+	s._kill(s.chieftain_index())
+	var again := s.events.filter(func(e): return e.kind == "victory").size()
+	check(again == 0 and is_equal_approx(s.triumph_left, 1.0), "the chieftain dying in the triumph after a held fort does not play the win again")
+
+
 func test_the_commanders_death_loses(b: Dictionary) -> void:
 	var s := Sim.new(b, content, {"seed": 14})
 	s.commander.hp = 0.0
