@@ -202,7 +202,7 @@
  "arms": {
   "pilum": {
    "name": "Pilum volley",
-   "text": "Legionaries throw pila at the nearest enemies every few seconds.",
+   "text": "A few legionaries throw pila at the nearest enemies every few seconds.",
    "history": "The pilum's soft iron shank bent on impact, so the enemy could not throw it back.",
    "more": "More pila, thrown more often, that hit harder and pass through.",
    "max": 5,
@@ -225,7 +225,7 @@
   },
   "scorpio": {
    "name": "Scorpio",
-   "text": "A bolt thrower shoots the strongest enemy in range, through everyone in its way.",
+   "text": "A bolt thrower shoots the strongest enemy in range, through up to six in its way.",
    "history": "The scorpio was a small, precise bolt thrower that could pierce armour at long range.",
    "more": "Heavier bolts, loosed more often.",
    "max": 5,
@@ -357,7 +357,7 @@
   "greek_fire": {
    "name": "Greek fire",
    "text": "Burning arrows and fire pots become a fire water cannot put out.",
-   "history": "Roman-era fire weapons of pitch and naphtha kept burning on water, and their recipes were kept secret.",
+   "history": "Fire weapons of pitch and naphtha are ancient; Byzantine Greek fire burned on water, its recipe kept secret.",
    "from": [
     "fire_arrows",
     "fire_pots"
@@ -580,8 +580,8 @@
   },
   "barbarian_spear": {
    "name": "Spearman",
-   "text": "He keeps just out of a sword's reach, and does not tire.",
-   "history": "The framea, a short spear, was the Germanic warrior's main weapon, used in a thrust or a throw.",
+   "text": "A spearman of the forest tribes, slower than the club warriors but harder to bring down.",
+   "history": "The framea, a spear with a short narrow blade, was the Germanic warrior's main weapon, thrust or thrown.",
    "behaviour": "melee",
    "hp": 30,
    "speed": 40,
@@ -595,7 +595,7 @@
   "axe_thrower": {
    "name": "Axe thrower",
    "text": "He stops at a distance and throws hand axes at the legion.",
-   "history": "Throwing axes were common in Germanic war bands, and were thrown just before closing in.",
+   "history": "Tacitus says Germanic foot warriors each carried several missiles, and hurled them a great distance.",
    "behaviour": "ranged",
    "hp": 24,
    "speed": 38,
@@ -611,7 +611,7 @@
   "wolf": {
    "name": "Wolf",
    "text": "The tribes' wolves run fast and bite hard.",
-   "history": "Wolves were sacred to many Germanic tribes, and warriors wore wolf pelts into battle.",
+   "history": "Wolves were feared and honoured in Germanic lore, and later Germanic warriors wore wolf pelts into battle.",
    "behaviour": "beast",
    "hp": 14,
    "speed": 72,
@@ -626,7 +626,7 @@
   "berserker": {
    "name": "Berserker",
    "text": "He runs round to the rear, charges, and spins his axes in a ring. Wounded, he flies into a rage.",
-   "history": "Germanic warriors who fought in a frenzy, in wolf and bear skins, were said to feel no pain.",
+   "history": "Tacitus tells of the Harii, who painted their bodies black and attacked at night to terrify the foe.",
    "behaviour": "flanker",
    "hp": 5040,
    "speed": 50,
@@ -663,7 +663,7 @@
   },
   "war_band_leader": {
    "name": "War band leader",
-   "text": "The leader of a raiding band, who never walks alone. He raises his shield to the legion and calls his band to him.",
+   "text": "The leader of a raiding band, who never walks alone. He raises his shield to the legion, urges his warriors on faster and calls his band to him.",
    "history": "Germanic warriors fought in family groups behind a chosen leader, who shared the spoils.",
    "behaviour": "melee",
    "hp": 6000,
@@ -737,7 +737,7 @@
   "chieftain": {
    "name": "War chief",
    "text": "The war chief who united the tribes against Rome, swinging a great axe.",
-   "history": "In 9 AD Arminius led three Roman legions into a forest ambush at Teutoburg and destroyed them.",
+   "history": "In 9 AD Arminius led the tribes in a forest ambush at Teutoburg that destroyed three legions under Varus.",
    "behaviour": "melee",
    "hp": 23400,
    "speed": 27,
@@ -950,7 +950,7 @@
   "warrior_queen": {
    "name": "Warrior queen",
    "text": "Boudica drives her chariot in sweeping charges round the legion, down a marked path, and calls the tribes to fall on it from every side. When hurt she sets the land on fire, and the marked rings burn for a while.",
-   "history": "In 60 AD Boudica led the Iceni in a revolt that burned Londinium to the ground.",
+   "history": "In 60 to 61 AD Boudica led the Iceni in a revolt that burned Londinium to the ground.",
    "behaviour": "melee",
    "hp": 29000,
    "speed": 30,
@@ -1153,7 +1153,7 @@
   "gaul_king": {
    "name": "Gaulish king",
    "text": "A king with a long sword and a sworn bodyguard: while two of his guards live he takes little harm. He rings the legion with stakes and calls horsemen from the hills.",
-   "history": "Vercingetorix united the Gauls in 52 BC and held out against Caesar at the siege of Alesia.",
+   "history": "Vercingetorix united the Gauls in 52 BC, until Caesar besieged him at Alesia and he surrendered.",
    "behaviour": "melee",
    "hp": 24000,
    "speed": 28,
@@ -1440,7 +1440,7 @@
   "camel_rider": {
    "name": "Camel rider",
    "text": "Fast and tough. He rides in at a run and thrusts his long spear through the front rank into the man behind.",
-   "history": "Camels carried desert armies over ground that stopped most other horses and mules.",
+   "history": "Camels carried desert armies over ground that stopped most horses and mules.",
    "behaviour": "melee",
    "hp": 30,
    "speed": 56,
@@ -1488,7 +1488,7 @@
   "cataphract_charge": {
    "name": "Cataphract charge leader",
    "text": "He marks a lane and leads a wedge of cataphracts down it at full gallop, riding down the soldiers in its path. The wedge stays on the field when the charge is spent.",
-   "history": "A cataphract charge could break an infantry line, as it did at Carrhae.",
+   "history": "At Carrhae, horse archers wore the Romans down while cataphract charges kept them packed together.",
    "behaviour": "melee",
    "hp": 6400,
    "speed": 50,
@@ -1517,7 +1517,7 @@
   "war_elephant": {
    "name": "War elephant",
    "text": "A great beast with archers in a tower on its back, shooting all the while. It marks a line and tramples down it, throwing soldiers aside, and takes a long time to bring down.",
-   "history": "Eastern kings used war elephants to scare horses and to break the ranks of foot soldiers.",
+   "history": "Hellenistic and Indian kings used war elephants to scare horses and to break the ranks of foot soldiers.",
    "behaviour": "melee",
    "hp": 11000,
    "speed": 34,
@@ -1550,7 +1550,7 @@
   "shah": {
    "name": "Shah",
    "text": "The shah fights among his cataphracts and war elephants. His horse archers ride round the legion while their volleys fall on marked ground, and camel trains bring them fresh arrows, so the storm goes on until the camels are cut down. When hurt he calls in his elephants.",
-   "history": "In 53 BC at Carrhae, the Parthian army crushed seven Roman legions led by Crassus.",
+   "history": "In 53 BC at Carrhae, the Parthian army under Surena crushed seven Roman legions led by Crassus.",
    "behaviour": "melee",
    "hp": 28000,
    "speed": 24,
@@ -2116,31 +2116,31 @@
  "achievements": {
   "win_germania": {
    "name": "Victory in Germania",
-   "text": "Beat the chieftain in Germania.",
+   "text": "Win a run in Germania.",
    "kind": "province",
    "target": "germania"
   },
   "win_britannia": {
    "name": "Victory in Britannia",
-   "text": "Beat the chieftain in Britannia.",
+   "text": "Win a run in Britannia.",
    "kind": "province",
    "target": "britannia"
   },
   "win_gaul": {
    "name": "Victory in Gaul",
-   "text": "Beat the chieftain in Gaul.",
+   "text": "Win a run in Gaul.",
    "kind": "province",
    "target": "gaul"
   },
   "win_dacia": {
    "name": "Victory in Dacia",
-   "text": "Beat the chieftain in Dacia.",
+   "text": "Win a run in Dacia.",
    "kind": "province",
    "target": "dacia"
   },
   "win_parthia": {
    "name": "Victory in Parthia",
-   "text": "Beat the chieftain in Parthia.",
+   "text": "Win a run in Parthia.",
    "kind": "province",
    "target": "parthia"
   },
