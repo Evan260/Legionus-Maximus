@@ -1746,6 +1746,27 @@
       "ko": "%d분을 버텨서 요새를 지키거나 족장을 죽이세요.",
       "zh_CN": "撑 %d 分钟，然后守住阵地或者杀掉酋长。",
       "zh_TW": "撐 %d 分鐘，然後守住堡壘或殺掉酋長。"
+    },
+    "Survive {minutes} minutes with {soldiers} soldiers or fewer": {
+      "en": "Survive {minutes} minutes with {soldiers} soldiers or fewer",
+      "fr": "Survivre {minutes} minutes avec {soldiers} soldats ou moins",
+      "de": "Überlebe {minutes} Minuten mit {soldiers} Soldaten oder weniger",
+      "es": "Sobrevive {minutes} minutos con {soldiers} soldados o menos",
+      "it": "Sopravvivi {minutes} minuti con {soldiers} soldati o meno",
+      "pt_BR": "Sobreviva {minutes} minutos com {soldiers} soldados ou menos",
+      "pl": "Przetrwaj {minutes} minut, mając {soldiers} żołnierzy lub mniej",
+      "tr": "{soldiers} veya daha az askerle {minutes} dakika hayatta kal",
+      "ru": "Продержитесь {minutes} минут, имея не больше {soldiers} солдат",
+      "uk": "Протримайтеся {minutes} хвилин, маючи не більше {soldiers} солдатів",
+      "ja": "兵士{soldiers}人以下で{minutes}分間生き延びる",
+      "ko": "병사 {soldiers}명 이하로 {minutes}분 생존",
+      "zh_CN": "以不超过 {soldiers} 名士兵存活 {minutes} 分钟",
+      "zh_TW": "以不超過 {soldiers} 名士兵存活 {minutes} 分鐘"
+    },
+    "Endless  +%d:%02d": {
+      "en": "Endless  +%d:%02d",
+      "zh_CN": "无尽模式  +%d:%02d",
+      "zh_TW": "無盡模式  +%d:%02d"
     }
   }
 }

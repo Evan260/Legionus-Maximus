@@ -45,6 +45,8 @@ USD_PER_MILLION = 10.0
 # Godot's own format codes, so a percent sign in a sentence such as "95% or more" is translated as words.
 # Runs of spaces (the gaps between key hints) and the Latin terms the game keeps in every language.
 PLACEHOLDER = re.compile(r"%[a-z]+%|%[-0-9.]*[sdifxXcv%]|\{[A-Za-z0-9_]*\}| {2,}|[Tt]estudo|Decimatio|Tablinum|Steam|Space|Esc|WASD|A / D|R / Y|B / X")
+# Godot's % operator fills these in order, so a translation must keep them in the English order.
+PERCENT = re.compile(r"%[-0-9.]*[sdifxXcv]")
 # The English a short word is sent as, where on its own the translator picks the wrong sense (Arms as body parts).
 HINTS = {
     "Arms": "Weapons", "Forged": "Forged weapon", "Drill": "Military training", "Banked": "Total saved in the bank",
@@ -126,6 +128,8 @@ def apply_fixes(header, rows, fixes):
             continue
         for lang, text in cells.items():
             if lang != "en" and lang in header:
+                if PERCENT.findall(text) != PERCENT.findall(row[1]):
+                    print(f"  fix for {key!r} in {lang} has its % codes out of the English order; check it")
                 row[header.index(lang)] = text
 
 
@@ -234,6 +238,9 @@ def main():
         for r in missing:
             if sorted(PLACEHOLDER.findall(r[1])) != sorted(PLACEHOLDER.findall(r[col])):
                 print(f"  {lang}: placeholders changed in {r[1]!r} -> {r[col]!r}; left empty")
+                r[col] = ""
+            elif PERCENT.findall(r[1]) != PERCENT.findall(r[col]):
+                print(f"  {lang}: % codes reordered in {r[1]!r} -> {r[col]!r}; left empty (use named {{fields}} where the order must change)")
                 r[col] = ""
         save(header, rows)
     apply_fixes(header, rows, fixes["fixes"])

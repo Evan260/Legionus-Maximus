@@ -291,7 +291,7 @@ static func unlock_text(info: Dictionary, content: Content) -> String:
 		"kills":
 			return TranslationServer.translate("Defeat %d barbarians in total") % int(rule.get("count", 0))
 		"survive":
-			return TranslationServer.translate("Survive %d minutes with %d soldiers or fewer") % [int(rule.get("seconds", 0)) / 60, int(rule.get("max_soldiers", 0))]
+			return TranslationServer.translate("Survive {minutes} minutes with {soldiers} soldiers or fewer").format({"minutes": int(rule.get("seconds", 0)) / 60, "soldiers": int(rule.get("max_soldiers", 0))})
 		"win_all":
 			return TranslationServer.translate("Win in every province")
 	return TranslationServer.translate("Free")

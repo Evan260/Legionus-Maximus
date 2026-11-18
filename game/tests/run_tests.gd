@@ -2328,12 +2328,20 @@ func _sheet() -> Dictionary:
 	return {"header": header, "rows": rows}
 
 
+func _percent_codes(s: String) -> Array:
+	var out := []
+	for m in RegEx.create_from_string("%[-0-9.]*[sdifxXcv%]").search_all(s):
+		out.append(m.get_string())
+	return out
+
+
 func test_every_string_has_all_languages(_b: Dictionary) -> void:
 	var sheet := _sheet()
 	check(Array(sheet.header).slice(1) == LANGUAGES, "the sheet has the 14 languages")
-	var placeholder := RegEx.create_from_string("%[-0-9.]*[sdifxXcv%]| {2,}")
+	var placeholder := RegEx.create_from_string("%[-0-9.]*[sdifxXcv%]|\\{[A-Za-z0-9_]*\\}| {2,}")
 	var empty := 0
 	var changed := 0
+	var reordered := 0
 	for key in sheet.rows:
 		var row: PackedStringArray = sheet.rows[key]
 		for i in range(1, row.size()):
@@ -2343,8 +2351,13 @@ func test_every_string_has_all_languages(_b: Dictionary) -> void:
 			elif placeholder.search_all(row[i]).size() != placeholder.search_all(row[1]).size():
 				changed += 1
 				print("  placeholders differ ", LANGUAGES[i - 1], ": ", key)
+			elif _percent_codes(row[i]) != _percent_codes(row[1]):
+				reordered += 1
+				print("  placeholders reordered ", LANGUAGES[i - 1], ": ", key)
 	check(empty == 0, "no cell of the sheet is empty")
 	check(changed == 0, "every translation keeps its placeholders")
+	# The % operator fills its codes in order, so a language that needs another order uses named {fields} instead.
+	check(reordered == 0, "every translation keeps its % codes in the English order")
 	for kind in Content.KINDS:
 		for id in content.get(kind):
 			for field in Content.WORDS:
