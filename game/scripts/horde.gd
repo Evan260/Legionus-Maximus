@@ -760,7 +760,12 @@ func _hunt(sim: Sim, cfg: Dictionary, moved: Vector2) -> void:
 		fast.append(ordinary[0])
 	if fast.is_empty():
 		return
-	var n := int(pursuit * (float(cfg.hunt_start) + float(cfg.hunt_growth) * time) * float(cfg.province_mult.get(province, 1.0)))
+	var n := int(minf(pursuit, 1.0) * (float(cfg.hunt_start) + float(cfg.hunt_growth) * time) * float(cfg.province_mult.get(province, 1.0)))
+	# The pack grows tougher as the hunt goes on, never larger than `most` alive at once, so a legion that fights on the move is pressed, not buried.
+	var alive := 0
+	for i in e_bare.size():
+		alive += e_bare[i]
+	n = mini(n, int(cfg.get("most", 1 << 30)) - alive)
 	var ahead := moved.angle() if moved.length() > 1.0 else rng.randf() * TAU
 	var spread := lerpf(float(cfg.spread_min), PI, minf(1.0, pursuit))
 	var first := e_pos.size()
