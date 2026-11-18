@@ -20,7 +20,7 @@ extends Node
 ##   --lang=CODE        show the game in that language (fr, de, es, it, pt_BR, pl, tr, ru, uk, ja, ko, zh_CN, zh_TW) without saving it
 ##   --text-size=N      use text size 1 or 2 without saving it
 ##   --commander=ID     start with that commander (the tribune when his art is not drawn)
-##   --as-demo          play as the demo: Germania, three commanders and 15 minutes
+##   --as-demo          play as the demo: Germania, three commanders and the demo's time limit
 ##   --card=ID          show that achievement's card, for looking at it
 ##   --give=ID,ID:RANK  start the run with these arms or drills at the rank (default 1), or that many of a recruit, for looking at them
 ##   --timber=N         with --autoplay, start the run carrying that much timber
