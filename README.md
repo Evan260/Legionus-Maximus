@@ -1,8 +1,10 @@
 # Legionus Maximus
 
-A survivors-style action game in pixel art about leading a Roman legion through the barbarian hordes of Germania, made for Steam (Windows, Mac, Linux and Steam Deck), in 14 languages. Fourth game from Slow Sunday Games, after Farmus, Fishus and Mosaicus Maximus.
+A survivors-style action game in pixel art about leading a Roman legion through the barbarian hordes of the Empire's frontiers, made for Steam (Windows, Mac, Linux and Steam Deck), in 14 languages. Fourth game from Slow Sunday Games, after Farmus, Fishus and Mosaicus Maximus.
 
-You only steer. Every soldier fights on his own, and each level-up adds a recruit, a weapon or a drill, so a run that starts with the commander alone ends with a hundred men in formation holding off a screen full of enemies. Forest ridges and ravines leave only certain ways through, so the legion fells trees for timber to cut new roads, drive palisades and bridge the gorges. Elites with their own abilities come every minute, and the gods of Rome can be called on to clear the field. A run is won by retaking the eagles, burning the sacred grove and marching into the Roman fort that appears at 16 minutes, past the chieftain who comes out to stop you.
+You only steer. Every soldier fights on his own, and each level-up adds a recruit, a weapon or a drill, so a run that starts with the commander alone ends with a hundred men in formation holding off a screen full of enemies. Forest ridges and ravines leave only certain ways through, so the legion fells trees for timber to cut new roads, drive palisades and bridge the gorges. Elites with their own abilities come every 45 seconds, and the gods of Rome can be called on to clear the field. A run is won by retaking the eagles, burning the sacred grove and marching into the Roman fort that appears at 12 minutes, past the chieftain who comes out to stop you.
+
+The campaign map runs through five provinces, Germania, Gaul, Dacia, Parthia and Britannia, each opened by winning the one before and each with its own ground, enemies, leader and difficulty. Eight kinds of recruit and six commanders can join the legion. A legion that keeps marching while it kills, instead of holding and fighting, raises the pursuit, which sends beasts and sprinters after it.
 
 ## Playing it
 
@@ -24,7 +26,7 @@ Move with WASD, the arrow keys or the left stick. Space or the south face button
 | `game/data/` | Every number in `balance.json`, and every recruit, weapon, enemy, province and achievement in `content.json` |
 | `game/tests/` | Automated checks and the balance bots |
 | `tools/` | Scripts for art, sound, translations, exporting and Steam |
-| `docs/` | The build plans |
+| `docs/` | The build plans and the trailer plan |
 | `builds/` | Exported builds (not kept in git) |
 
 ## Checking changes
@@ -45,4 +47,4 @@ Pushing a version tag such as `v0.1.0` makes GitHub test the game, build the ful
 
 ## Art and sound
 
-Everything is pixel art drawn with PixelLab (what each picture cost is in `tools/art/ledger.csv`) and packed into one atlas by `tools/art/build_atlas.py`, so the whole horde draws in one batch. Every sound is a CC0 recording, cut by the scripts in `tools/audio/`, and the music is built from harp and drum recordings by `tools/audio/make_music.py`. Everything shipped with the game is credited in [CREDITS.md](CREDITS.md).
+Everything is pixel art drawn with PixelLab (what each picture cost, in US dollars, is in `tools/art/ledger.csv`) and packed into one atlas by `tools/art/build_atlas.py`, so the whole horde draws in one batch. Every sound is a CC0 recording, cut by the scripts in `tools/audio/`, and the music is built from harp and drum recordings by `tools/audio/make_music.py`. Everything shipped with the game is credited in [CREDITS.md](CREDITS.md).
