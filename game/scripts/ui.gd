@@ -80,6 +80,14 @@ static func fit_size(s: String, width: float) -> int:
 	return px if width_at(s, px) <= width else small_px()
 
 
+## One size for a whole list of [label, room] pairs: the text size when every label fits it, else the smallest, so a list never mixes sizes.
+static func list_size(labels: Array) -> int:
+	for pair in labels:
+		if width_at(str(pair[0]), px) > float(pair[1]):
+			return small_px()
+	return px
+
+
 ## True when the label fits the width at the text size or the smallest size, so nothing is cut.
 static func fits(s: String, width: float) -> bool:
 	return width_at(s, fit_size(s, width)) <= width
@@ -195,8 +203,9 @@ func text(c: CanvasItem, s: String, pos: Vector2, col: Color = INK, align := HOR
 
 
 ## A label that stays inside `avail` pixels: drawn at the smallest size when it does not fit at the text size, and only then cut with dots.
-func fit_text(c: CanvasItem, s: String, avail: float, pos: Vector2, col: Color = INK, align := HORIZONTAL_ALIGNMENT_LEFT, width := -1.0, shade := false) -> void:
-	var size := fit_size(s, avail)
+func fit_text(c: CanvasItem, s: String, avail: float, pos: Vector2, col: Color = INK, align := HORIZONTAL_ALIGNMENT_LEFT, width := -1.0, shade := false, size := 0) -> void:
+	if size <= 0:
+		size = fit_size(s, avail)
 	text(c, clip(s, avail, size), pos, col, align, width, shade, size)
 
 
@@ -266,7 +275,7 @@ func register(r: Rect2, id: String, enabled := true) -> void:
 
 
 ## A button: a panel with a label on the left, an optional value on the right and an optional icon. Focus gets a gold frame.
-func button(c: CanvasItem, r: Rect2, id: String, label: String, right := "", enabled := true, icon: Texture2D = null, centered := false, right_col := RED, right_reserve := 0.0) -> void:
+func button(c: CanvasItem, r: Rect2, id: String, label: String, right := "", enabled := true, icon: Texture2D = null, centered := false, right_col := RED, right_reserve := 0.0, label_size := 0) -> void:
 	register(r, id, enabled)
 	var focused := id == focus
 	if focused:
@@ -275,17 +284,27 @@ func button(c: CanvasItem, r: Rect2, id: String, label: String, right := "", ena
 	var ink := INK if enabled else MUTED
 	var x := r.position.x + 6.0
 	if icon != null:
-		var side := minf(r.size.y - 6.0, 16.0)
+		var side := icon_side(r)
 		c.draw_texture_rect(icon, Rect2(x - 2.0, r.position.y + (r.size.y - side) / 2.0, side, side), false)
 		x += side + 2.0
 	var y := r.position.y + r.size.y / 2.0 + px * 3 / 8
-	var right_w := (width_of(right) + 6.0 if right != "" else 0.0) + right_reserve
 	if right != "":
 		text(c, right, Vector2(r.end.x - width_of(right) - 6.0, y), right_col if enabled else MUTED)
 	if centered:
-		fit_text(c, label, r.size.x - 12.0, Vector2(r.position.x, y), ink, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
+		fit_text(c, label, r.size.x - 12.0, Vector2(r.position.x, y), ink, HORIZONTAL_ALIGNMENT_CENTER, r.size.x, false, label_size)
 	else:
-		fit_text(c, label, r.end.x - x - right_w - 6.0, Vector2(x, y), ink)
+		fit_text(c, label, label_room(r, right, icon != null, right_reserve), Vector2(x, y), ink, HORIZONTAL_ALIGNMENT_LEFT, -1.0, false, label_size)
+
+
+static func icon_side(r: Rect2) -> float:
+	return minf(r.size.y - 6.0, 16.0)
+
+
+## The width a button's label has beside its icon and the text on its right.
+static func label_room(r: Rect2, right: String, has_icon: bool, right_reserve := 0.0) -> float:
+	var x := r.position.x + 6.0 + (icon_side(r) + 2.0 if has_icon else 0.0)
+	var right_w := (width_at(right, px) + 6.0 if right != "" else 0.0) + right_reserve
+	return r.end.x - x - right_w - 6.0
 
 
 ## The icon image of a level-up id or an icon key, or null when it is not drawn.

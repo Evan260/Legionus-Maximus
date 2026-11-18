@@ -33,17 +33,22 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	var reserve := price_width(content)
 	var big := Ui.scale > 1
 	var pitch := 22.0 if not big else 21.0
+	var rows: Array = []
 	var i := 0
 	for id in content.quartermaster:
 		var info: Dictionary = content.quartermaster[id]
 		var rect := Rect2(r.position.x + 12 + (i / ROWS) * 292, r.position.y + 28 + (i % ROWS) * pitch, 280, pitch - 2.0)
 		var cost := Profile.next_cost(id, content)
 		var waiting := Profile.waiting_for(id, content) != ""
-		var can := cost >= 0 and cost <= int(Profile.data.denarii)
-		var tone := Ui.BROWN if cost < 0 else (Color(0.2, 0.45, 0.15) if can else Ui.RED)
 		var right := "" if waiting else (tr("Max").to_upper() if cost < 0 else str(cost))
-		ui.button(c, rect, "buy:" + id, _label(info, id), right, not waiting, _icon_of(info), false, tone, reserve - Ui.width_at(right, Ui.px) - 6.0 if right != "" else reserve)
+		var spare := reserve - Ui.width_at(right, Ui.px) - 6.0 if right != "" else reserve
+		rows.append({"id": id, "info": info, "rect": rect, "cost": cost, "waiting": waiting, "right": right, "spare": spare, "icon": _icon_of(info)})
 		i += 1
+	var size := Ui.list_size(rows.map(func(row: Dictionary) -> Array: return [_label(row.info, row.id), Ui.label_room(row.rect, row.right, row.icon != null, row.spare)]))
+	for row in rows:
+		var can: bool = row.cost >= 0 and row.cost <= int(Profile.data.denarii)
+		var tone := Ui.BROWN if row.cost < 0 else (Color(0.2, 0.45, 0.15) if can else Ui.RED)
+		ui.button(c, row.rect, "buy:" + row.id, _label(row.info, row.id), row.right, not row.waiting, row.icon, false, tone, row.spare, size)
 	var focus_id := ui.focus.trim_prefix("buy:")
 	if content.quartermaster.has(focus_id):
 		var info: Dictionary = content.quartermaster[focus_id]

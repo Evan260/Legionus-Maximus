@@ -178,6 +178,7 @@ func _unlocked(c: CanvasItem, ui: Ui, gained: Array, area: Rect2) -> float:
 		var at_more := Vector2(band.position.x + 6.0 + (k_more % cols) * col_w, band.position.y + Ui.leading() + 4.0 + (k_more / cols) * row_h)
 		var a_more := clampf((age - k_more * UNLOCK_STEP) * 4.0, 0.0, 1.0)
 		ui.fit_text(c, tr("And %d more") % more, col_w - 10.0, at_more + Vector2(0, pic / 2.0 + Ui.px * 0.4), Color(Ui.GOLD_LIGHT, a_more))
+	var size := Ui.list_size(shown.map(func(u: Dictionary) -> Array: return [str(u.text), col_w - pic - 14.0]))
 	for k in shown.size():
 		var a := clampf((age - k * UNLOCK_STEP) * 4.0, 0.0, 1.0)
 		if a <= 0.0:
@@ -188,7 +189,7 @@ func _unlocked(c: CanvasItem, ui: Ui, gained: Array, area: Rect2) -> float:
 		var box := Rect2(at + Vector2(0, lift), Vector2(pic, pic))
 		c.draw_rect(box.grow(1), Color(Ui.GOLD, a))
 		_unlock_picture(c, ui, shown[k], box, a)
-		ui.fit_text(c, str(shown[k].text), col_w - pic - 14.0, Vector2(box.end.x + 5.0, box.position.y + pic / 2.0 + Ui.px * 0.4), Color(Ui.CREAM, a))
+		ui.fit_text(c, str(shown[k].text), col_w - pic - 14.0, Vector2(box.end.x + 5.0, box.position.y + pic / 2.0 + Ui.px * 0.4), Color(Ui.CREAM, a), HORIZONTAL_ALIGNMENT_LEFT, -1.0, false, size)
 	return band.end.y
 
 

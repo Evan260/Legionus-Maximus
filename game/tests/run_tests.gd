@@ -2455,7 +2455,7 @@ func _cuts_in(loc: String, scale: int, c: Content, sim: Sim, cuts: Array) -> voi
 	# The key hints at the foot of a screen, which lose their first parts when they do not fit.
 	for kind in ["volume", "keys", "press", "title"]:
 		_fit(cuts, loc, scale, "key hint " + kind, Controls.hint(kind), 624.0)
-	for line in TitleScreen.how_to_play(sim.b):
+	for line in TitleScreen.how_to_play_lines(sim.b):
 		_fit(cuts, loc, scale, "how to play", line, TitleScreen.line_width())
 	_fit(cuts, loc, scale, "give-up prompt", tr_.call("Give up the run? %s again to confirm") % "Q", 624.0)
 	for kind in ["pick", "buy", "look", "summary", "level", "gods"]:
