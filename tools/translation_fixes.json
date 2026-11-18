@@ -1533,12 +1533,12 @@
       "pt_BR": "Recarga do testudo",
       "pl": "Ładowanie testudo",
       "tr": "Testudo dolumu",
-      "ru": "Зарядка testudo",
-      "uk": "Заряджання testudo",
-      "ja": "testudoの充填",
-      "ko": "testudo 충전",
-      "zh_CN": "testudo充能",
-      "zh_TW": "testudo充能"
+      "ru": "Зарядка Testudo",
+      "uk": "Заряджання Testudo",
+      "ja": "Testudoの充填",
+      "ko": "Testudo 충전",
+      "zh_CN": "Testudo充能",
+      "zh_TW": "Testudo充能"
     },
     "content.quartermaster.testudo_hold.name": {
       "en": "Testudo hold",
@@ -1549,12 +1549,12 @@
       "pt_BR": "Duração do testudo",
       "pl": "Czas testudo",
       "tr": "Testudo süresi",
-      "ru": "Длительность testudo",
-      "uk": "Тривалість testudo",
-      "ja": "testudoの持続",
-      "ko": "testudo 지속",
-      "zh_CN": "testudo持续",
-      "zh_TW": "testudo持續"
+      "ru": "Длительность Testudo",
+      "uk": "Тривалість Testudo",
+      "ja": "Testudoの持続",
+      "ko": "Testudo 지속",
+      "zh_CN": "Testudo持续",
+      "zh_TW": "Testudo持續"
     },
     "content.quartermaster.rerolls.name": {
       "en": "Rerolls",
@@ -2853,6 +2853,118 @@
       "ko": "%s에서 하드, 무한, Decimatio",
       "zh_CN": "%s的困难、无尽和 Decimatio",
       "zh_TW": "%s的困難、無盡和 Decimatio"
+    },
+    "Achievement": {
+      "en": "Achievement",
+      "fr": "Succès",
+      "de": "Erfolg",
+      "es": "Logro",
+      "it": "Obiettivo",
+      "pt_BR": "Conquista",
+      "pl": "Osiągnięcie",
+      "ru": "Достижение"
+    },
+    "A Roman fort is in sight: hold it": {
+      "en": "A Roman fort is in sight: hold it",
+      "de": "Eine römische Festung ist in Sicht: halte sie",
+      "es": "Un fuerte romano está a la vista: mantenlo",
+      "it": "Un forte romano è in vista: tienilo",
+      "tr": "Bir Roma kalesi göründü: onu tut",
+      "ru": "Римский форт на виду: удержите его",
+      "uk": "Римський форт на виду: утримайте його",
+      "ja": "ローマの砦が見えた: 守り抜け",
+      "zh_CN": "一座罗马堡垒就在眼前：守住它",
+      "zh_TW": "一座羅馬堡壘就在眼前：守住它"
+    },
+    "Keys and buttons": {
+      "en": "Keys and buttons",
+      "tr": "Tuşlar ve düğmeler",
+      "ja": "キーとボタン"
+    },
+    "Wishlist on Steam": {
+      "en": "Wishlist on Steam",
+      "de": "Auf Steam auf die Wunschliste",
+      "es": "Añadir a deseados en Steam",
+      "it": "Lista dei desideri su Steam",
+      "pt_BR": "Lista de desejos no Steam",
+      "pl": "Dodaj do listy życzeń na Steam",
+      "tr": "Steam'de istek listesine ekle",
+      "ru": "В список желаемого в Steam",
+      "uk": "До списку бажаного в Steam",
+      "ja": "Steamでウィッシュリスト",
+      "ko": "Steam 위시리스트에 추가",
+      "zh_CN": "在 Steam 上添加愿望单",
+      "zh_TW": "在 Steam 上加入願望清單"
+    },
+    "%s is open": {
+      "en": "%s is open",
+      "fr": "%s est ouverte",
+      "de": "%s ist geöffnet",
+      "es": "%s está abierta",
+      "it": "%s è aperta",
+      "pt_BR": "%s está aberta",
+      "pl": "Otwarto: %s",
+      "tr": "%s açıldı",
+      "ru": "Открыто: %s",
+      "uk": "Відкрито: %s",
+      "ja": "%sが開放された",
+      "ko": "%s 개방",
+      "zh_CN": "%s 已开放",
+      "zh_TW": "%s 已開放"
+    },
+    "Not enough timber: %d needed": {
+      "en": "Not enough timber: %d needed",
+      "ru": "Недостаточно древесины: нужно %d",
+      "uk": "Недостатньо деревини: потрібно %d",
+      "ja": "木材が足りない: %d必要",
+      "ko": "목재 부족: %d 필요",
+      "zh_CN": "木材不足：需要 %d",
+      "zh_TW": "木材不足：需要 %d"
+    },
+    "content.drills.testudo.text": {
+      "en": "The testudo recharges 2 seconds sooner and holds 1 second longer.",
+      "ru": "Testudo заряжается на 2 секунды раньше и держится на 1 секунду дольше.",
+      "uk": "Testudo перезаряджається на 2 секунди раніше і тримається на 1 секунду довше.",
+      "ja": "Testudoは2秒早く充電し、1秒長く保持できます。",
+      "ko": "Testudo 2초 더 빨리 재충전되고 1초 더 오래 머무릅니다.",
+      "zh_CN": "Testudo充电时间比之前快2秒，且能多维持1秒。",
+      "zh_TW": "Testudo充能時間會快2秒，且能多維持1秒。"
+    },
+    "content.enemies.dacian_archer.text": {
+      "en": "Dacian archers loose together at the beat of a drum, a wall of arrows that only the testudo stops.",
+      "ru": "Дакские лучники стреляют вместе в ритме барабана, стена стрел, которую останавливает только Testudo .",
+      "uk": "Дакські лучники стріляють разом під барабан, стіну стріл, яку зупиняє лише Testudo .",
+      "ja": "ダキアの弓兵たちは太鼓のリズムに合わせて一斉に射撃を繰り広げ、 Testudo だけが止まる矢の壁ができている。",
+      "ko": "다키아 궁수들은 북소리에 맞춰 함께 사격을 펼치며, 화살 벽을 이루며 오직 Testudo 만 멈춘다.",
+      "zh_CN": "达契亚弓箭手随着鼓声齐齐射出，一道箭墙，只有 Testudo 能阻止。",
+      "zh_TW": "達契亞弓箭手隨著鼓聲齊齊射出，箭牆如牆，只有 Testudo 能阻止。"
+    },
+    "content.enemies.falx_warrior.text": {
+      "en": "His curved falx cuts through shields: neither the testudo nor a shield wall turns his blows, and every few seconds he lands a heavy chop.",
+      "ru": "Его изогнутый фалкс прорезает щиты: ни Testudo , ни щитовая стена не наносят ударов, и каждые несколько секунд он наносит мощный удар.",
+      "uk": "Його вигнутий фалькс прорізає щити: ні Testudo , ні щитова стіна не повертають ударів, і кожні кілька секунд він завдає сильного удару.",
+      "ja": "彼の曲がったファルクスは盾を切り裂く。 Testudo も盾壁も彼の攻撃をひねらず、数秒ごとに重い一撃を叩き込む。",
+      "ko": "그의 곡선형 팔크스는 방패를 베어낸다: Testudo 도, 방패벽도 그의 공격을 돌리지 못하며, 몇 초마다 강한 베기를 날린다.",
+      "zh_CN": "他弯曲的飞刀能切开护盾：无论是 Testudo 还是盾墙都挡不住他的攻击，每隔几秒就重重一击。",
+      "zh_TW": "他彎曲的法爾克斯能切開護盾：無論是 Testudo 還是盾牆都無法反轉他的攻擊，每隔幾秒就重重劈出一記。"
+    },
+    "content.quartermaster.testudo_charge.text": {
+      "en": "The testudo recharges sooner.",
+      "ru": "Testudo перезаряжается быстрее.",
+      "uk": "Testudo швидше перезаряджається.",
+      "ja": "Testudoはより早く充電されます。",
+      "ko": "Testudo 더 빨리 재충전됩니다.",
+      "zh_CN": "Testudo充电得更快。",
+      "zh_TW": "Testudo充電得比較快。"
+    },
+    "content.quartermaster.testudo_hold.text": {
+      "en": "The testudo holds longer.",
+      "ru": "Testudo держится дольше.",
+      "uk": "Testudo тримається довше.",
+      "ja": "Testudoはより長く持ちこたえます。",
+      "ko": "Testudo 더 오래 버틴다.",
+      "zh_CN": "Testudo能坚持更久。",
+      "zh_TW": "Testudo能撐得更久。"
     }
   }
 }
