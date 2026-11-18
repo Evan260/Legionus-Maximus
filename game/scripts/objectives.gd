@@ -213,7 +213,7 @@ func _camp(o: Dictionary, sim: Sim) -> void:
 	if not o.woken and d < float(cfg.wake):
 		o.woken = true
 		sim.horde.war_band_at(sim, o.pos)
-		var leader := str(cfg.leader)
+		var leader := str(cfg.leader.get(sim.province, sim.horde.elites[0] if not sim.horde.elites.is_empty() else ""))
 		if sim.content.ready("enemies", leader):
 			sim.horde.spawn(leader, o.pos + (sim.commander.pos - o.pos).normalized() * 20.0, true)
 	var touch := float(cfg.touch)

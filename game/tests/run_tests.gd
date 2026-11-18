@@ -2812,6 +2812,24 @@ func test_the_camp_pours_out_defenders_and_gives_back_the_eagle(b: Dictionary) -
 	check(s.free_choices == choices + 1, "the eagle is taken only once")
 
 
+func test_the_camp_brings_its_own_provinces_leader(b: Dictionary) -> void:
+	var cfg: Dictionary = b.objectives.camp
+	for province in ["gaul", "dacia", "parthia", "britannia"]:
+		var s := Sim.new(b, Content.with_all_art(), {"seed": 151, "province": province})
+		s.terrain.clear()
+		s.objectives.list.clear()
+		s.horde.next_surge = 1e9
+		s.horde.next_band = 1e9
+		s.horde.next_boss = 1e9
+		s.commander.hp = 1e9
+		s.objectives.add(s, "camp", Vector2(600, 0))
+		s.commander.pos = Vector2(600.0 - float(cfg.wake) + 10.0, 0)
+		_step_dt(s, 0.1)
+		var leader := str(cfg.leader[province])
+		var kinds := _kinds_alive(s)
+		check(leader in content.provinces[province].elites and kinds.has(leader) and not kinds.has("war_band_leader"), "a camp in %s brings out its own %s" % [province, leader])
+
+
 func test_the_stranded_column_holds_and_joins_the_legion(b: Dictionary) -> void:
 	var cfg: Dictionary = b.objectives.column
 	var s := _objective_sim(b, 151)
