@@ -4764,7 +4764,7 @@ func test_the_old_centurion_can_be_earned_in_a_run_that_ends_at_the_fort(b: Dict
 
 
 func test_every_look_flag_keeps_the_profile_unsaved(_b: Dictionary) -> void:
-	for flag in ["hard", "endless", "decimatio", "commander=legate", "chieftain-at=60", "as-demo", "objectives-near", "boss=berserker", "boss-act=whirl", "god=vulcan", "god-at=3", "give=pilum:3", "go-to=fort", "hold-choice", "lang=fr", "card=kills_1000", "page=controls"]:
+	for flag in ["hard", "endless", "decimatio", "commander=legate", "chieftain-at=60", "as-demo", "objectives-near", "boss=berserker", "boss-act=whirl", "god=vulcan", "god-at=3", "give=pilum:3", "go-to=fort", "hold-choice", "lang=fr", "card=kills_1000", "page=controls", "province=britannia", "seed=7", "men=20", "mortal", "trailer-shot=fort", "no-save"]:
 		check(Profile.blocks_saving(PackedStringArray(["--" + flag])), "--%s is not saved" % flag)
 
 

@@ -37,6 +37,7 @@ extends Node
 ##   --seed=N           lay out the field and run from a fixed seed, so a look comes out the same every time
 ##   --max-state        open every province, mode and commander with a million denarii, without reading or touching the real save
 ##   --trailer-shot=NAME  stage a trailer shot with tools/trailer/shots.gd
+##   --no-save          leave the real save unread and untouched, as every flag above also does
 
 var balance: Dictionary
 var content: Content
@@ -449,7 +450,7 @@ func _load_run_setup() -> void:
 		run_setup.commander = args.commander
 	for mode in ["hard", "endless", "decimatio"]:
 		run_setup[mode] = args.has(mode)
-	if args.has("province") and content.provinces.has(args.province):
+	if args.has("province") and content.provinces.has(args.province) and Game.province_allowed(args.province, balance):
 		run_setup.province = args.province
 
 
