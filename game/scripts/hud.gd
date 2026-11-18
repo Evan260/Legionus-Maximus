@@ -120,6 +120,9 @@ func _scene() -> void:
 			var chief := chieftain_rect(sim)
 			if chief.has_area():
 				avoid.append(chief)
+			var banner := god_banner_rect(sim)
+			if banner.has_area():
+				avoid.append(banner)
 			_objective_arrows(sim, avoid)
 	_god_banner(sim)
 	_victory_banner(sim)
@@ -351,15 +354,28 @@ func boss_names(sim: Sim) -> Array:
 	return out
 
 
+## Whether the name of the god just called is on screen.
+func _god_banner_shown(sim: Sim) -> bool:
+	var last: Dictionary = sim.gods.last
+	return not last.is_empty() and main.state == "play" and sim.time - float(last.at) <= float(sim.b.gods.banner_seconds) and sim.content.gods.has(last.id)
+
+
+## The screen rect the god's name covers while it shows, so the objective badges stand clear of it; empty otherwise.
+func god_banner_rect(sim: Sim) -> Rect2:
+	if not _god_banner_shown(sim):
+		return Rect2()
+	var size := Ui.px * 3
+	var w := Ui.font().get_string_size(str(sim.content.gods[sim.gods.last.id].name).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	return Rect2((Ui.view.x - w) / 2.0, Ui.view.y * 0.24 - size, w + 3.0, size * 1.2 + 3.0).grow(4.0)
+
+
 ## The name of the god just called, written large across the screen as his power lands.
 func _god_banner(sim: Sim) -> void:
-	var last: Dictionary = sim.gods.last
-	if last.is_empty() or main.state != "play":
+	if not _god_banner_shown(sim):
 		return
+	var last: Dictionary = sim.gods.last
 	var age := sim.time - float(last.at)
 	var secs := float(sim.b.gods.banner_seconds)
-	if age > secs or not sim.content.gods.has(last.id):
-		return
 	var a := clampf(minf(age * 4.0, (secs - age) * 2.0), 0.0, 1.0)
 	var size := Ui.px * 3
 	var name := str(sim.content.gods[last.id].name).to_upper()
