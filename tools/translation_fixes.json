@@ -1767,6 +1767,22 @@
       "en": "Endless  +%d:%02d",
       "zh_CN": "无尽模式  +%d:%02d",
       "zh_TW": "無盡模式  +%d:%02d"
+    },
+    "Win in %s to open": {
+      "en": "Win in %s to open",
+      "fr": "Gagnez en %s pour l’ouvrir",
+      "de": "Siege in %s, um sie zu öffnen",
+      "es": "Gana en %s para abrirla",
+      "it": "Vinci in %s per aprirla",
+      "pt_BR": "Vença em %s para abrir",
+      "pl": "Wygraj w prowincji %s, aby ją otworzyć",
+      "tr": "Açmak için %s eyaletinde kazan",
+      "ru": "Победите в провинции %s, чтобы открыть",
+      "uk": "Переможіть у провінції %s, щоб відкрити",
+      "ja": "%sで勝利すると解放",
+      "ko": "%s에서 승리하면 열림",
+      "zh_CN": "在%s获胜后解锁",
+      "zh_TW": "在%s獲勝後解鎖"
     }
   }
 }
