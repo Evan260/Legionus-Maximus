@@ -926,7 +926,10 @@ func _draw_boss_heads(view: Rect2) -> void:
 			draw_arc(c, r, a - half, a + half, 20, Color(0.16, 0.1, 0.08, 0.9), 8.0)
 			draw_arc(c, r, a - half, a + half, 20, Color(0.55, 0.85, 1.0), 5.0)
 			draw_arc(c, r + 1.0, a - half * 0.85, a + half * 0.85, 16, Color(1.0, 1.0, 0.95), 2.0)
-		var w := 44.0 if h.e_tag[i] == Horde.CHIEF else 32.0
+		# The chieftain's health has its own bar under the clock, and his head often stands up there beside it.
+		if h.e_tag[i] == Horde.CHIEF:
+			continue
+		var w := 32.0
 		var bar: Vector2 = (p + Vector2(-w / 2.0, -tall - 3.0)).round()
 		draw_rect(Rect2(bar - Vector2(1, 1), Vector2(w + 2, 5)), Color(0.16, 0.1, 0.08))
 		draw_rect(Rect2(bar, Vector2(w * clampf(h.e_hp[i] / h.e_max[i], 0.0, 1.0), 3)), Color(0.85, 0.22, 0.18))
