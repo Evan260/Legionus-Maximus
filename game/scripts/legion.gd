@@ -538,6 +538,7 @@ func _ballista(s: Dictionary, dt: float, sim: Sim) -> void:
 	if t < 0:
 		return
 	s.cd = float(info.cooldown)
+	sim.strike(s, sim.horde.e_pos[t])
 	sim.shoot("bolt", s.pos, sim.horde.e_pos[t], float(info.bolt_speed), float(info.damage), int(info.pierce), 0.0,
 		{"life": reach / float(info.bolt_speed), "explode": stat(s.type, "explode_radius"), "src": s.type})
 
@@ -575,6 +576,7 @@ func _heal(s: Dictionary, dt: float, sim: Sim) -> void:
 	worst.hp = minf(worst.max_hp, worst.hp + float(info.heal) * dt)
 	if s.cd <= 0.0:
 		s.cd = float(info.cooldown)
+		sim.strike(s, worst.pos)
 		sim.effects.append({"kind": "heal", "pos": worst.pos, "t": 0.0})
 
 
@@ -621,6 +623,7 @@ func _sortie(s: Dictionary, dt: float, sim: Sim) -> void:
 					s.struck[sim.horde.e_id[j]] = true
 					sim.hit(j, dmg, 0.0, s.type, s.pos)
 		if d - move <= strike:
+			sim.strike(s, sim.horde.e_pos[t])
 			if not s.struck.has(sim.horde.e_id[t]):
 				sim.hit(t, dmg, 0.0, s.type, s.pos)
 			sim.effects.append({"kind": "slash", "pos": s.pos, "to": sim.horde.e_pos[t], "t": 0.0})

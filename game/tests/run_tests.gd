@@ -3,7 +3,7 @@ extends RefCounted
 
 var failures := 0
 var passes := 0
-const WAITING_FOR_ART := ["slinger", "cavalry", "standard_bearer", "medicus", "ballista", "centurion"]
+const WAITING_FOR_ART := []
 
 # Built before their icons and small props are drawn; every other implemented entry must have all its art.
 const NO_ICON_YET := []
@@ -746,8 +746,11 @@ func test_centurion_shout_stuns(b: Dictionary) -> void:
 
 
 func test_recruit_without_art_is_not_offered(b: Dictionary) -> void:
-	var s := _legion_sim(b, 11, [])
-	check(content.recruits.slinger.implemented and not content.ready("recruits", "slinger"), "the slinger is implemented but has no art")
+	var art: Dictionary = content.available.duplicate()
+	art.erase("unit:slinger")
+	var c := Content.load_all(art)
+	var s := Sim.new(b, c, {"seed": 11})
+	check(c.recruits.slinger.implemented and not c.ready("recruits", "slinger"), "the slinger is implemented but has no art")
 	for i in 30:
 		check(not Upgrades.offers(s, 10).has("slinger"), "the slinger is never offered")
 	check(not Upgrades.available(s).has("slinger"), "and is not available")

@@ -22,7 +22,7 @@ extends Node
 ##   --commander=ID     start with that commander (the tribune when his art is not drawn)
 ##   --as-demo          play as the demo: Germania, three commanders and 15 minutes
 ##   --card=ID          show that achievement's card, for looking at it
-##   --give=ID,ID:RANK  start the run with these arms or drills at the rank (default 1), for looking at them
+##   --give=ID,ID:RANK  start the run with these arms or drills at the rank (default 1), or that many of a recruit, for looking at them
 ##   --timber=N         with --autoplay, start the run carrying that much timber
 ##   --men=N            with --autoplay, start the run with N soldiers, legionaries and archers
 ##   --boss=ID          with --autoplay, bring that elite or the chieftain beside the legion; --boss-act=whirl|shield|band|mend|curse|blink|rage|roar,
@@ -429,7 +429,11 @@ func _new_sim() -> void:
 		for entry in str(args.get("give", "")).split(",", false):
 			var parts := entry.split(":")
 			var info := content.upgrade(parts[0])
-			if not info.is_empty():
+			if content.recruits.has(parts[0]):
+				for n in (int(parts[1]) if parts.size() > 1 else 1):
+					sim.add_soldier(parts[0])
+				sim.legion.place_all(sim.facing_angle)
+			elif not info.is_empty():
 				sim.ranks[parts[0]] = clampi(int(parts[1]) if parts.size() > 1 else 1, 0, int(info.get("max", 0)))
 
 
