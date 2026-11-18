@@ -2310,6 +2310,7 @@ func test_no_card_draws_over_the_choice_or_the_summary(b: Dictionary) -> void:
 	Steamworks.card = {"id": "kills_1000", "name": "x", "text": "y"}
 	check(Steamworks.card_visible("play") and Steamworks.card_visible("camp"), "a card shows while playing and in the camp")
 	check(not Steamworks.card_visible("choose") and not Steamworks.card_visible("over"), "no card over the level-up choice or the summary")
+	check(not Steamworks.card_visible("pause") and not Steamworks.card_visible("settings"), "no card over the pause menu or the settings")
 	Steamworks.card = {}
 
 
