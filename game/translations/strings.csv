@@ -1,7 +1,7 @@
 keys,en,fr,de,es,it,pt_BR,pl,tr,ru,uk,ja,ko,zh_CN,zh_TW
 %d denarii,%d denarii,%d deniers,%d Denare,%d denarios,%d denari,%d denários,%d denarów,%d dinar,%d денариев,%d денаріїв,%d デナリウス,%d 데나리우스,%d 银币,%d 銀幣
 %d found,%d found,%d trouvés,%d gefunden,%d encontrados,%d trovati,%d encontrados,%d znalezionych,%d bulundu,найдено: %d,знайдено: %d,%d 発見,%d 발견,已发现 %d,已發現 %d
-%d in the legion,%d in the legion,%d dans la légion,%d in der Legion,%d en la legión,%d nella legione,%d na legião,%d w legii,%d lejyonda,%d в легионе,%d в легіоні,%d 軍団での,군단 내 %d,%d 军团,%d 軍團
+%d in the legion,%d in the legion,%d dans la légion,%d in der Legion,%d en la legión,%d nella legione,%d na legião,%d w legii,%d lejyonda,%d в легионе,%d в легіоні,軍団に%d人,군단에 %d명,军团中 %d 名,軍團中 %d 名
 %d m,%d m,%d m,%d m,%d m,%d m,%d m,%d m,%d m,%d м,%d м,%d m,%d m,%d m,%d m
 %d of %d found,%d of %d found,%d sur %d trouvés,%d von %d gefunden,%d de %d encontrados,%d di %d trovati,%d de %d encontrados,%d z %d znalezionych,%d / %d bulundu,найдено %d из %d,знайдено %d з %d,%d/%d 発見,%d/%d 발견,%d/%d 已发现,%d/%d 已發現
 "%d timber, you have %d","%d timber, you have %d","%d bois, vous en avez %d","%d Holz, du hast %d","%d de madera, tienes %d","%d legname, ne hai %d","%d de madeira, você tem %d","%d drewna, masz %d","%d kereste, sende %d var","%d дерева, у вас %d","%d деревини, у вас %d",木材 %d、所持 %d,"목재 %d, 보유 %d",木材 %d，现有 %d,木材 %d，現有 %d
@@ -12,7 +12,7 @@ keys,en,fr,de,es,it,pt_BR,pl,tr,ru,uk,ja,ko,zh_CN,zh_TW
 (%d timber),(%d timber),(%d bois),(%d Holz),(%d madera),(%d legname),(%d madeira),(%d drewna),(%d kereste),(%d дерева),(%d деревини),(木材 %d),(목재 %d),（木材 %d）,（木材 %d）
 A Roman fort is in sight: hold it,A Roman fort is in sight: hold it,Un fort romain est en vue : tenez-le,Eine römische Festung ist in Sicht: haltet sie,Un fuerte romano está a la vista: mantenedlo,Un forte romano è in orizzonte: tenetelo,Um forte romano está à vista: segure-o,Na widoku jest rzymski fort: trzymaj go,Bir Roma kalesi görünüyor: tutun,Римский форт на горизонте: стой,Римська фортеця на горизонті: зачекайте,ローマの砦が見えた:止まれ,로마 요새가 보이네: 버텨라,一座罗马堡垒在眼前：坚持住,一座羅馬堡壘在眼前：堅持住
 Achievement,Achievement,Réalisations,Erfolge,Logros,Risultati,Conquistas,Osiągnięcia,Başarı,Достижения,Досягнення,実績,업적,成就,成就
-And %d more,And %d more,Et %d encore,Und %d mehr,Y %d más,E %d altro,E %d mais,I %d więcej,Ve %d daha fazlası,И %d ещё,І %d більше,そして%d,그리고 그 외에도 %d,以及 %d 更多,還有 %d 更多
+And %d more,And %d more,Et %d de plus,Und %d weitere,Y %d más,E altri %d,E mais %d,I %d więcej,Ve %d tane daha,И ещё %d,І ще %d,ほか%d件,외 %d개,还有 %d 项,還有 %d 項
 Arms,Arms,Armes,Waffen,Armas,Armi,Armas,Broń,Silahlar,Оружие,Озброєння,武器,무기,武器,武器
 Automatic,Automatic,Automatique,Automatisch,Automático,Automatico,Automático,Automatyczny,Otomatik,Автоматически,Автоматично,自動,자동,自动,自動
 Back,Back,Retour,Zurück,Volver,Indietro,Voltar,Wstecz,Geri,Назад,Назад,戻る,뒤로,返回,返回
@@ -62,7 +62,7 @@ God,God,Dieu,Gott,Dios,Dio,Deus,Bóg,Tanrı,Бог,Бог,神,신,神,神
 Hard,Hard,Difficile,Schwer,Difícil,Difficile,Difícil,Trudny,Zor,Сложный,Складний,ハード,하드,困难,困難
 Hard not won,Hard not won,Difficile non gagné,Schwer nicht gewonnen,Difícil sin ganar,Difficile non vinto,Difícil não vencido,Trudny niewygrany,Zor kazanılmadı,Сложный не пройден,Складний не пройдено,ハード未勝利,하드 미승리,困难未胜,困難未勝
 Hard won,Hard won,Difficile gagné,Schwer gewonnen,Difícil ganado,Difficile vinto,Difícil vencido,Trudny wygrany,Zor kazanıldı,Сложный пройден,Складний пройдено,ハード勝利,하드 승리,困难已胜,困難已勝
-"Hard, Endless and Decimatio in %s","Hard, Endless and Decimatio in %s","Difficile, sans fin et Decimatio en %s","Hart, endlos und Decimatio in %s","Duro, interminable y Decimatio en %s","Duro, infinito e Decimatio in %s","Difícil, Infinito e Decimatio em %s","Trudne, Nieskończone i Decimatio w %s","Zor, Sonsuz ve Decimatio %s","Hard, Endless и Decimatio в %s","Hard, Endless і Decimatio у %s",ハードで終わりなく、Decimatio%s,"%s 속에서 하드, 끝 없고 Decimatio",艰难、无尽和 Decimatio 在 %s,《Hard》、《Endless》和《 Decimatio in %s
+"Hard, Endless and Decimatio in %s","Hard, Endless and Decimatio in %s","Difficile, Infini et Decimatio en %s","Schwer, Endlos und Decimatio in %s","Difícil, Infinito y Decimatio en %s","Difficile, Infinito e Decimatio in %s","Difícil, Infinito e Decimatio em %s","Trudny, Nieskończony i Decimatio w prowincji %s","%s eyaletinde Zor, Sonsuz ve Decimatio","Сложный, Бесконечный и Decimatio в провинции %s","Складний, Нескінченний і Decimatio у провінції %s",%sでハード、エンドレス、Decimatio,"%s에서 하드, 무한, Decimatio",%s的困难、无尽和 Decimatio,%s的困難、無盡和 Decimatio
 Held out %s after the chieftain,Held out %s after the chieftain,A tenu %s après le chef,Hielt %s dem Häuptling nach,Resistió %s tras el jefe,Resistette %s dopo il capo,Resistiu %s depois do chefe,Trzymał się %s za wodzem,Şefin peşinden %s direndi,Держался %s после вождя,Тримався %s після вождя,族長の後 %s 持ちこたえた,추장 이후에도 %s 버텼다,在酋长之后坚守%s,在酋長之後堅持%s
 Hold!,Hold!,Tenez !,Haltet!,¡Aguantad!,Tenete!,Aguentem!,Trzymać!,Dayanın!,Держать!,Тримати!,耐えろ!,버텨라!,坚守！,堅守！
 Keys and buttons,Keys and buttons,Touches et boutons,Tasten und Knöpfe,Teclas y botones,Tasti e pulsanti,Teclas e botões,Klawisze i przyciski,Anahtarlar ve düğmeler,Клавиши и кнопки,Клавіші та кнопки,鍵とボタン,키와 버튼,按键和按钮,按鍵與按鈕
@@ -76,7 +76,7 @@ Lay a bridge,Lay a bridge,Poser un pont,Brücke bauen,Tender un puente,Gettare u
 Left,Left,Gauche,Links,Izquierda,Sinistra,Esquerda,Lewo,Sol,Влево,Вліво,左,왼쪽,左,左
 Legion,Legion,Légion,Legion,Legión,Legione,Legião,Legion,Lejyon,Легион,Легіон,軍団,군단,军团,軍團
 Legion %d,Legion %d,Légion : %d,Legion: %d,Legión: %d,Legione: %d,Legião: %d,Legion: %d,Lejyon: %d,Легион: %d,Легіон: %d,軍団: %d,군단: %d,军团：%d,軍團：%d
-Legion size over time,Legion size over time,Taille de la légion au fil du temps,Legionengröße im Laufe der Zeit,Tamaño de la legión a lo largo del tiempo,Dimensione della legione nel tempo,Tamanho da legião ao longo do tempo,Wielkość legionu w czasie,Zamanla Lejyonun büyüklüğü,Размер легиона со временем,Розмір легіону з часом,軍団の規模は時間の経過に変わった,군단 규모 변화,军团规模随时间变化,軍團規模隨時間變化
+Legion size over time,Legion size over time,Taille de la légion au fil du temps,Legionengröße im Laufe der Zeit,Tamaño de la legión a lo largo del tiempo,Dimensione della legione nel tempo,Tamanho da legião ao longo do tempo,Wielkość legionu w czasie,Lejyonun zaman içindeki büyüklüğü,Размер легиона со временем,Розмір легіону з часом,軍団の規模の推移,시간에 따른 군단 규모,军团规模随时间变化,軍團規模隨時間變化
 Level,Level,Niveau,Stufe,Nivel,Livello,Nível,Poziom,Seviye,Уровень,Рівень,レベル,레벨,等级,等級
 Level %d,Level %d,Niveau %d,Stufe %d,Nivel %d,Livello %d,Nível %d,Poziom %d,Seviye %d,Уровень %d,Рівень %d,レベル %d,레벨 %d,等级 %d,等級 %d
 Locked: %s,Locked: %s,Verrouillé : %s,Gesperrt: %s,Bloqueado: %s,Bloccato: %s,Bloqueado: %s,Zablokowane: %s,Kilitli: %s,Заблокировано: %s,Заблоковано: %s,ロック: %s,잠금: %s,锁定： %s,鎖定： %s

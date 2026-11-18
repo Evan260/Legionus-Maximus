@@ -2810,6 +2810,49 @@
       "ko": "먼저 %s을(를) 완성하세요.",
       "zh_CN": "请先完成%s。",
       "zh_TW": "請先完成%s。"
+    },
+    "%d in the legion": {
+      "en": "%d in the legion",
+      "ja": "軍団に%d人",
+      "ko": "군단에 %d명",
+      "zh_CN": "军团中 %d 名",
+      "zh_TW": "軍團中 %d 名"
+    },
+    "And %d more": {
+      "en": "And %d more",
+      "fr": "Et %d de plus",
+      "de": "Und %d weitere",
+      "it": "E altri %d",
+      "pt_BR": "E mais %d",
+      "tr": "Ve %d tane daha",
+      "ru": "И ещё %d",
+      "uk": "І ще %d",
+      "ja": "ほか%d件",
+      "ko": "외 %d개",
+      "zh_CN": "还有 %d 项",
+      "zh_TW": "還有 %d 項"
+    },
+    "Legion size over time": {
+      "en": "Legion size over time",
+      "tr": "Lejyonun zaman içindeki büyüklüğü",
+      "ja": "軍団の規模の推移",
+      "ko": "시간에 따른 군단 규모"
+    },
+    "Hard, Endless and Decimatio in %s": {
+      "en": "Hard, Endless and Decimatio in %s",
+      "fr": "Difficile, Infini et Decimatio en %s",
+      "de": "Schwer, Endlos und Decimatio in %s",
+      "es": "Difícil, Infinito y Decimatio en %s",
+      "it": "Difficile, Infinito e Decimatio in %s",
+      "pt_BR": "Difícil, Infinito e Decimatio em %s",
+      "pl": "Trudny, Nieskończony i Decimatio w prowincji %s",
+      "tr": "%s eyaletinde Zor, Sonsuz ve Decimatio",
+      "ru": "Сложный, Бесконечный и Decimatio в провинции %s",
+      "uk": "Складний, Нескінченний і Decimatio у провінції %s",
+      "ja": "%sでハード、エンドレス、Decimatio",
+      "ko": "%s에서 하드, 무한, Decimatio",
+      "zh_CN": "%s的困难、无尽和 Decimatio",
+      "zh_TW": "%s的困難、無盡和 Decimatio"
     }
   }
 }
