@@ -1730,6 +1730,22 @@
       "en": "Later writers told of British chariots with scythes on their wheels, though Caesar never mentions them.",
       "es": "Autores posteriores hablaron de carros britanos con guadañas en las ruedas, aunque César nunca los menciona.",
       "pt_BR": "Autores posteriores falaram de carros bretões com foices nas rodas, embora César nunca os mencione."
+    },
+    "Survive %d minutes, then hold the fort or kill the chieftain.": {
+      "en": "Survive %d minutes, then hold the fort or kill the chieftain.",
+      "fr": "Survivez %d minutes, puis tenez le fort ou tuez le chef.",
+      "de": "Überlebe %d Minuten, halte die Stellung oder töte den Häuptling.",
+      "es": "Sobrevive %d minutos y luego mantén el fuerte o mata al caudillo.",
+      "it": "Sopravvivi %d minuti, poi tieni la fortezza o uccidi il capo.",
+      "pt_BR": "Sobreviva %d minutos, depois defenda o forte ou mate o chefe.",
+      "pl": "Przetrwaj %d minut, potem utrzymaj fort lub zabij wodza.",
+      "tr": "%d dakika hayatta kalın, sonra kaleyi koruyun ya da reisi öldürün.",
+      "ru": "Выжить %d минут, затем удерживать крепость или убей вождя.",
+      "uk": "Вижити %d хвилин, потім утримувати фортецю або вбити вождя.",
+      "ja": "%d分生き延びて、砦を守るか、族長を殺すか。",
+      "ko": "%d분을 버텨서 요새를 지키거나 족장을 죽이세요.",
+      "zh_CN": "撑 %d 分钟，然后守住阵地或者杀掉酋长。",
+      "zh_TW": "撐 %d 分鐘，然後守住堡壘或殺掉酋長。"
     }
   }
 }
