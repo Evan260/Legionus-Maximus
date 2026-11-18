@@ -29,24 +29,30 @@ GODOT = (Path.home() / "AppData/Local/Microsoft/WinGet/Packages/GodotEngine.Godo
 FFMPEG = (Path.home() / "AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe"
           / "ffmpeg-9.0.2-full_build/bin/ffmpeg.exe")
 LOOK = ["--autoplay", "--no-save", "--seed=7"]
+# The legion's newer recruits, given beside --men's legionaries and archers so the later shots show a mixed legion.
+MIXED = "slinger:2,cavalry:2,ballista:1,centurion:1"
+LARGE = "slinger:4,cavalry:4,ballista:2,centurion:2,standard_bearer:1,medicus:1"
 # name: (seconds to record, the second a quick screenshot of it is taken at, its look flags). The edit takes its part of each from
 # edit.gd; a shot runs a moment before the part that is used, so the field has settled.
 SHOTS = {
     "skirmish": (8, 3.0, [*LOOK, "--trailer-shot=skirmish", "--men=8"]),
     "levelup": (7, 2.5, [*LOOK, "--trailer-shot=levelup", "--men=8"]),
-    "archers": (8, 3.0, [*LOOK, "--trailer-shot=archers", "--men=14:archer"]),
-    "fell": (9, 5.0, [*LOOK, "--trailer-shot=fell", "--men=20"]),
-    "bridge": (8, 3.0, [*LOOK, "--trailer-shot=bridge", "--men=20", "--go-to=bridge"]),
-    "whirl": (8, 1.0, [*LOOK, "--trailer-shot=whirl", "--men=16", "--boss=berserker", "--boss-act=whirl"]),
-    "charge": (9, 1.5, [*LOOK, "--trailer-shot=charge", "--men=20", "--boss=chieftain"]),
-    "ravine": (8, 1.5, [*LOOK, "--trailer-shot=ravine", "--men=30", "--go-to=ravine", "--boss=berserker", "--boss-act=fall"]),
-    "hold": (8, 3.0, [*LOOK, "--trailer-shot=hold", "--men=40", "--give=onager:2"]),
-    "field": (8, 3.0, [*LOOK, "--trailer-shot=field", "--province=gaul", "--men=50", "--go-to=field"]),
-    "gods": (7, 2.5, [*LOOK, "--trailer-shot=gods", "--men=40", "--god=choose", "--god-at=1"]),
-    "reveal": (8, 2.6, [*LOOK, "--trailer-shot=reveal", "--go-to=crowd", "--god=jupiter", "--god-at=2"]),
-    "fort": (11, 3.0, [*LOOK, "--trailer-shot=fort", "--men=60", "--go-to=fort"]),
+    "archers": (8, 3.0, [*LOOK, "--trailer-shot=archers", "--men=4:legionary", "--give=archer:3,slinger:4,ballista:2"]),
+    "fell": (9, 5.0, [*LOOK, "--trailer-shot=fell", "--men=14", f"--give={MIXED}"]),
+    "bridge": (8, 3.0, [*LOOK, "--trailer-shot=bridge", "--men=14", f"--give={MIXED}", "--go-to=bridge"]),
+    "whirl": (8, 1.0, [*LOOK, "--trailer-shot=whirl", "--men=10", f"--give={MIXED}", "--boss=berserker", "--boss-act=whirl"]),
+    "onrush": (9, 1.5, [*LOOK, "--trailer-shot=onrush", "--province=dacia", "--men=20", f"--give={MIXED}", "--boss=falx_band",
+                        "--boss-act=onrush"]),
+    "ravine": (8, 1.5, [*LOOK, "--trailer-shot=ravine", "--men=24", f"--give={MIXED}", "--go-to=ravine", "--boss=berserker",
+                        "--boss-act=fall"]),
+    "hold": (8, 3.0, [*LOOK, "--trailer-shot=hold", "--province=parthia", "--men=30", f"--give={LARGE},onager:2",
+                      "--boss=war_elephant", "--boss-act=trample"]),
+    "field": (8, 3.0, [*LOOK, "--trailer-shot=field", "--province=gaul", "--men=40", f"--give={LARGE}", "--go-to=field"]),
+    "gods": (7, 2.5, [*LOOK, "--trailer-shot=gods", "--province=dacia", "--men=30", f"--give={LARGE}", "--god=choose", "--god-at=1"]),
+    "reveal": (8, 2.6, [*LOOK, "--trailer-shot=reveal", f"--give={LARGE}", "--go-to=crowd", "--god=jupiter", "--god-at=2"]),
+    "fort": (11, 3.0, [*LOOK, "--trailer-shot=fort", "--province=britannia", "--men=50", f"--give={LARGE}", "--go-to=fort"]),
     "map": (6, 2.0, ["--no-save", "--trailer-shot=map", "--screen=map"]),
-    "endcard": (9, 3.0, [*LOOK, "--trailer-shot=endcard", "--province=gaul", "--men=99", "--go-to=field"]),
+    "endcard": (9, 3.0, [*LOOK, "--trailer-shot=endcard", "--province=gaul", "--men=85", f"--give={LARGE}", "--go-to=field"]),
 }
 SHOTS_DIR = WORK / "trailer_shots"
 OUT = VIDEOS / "steam_trailer" / "steam_trailer.avi"

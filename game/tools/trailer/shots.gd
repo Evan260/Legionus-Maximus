@@ -11,10 +11,18 @@ const END_DROP := 75.0
 ## How far below a wheat field the legion marches in the Gaul shot, and how far west of one it stands on the end card, in game pixels.
 const FIELD_SIDE := 80.0
 const END_SIDE := 170.0
-## The level-up shot: when the level comes, when the archers are picked out and when they are taken, in seconds.
+## The level-up shot: the recruits offered, the one taken, and when the level comes, when it is picked out and when it is taken, in seconds.
+const LEVEL_CHOICES := ["slinger", "cavalry", "ballista"]
+const LEVEL_TAKE := "ballista"
 const LEVEL_AT := 1.0
 const PICK_AT := 2.0
 const TAKE_AT := 3.0
+## The provinces the map shot shows as won, so the whole road to Britannia is lit.
+const MAP_WON := ["germania", "gaul", "dacia", "parthia"]
+## Where the falx band leader and his band are moved to in the Dacia shot, from where --boss brings them, in game pixels.
+const ONRUSH_SHIFT := Vector2(170.0, -20.0)
+## When he marks his lane, in seconds from the start of the shot.
+const ONRUSH_AT := 0.5
 ## The gods' shot: when Jupiter is picked out and when he is called, in seconds from the start.
 const GOD_PICK_AT := 2.2
 const GOD_CALL_AT := 3.4
@@ -37,6 +45,10 @@ func _ready() -> void:
 	hud.main = main
 	hud.ui = main.ui
 	main.screens["map"] = load("res://tools/trailer/trailer_map.gd").new(main)
+	if shot == "map":
+		for p in MAP_WON:
+			Profile.data.records[p] = {"best_time": 1100.0, "longest": 1200.0, "won": true, "hard_won": false}
+		Profile.open_won_provinces(main.content)
 	# A legion that marches without fighting is hunted by extra beasts, which would swamp the marching shots.
 	if main.balance.has("pursuit"):
 		main.balance.pursuit.cap = 0.0
@@ -79,19 +91,19 @@ func _process(dt: float) -> void:
 		main.look_march = Vector2(-1.0, 0.15)
 
 
-## A level comes in the middle of the fight, the archers are picked out on the panel and then taken.
+## A level comes in the middle of the fight, offering three of the newer recruits, and the ballista crew is picked out and taken.
 func _level_up(sim: Sim) -> void:
 	if not _levelled and _clock >= LEVEL_AT:
 		_levelled = true
 		sim.gain(sim.xp_next - sim.xp)
 	if main.state != "choose":
 		return
-	if not main.choices.has("archer"):
-		main.choices[1] = "archer"
+	if main.choices != LEVEL_CHOICES:
+		main.choices = LEVEL_CHOICES.duplicate()
 	if _clock >= TAKE_AT:
-		main._take(main.choices.find("archer"))
+		main._take(main.choices.find(LEVEL_TAKE))
 	elif _clock >= PICK_AT:
-		main.selected = main.choices.find("archer")
+		main.selected = main.choices.find(LEVEL_TAKE)
 
 
 ## The choice of gods stays open, Jupiter is picked out and then called.
@@ -184,6 +196,19 @@ func _shot_whirl(sim: Sim) -> void:
 	var i := h.e_pos.size() - 1
 	if i >= 0:
 		h.e_pos[i] = sim.commander.pos + Vector2(62, 10)
+	main.look_march = Vector2.ZERO
+
+
+## In Dacia's snow the falx band leader stands off to the side with his band, marks a lane through the legion and charges down it.
+func _shot_onrush(sim: Sim) -> void:
+	_quiet(sim)
+	var h := sim.horde
+	for i in h.e_pos.size():
+		h.e_pos[i] += ONRUSH_SHIFT
+		if h.elite_ids.has(h.e_id[i]) and h.boss_state(i).has("onrush_cd"):
+			h.boss_state(i).onrush_cd = ONRUSH_AT
+	# More falx warriors come on behind the charge, so the legion has a fight once it is spent.
+	_wave(sim, sim.commander.pos, 0.0, 1.4, 230.0, 330.0, 16)
 	main.look_march = Vector2.ZERO
 
 
