@@ -19,7 +19,7 @@ SOUNDS = {
     547042: "CogFireStudios", 442769: "qubodup", 426322: "MTJohnson", 334169: "loudernoises", 175949: "freefire66",
     370203: "nekoninja", 792354: "Diasyl", 138489: "JustInvoke",
     394179: "saturdaysoundguy", 263675: "PorkMuncher",
-    420670: "SypherZent", 420668: "SypherZent", 394004: "DigPro120",
+    420670: "SypherZent", 420668: "SypherZent",
     163453: "LeMudCrab", 249810: "spookymodem",
     539956: "adharca", 482686: "jocmusic",
     651646: "Krizin", 267248: "BerlinGameScene",
