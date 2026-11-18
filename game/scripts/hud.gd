@@ -43,6 +43,18 @@ func text(s: String, pos: Vector2, col: Color = CREAM, align := HORIZONTAL_ALIGN
 	draw_string(Ui.font(), pos, s, align, width, Ui.px, col)
 
 
+## A text on a dim plate, for the corner labels that sit over snow, sand and dark trees alike.
+func plated_text(s: String, pos: Vector2, col: Color = CREAM, align := HORIZONTAL_ALIGNMENT_LEFT, width := -1.0) -> void:
+	var w := Ui.width_at(s, Ui.px)
+	var x := pos.x
+	if align == HORIZONTAL_ALIGNMENT_RIGHT:
+		x = pos.x + width - w
+	elif align == HORIZONTAL_ALIGNMENT_CENTER:
+		x = pos.x + (width - w) / 2.0
+	draw_rect(Rect2(x - 3.0, pos.y - Ui.px - 1.0, w + 6.0, Ui.leading() + 1.0), Color(0.08, 0.05, 0.04, 0.55))
+	text(s, pos, col, align, width)
+
+
 func wrap_text(s: String, pos: Vector2, width: float, col: Color) -> void:
 	var y := pos.y
 	for line in Ui.lines_of(s, width):
@@ -144,12 +156,12 @@ func _top_bar(sim: Sim) -> void:
 	var y2 := y1 + (11.0 if not big else 20.0)
 	# A choice on screen keeps only the level and the legion up here; its cards and heading take the rest.
 	var choosing: bool = main.state == "choose" or main.state == "pray"
-	text((tr("Level %d") % sim.level).to_upper(), Vector2(10, y1))
+	plated_text((tr("Level %d") % sim.level).to_upper(), Vector2(10, y1))
 	if not (choosing and big):
-		text("%02d:%02d" % [secs / 60, secs % 60], Vector2(0, y1), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W)
-	text((tr("Legion %d") % (sim.soldiers.size() + 1)).to_upper(), Vector2(0, y1), CREAM, HORIZONTAL_ALIGNMENT_RIGHT, W - 10)
+		plated_text("%02d:%02d" % [secs / 60, secs % 60], Vector2(0, y1), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W)
+	plated_text((tr("Legion %d") % (sim.soldiers.size() + 1)).to_upper(), Vector2(0, y1), CREAM, HORIZONTAL_ALIGNMENT_RIGHT, W - 10)
 	if not choosing:
-		text((tr("Kills %d") % sim.kills).to_upper(), Vector2(0, y2), CREAM, HORIZONTAL_ALIGNMENT_RIGHT, W - 10)
+		plated_text((tr("Kills %d") % sim.kills).to_upper(), Vector2(0, y2), CREAM, HORIZONTAL_ALIGNMENT_RIGHT, W - 10)
 	# The pause and summary screens write their key hints along the bottom, so the bottom row is left to them.
 	if main.screens.has(main.state):
 		_chieftain_line(sim, W, y1, big)
@@ -162,7 +174,7 @@ func _top_bar(sim: Sim) -> void:
 	draw_rect(Rect2(8, H - 9, 34, 4), INK)
 	var charge := 1.0 if sim.testudo_left > 0.0 else sim.testudo_charge
 	draw_rect(Rect2(9, H - 8, 32 * charge, 2), GOLD if ready or sim.testudo_left > 0.0 else PARCH_DARK)
-	text((tr("Testudo") if sim.testudo_left <= 0.0 else tr("Hold!")).to_upper(), Vector2(46, H - 6), GOLD_LIGHT if ready or sim.testudo_left > 0.0 else Color(0.7, 0.66, 0.6))
+	plated_text((tr("Testudo") if sim.testudo_left <= 0.0 else tr("Hold!")).to_upper(), Vector2(46, H - 6), GOLD_LIGHT if ready or sim.testudo_left > 0.0 else Color(0.7, 0.66, 0.6))
 	_timber(sim, H)
 	_favour(sim, W, H)
 	if choosing:
@@ -250,7 +262,7 @@ func _favour(sim: Sim, W: float, H: float) -> void:
 	_laurel(c)
 	draw_rect(Rect2(W - 42, H - 9, 34, 4), INK)
 	draw_rect(Rect2(W - 41, H - 8, 32 * share, 2), GOLD_LIGHT if ready else GOLD)
-	text(tr("Favour").to_upper(), Vector2(0, H - 6), GOLD_LIGHT if ready else Color(0.7, 0.66, 0.6), HORIZONTAL_ALIGNMENT_RIGHT, W - 46)
+	plated_text(tr("Favour").to_upper(), Vector2(0, H - 6), GOLD_LIGHT if ready else Color(0.7, 0.66, 0.6), HORIZONTAL_ALIGNMENT_RIGHT, W - 46)
 	if ready and main.state == "play":
 		text(Controls.hint("pray").to_upper(), Vector2(0, H - 6 - Ui.leading()), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_RIGHT, W - 46)
 
