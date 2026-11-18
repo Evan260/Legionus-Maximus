@@ -41,7 +41,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	var money := (tr("%d denarii") % int(Profile.data.denarii)).to_upper()
 	var mw := Ui.width_at(money, Ui.px)
 	var coin_r := 5.0 if not big else 7.0
-	var money_box := Rect2(Ui.W - 20 - mw - coin_r * 2 - 14, 8, mw + coin_r * 2 + 20, 30 if big else 22)
+	var money_box := Rect2(Ui.W - 24 - mw - coin_r * 2 - 14, 8, mw + coin_r * 2 + 24, 30 if big else 22)
 	c.draw_rect(money_box, plate)
 	var coin_at := Vector2(money_box.position.x + 6 + coin_r, money_box.get_center().y)
 	c.draw_circle(coin_at, coin_r + 1.0, Color(0.16, 0.1, 0.08))
