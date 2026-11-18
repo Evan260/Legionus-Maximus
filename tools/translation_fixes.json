@@ -1783,6 +1783,32 @@
       "ko": "%s에서 승리하면 열림",
       "zh_CN": "在%s获胜后解锁",
       "zh_TW": "在%s獲勝後解鎖"
+    },
+    "March here": {
+      "en": "March here",
+      "fr": "Marcher ici",
+      "de": "Hierher marschieren",
+      "pl": "Maszeruj tutaj",
+      "tr": "Buraya yürü",
+      "ru": "Идти сюда",
+      "uk": "Іти сюди",
+      "ja": "ここへ進軍",
+      "ko": "이곳으로 행군",
+      "zh_CN": "向此进军",
+      "zh_TW": "向此進軍"
+    },
+    "Marching here": {
+      "en": "Marching here",
+      "fr": "En marche ici",
+      "de": "Wir marschieren hierher",
+      "pl": "Maszerujemy tutaj",
+      "tr": "Buraya yürüyoruz",
+      "ru": "Идём сюда",
+      "uk": "Йдемо сюди",
+      "ja": "ここへ進軍中",
+      "ko": "이곳으로 행군 중",
+      "zh_CN": "正在向此进军",
+      "zh_TW": "正在向此進軍"
     }
   }
 }
