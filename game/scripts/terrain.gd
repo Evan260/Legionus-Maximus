@@ -538,11 +538,30 @@ func _farmland(key: Vector2i) -> Array:
 				break
 		if ok:
 			kept.append_array(g)
+	kept.append_array(_hedge_ends(kept))
 	var fields: Array = []
 	for parts in raw.fields:
 		fields.append_array(_placed_field(key, parts))
 	_fields[key] = fields
 	return kept
+
+
+## A rounded end just behind each stretch of hedge with no stretch beside it, so a hedge stops softly at its ends, its gate and where it was cleared.
+func _hedge_ends(pieces: Array) -> Array:
+	var span := float(field.hedge_span)
+	var cap := float(field.hedge_cap)
+	var at := {}
+	for p in pieces:
+		if p[0] == "hedge":
+			at[Vector2i(p[1].round())] = true
+	var out: Array = []
+	for p in pieces:
+		if p[0] != "hedge":
+			continue
+		for side in [-1.0, 1.0]:
+			if not at.has(Vector2i((p[1] + Vector2(side * span, 0.0)).round())):
+				out.append(["hedge_end_right" if side > 0.0 else "hedge_end_left", p[1] + Vector2(side * cap, -1.0), 0.0])
+	return out
 
 
 ## The roundhouses of the regions near this one that come before it, whose villages win where two would stand in each other.

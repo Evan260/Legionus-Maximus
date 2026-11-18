@@ -1037,3 +1037,5 @@ time,kind,name,cost_usd,cost_generations,usd_left
 2026-11-18T12:26:16,animate,tools/art/raw/centurion/t_running_west,0.0134,0,8.8058
 2026-11-18T12:27:45,animate,tools/art/raw/standard_bearer/attack_south-east,0.0084,0,8.7974
 2026-11-18T12:28:40,animate,tools/art/raw/centurion/attack_north-west,0.0193,0,8.7781
+2026-11-18T13:58:28,proflash,tools/art/raw/props6/hedge_ends.png,0.0238,0,8.7544
+2026-11-18T13:59:08,proflash,tools/art/raw/props6/hedge_ends_b.png,0.0237,0,8.7306

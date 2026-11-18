@@ -40,7 +40,8 @@ PROPS = {"oak": "props2/oak.png", "fir": "props2/fir.png", "rock": "props2/rock.
          "onager_stone": "props3/onager_stone.png", "chest": "props3/chest.png", "supply_cart": "props3/supply_cart.png",
          "fort_gate": "props3/fort_gate.png", "hut": "props3/hut.png", "eagle_standard": "props3/eagle_standard.png",
          "altar": "props3/altar.png", "stump": "props3/stump.png", "timber": "props3/timber.png",
-         "wheat": "props3/wheat.png", "hedge": "props3/hedge.png", "village": "props3/village.png", "roundhouse": "roundhouse/house_a.png",
+         "wheat": "props3/wheat.png", "hedge": "props3/hedge.png", "hedge_end_left": "props6/hedge_end_left.png",
+         "hedge_end_right": "props6/hedge_end_right.png", "village": "props3/village.png", "roundhouse": "roundhouse/house_a.png",
          "wheat_field": "wheat_field/field_tile.png", "pine": "props3/pine.png", "frozen_stream": "frozen_stream/ice_tile.png",
          "dune": "props4/dune.png", "palm": "props4/palm.png", "ruined_wall": "props4/ruined_wall.png",
          "heather": "props5/heather.png", "bog": "props5/bog.png", "stone_circle": "props5/stone_circle.png"}
