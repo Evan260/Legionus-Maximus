@@ -22,6 +22,8 @@ func activate(id: String) -> void:
 		"giveup":
 			if not confirming:
 				confirming = true
+				# Q asks from any button, so the second press of the confirm key must land on this one.
+				main.ui.focus = "giveup"
 				return
 			main.sim.over = true
 			main._finish_run()
@@ -37,4 +39,4 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	ui.button(c, Rect2(Ui.W / 2 - w / 2, top + h + 8, w, h), "settings", tr("Settings").to_upper(), "", true, null, true)
 	ui.button(c, Rect2(Ui.W / 2 - w / 2, top + 2 * (h + 8), w, h), "giveup", tr("Give up the run").to_upper(), "", true, null, true)
 	if confirming:
-		ui.fit_text(c, tr("Give up the run? %s again to confirm") % Controls.key_of("quit"), Ui.W - 16.0, Vector2(0, top + 3 * (h + 8) + 8), Ui.GOLD, HORIZONTAL_ALIGNMENT_CENTER, Ui.W, true)
+		ui.fit_text(c, tr("Give up the run? %s again to confirm") % Controls.key_of("confirm"), Ui.W - 16.0, Vector2(0, top + 3 * (h + 8) + 8), Ui.GOLD, HORIZONTAL_ALIGNMENT_CENTER, Ui.W, true)

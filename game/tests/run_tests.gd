@@ -2668,6 +2668,7 @@ class FakeMain:
 	var state := "pause"
 	var finished := false
 	var sim: Sim
+	var ui := Ui.new()
 
 	func _finish_run() -> void:
 		finished = true
@@ -2679,6 +2680,7 @@ func test_giving_up_asks_twice(b: Dictionary) -> void:
 	var pause := PauseScreen.new(m)
 	pause.activate("giveup")
 	check(not m.finished and not m.sim.over, "the first press only asks")
+	check(m.ui.focus == "giveup", "and leaves the focus on giving up, so the confirm key finishes it")
 	pause.activate("giveup")
 	check(m.finished and m.sim.over, "the second press gives up")
 	m.free()
