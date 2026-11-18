@@ -141,6 +141,8 @@ var e_side := PackedInt32Array()
 var e_way := PackedVector2Array()
 var e_dir := PackedVector2Array()
 var e_haste := PackedFloat32Array()
+# How much faster each hastened barbarian runs while his `e_haste` lasts.
+var e_haste_mult := PackedFloat32Array()
 # A bodyguard's place beside the chieftain, or zero for everyone else.
 var e_guard := PackedVector2Array()
 # Seconds spent failing to make headway (counting up), or, below zero, seconds left slipping through the trees to get free.
@@ -173,7 +175,6 @@ var next_band := 0.0
 var trail := PackedVector2Array()
 var next_trail := 0.0
 var frame := 0
-var haste_mult := 1.0
 var cleave_cd := 0.0
 var cry_cd := 0.0
 # When the pack may next be heard biting.
@@ -500,6 +501,7 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 	e_way.append(Vector2.ZERO)
 	e_dir.append(Vector2.ZERO)
 	e_haste.append(0.0)
+	e_haste_mult.append(1.0)
 	e_guard.append(Vector2.ZERO)
 	e_stuck.append(0.0)
 	e_flee.append(0.0)
@@ -1007,12 +1009,22 @@ func _roar(ci: int, sim: Sim) -> void:
 		call_in(ci, fury.call, sim)
 
 
+## Hastens barbarian j for that long at that speed; one still hastened keeps the faster of the two and the longer time.
+func hasten(j: int, seconds: float, mult: float) -> void:
+	if e_haste[j] > 0.0:
+		e_haste_mult[j] = maxf(e_haste_mult[j], mult)
+		e_haste[j] = maxf(e_haste[j], seconds)
+	else:
+		e_haste_mult[j] = mult
+		e_haste[j] = seconds
+
+
 ## The king's sworn guards leave their places round him and run at the legion.
 func release_guards() -> void:
 	for j in e_guard.size():
 		if e_guard[j] != Vector2.ZERO:
 			e_guard[j] = Vector2.ZERO
-			e_haste[j] = 4.0
+			hasten(j, float(b.guard_release.seconds), float(b.guard_release.speed_mult))
 	guards_alive = 0
 
 
@@ -1339,10 +1351,9 @@ func _rally(dt: float, sim: Sim) -> void:
 			var heal := float(cfg.get("heal", 0.0))
 			for j in e_pos.size():
 				if (e_pos[j] - e_pos[i]).length_squared() <= r2:
-					e_haste[j] = float(cfg.seconds)
+					hasten(j, float(cfg.seconds), float(cfg.speed_mult))
 					if heal > 0.0 and e_tag[j] == ORDINARY:
 						e_hp[j] = minf(e_max[j], e_hp[j] + e_max[j] * heal)
-			haste_mult = float(cfg.speed_mult)
 			sim.effects.append({"kind": "cry", "pos": e_pos[i], "t": 0.0, "radius": float(cfg.radius)})
 			# The horn blower's rally is a call on his carnyx, so it sounds and he raises the horn.
 			if heal > 0.0:
@@ -1777,8 +1788,7 @@ func _scorn(i: int, st: Dictionary, cfg: Dictionary, sim: Sim) -> void:
 	var r2 := float(cfg.radius) * float(cfg.radius)
 	for j in e_pos.size():
 		if (e_pos[j] - p).length_squared() <= r2:
-			e_haste[j] = float(cfg.seconds)
-	haste_mult = float(cfg.speed_mult)
+			hasten(j, float(cfg.seconds), float(cfg.speed_mult))
 	sim.event("rage", p)
 	sim.effects.append({"kind": "cry", "pos": p, "t": 0.0, "radius": float(cfg.radius)})
 
@@ -2010,12 +2020,11 @@ func _foe_lobs(dt: float, sim: Sim) -> void:
 ## The chieftain's shout: every enemy near him moves faster for a few seconds.
 func war_cry(ci: int, sim: Sim) -> void:
 	var atk: Dictionary = content.enemies[kind_ids[e_kind[ci]]].attacks.war_cry
-	haste_mult = float(atk.speed_mult)
 	var r2 := float(atk.radius) * float(atk.radius)
 	var centre := e_pos[ci]
 	for i in e_pos.size():
 		if (e_pos[i] - centre).length_squared() <= r2:
-			e_haste[i] = float(atk.seconds)
+			hasten(i, float(atk.seconds), float(atk.speed_mult))
 	sim.effects.append({"kind": "cry", "pos": centre, "t": 0.0, "radius": float(atk.radius)})
 	sim.event("chieftain", centre)
 	sim.shake = maxf(sim.shake, float(sim.b.shake.chieftain))
@@ -2109,7 +2118,7 @@ func _move(dt: float, sim: Sim) -> void:
 		var power := e_power[i]
 		if e_haste[i] > 0.0:
 			e_haste[i] -= dt
-			spd *= haste_mult
+			spd *= e_haste_mult[i]
 		# However hastened, a warrior on foot never outpaces the legion's march; hunters sent after a running legion may.
 		if k_foot[kind] == 1 and e_tag[i] == ORDINARY and e_bare[i] == 0:
 			spd = minf(spd, foot_cap)
@@ -2565,8 +2574,7 @@ func _howl(i: int, sim: Sim) -> void:
 	var p := e_pos[i]
 	for j in near(p, float(cfg.radius)):
 		if e_tag[j] == ORDINARY:
-			e_haste[j] = float(cfg.seconds)
-	haste_mult = float(cfg.speed_mult)
+			hasten(j, float(cfg.seconds), float(cfg.speed_mult))
 	e_strike[i] = time
 	sim.effects.append({"kind": "cry", "pos": p, "t": 0.0, "radius": float(cfg.radius)})
 	# Several bearers howling at once are heard as one.
@@ -2906,6 +2914,7 @@ func remove_at(i: int) -> void:
 	e_way[i] = e_way[last]; e_way.resize(last)
 	e_dir[i] = e_dir[last]; e_dir.resize(last)
 	e_haste[i] = e_haste[last]; e_haste.resize(last)
+	e_haste_mult[i] = e_haste_mult[last]; e_haste_mult.resize(last)
 	e_guard[i] = e_guard[last]; e_guard.resize(last)
 	e_stuck[i] = e_stuck[last]; e_stuck.resize(last)
 	e_flee[i] = e_flee[last]; e_flee.resize(last)

@@ -292,8 +292,7 @@ func test_warriors_on_foot_never_outpace_the_legion(b: Dictionary) -> void:
 		for id in h.ordinary:
 			var i := h.spawn(id, s.commander.pos + Vector2(300, 0))
 			# Hastened by a rally and rushing with a war band at once, he still walks no faster than the cap.
-			h.e_haste[i] = 10.0
-			h.haste_mult = 2.0
+			h.hasten(i, 10.0, 2.0)
 			h.e_slow[i] = float(b.war_band.rush)
 			h.e_cd[i] = 1e9
 			var from := h.e_pos[i]
@@ -5382,7 +5381,7 @@ func test_the_draco_howls_and_speeds_the_warriors(b: Dictionary) -> void:
 	h.e_cd[i] = 0.0
 	s._rebuild_grids()
 	h._move(1.0 / 60.0, s)
-	check(h.e_haste[near] > 0.0 and is_equal_approx(h.haste_mult, float(cfg.speed_mult)), "his howl speeds the warriors round him")
+	check(h.e_haste[near] > 0.0 and is_equal_approx(h.e_haste_mult[near], float(cfg.speed_mult)), "his howl speeds the warriors round him")
 	check(h.e_haste[far] == 0.0, "but not those far off")
 	check(h.e_strike[i] == s.time, "and he raises the draco")
 
@@ -5785,6 +5784,18 @@ func test_a_wedge_whose_leader_falls_can_charge_again(b: Dictionary) -> void:
 		if j >= 0 and h.e_cd[j] < INF:
 			ready += 1
 	check(not riders.is_empty() and ready == riders.size(), "riders whose leader falls before his charge lower their lances again (%d of %d)" % [ready, riders.size()])
+
+
+func test_each_hastened_barbarian_keeps_his_own_haste(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 969)
+	var h := s.horde
+	var a := h.spawn("barbarian_club", Vector2(300, 0))
+	var c := h.spawn("barbarian_club", Vector2(-300, 0))
+	h.hasten(a, 4.0, 1.5)
+	h.hasten(a, 2.0, 1.35)
+	h.hasten(c, 2.0, 1.35)
+	check(is_equal_approx(h.e_haste_mult[a], 1.5) and is_equal_approx(h.e_haste[a], 4.0), "a weaker haste does not slow a man already hastened more")
+	check(is_equal_approx(h.e_haste_mult[c], 1.35), "and another man's haste is his own")
 
 
 func test_the_cataphract_leader_leads_a_wedge_down_his_lane(b: Dictionary) -> void:
