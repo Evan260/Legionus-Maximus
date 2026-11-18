@@ -53,6 +53,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	var visible := int((r.size.y - 36.0) / step)
 	var focused := ids.find(ui.focus.get_slice(":", 1))
 	scroll = Ui.scroll_for(maxi(focused, 0), ids.size(), visible, scroll)
+	_scroll_marks(c, r, scroll > 0, scroll + visible < ids.size())
 	for i in ids.size():
 		var id: String = ids[i]
 		var info: Dictionary = content.commanders[id]
@@ -79,3 +80,16 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 				ui.fit_text(c, tag, rect.size.x - 16, Vector2(rect.position.x + 8, name_y + Ui.leading()), tag_col)
 			else:
 				ui.fit_text(c, tag, rect.size.x - 150, Vector2(0, name_y), tag_col, HORIZONTAL_ALIGNMENT_RIGHT, rect.end.x - 8)
+
+
+## Small gold arrows at the top and foot of the list's frame while more commanders lie above or below.
+static func _scroll_marks(c: CanvasItem, r: Rect2, above: bool, below: bool) -> void:
+	var x := r.get_center().x
+	for mark in [[above, r.position.y + 24.0, -1.0], [below, r.end.y, 1.0]]:
+		if not mark[0]:
+			continue
+		var y: float = mark[1]
+		var d: float = mark[2]
+		var tri := PackedVector2Array([Vector2(x - 8, y - 4 * d), Vector2(x + 8, y - 4 * d), Vector2(x, y + 4 * d)])
+		c.draw_colored_polygon(PackedVector2Array([tri[0] + Vector2(-2, -d), tri[1] + Vector2(2, -d), tri[2] + Vector2(0, 2 * d)]), Ui.INK)
+		c.draw_colored_polygon(tri, Ui.GOLD)

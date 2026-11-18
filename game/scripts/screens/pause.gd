@@ -38,5 +38,6 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	ui.button(c, Rect2(Ui.W / 2 - w / 2, top, w, h), "resume", tr("Resume").to_upper(), "", true, null, true)
 	ui.button(c, Rect2(Ui.W / 2 - w / 2, top + h + 8, w, h), "settings", tr("Settings").to_upper(), "", true, null, true)
 	ui.button(c, Rect2(Ui.W / 2 - w / 2, top + 2 * (h + 8), w, h), "giveup", tr("Give up the run").to_upper(), "", true, null, true)
+	ui.fit_text(c, Controls.hint("pick"), Ui.W - 16.0, Vector2(0, Ui.H - 10), Ui.CREAM, HORIZONTAL_ALIGNMENT_CENTER, Ui.W, true)
 	if confirming:
 		ui.fit_text(c, tr("Give up the run? %s again to confirm") % Controls.key_of("confirm"), Ui.W - 16.0, Vector2(0, top + 3 * (h + 8) + 8), Ui.GOLD, HORIZONTAL_ALIGNMENT_CENTER, Ui.W, true)
