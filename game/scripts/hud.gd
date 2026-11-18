@@ -108,14 +108,17 @@ func _scene() -> void:
 		ui.end()
 		return
 	_top_bar(sim)
-	var bosses := boss_names(sim)
-	for b in bosses:
-		text(b.name, Vector2(b.rect.position.x, b.rect.position.y + Ui.px), GOLD_LIGHT)
-	if sim.triumph_left <= 0.0:
-		_objective_arrows(sim, bosses.map(func(b: Dictionary) -> Rect2: return b.rect))
+	var choosing: bool = main.state == "choose" or main.state == "pray"
+	# The boss names and objective badges would sit on the choice's heading and cards, so they wait until it is made.
+	if not choosing:
+		var bosses := boss_names(sim)
+		for b in bosses:
+			text(b.name, Vector2(b.rect.position.x, b.rect.position.y + Ui.px), GOLD_LIGHT)
+		if sim.triumph_left <= 0.0:
+			_objective_arrows(sim, bosses.map(func(b: Dictionary) -> Rect2: return b.rect))
 	_god_banner(sim)
 	_victory_banner(sim)
-	if main.state == "choose" or main.state == "pray":
+	if choosing:
 		_choices(sim)
 
 
