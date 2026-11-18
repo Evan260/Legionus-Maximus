@@ -5174,6 +5174,13 @@ func test_the_gaulish_king_and_his_sworn_guard(b: Dictionary) -> void:
 	var hp0: float = h.e_hp[ci]
 	s.hit(ci, 100.0)
 	check(is_equal_approx(hp0 - h.e_hp[ci], 100.0 * (1.0 - float(cfg.sworn.cut))), "while they stand he takes little harm")
+	hp0 = h.e_hp[ci]
+	s.scorch(ci, 100.0)
+	check(is_equal_approx(hp0 - h.e_hp[ci], 100.0 * (1.0 - float(cfg.sworn.cut))), "and burning ground hurts him as little")
+	hp0 = h.e_hp[ci]
+	s.ignite(ci, 60.0, 1.0)
+	s._burns(0.5)
+	check(is_equal_approx(hp0 - h.e_hp[ci], 30.0 * (1.0 - float(cfg.sworn.cut))), "and so does a burn")
 	while h.guards_alive >= int(cfg.sworn.min):
 		for k in h.e_pos.size():
 			if h.e_guard[k] != Vector2.ZERO:

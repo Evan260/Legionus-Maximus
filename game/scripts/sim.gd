@@ -728,7 +728,7 @@ func ignite(i: int, dps: float, seconds: float, src := "") -> void:
 
 ## Harm from standing in fire: it takes health and shows the flames without lighting a new burn.
 func scorch(i: int, dmg: float, src := "") -> void:
-	_number(i, _harm(i, dmg, src_id(src)))
+	_number(i, _harm(i, dmg * horde.guard_mult(i, Vector2.INF), src_id(src)))
 	horde.e_burn[i] = maxf(horde.e_burn[i], 0.4)
 
 
@@ -841,7 +841,7 @@ func _burns(dt: float) -> void:
 	for i in horde.e_pos.size():
 		if horde.e_burn[i] > 0.0:
 			horde.e_burn[i] -= dt
-			_harm(i, horde.e_burn_dps[i] * dt, horde.e_burn_src[i])
+			_harm(i, horde.e_burn_dps[i] * dt * horde.guard_mult(i, Vector2.INF), horde.e_burn_src[i])
 			if horde.e_burn[i] <= 0.0:
 				horde.e_burn_dps[i] = 0.0
 				horde.e_burn_src[i] = -1
