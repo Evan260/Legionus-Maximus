@@ -5769,6 +5769,24 @@ func test_slingers_stones_leave_soldiers_reeling(b: Dictionary) -> void:
 	check(float(s.commander.get("dazed", 0.0)) == 0.0, "the commander keeps his head")
 
 
+func test_a_wedge_whose_leader_falls_can_charge_again(b: Dictionary) -> void:
+	var s := _parthia_sim(b, 968)
+	var h := s.horde
+	var i := h.spawn("cataphract_charge", Vector2(220, 0), true)
+	var st: Dictionary = h.boss_state(i)
+	st.wedge_cd = 0.0
+	s._rebuild_grids()
+	h._bosses(1.0 / 60.0, s)
+	var riders: Array = st.wedge.map(func(w): return w[0])
+	h.remove_at(i)
+	var ready := 0
+	for id in riders:
+		var j := h.e_id.find(id)
+		if j >= 0 and h.e_cd[j] < INF:
+			ready += 1
+	check(not riders.is_empty() and ready == riders.size(), "riders whose leader falls before his charge lower their lances again (%d of %d)" % [ready, riders.size()])
+
+
 func test_the_cataphract_leader_leads_a_wedge_down_his_lane(b: Dictionary) -> void:
 	var s := _parthia_sim(b, 967)
 	var h := s.horde

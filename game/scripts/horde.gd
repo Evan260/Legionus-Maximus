@@ -2868,6 +2868,11 @@ func remove_at(i: int) -> void:
 		guards_alive -= 1
 	if e_tag[i] == ELITE:
 		elite_ids.erase(e_id[i])
+		# A wedge whose leader falls breaks up into ordinary riders, as it does when his charge is spent.
+		for w in boss.get(e_id[i], {}).get("wedge", []):
+			var j := e_id.find(w[0])
+			if j >= 0:
+				e_cd[j] = k_dash_every[e_kind[j]] * rng.randf()
 		boss.erase(e_id[i])
 		rally_cd.erase(e_id[i])
 	if k_radius[e_kind[i]] > Terrain.MAX_UNIT:
