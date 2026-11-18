@@ -26,7 +26,7 @@ Move with WASD, the arrow keys or the left stick. Space or the south face button
 | `game/data/` | Every number in `balance.json`, and every recruit, weapon, enemy, province and achievement in `content.json` |
 | `game/tests/` | Automated checks and the balance bots |
 | `tools/` | Scripts for art, sound, translations, exporting and Steam |
-| `docs/` | The build plans and the trailer plan |
+| `docs/` | The trailer plan |
 | `builds/` | Exported builds (not kept in git) |
 
 ## Checking changes
