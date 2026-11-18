@@ -6912,6 +6912,16 @@ func _qm_step(id: String) -> float:
 	return float(content.quartermaster[id].per_rank)
 
 
+func test_the_fort_has_room_for_a_legion_grown_by_the_barracks(b: Dictionary) -> void:
+	var top := int(content.quartermaster.recruit_cap.ranks)
+	var s := _qm_sim(b, "recruit_cap", top)
+	s.objectives.list.clear()
+	s.objectives.raise_fort(s)
+	var block: Vector2 = Legion.block_size(s.legion.cap, b.legion)
+	var room := float(s.objectives.fort.half) - float(b.fort.stake_radius) - Sim.UNIT_RADIUS - maxf(block.x, block.y) / 2.0
+	check(s.legion.cap > int(b.legion_cap) and room >= float(b.fort.room_margin) - 0.01, "the yard keeps its margin for %d men (%.1f px)" % [s.legion.cap, room])
+
+
 func test_quartermaster_attack_speed_quickens_every_blow(b: Dictionary) -> void:
 	var plain := _qm_sim(b, "attack_speed", 0).attack_rate()
 	var drilled := _qm_sim(b, "attack_speed", 2).attack_rate()

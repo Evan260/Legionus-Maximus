@@ -120,8 +120,8 @@ func raise_fort(sim: Sim) -> void:
 		if n == 0.0:
 			break
 	var sr := float(cfg.stake_radius)
-	# The yard holds the largest legion the game allows, standing in its block, with room to spare.
-	var block: Vector2 = Legion.block_size(int(sim.b.legion_cap), sim.b.legion)
+	# The yard holds the largest legion this run allows, standing in its block, with room to spare.
+	var block: Vector2 = Legion.block_size(sim.legion.cap, sim.b.legion)
 	var half := maxf(float(cfg.half), maxf(block.x, block.y) / 2.0 + Sim.UNIT_RADIUS + sr + float(cfg.room_margin))
 	var foot := best + Vector2(0, half)
 	var tx := float(cfg.tower_x)
