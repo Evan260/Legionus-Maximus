@@ -100,7 +100,8 @@ func _laurel(c: Vector2) -> void:
 func _scene() -> void:
 	var sim: Sim = main.sim
 	if main.screens.has(main.state):
-		if main.state == "pause" or main.state == "over":
+		# The summary's frame covers the middle of the top bar but not its ends, so only the pause screen keeps it.
+		if main.state == "pause":
 			_top_bar(sim)
 		ui.begin()
 		draw_set_transform(Ui.offset)
