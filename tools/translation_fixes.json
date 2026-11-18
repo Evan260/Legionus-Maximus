@@ -2794,6 +2794,22 @@
       "ko": "파르티아에서 원정에 승리하세요.",
       "zh_CN": "在帕提亚赢得一次远征。",
       "zh_TW": "在帕提亞贏得一次遠征。"
+    },
+    "Finish the %s first.": {
+      "en": "Finish the %s first.",
+      "fr": "Terminez d’abord : %s.",
+      "de": "Zuerst fertigstellen: %s.",
+      "es": "Primero termina: %s.",
+      "it": "Prima completa: %s.",
+      "pt_BR": "Primeiro conclua: %s.",
+      "pl": "Najpierw ukończ: %s.",
+      "tr": "Önce şunu bitir: %s.",
+      "ru": "Сначала завершите: %s.",
+      "uk": "Спочатку завершіть: %s.",
+      "ja": "まず%sを完成させる。",
+      "ko": "먼저 %s을(를) 완성하세요.",
+      "zh_CN": "请先完成%s。",
+      "zh_TW": "請先完成%s。"
     }
   }
 }
