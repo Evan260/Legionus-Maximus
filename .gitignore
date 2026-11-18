@@ -1,9 +1,11 @@
 .env
+.env.*
 .godot/
 builds/
+dist/
+*.tmp
 __pycache__/
-tools/art/raw/job_*.log
-tools/art/raw/*.log
+tools/art/raw/**/*.log
 .superpowers/
 game/tests/balance_overrides.json
 
