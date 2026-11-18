@@ -2865,6 +2865,20 @@ func test_the_stranded_column_holds_and_joins_the_legion(b: Dictionary) -> void:
 	check(full.soldiers.size() == int(b.legion_cap), "a full legion takes only the men it has room for (%d)" % full.soldiers.size())
 
 
+func test_the_grove_is_ringed_with_its_provinces_own_props(b: Dictionary) -> void:
+	for province in ["germania", "dacia", "parthia", "britannia"]:
+		var s := Sim.new(b, Content.with_all_art(), {"seed": 152, "province": province})
+		s.objectives.list.clear()
+		var at := Vector2(900, 0)
+		s.objectives.add(s, "grove", at)
+		var kinds := {}
+		for pr in s.terrain.extras:
+			if pr[1].distance_to(at) < float(b.objectives.clearing):
+				kinds[pr[0]] = true
+		var want: String = {"germania": "oak", "dacia": "pine", "parthia": "palm", "britannia": "stone_circle"}[province]
+		check(kinds.has(want) and (want == "oak" or not kinds.has("oak")), "the grove in %s is ringed with %s (%s)" % [province, want, kinds.keys()])
+
+
 func test_burning_the_grove_thins_the_stream(b: Dictionary) -> void:
 	var cfg: Dictionary = b.objectives.grove
 	var s := _objective_sim(b, 153)

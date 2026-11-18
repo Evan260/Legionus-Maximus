@@ -69,8 +69,10 @@ func add(sim: Sim, kind: String, pos: Vector2) -> Dictionary:
 					"anim": k * 2.0, "facing": out, "moving": false, "flash": 0.0, "haste": 1.0, "struck_at": -1e9, "strike_dir": out})
 		"grove":
 			var c: Dictionary = cfg.grove
-			var ring := float(c.ring)
-			var slots := int(TAU * ring / float(c.oak_step))
+			var tree := str(c.trees.get(sim.province, "oak"))
+			var stones: Dictionary = c.stones.get(sim.province, {})
+			var ring := float(stones.get("ring", c.ring))
+			var slots := int(TAU * ring / float(stones.get("step", c.oak_step)))
 			var gaps := int(c.gaps)
 			var first := pos.angle() + PI
 			for k in slots:
@@ -78,10 +80,19 @@ func add(sim: Sim, kind: String, pos: Vector2) -> Dictionary:
 				var open := false
 				for g in gaps:
 					open = open or absf(angle_difference(a, first + TAU * g / gaps)) < float(c.gap_width) / 2.0
-				if not open:
-					var oak := ["oak", pos + Vector2.from_angle(a) * ring, Terrain.SOLID.oak]
-					pieces.append(oak)
-					o.oaks.append(oak[1])
+				if open:
+					continue
+				var at := pos + Vector2.from_angle(a) * ring
+				if stones.is_empty():
+					pieces.append([tree, at, Terrain.SOLID[tree]])
+					o.oaks.append(at)
+				else:
+					# A province of standing stones rings its grove with the stone circle's groups, each solid on its stones.
+					var moor: Dictionary = sim.b.moors[sim.province]
+					var anchor := at + Vector2(float(stones.lift[0]), float(stones.lift[1]))
+					pieces.append(["stone_circle", anchor, 0.0])
+					for off in moor.circle_stones:
+						pieces.append(["", anchor + Vector2(float(off[0]), float(off[1])), float(moor.stone_radius)])
 	sim.terrain.add_clearing(pos, float(cfg.clearing), pieces)
 	list.append(o)
 	return o
