@@ -22,6 +22,8 @@ RAW = ROOT / "tools" / "art" / "raw"
 OUT = ROOT / "game" / "assets"
 DIRS = ["east", "south-east", "south", "south-west", "west", "north-west", "north", "north-east"]
 UNITS = {"commander": "walking", "legionary": "walking", "archer": "walking",
+         "slinger": "running", "cavalry": "running", "standard_bearer": "running", "medicus": "running",
+         "ballista": "running", "centurion": "running",
          "barbarian_club": "running", "barbarian_spear": "running", "chieftain": "running",
          "berserker": "running", "war_band_leader": "running", "axe_thrower": "running", "wolf": "running", "war_dog": "running", "war_priest": "walking",
          "gaul_swordsman": "running", "gaul_horseman": "running", "gaul_archer": "running", "boar": "running",
