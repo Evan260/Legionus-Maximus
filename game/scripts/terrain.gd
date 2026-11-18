@@ -579,11 +579,11 @@ func _earlier_houses(key: Vector2i) -> Array:
 	return out
 
 
-## True when a roundhouse at p would be drawn into one of `houses`.
+## True when a roundhouse at p would stand closer than `house_spacing` to one of `houses`, so the two would be drawn into each other.
 func _house_clash(p: Vector2, houses: Array) -> bool:
-	var gap: Array = field.house_spacing
+	var gap := float(field.house_spacing)
 	for h in houses:
-		if absf(h.x - p.x) < float(gap[0]) and absf(h.y - p.y) < float(gap[1]):
+		if h.distance_to(p) < gap:
 			return true
 	return false
 

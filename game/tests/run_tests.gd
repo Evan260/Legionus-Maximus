@@ -7359,11 +7359,10 @@ func test_a_roundhouse_towers_over_a_soldier_and_stands_in_a_cluster(b: Dictiona
 		if near >= 2:
 			clustered += 1
 	check(houses.size() >= 6 and clustered >= houses.size() * 0.8, "houses stand in clusters of three or more (%d of %d)" % [clustered, houses.size()])
-	var gap: Array = b.fields.gaul.house_spacing
+	var gap := float(b.fields.gaul.house_spacing)
 	var stacked := 0
 	for i in houses.size():
 		for j in range(i + 1, houses.size()):
-			var d: Vector2 = houses[i][1] - houses[j][1]
-			if absf(d.x) < float(gap[0]) and absf(d.y) < float(gap[1]):
+			if houses[i][1].distance_to(houses[j][1]) < gap:
 				stacked += 1
 	check(stacked == 0, "no roundhouse is drawn into another (%d pairs)" % stacked)
