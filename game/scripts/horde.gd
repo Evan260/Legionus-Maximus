@@ -2185,7 +2185,7 @@ func _move(dt: float, sim: Sim) -> void:
 						for a in n:
 							_throw(p, aim.normalized().rotated((a - (n - 1) / 2.0) * k_sling_spread[kind]), k_dps[kind] * throw_every / n * power, 2)
 					else:
-						_throw(p, aim.normalized(), k_dps[kind] * throw_every, 1 if kite > 0.0 else 0)
+						_throw(p, aim.normalized(), k_dps[kind] * throw_every * power, 1 if kite > 0.0 else 0)
 					e_ammo[i] -= 1
 					e_strike[i] = time
 					e_face[i] = aim.normalized()

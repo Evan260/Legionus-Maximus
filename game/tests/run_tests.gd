@@ -3671,6 +3671,10 @@ func test_a_thrower_marks_his_throw_and_faces_it(b: Dictionary) -> void:
 	check(s.horde.sp_pos.size() == 1, "the axe is thrown")
 	check(is_equal_approx(s.horde.e_strike[0], s.time), "the throw is timed on the thrower")
 	check(Sim.dir_name(s.horde.e_face[0]) == "south", "he faces where he threw")
+	s.horde.e_power[0] = 2.0
+	s.horde.e_cd[0] = 0.0
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.horde.sp_dmg.size() == 2 and is_equal_approx(s.horde.sp_dmg[1], s.horde.sp_dmg[0] * 2.0), "a fiercer thrower's axe hurts in step with his power")
 
 
 func test_the_horde_is_drawn_from_the_atlas_frames(b: Dictionary) -> void:
