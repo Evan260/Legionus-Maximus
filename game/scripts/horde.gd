@@ -890,7 +890,7 @@ func war_band_at(sim: Sim, centre: Vector2, mult := 1.0) -> void:
 	if ordinary.is_empty():
 		return
 	var wb: Dictionary = b.war_band
-	var n := int((float(wb.size_start) + float(wb.size_growth) * time) * mult * difficulty("bands"))
+	var n := int((float(wb.size_start) + float(wb.size_growth) * time) * mult * difficulty("spawn"))
 	for i in n:
 		if e_pos.size() >= int(b.max_enemies):
 			break

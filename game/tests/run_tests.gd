@@ -5160,6 +5160,17 @@ func test_the_horn_blower_rallies_blasts_and_runs(b: Dictionary) -> void:
 	check(float(cfg.flee.speed_mult) > 1.0, "faster than he walks")
 
 
+func test_a_war_band_grows_with_its_provinces_numbers(b: Dictionary) -> void:
+	var s := _gaul_sim(b, 912)
+	var h := s.horde
+	var wb: Dictionary = b.war_band
+	h.time = 600.0
+	var n0 := h.e_pos.size()
+	h.war_band_at(s, Vector2(600, 0))
+	var want := int((float(wb.size_start) + float(wb.size_growth) * h.time) * float(b.difficulty.gaul.spawn))
+	check(h.e_pos.size() - n0 == want, "a war band in Gaul is %d strong, scaled by its spawn (%d)" % [want, h.e_pos.size() - n0])
+
+
 func test_the_gaulish_king_and_his_sworn_guard(b: Dictionary) -> void:
 	var s := _gaul_sim(b, 910)
 	var h := s.horde
@@ -6371,7 +6382,7 @@ func test_the_warrior_queen_calls_the_tribes_and_burns_the_land(b: Dictionary) -
 	var sides := {}
 	for k in range(n0, h.e_pos.size()):
 		sides[int(round(h.e_pos[k].angle() / (TAU / 8.0)))] = true
-	var per_side := int((float(b.war_band.size_start) + float(b.war_band.size_growth) * h.time) * float(atk.tribes.mult) * h.difficulty("bands"))
+	var per_side := int((float(b.war_band.size_start) + float(b.war_band.size_growth) * h.time) * float(atk.tribes.mult) * h.difficulty("spawn"))
 	check(h.e_pos.size() - n0 >= int(atk.tribes.sides) * per_side and sides.size() >= int(atk.tribes.sides), "she calls the tribes from %d sides at once (%d warriors)" % [sides.size(), h.e_pos.size() - n0])
 	h.burn_cd = 0.0
 	h._chieftain(1.0 / 60.0, s)
