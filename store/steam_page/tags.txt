@@ -17,7 +17,7 @@ recommendations. Pick each from Steam's own list; if one is not offered, skip it
 14. Strategy
 15. Difficult
 16. War
-17. Score Attack
+17. Mythology
 18. Singleplayer
 19. Controller
 20. Indie

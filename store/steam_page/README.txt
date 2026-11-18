@@ -12,7 +12,7 @@ folder is the only one it writes to.
 
 TEXT
 
-short_description.txt       Description tab > Short description (260 of 300 characters)
+short_description.txt       Description tab > Short description (296 of 300 characters)
 about_this_game.txt         Description tab > About This Game (written in Steam's [h2], [list] and [b] formatting;
                             its "At a glance" list is the features list)
 tags.txt                    Basic Info > Tags and Genres
@@ -46,20 +46,23 @@ app_icon.ico                 Client icon (the game's own Windows icon)
 
 SCREENSHOTS (Screenshots tab)
 
-screenshots/01 to 09, all 1920x1080, taken from the game as it draws. Upload them in this order; the first four show
-in the store page's sidebar and in search, so they lead with a legion of a hundred in a late run, Jupiter's storm,
-the berserker's whirlwind ring and the legion on a bridge over a ravine.
+screenshots/01 to 10, all 1920x1080, taken from the game as it draws. Upload them in this order; the first four show
+in the store page's sidebar and in search, so they lead with a legion of a hundred in a late run in Germania, the war
+elephant's trample in Parthia, Boudica's chariot in Britannia and the legion on a bridge over a ravine. Then
+come the falx band's charge in Dacia, the Gaulish king and his stakes, Jupiter's storm, the fort held in Parthia,
+a level-up offering cavalrymen and the campaign map of the five provinces.
 
 
 ACHIEVEMENTS
 
-The game defines its achievements in game/data/content.json. The 64 by 64 achievement icons and the table to enter
-in Steamworks are not made yet.
+The game defines its achievements in game/data/content.json. Their icons and the table to enter in Steamworks are
+in store/achievements/, made by python tools/steam/make_achievement_icons.py.
 
 
 TRAILER (Trailers tab)
 
-Not made yet. The sibling games render theirs with tools/trailer/make_trailer.py; this game has no trailer tools yet.
+marketing/recordings/videos/steam_trailer/steam_trailer.mp4, made by python tools/trailer/make_trailer.py (see
+docs/Trailer-plan.md). It is kept out of git for its size.
 
 
 BUILDS
@@ -78,5 +81,5 @@ STILL TO DECIDE BEFORE SUBMITTING
 - Release date: "Coming soon", or a season and year such as "Summer 2027".
 - Price in CAD, which Steamworks asks for separately and which Valve reviews.
 - The system requirements are estimates; check them on an older computer and a Steam Deck before release.
-- Only Germania, the tribune and the archer captain, and the legionary and archer recruits are in the game so far.
-  The page describes only those. When more provinces, commanders or recruits land, add them to about_this_game.txt.
+- The page describes the five provinces, the eight recruits, the six commanders and the three modes now in the game.
+  When more land, add them to about_this_game.txt.

@@ -37,24 +37,29 @@ import make_logo  # noqa: E402
 
 # Drills that keep the autoplay legion alive long enough to show a late run; every one is in the game.
 HARDY = "lorica:9,rations:9,veterans:9,reserves:9,shield_wall:9"
-LATE = ["--autoplay", "--skip=780", f"--give={HARDY},pilum:3,fire_arrows:3"]
+# The newer recruits beside the legionaries and archers, so every screenshot shows a mixed legion.
+MEN = "slinger:3,cavalry:2,ballista:2,centurion:1,standard_bearer:1,medicus:1"
+LATE = ["--autoplay", "--skip=780", f"--give={HARDY},{MEN},pilum:3,fire_arrows:3"]
 # Nine minutes in, the legion of about seventy is still in clean ranks, with war bands and elites closing in.
 MID = ["--autoplay", "--skip=540", f"--give={HARDY},pilum:3"]
+# Eighty seconds into a province, a legion of about twenty with an elite or the chieftain brought beside it, before the
+# legion of 25 or the thousandth kill earns a card that would cover the corner.
+EARLY = ["--autoplay", "--skip=80", f"--give={HARDY},{MEN}"]
 # name: the game's flags. Upload them in this order; the first four show in the sidebar and in search. Each waits until
-# the achievement cards a skipped run earns have slid away, or starts early enough to earn none. Each run is a fresh
-# field, so look at every screenshot afterwards and take again any that came out crowded with labels or empty.
+# the achievement cards a skipped run earns have slid away, or starts early enough to earn none. Each run is laid out
+# from its --seed, so a screenshot that came out crowded with labels or empty is taken again with another seed.
 SCREENSHOTS = {
-    "01_a_hundred_men": [*LATE, "--at=30"],
-    "02_jupiters_storm": ["--autoplay", "--skip=480", f"--give={HARDY}", "--god=jupiter", "--god-at=25", "--at=25.35"],
-    "03_the_berserkers_whirlwind": ["--autoplay", "--skip=150", f"--give={HARDY}", "--boss=berserker", "--boss-act=whirl",
-                                    "--at=0.9"],
-    "04_a_bridge_over_the_ravine": ["--autoplay", "--skip=120", f"--give={HARDY}", "--go-to=bridge", "--at=3"],
-    "05_vulcans_fire": ["--autoplay", "--skip=480", f"--give={HARDY}", "--god=vulcan", "--god-at=25", "--at=26"],
-    "06_the_camp_burns": ["--autoplay", "--skip=120", f"--give={HARDY}", "--objectives-near", "--go-to=burning-camp",
-                          "--at=2"],
-    "07_holding_the_fort": ["--autoplay", "--skip=120", f"--give={HARDY}", "--go-to=fort", "--at=1.5"],
-    "08_a_level_up": ["--autoplay", "--skip=360", f"--give={HARDY}", "--hold-choice", "--at=3"],
-    "09_the_quartermaster": ["--screen=quartermaster", "--at=2"],
+    "01_a_hundred_men": [*LATE, "--seed=7", "--at=30"],
+    "02_the_war_elephant": [*EARLY, "--province=parthia", "--seed=7", "--boss=war_elephant", "--boss-act=trample", "--at=1.2"],
+    "03_boudicas_chariot": [*EARLY, "--province=britannia", "--seed=7", "--boss=warrior_queen", "--boss-act=drive", "--at=1.5"],
+    "04_a_bridge_over_the_ravine": ["--autoplay", "--skip=80", f"--give={HARDY},{MEN}", "--seed=7", "--go-to=bridge", "--at=3"],
+    "05_the_falx_band_charges": [*EARLY, "--province=dacia", "--seed=3", "--boss=falx_band", "--boss-act=onrush", "--at=0.8"],
+    "06_the_gaulish_king": [*EARLY, "--province=gaul", "--seed=7", "--boss=gaul_king", "--boss-act=siege", "--at=2.2"],
+    "07_jupiters_storm": ["--autoplay", "--skip=480", f"--give={HARDY},{MEN}", "--seed=7", "--god=jupiter", "--god-at=25",
+                          "--at=25.35"],
+    "08_holding_the_fort": [*EARLY, "--province=parthia", "--seed=7", "--go-to=fort", "--at=1.5"],
+    "09_a_level_up": ["--autoplay", "--skip=360", f"--give={HARDY},{MEN}", "--seed=7", "--hold-choice", "--at=3"],
+    "10_the_campaign_map": ["--screen=map", "--at=2"],
 }
 
 # name: (window size, the game's flags, seconds into the look). The window sets the game's view: its shorter side is
