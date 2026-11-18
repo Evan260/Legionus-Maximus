@@ -2643,6 +2643,18 @@ func test_reroll_and_banish_can_be_rebound(_b: Dictionary) -> void:
 	Profile.data = saved
 
 
+func test_japanese_lines_never_start_with_a_full_stop(_b: Dictionary) -> void:
+	var before: String = Lang.code
+	Lang.apply("ja", false)
+	var s := "前列の方が受けるダメージは少なくなります。"
+	var cut := false
+	for w in range(20, 200):
+		for line in Ui.lines_of(s, float(w)):
+			cut = cut or Ui.NO_LINE_START.contains(str(line).left(1))
+	check(not cut, "no line at any width starts with closing punctuation")
+	Lang.apply(before, false)
+
+
 func test_a_word_too_long_for_a_line_is_broken(b: Dictionary) -> void:
 	var before: String = Lang.code
 	Lang.apply("de", false)

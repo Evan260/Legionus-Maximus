@@ -5,6 +5,8 @@ extends RefCounted
 
 const W := 640.0
 const H := 360.0
+## Marks that Chinese and Japanese never put at the start of a line.
+const NO_LINE_START := "。、，．！？）」』：；・…ー.,!?):;"
 const INK := Color(0.16, 0.1, 0.08)
 const CREAM := Color(1.0, 0.95, 0.82)
 const PARCH := Color(0.96, 0.9, 0.76)
@@ -101,7 +103,8 @@ static func lines_of(s: String, width: float, size := 0) -> Array:
 	var f := font()
 	if Lang.is_han():
 		for ch in s:
-			if line != "" and f.get_string_size(line + ch, HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x > width:
+			# Closing punctuation never starts a line, so it stays on the line before even when that runs one glyph over.
+			if line != "" and not ch in NO_LINE_START and f.get_string_size(line + ch, HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x > width:
 				out.append(line)
 				line = ""
 			if not (line == "" and ch == " "):
