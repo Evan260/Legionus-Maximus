@@ -317,6 +317,7 @@ func _labels(c: CanvasItem, ui: Ui, ids: Array) -> Array:
 		placed.append(Rect2(p - Vector2.ONE * (NODE_R + 4.0), Vector2.ONE * (NODE_R + 4.0) * 2.0))
 		if main.run_setup.province == id:
 			placed.append(Rect2(p + Vector2(NODE_R, -46), Vector2(22, 46)))
+	var marks := _road_marks(ids)
 	var plates: Array = []
 	var room := 200.0 if Ui.scale == 1 else 260.0
 	for id in ids:
@@ -329,16 +330,23 @@ func _labels(c: CanvasItem, ui: Ui, ids: Array) -> Array:
 		var p := spot(id)
 		var tries: Array = [Rect2(p.x - w / 2.0, p.y + NODE_R + 6.0, w, h), Rect2(p.x - w / 2.0, p.y - NODE_R - 6.0 - h, w, h),
 			Rect2(p.x + NODE_R + 8.0, p.y - h / 2.0, w, h), Rect2(p.x - NODE_R - 8.0 - w, p.y - h / 2.0, w, h)]
+		# Of the sides clear of other plates and nodes, a plate takes the one that covers the least of the road.
 		var at: Rect2 = tries[0]
+		var least := INF
 		for t in tries:
 			t.position.x = clampf(t.position.x, 6.0, Ui.W - t.size.x - 6.0)
 			t.position.y = clampf(t.position.y, 4.0, Ui.H - t.size.y - 20.0)
 			var clash := false
 			for q in placed:
 				clash = clash or q.intersects(t.grow(2.0))
-			if not clash:
+			if clash:
+				continue
+			var covered := 0
+			for m in marks:
+				covered += 1 if t.grow(3.0).has_point(m) else 0
+			if covered < least:
+				least = covered
 				at = t
-				break
 		placed.append(at.grow(2.0))
 		plates.append(at)
 		var state := state_of(id)
@@ -349,6 +357,20 @@ func _labels(c: CanvasItem, ui: Ui, ids: Array) -> Array:
 			var col := Ui.CREAM if state == "open" else (Color(0.6, 0.85, 0.5) if state == "won" else Color(0.72, 0.66, 0.6))
 			ui.fit_text(c, line, room, Vector2(at.position.x, at.position.y + Ui.px + Ui.leading()), col, HORIZONTAL_ALIGNMENT_CENTER, at.size.x)
 	return plates
+
+
+## Points every few pixels along the road from Rome through the provinces, which the plates try not to cover.
+func _road_marks(ids: Array) -> Array:
+	var out: Array = []
+	var from := "roma"
+	for i in ids.size():
+		var pts := route(from, ids[i], 0.18 if i % 2 == 0 else -0.18)
+		for k in pts.size() - 1:
+			var steps := maxi(1, ceili(pts[k].distance_to(pts[k + 1]) / 4.0))
+			for j in steps:
+				out.append(pts[k].lerp(pts[k + 1], float(j) / steps))
+		from = ids[i]
+	return out
 
 
 ## The key hints on a dark strip, so they read over the painted map.
