@@ -528,11 +528,12 @@ func _ridge(r: RandomNumberGenerator, centre: Vector2) -> Array:
 ## A piece of a feature that falls in a clearing or by a ravine takes its whole village or hedge bush with it, so nothing is left half solid.
 func _farmland(key: Vector2i) -> Array:
 	var raw: Dictionary = _farm_raw(key)
+	var earlier := _earlier_houses(key)
 	var kept: Array = []
 	for g in raw.groups:
 		var ok := true
 		for p in g:
-			if p[1].length() <= clear_radius or _in_clearing(p[1]) or _by_ravine(p[1]):
+			if p[1].length() <= clear_radius or _in_clearing(p[1]) or _by_ravine(p[1]) or (p[0] == "roundhouse" and _house_clash(p[1], earlier)):
 				ok = false
 				break
 		if ok:
@@ -542,6 +543,30 @@ func _farmland(key: Vector2i) -> Array:
 		fields.append_array(_placed_field(key, parts))
 	_fields[key] = fields
 	return kept
+
+
+## The roundhouses of the regions near this one that come before it, whose villages win where two would stand in each other.
+func _earlier_houses(key: Vector2i) -> Array:
+	var out: Array = []
+	for dy in range(-2, 3):
+		for dx in range(-2, 3):
+			var other := key + Vector2i(dx, dy)
+			if other.y > key.y or (other.y == key.y and other.x >= key.x):
+				continue
+			for g in _farm_raw(other).groups:
+				for p in g:
+					if p[0] == "roundhouse":
+						out.append(p[1])
+	return out
+
+
+## True when a roundhouse at p would be drawn into one of `houses`.
+func _house_clash(p: Vector2, houses: Array) -> bool:
+	var gap: Array = field.house_spacing
+	for h in houses:
+		if absf(h.x - p.x) < float(gap[0]) and absf(h.y - p.y) < float(gap[1]):
+			return true
+	return false
 
 
 ## A farmland region as first laid out, before anything round it is weighed: {groups: the villages' and hedges' pieces, fields: each field's parts}.
