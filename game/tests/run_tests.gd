@@ -2543,6 +2543,10 @@ func _cuts_in(loc: String, scale: int, c: Content, sim: Sim, cuts: Array) -> voi
 		_fit(cuts, loc, scale, "mode button", "[x] " + s, mode_w - 12.0)
 	_fit(cuts, loc, scale, "map note", tr_.call("Win here to open these"), map_text)
 	_fit(cuts, loc, scale, "marching here", tr_.call("Marching here").to_upper(), 300.0)
+	# The line under each province's name on the map, in its plate.
+	var plate_w := 200.0 if not big else 260.0
+	for s in [tr_.call("Win in %s to open") % _longest(provinces), tr_.call("March here"), tr_.call("Marching here"), tr_.call("Won"), tr_.call("Hard won"), tr_.call("Not ready yet")]:
+		_fit(cuts, loc, scale, "map plate", s, plate_w)
 	# Level-up cards: three or four across.
 	for n in [3, 4]:
 		var gap := 8.0 if n > 3 else 12.0
