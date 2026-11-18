@@ -41,6 +41,30 @@
       "ko": "카피톨리누스 언덕",
       "zh_CN": "卡比托利欧山",
       "zh_TW": "卡比托利歐山"
+    },
+    "Legate": {
+      "ja": "レガトゥス",
+      "ko": "레가투스",
+      "zh_CN": "军团长",
+      "zh_TW": "軍團長"
+    },
+    "Old centurion": {
+      "ja": "老百人隊長",
+      "ko": "노련한 백인대장",
+      "zh_CN": "老百夫长",
+      "zh_TW": "老百夫長"
+    },
+    "Archer captain": {
+      "ja": "弓兵隊長",
+      "ko": "궁수 대장",
+      "zh_CN": "弓箭手队长",
+      "zh_TW": "弓箭手隊長"
+    },
+    "Cavalry prefect": {
+      "ja": "騎兵長官",
+      "ko": "기병 지휘관",
+      "zh_CN": "骑兵长官",
+      "zh_TW": "騎兵長官"
     }
   },
   "fixes": {
@@ -1460,7 +1484,7 @@
       "it": "Germania",
       "pt_BR": "Germânia",
       "pl": "Germania",
-      "tr": "Germania",
+      "tr": "Germanya",
       "ru": "Германия",
       "uk": "Германія",
       "ja": "ゲルマニア",
@@ -1809,6 +1833,725 @@
       "ko": "이곳으로 행군 중",
       "zh_CN": "正在向此进军",
       "zh_TW": "正在向此進軍"
+    },
+    "content.arms.caltrops.name": {
+      "en": "Caltrops",
+      "fr": "Chausse-trapes",
+      "de": "Krähenfüße",
+      "es": "Abrojos",
+      "it": "Triboli",
+      "pt_BR": "Estrepes",
+      "pl": "Kolczatki",
+      "tr": "Çivi tuzakları",
+      "ru": "Чеснок",
+      "uk": "Часник",
+      "ja": "撒き菱",
+      "ko": "마름쇠"
+    },
+    "content.arms.eagle.name": {
+      "en": "Eagle",
+      "fr": "Aigle",
+      "de": "Adler",
+      "es": "Águila",
+      "pt_BR": "Águia",
+      "tr": "Kartal",
+      "ru": "Орёл",
+      "ja": "鷲の軍旗",
+      "ko": "독수리 군기",
+      "zh_CN": "鹰旗",
+      "zh_TW": "鷹旗"
+    },
+    "content.arms.fire_pots.name": {
+      "en": "Fire pots",
+      "fr": "Pots de feu",
+      "it": "Vasi di fuoco",
+      "pl": "Garnce z ogniem",
+      "tr": "Ateş çömlekleri",
+      "ja": "火壺",
+      "ko": "불 항아리",
+      "zh_CN": "燃烧罐",
+      "zh_TW": "燃燒罐"
+    },
+    "content.arms.oil_jars.name": {
+      "en": "Oil jars",
+      "fr": "Jarres d’huile",
+      "es": "Tinajas de aceite",
+      "pl": "Dzbany z oliwą",
+      "tr": "Yağ küpleri",
+      "ru": "Кувшины с маслом",
+      "uk": "Глеки з олією",
+      "ja": "油壺",
+      "ko": "기름 항아리"
+    },
+    "content.arms.onager.name": {
+      "en": "Onager",
+      "fr": "Onagre",
+      "es": "Onagro",
+      "it": "Onagro",
+      "pt_BR": "Onagro",
+      "ko": "오나거",
+      "zh_CN": "投石机",
+      "zh_TW": "投石機"
+    },
+    "content.arms.pilum.name": {
+      "en": "Pilum volley",
+      "fr": "Volée de pilums",
+      "de": "Pilumsalve",
+      "es": "Andanada de pilums",
+      "it": "Raffica di pilum",
+      "pl": "Salwa pilum",
+      "tr": "Pilum yaylımı",
+      "ru": "Залп пилумов",
+      "uk": "Залп пілумів",
+      "ja": "ピルムの斉射",
+      "ko": "필룸 일제 투척",
+      "zh_CN": "标枪齐射",
+      "zh_TW": "標槍齊射"
+    },
+    "content.arms.scorpio.name": {
+      "en": "Scorpio",
+      "es": "Escorpión",
+      "ja": "スコルピオ",
+      "ko": "스코르피오",
+      "zh_CN": "蝎式弩",
+      "zh_TW": "蠍式弩"
+    },
+    "content.arms.trumpets.name": {
+      "en": "Trumpets",
+      "ja": "ラッパ",
+      "zh_CN": "军号",
+      "zh_TW": "軍號"
+    },
+    "content.arms.war_dogs.name": {
+      "en": "War dogs",
+      "ja": "軍用犬"
+    },
+    "content.commanders.cavalry_prefect.name": {
+      "en": "Cavalry prefect",
+      "tr": "Süvari komutanı"
+    },
+    "content.commanders.legate.name": {
+      "en": "Legate",
+      "ja": "レガトゥス",
+      "ko": "레가투스"
+    },
+    "content.commanders.old_centurion.name": {
+      "en": "Old centurion",
+      "tr": "Yaşlı centurio",
+      "ja": "老百人隊長",
+      "ko": "노련한 백인대장"
+    },
+    "content.drills.close_order.name": {
+      "en": "Close order",
+      "de": "Geschlossene Formation",
+      "it": "Ordine serrato",
+      "pt_BR": "Ordem cerrada",
+      "pl": "Szyk zwarty",
+      "tr": "Sık düzen",
+      "ru": "Сомкнутый строй",
+      "uk": "Зімкнутий стрій",
+      "ja": "密集隊形",
+      "ko": "밀집 대형",
+      "zh_CN": "密集队形",
+      "zh_TW": "密集隊形"
+    },
+    "content.drills.discipline.name": {
+      "en": "Discipline",
+      "ko": "규율"
+    },
+    "content.drills.fortune.name": {
+      "en": "Fortune",
+      "de": "Fortuna",
+      "tr": "Talih",
+      "ja": "幸運",
+      "ko": "행운",
+      "zh_CN": "幸运",
+      "zh_TW": "幸運"
+    },
+    "content.drills.gladius.name": {
+      "en": "Sharpened gladii",
+      "fr": "Glaives affûtés",
+      "es": "Gladius afilados",
+      "it": "Gladi affilati",
+      "pl": "Naostrzone gladiusy",
+      "tr": "Bilenmiş gladiuslar",
+      "ja": "研がれたグラディウス",
+      "ko": "벼린 글라디우스",
+      "zh_CN": "磨利的短剑",
+      "zh_TW": "磨利的短劍"
+    },
+    "content.drills.march.name": {
+      "en": "Forced march",
+      "de": "Gewaltmarsch",
+      "pl": "Marsz forsowny",
+      "tr": "Cebri yürüyüş",
+      "ru": "Форсированный марш",
+      "uk": "Форсований марш",
+      "ko": "강행군",
+      "zh_CN": "急行军",
+      "zh_TW": "急行軍"
+    },
+    "content.drills.reach.name": {
+      "en": "Long reach",
+      "ru": "Длинные руки",
+      "uk": "Довгі руки",
+      "ja": "長い腕",
+      "ko": "긴 팔",
+      "zh_CN": "长臂",
+      "zh_TW": "長臂"
+    },
+    "content.drills.reserves.name": {
+      "en": "Reserves",
+      "pl": "Rezerwy"
+    },
+    "content.drills.shield_wall.name": {
+      "en": "Shield wall",
+      "de": "Schildwall",
+      "pl": "Mur tarcz",
+      "ru": "Стена щитов",
+      "uk": "Стіна щитів"
+    },
+    "content.drills.veterans.name": {
+      "en": "Veterans",
+      "fr": "Vétérans",
+      "ja": "古参兵"
+    },
+    "content.enemies.barbarian_club.name": {
+      "en": "Club warrior",
+      "fr": "Guerrier à la massue",
+      "de": "Keulenkrieger",
+      "es": "Guerrero con maza",
+      "it": "Guerriero con clava",
+      "pt_BR": "Guerreiro com clava",
+      "pl": "Wojownik z maczugą",
+      "tr": "Sopalı savaşçı",
+      "ru": "Воин с дубиной",
+      "uk": "Воїн з кийком",
+      "ja": "棍棒戦士",
+      "ko": "곤봉 전사"
+    },
+    "content.enemies.barbarian_spear.name": {
+      "en": "Spearman",
+      "fr": "Lancier",
+      "ru": "Копейщик",
+      "uk": "Списник",
+      "ja": "槍兵",
+      "ko": "창병",
+      "zh_CN": "长矛手",
+      "zh_TW": "長矛手"
+    },
+    "content.enemies.briton_slinger.name": {
+      "en": "Slinger",
+      "fr": "Frondeur",
+      "de": "Schleuderer",
+      "it": "Frombolière",
+      "pt_BR": "Fundibulário",
+      "tr": "Sapancı",
+      "uk": "Пращник",
+      "ja": "投石兵",
+      "ko": "투석병",
+      "zh_CN": "投石兵",
+      "zh_TW": "投石兵"
+    },
+    "content.enemies.parthian_slinger.name": {
+      "en": "Slinger",
+      "fr": "Frondeur",
+      "de": "Schleuderer",
+      "it": "Frombolière",
+      "pt_BR": "Fundibulário",
+      "tr": "Sapancı",
+      "uk": "Пращник",
+      "ja": "投石兵",
+      "ko": "투석병",
+      "zh_CN": "投石兵",
+      "zh_TW": "投石兵"
+    },
+    "content.enemies.camel_rider.name": {
+      "en": "Camel rider",
+      "pl": "Jeździec na wielbłądzie",
+      "uk": "Верблюжий вершник",
+      "ja": "ラクダ騎兵",
+      "ko": "낙타 기병",
+      "zh_CN": "骆驼骑兵",
+      "zh_TW": "駱駝騎兵"
+    },
+    "content.enemies.cataphract.name": {
+      "en": "Cataphract",
+      "fr": "Cataphracte",
+      "de": "Kataphrakt",
+      "es": "Catafracto",
+      "it": "Catafratto",
+      "pt_BR": "Catafrata",
+      "pl": "Katafrakt",
+      "tr": "Katafrakt"
+    },
+    "content.enemies.cataphract_charge.name": {
+      "en": "Cataphract charge leader",
+      "fr": "Meneur de charge cataphracte",
+      "de": "Kataphrakt-Sturmführer",
+      "es": "Líder de carga catafracto",
+      "it": "Capo della carica catafratta",
+      "pt_BR": "Líder da carga catafrata",
+      "tr": "Katafrakt hücum lideri",
+      "ru": "Вожак атаки катафрактов",
+      "uk": "Ватажок атаки катафрактів",
+      "ja": "カタフラクト突撃隊長",
+      "ko": "카타프락트 돌격대장",
+      "zh_CN": "重装骑兵冲锋首领",
+      "zh_TW": "重裝騎兵衝鋒首領"
+    },
+    "content.enemies.champion.name": {
+      "en": "Champion",
+      "de": "Recke",
+      "pl": "Czempion",
+      "tr": "Kahraman",
+      "ru": "Поединщик",
+      "uk": "Поєдинщик",
+      "ja": "勇士",
+      "ko": "용사",
+      "zh_CN": "勇士",
+      "zh_TW": "勇士"
+    },
+    "content.enemies.chariot.name": {
+      "en": "Chariot",
+      "fr": "Char",
+      "de": "Streitwagen",
+      "pt_BR": "Carro de guerra"
+    },
+    "content.enemies.chariot_charge.name": {
+      "en": "Scythed chariot",
+      "fr": "Char à faux",
+      "de": "Sichelwagen",
+      "es": "Carro falcado",
+      "pt_BR": "Carro falcado",
+      "ru": "Серпоносная колесница",
+      "uk": "Колісниця з косами",
+      "ja": "鎌付き戦車"
+    },
+    "content.enemies.dacian_archer.name": {
+      "en": "Archer",
+      "de": "Bogenschütze",
+      "es": "Arquero",
+      "pl": "Łucznik",
+      "tr": "Okçu",
+      "ja": "弓兵",
+      "ko": "궁수",
+      "zh_CN": "弓箭手"
+    },
+    "content.enemies.gaul_archer.name": {
+      "en": "Archer",
+      "de": "Bogenschütze",
+      "es": "Arquero",
+      "pl": "Łucznik",
+      "tr": "Okçu",
+      "ja": "弓兵",
+      "ko": "궁수",
+      "zh_CN": "弓箭手"
+    },
+    "content.enemies.falx_band.name": {
+      "en": "Falx band leader",
+      "fr": "Chef de bande à la falx",
+      "de": "Falx-Bandenführer",
+      "es": "Jefe de banda falx",
+      "it": "Capobanda falx",
+      "pt_BR": "Líder de bando falx",
+      "pl": "Przywódca bandy z falksami",
+      "tr": "Falx çetesi reisi",
+      "ru": "Вожак отряда фальксов",
+      "uk": "Ватажок загону фальксів",
+      "ja": "ファルクス戦士団の頭領",
+      "ko": "팔크스 전사단 우두머리",
+      "zh_CN": "镰刀战团首领",
+      "zh_TW": "鐮刀戰團首領"
+    },
+    "content.enemies.falx_warrior.name": {
+      "en": "Falx warrior",
+      "fr": "Guerrier à la falx",
+      "es": "Guerrero de falx",
+      "it": "Guerriero con falx",
+      "pt_BR": "Guerreiro de falx",
+      "pl": "Wojownik z falksem",
+      "ru": "Воин с фальксом",
+      "uk": "Воїн з фальксом",
+      "ja": "ファルクス戦士",
+      "ko": "팔크스 전사",
+      "zh_CN": "镰刀战士",
+      "zh_TW": "鐮刀戰士"
+    },
+    "content.enemies.gaul_horseman.name": {
+      "en": "Horseman",
+      "de": "Reiter",
+      "ja": "騎手",
+      "ko": "기병",
+      "zh_CN": "骑手",
+      "zh_TW": "騎手"
+    },
+    "content.enemies.horn_blower.name": {
+      "en": "Horn blower",
+      "fr": "Sonneur de cor",
+      "de": "Hornbläser",
+      "es": "Tañedor de cuerno",
+      "it": "Suonatore di corno",
+      "pt_BR": "Corneteiro",
+      "pl": "Trębacz",
+      "tr": "Boru çalan",
+      "ru": "Трубач",
+      "uk": "Сурмач",
+      "ja": "角笛吹き",
+      "ko": "나팔수",
+      "zh_CN": "号角手",
+      "zh_TW": "號角手"
+    },
+    "content.enemies.painted_warrior.name": {
+      "en": "Painted warrior",
+      "ja": "彩色の戦士",
+      "ko": "채색 전사"
+    },
+    "content.enemies.priest.name": {
+      "en": "Priest",
+      "it": "Sacerdote",
+      "pt_BR": "Sacerdote",
+      "pl": "Kapłan",
+      "ru": "Жрец",
+      "uk": "Жрець",
+      "zh_CN": "祭司",
+      "zh_TW": "祭司"
+    },
+    "content.enemies.war_priest.name": {
+      "en": "War priest",
+      "zh_CN": "战争祭司",
+      "zh_TW": "戰爭祭司"
+    },
+    "content.enemies.war_elephant.name": {
+      "en": "War elephant",
+      "ja": "戦象"
+    },
+    "content.enemies.wolf_standard_bearer.name": {
+      "en": "Wolf-standard bearer",
+      "fr": "Porte-étendard au loup",
+      "es": "Portaestandarte del lobo",
+      "pl": "Chorąży wilka",
+      "uk": "Прапороносець вовка"
+    },
+    "content.forged.hooked_pila.name": {
+      "en": "Hooked pila",
+      "fr": "Pilums à crochets",
+      "de": "Hakenpila",
+      "es": "Pilums con garfio",
+      "it": "Pila uncinati",
+      "pt_BR": "Pilums com gancho",
+      "pl": "Pila z hakami",
+      "tr": "Kancalı pilumlar",
+      "ru": "Пилумы с крюками",
+      "uk": "Пілуми з гаками",
+      "ja": "鉤付きピルム",
+      "ko": "갈고리 필룸",
+      "zh_CN": "钩刃重标枪",
+      "zh_TW": "鉤刃重標槍"
+    },
+    "content.forged.siege_train.name": {
+      "en": "Siege train",
+      "de": "Belagerungstross",
+      "it": "Parco d’assedio",
+      "pt_BR": "Comboio de cerco",
+      "tr": "Kuşatma kafilesi",
+      "ru": "Осадный обоз",
+      "uk": "Облоговий обоз",
+      "ja": "攻城輜重隊",
+      "ko": "공성 수송대",
+      "zh_CN": "攻城辎重",
+      "zh_TW": "攻城輜重"
+    },
+    "content.forged.fortified_camp.name": {
+      "en": "Fortified camp",
+      "ja": "要塞陣営",
+      "zh_TW": "加固營地"
+    },
+    "content.forged.greek_fire.name": {
+      "en": "Greek fire",
+      "pl": "Ogień grecki",
+      "ko": "그리스의 불"
+    },
+    "content.forged.burning_eagle.name": {
+      "en": "Burning eagle",
+      "ja": "燃える鷲"
+    },
+    "content.forged.hunting_horn.name": {
+      "en": "Hunting horn",
+      "pt_BR": "Trompa de caça",
+      "tr": "Av borusu",
+      "ko": "사냥 뿔피리"
+    },
+    "content.provinces.britannia.name": {
+      "en": "Britannia",
+      "fr": "Bretagne",
+      "de": "Britannien",
+      "es": "Britania",
+      "pt_BR": "Britânia",
+      "pl": "Brytania",
+      "tr": "Britanya"
+    },
+    "content.provinces.dacia.name": {
+      "en": "Dacia",
+      "fr": "Dacie",
+      "de": "Dakien",
+      "tr": "Dakya"
+    },
+    "content.provinces.parthia.name": {
+      "en": "Parthia",
+      "fr": "Parthie"
+    },
+    "content.quartermaster.experience.name": {
+      "en": "Experience",
+      "ko": "경험치",
+      "zh_CN": "经验",
+      "zh_TW": "經驗"
+    },
+    "content.quartermaster.start_soldiers.name": {
+      "en": "Starting soldiers",
+      "pl": "Żołnierze na start",
+      "ja": "初期兵士"
+    },
+    "content.quartermaster.triumph.name": {
+      "en": "Hold a triumph",
+      "fr": "Célébrer un triomphe",
+      "de": "Triumphzug abhalten",
+      "it": "Celebra un trionfo",
+      "pt_BR": "Celebre um triunfo",
+      "tr": "Zafer alayı düzenle",
+      "ru": "Провести триумф",
+      "uk": "Провести тріумф",
+      "ja": "凱旋式を挙行",
+      "ko": "개선식 거행"
+    },
+    "content.recruits.legionary.name": {
+      "en": "Legionaries",
+      "pl": "Legioniści"
+    },
+    "content.recruits.slinger.name": {
+      "en": "Slingers",
+      "fr": "Frondeurs",
+      "de": "Schleuderer",
+      "it": "Frombolieri",
+      "pt_BR": "Fundibulários",
+      "tr": "Sapancılar",
+      "uk": "Пращники",
+      "ja": "投石兵",
+      "ko": "투석병",
+      "zh_CN": "投石兵",
+      "zh_TW": "投石兵"
+    },
+    "content.recruits.archer.name": {
+      "en": "Archers",
+      "ja": "弓兵",
+      "ko": "궁수"
+    },
+    "content.recruits.ballista.name": {
+      "en": "Ballista crew",
+      "it": "Serventi della balista",
+      "uk": "Розрахунок балісти",
+      "ja": "バリスタ兵",
+      "ko": "노포병"
+    },
+    "content.recruits.standard_bearer.name": {
+      "en": "Standard bearer",
+      "tr": "Sancaktar",
+      "uk": "Прапороносець",
+      "ko": "기수"
+    },
+    "content.achievements.commander_cavalry_prefect.name": {
+      "en": "Cavalry prefect unlocked",
+      "ja": "騎兵長官を解放",
+      "ko": "기병 지휘관 해제"
+    },
+    "content.achievements.commander_cavalry_prefect.text": {
+      "en": "Unlock the Cavalry prefect.",
+      "pt_BR": "Desbloqueie o prefeito de cavalaria.",
+      "ja": "騎兵長官を解放する。",
+      "ko": "기병 지휘관을 해제하세요."
+    },
+    "content.achievements.commander_legate.name": {
+      "en": "Legate unlocked",
+      "tr": "Legat açıldı",
+      "ja": "レガトゥスを解放",
+      "ko": "레가투스 해제"
+    },
+    "content.achievements.commander_legate.text": {
+      "en": "Unlock the Legate.",
+      "de": "Schalte den Legaten frei.",
+      "ru": "Откройте легата.",
+      "uk": "Відкрийте легата.",
+      "ja": "レガトゥスを解放する。",
+      "ko": "레가투스를 해제하세요."
+    },
+    "content.achievements.commander_old_centurion.name": {
+      "en": "Old centurion unlocked",
+      "tr": "Yaşlı centurio açıldı",
+      "ja": "老百人隊長を解放",
+      "ko": "노련한 백인대장 해제",
+      "zh_TW": "老百夫長解鎖"
+    },
+    "content.achievements.commander_old_centurion.text": {
+      "en": "Unlock the Old centurion.",
+      "fr": "Débloquez le Vieux centurion.",
+      "pt_BR": "Desbloqueie o Velho centurião.",
+      "tr": "Yaşlı centurio'yu açın.",
+      "ja": "老百人隊長を解放する。",
+      "ko": "노련한 백인대장을 해제하세요.",
+      "zh_CN": "解锁老百夫长。",
+      "zh_TW": "解鎖老百夫長。"
+    },
+    "content.achievements.forge_hooked_pila.name": {
+      "en": "Hooked pila forged",
+      "fr": "Pilums à crochets forgés",
+      "de": "Hakenpila geschmiedet",
+      "es": "Pilums con garfio forjados",
+      "it": "Pila uncinati forgiati",
+      "pt_BR": "Pilums com gancho forjados",
+      "pl": "Pila z hakami wykute",
+      "tr": "Kancalı pilumlar dövüldü",
+      "ru": "Пилумы с крюками выкованы",
+      "uk": "Пілуми з гаками викувано",
+      "ja": "鉤付きピルムを鍛造",
+      "ko": "갈고리 필룸 단조",
+      "zh_CN": "钩刃重标枪已锻造",
+      "zh_TW": "鉤刃重標槍已鍛造"
+    },
+    "content.achievements.forge_hooked_pila.text": {
+      "en": "Forge the Hooked pila.",
+      "fr": "Forgez les Pilums à crochets.",
+      "de": "Schmiede die Hakenpila.",
+      "es": "Forja los Pilums con garfio.",
+      "it": "Forgia i Pila uncinati.",
+      "pt_BR": "Forje os Pilums com gancho.",
+      "pl": "Wykuj Pila z hakami.",
+      "tr": "Kancalı pilumları döv.",
+      "ru": "Выкуйте Пилумы с крюками.",
+      "uk": "Викуйте Пілуми з гаками.",
+      "ja": "鉤付きピルムを鍛造する。",
+      "ko": "갈고리 필룸을 단조하세요.",
+      "zh_CN": "锻造钩刃重标枪。",
+      "zh_TW": "鍛造鉤刃重標槍。"
+    },
+    "content.achievements.forge_siege_train.name": {
+      "en": "Siege train forged",
+      "fr": "Train de siège forgé",
+      "de": "Belagerungstross geschmiedet",
+      "es": "Tren de asedio forjado",
+      "it": "Parco d’assedio forgiato",
+      "pt_BR": "Comboio de cerco forjado",
+      "pl": "Tabor oblężniczy wykuty",
+      "tr": "Kuşatma kafilesi dövüldü",
+      "ru": "Осадный обоз выкован",
+      "uk": "Облоговий обоз викувано",
+      "ja": "攻城輜重隊を鍛造",
+      "ko": "공성 수송대 단조",
+      "zh_CN": "攻城辎重已锻造",
+      "zh_TW": "攻城輜重已鍛造"
+    },
+    "content.achievements.forge_siege_train.text": {
+      "en": "Forge the Siege train.",
+      "fr": "Forgez le Train de siège.",
+      "de": "Schmiede den Belagerungstross.",
+      "es": "Forja el Tren de asedio.",
+      "it": "Forgia il Parco d’assedio.",
+      "pt_BR": "Forje o Comboio de cerco.",
+      "pl": "Wykuj Tabor oblężniczy.",
+      "tr": "Kuşatma kafilesini döv.",
+      "ru": "Выкуйте Осадный обоз.",
+      "uk": "Викуйте Облоговий обоз.",
+      "ja": "攻城輜重隊を鍛造する。",
+      "ko": "공성 수송대를 단조하세요.",
+      "zh_CN": "锻造攻城辎重。",
+      "zh_TW": "鍛造攻城輜重。"
+    },
+    "content.achievements.forge_fortified_camp.name": {
+      "en": "Fortified camp forged",
+      "pl": "Obóz umocniony wykuty",
+      "tr": "Güçlendirilmiş kamp dövüldü",
+      "uk": "Укріплений табір викувано",
+      "ja": "要塞陣営を鍛造",
+      "ko": "요새화된 야영지 단조",
+      "zh_CN": "加固营地已锻造",
+      "zh_TW": "加固營地已鍛造"
+    },
+    "content.achievements.forge_fortified_camp.text": {
+      "en": "Forge the Fortified camp.",
+      "pl": "Wykuj Obóz umocniony.",
+      "ru": "Выкуйте Укреплённый лагерь.",
+      "uk": "Викуйте Укріплений табір.",
+      "ja": "要塞陣営を鍛造する。",
+      "ko": "요새화된 야영지를 단조하세요.",
+      "zh_CN": "锻造加固营地。",
+      "zh_TW": "鍛造加固營地。"
+    },
+    "content.achievements.forge_greek_fire.name": {
+      "en": "Greek fire forged",
+      "pl": "Ogień grecki wykuty",
+      "tr": "Yunan ateşi dövüldü",
+      "uk": "Грецький вогонь викувано",
+      "ja": "ギリシャ火を鍛造",
+      "ko": "그리스의 불 단조"
+    },
+    "content.achievements.forge_burning_eagle.name": {
+      "en": "Burning eagle forged",
+      "tr": "Yanan kartal dövüldü",
+      "uk": "Палаючого орла викувано",
+      "ja": "燃える鷲を鍛造",
+      "zh_CN": "燃烧的鹰已锻造",
+      "zh_TW": "燃燒的鷹已鍛造"
+    },
+    "content.achievements.forge_hunting_horn.name": {
+      "en": "Hunting horn forged",
+      "de": "Jagdhorn geschmiedet",
+      "pt_BR": "Trompa de caça forjada",
+      "pl": "Róg myśliwski wykuty",
+      "tr": "Av borusu dövüldü",
+      "ru": "Охотничий рог выкован",
+      "uk": "Мисливський ріг викувано",
+      "ja": "狩猟ホーンを鍛造",
+      "ko": "사냥 뿔피리 단조",
+      "zh_CN": "猎角已锻造",
+      "zh_TW": "狩獵號角已鍛造"
+    },
+    "content.achievements.win_as_archer_captain.name": {
+      "en": "Victory as the Archer captain",
+      "fr": "Victoire en Capitaine des archers",
+      "de": "Sieg als Schützenhauptmann",
+      "es": "Victoria como Capitán de arqueros",
+      "it": "Vittoria come Capitano degli arcieri",
+      "pt_BR": "Vitória como Capitão dos arqueiros",
+      "pl": "Zwycięstwo jako Kapitan łuczników",
+      "tr": "Okçu yüzbaşı olarak zafer",
+      "ru": "Победа за командира лучников",
+      "uk": "Перемога за командира лучників",
+      "ja": "弓兵隊長での勝利",
+      "ko": "궁수 대장으로 승리",
+      "zh_CN": "以弓箭手队长获胜",
+      "zh_TW": "以弓箭手隊長獲勝"
+    },
+    "content.achievements.win_britannia.name": {
+      "en": "Victory in Britannia",
+      "de": "Sieg in Britannien",
+      "es": "Victoria en Britania",
+      "tr": "Britanya'da zafer"
+    },
+    "content.achievements.win_dacia.name": {
+      "en": "Victory in Dacia",
+      "tr": "Dakya'da zafer"
+    },
+    "content.achievements.win_parthia.name": {
+      "en": "Victory in Parthia",
+      "fr": "Victoire en Parthie",
+      "tr": "Partya'da zafer"
+    },
+    "content.achievements.win_gaul.name": {
+      "en": "Victory in Gaul",
+      "tr": "Galya'da zafer"
+    },
+    "content.achievements.win_germania.name": {
+      "en": "Victory in Germania",
+      "tr": "Germanya'da zafer"
     }
   }
 }
