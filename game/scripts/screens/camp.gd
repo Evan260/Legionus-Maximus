@@ -110,6 +110,12 @@ func _monument(c: CanvasItem, foot: Vector2) -> void:
 	var share := clampf(float(stages) / float(info.ranks), 0.0, 1.0)
 	var built := roundf(size.y * share)
 	var top := foot + Vector2(0, -size.y)
+	# A soft shadow on the grass under its foot, as the trees and rocks have, so it stands on the field.
+	var ring := PackedVector2Array()
+	for k in 24:
+		var a := TAU * k / 24.0
+		ring.append((foot + Vector2(size.x / 2.0 + 4.0 + cos(a) * size.x * 0.6, -4.0 + sin(a) * 11.0)).round())
+	c.draw_colored_polygon(ring, Color(0, 0, 0, 0.3))
 	c.draw_texture_rect_region(_arch, Rect2(top + Vector2(0, size.y - built), Vector2(size.x, built)), Rect2(0, size.y - built, size.x, built))
 	if share < 1.0:
 		var y := top.y + size.y - built
