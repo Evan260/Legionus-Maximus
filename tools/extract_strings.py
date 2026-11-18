@@ -23,8 +23,8 @@ TABLES = [("screens/camp.gd", "BOARDS"), ("screens/map.gd", "MODES"), ("screens/
           ("controls.gd", "PAD_NAMES"), ("content.gd", "GROUPS")]
 # Tables whose every string is a word to translate, the lower-case ones too.
 WORD_TABLES = [("controls.gd", "HINT_WORDS"), ("controls.gd", "KEY_NAMES")]
-# Words built from ids in code: the mode names, which the camp and the summary capitalise.
-EXTRA = ["Hard", "Endless", "Decimatio", "Language", "Automatic"]
+# Words built from ids in code: the mode names, which the camp and the summary capitalise, and the objectives' names in hud.gd.
+EXTRA = ["Hard", "Endless", "Decimatio", "Language", "Automatic", "Barbarian camp", "Stranded column", "Sacred grove", "Roman fort"]
 
 CALL = re.compile(r'\b(?:tr|TranslationServer\.translate)\(\s*"((?:[^"\\]|\\.)*)"')
 LITERAL = re.compile(r'"((?:[^"\\]|\\.)*)"')

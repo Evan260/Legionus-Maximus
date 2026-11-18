@@ -2075,7 +2075,7 @@ func _move(dt: float, sim: Sim) -> void:
 	var f_n := Terrain.FN
 	var f_closed := sim.terrain.blocked
 	var held := 0
-	var solid_range: float = b.get("solid_range", 400.0)
+	var solid_range: float = b.solid_range
 	var detour_seconds: float = b.detour.seconds
 	var stuck_after: float = b.detour.stuck_after
 	var stuck_slip: float = b.detour.stuck_slip

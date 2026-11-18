@@ -617,7 +617,7 @@ func _sortie(s: Dictionary, dt: float, sim: Sim) -> void:
 			s.facing = to / d
 		s.moving = true
 		var dmg := float(info.damage) * (1.0 + 0.2 * sim.rank("gladius"))
-		if promoted(s.type):
+		if promoted(s.type) and info.promotion.get("trample", false):
 			for j in sim.enemies_near(s.pos, strike):
 				if not s.struck.has(sim.horde.e_id[j]):
 					s.struck[sim.horde.e_id[j]] = true

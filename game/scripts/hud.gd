@@ -357,18 +357,6 @@ func _victory_banner(sim: Sim) -> void:
 	draw_string(Ui.font(), Vector2(0, y + Ui.leading() + Ui.px * 0.6), line.to_upper(), HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x, Ui.px, Color(CREAM, a))
 
 
-## The name of an objective or the fort, as the arrows and notices show it.
-func objective_name(kind: String) -> String:
-	match kind:
-		"camp":
-			return tr("Barbarian camp")
-		"column":
-			return tr("Stranded column")
-		"grove":
-			return tr("Sacred grove")
-	return tr("Roman fort")
-
-
 func _notice_text(kind: String) -> String:
 	match kind:
 		"camp":

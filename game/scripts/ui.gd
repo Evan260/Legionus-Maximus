@@ -224,11 +224,6 @@ func wrap(c: CanvasItem, s: String, pos: Vector2, width: float, col: Color = INK
 	return y
 
 
-## The number of lines the text takes at the width.
-func line_count(s: String, width: float) -> int:
-	return lines_of(s, width).size()
-
-
 func panel(c: CanvasItem, r: Rect2, fill: Color = PARCH) -> void:
 	c.draw_rect(r.grow(1), INK)
 	c.draw_rect(r, fill)

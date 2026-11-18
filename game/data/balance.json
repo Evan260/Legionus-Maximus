@@ -15,6 +15,7 @@
     "grove": {"ring": 96, "oak_step": 22, "trees": {"dacia": "pine", "parthia": "palm"}, "stones": {"britannia": {"ring": 116, "step": 60, "lift": [2, 20]}}, "gaps": 3, "gap_width": 0.6, "inside": 80, "hold": 5.0, "band_every": 2.5, "band_from": 230, "calm_seconds": 60, "calm_mult": 0.5, "burn_seconds": 10}
   },
   "fort": {"near": 900, "far": 1200, "arc": 0.9, "clearing": 200, "half": 90, "room_margin": 16, "hold": 4.0, "inside_margin": 8, "seen_within": [290, 150], "tries": 16, "tower_x": 34, "tower_radius": 12, "stake_gap": 12, "stake_radius": 6},
+  "terrain_clear_radius": 200,
   "forest": {"ridge_chance": 0.55, "line_chance": 0.25, "width": [60, 110], "length": [600, 1400], "tree_step": 22, "jitter": 3, "turn": 0.006, "wander": 0.0009, "end_taper": 80, "pass_chance": 0.5, "pass_width": 70, "fir_share": 0.55},
   "ravines": {"region": 1800, "chance": 0.6, "inset": 170, "width": [80, 160], "length": [640, 1280], "step": 16, "turn": 0.0035, "wander": 0.00008, "end_taper": 140, "end_width": 0.3, "land_bridge_chance": 0.5, "land_bridge": [56, 84], "band": 90, "start_clear": 380, "tries": 8},
   "mountains": {"dacia": {"scatter": ["pine", "rock", "stones", "pine", "rock", "stones", "pine"], "tree": "pine", "ridge_chance": 0.6, "line_chance": 0.35, "line_length": [220, 420], "line_kinds": ["rock"]}},
@@ -46,6 +47,7 @@
   "recycle_radius": 460,
   "legion_cap": 100,
   "commander_regen": 0.3,
+  "solid_range": 400,
   "detour": {"seconds": 0.6, "slide": 0.2, "route_range": 330, "stuck_after": 1.2, "stuck_slip": 1.0},
   "press": {"per_enemy": 0.1, "slowest": 0.2},
   "promotion_picks": 5,
