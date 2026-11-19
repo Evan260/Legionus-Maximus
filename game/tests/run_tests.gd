@@ -3929,7 +3929,7 @@ func test_bosses_arrive_on_their_own_timer(b: Dictionary) -> void:
 
 func test_the_horde_is_a_quarter_thinner(b: Dictionary) -> void:
 	check(is_equal_approx(float(b.spawn_per_second_start), 0.88) and is_equal_approx(float(b.spawn_per_second_growth), 0.0176), "the stream is trimmed by an eighth, leaving the bosses the main threat")
-	check(int(b.surge_size_start) == 8 and is_equal_approx(float(b.surge_size_growth), 0.053), "so are the surges")
+	check(int(b.surge_size_start) == 8 and is_equal_approx(float(b.surge_size_growth), 0.035), "so are the surges, softer still")
 	check(int(b.war_band.size_start) == 6 and is_equal_approx(float(b.war_band.size_growth), 0.0176), "and the war bands' growth")
 
 
