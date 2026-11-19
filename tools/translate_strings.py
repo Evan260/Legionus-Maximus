@@ -56,7 +56,7 @@ HINTS = {
     "March": "Set off (start the run)",
     "March up": "Move the legion up", "March down": "Move the legion down", "March left": "Move the legion left",
     "March right": "Move the legion right", "Resume": "Resume the game", "Settings": "Settings (game options)",
-    "Paused": "Game paused", "Hard": "Hard difficulty mode", "Endless": "Endless mode", "Endless %s": "Endless mode %s",
+    "Paused": "Game paused", "Easy": "Easy difficulty", "Medium": "Medium difficulty", "Hard": "Hard difficulty mode", "Endless": "Endless mode", "Endless %s": "Endless mode %s",
     "Endless  +%d:%02d": "Endless mode  +%d:%02d", "Hard won": "Hard mode won", "Hard not won": "Hard mode not won",
     "Won": "Won (victory)", "Not won": "Not won (no victory)", "On": "Switched on", "Off": "Switched off",
     "Chosen": "Selected", "Master volume": "Overall sound volume", "Effects volume": "Sound effects volume",
@@ -65,7 +65,7 @@ HINTS = {
     "Largest %d": "Largest: %d", "Give up the run": "Give up this run", "The camp": "The army camp",
     "Automatic": "Automatic language", "Demo": "Demo version", "Marching here": "Currently marching here",
     "Defeat %d barbarians in total": "Defeat a total of %d barbarians", "Win in %s": "Win a victory in %s",
-    "Win in every province": "Win a victory in every province", "Win here to open these": "Win in this province to unlock these",
+    "Win in every province": "Win a victory in every province", "Win here to open Endless and Decimatio": "Win in this province to unlock Endless and Decimatio",
     "Dpad up": "D-pad up button", "Dpad down": "D-pad down button", "Dpad left": "D-pad left button", "Dpad right": "D-pad right button",
     "Reroll": "Reroll the choices", "Banish": "Banish a choice",
 }

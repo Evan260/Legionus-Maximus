@@ -1792,22 +1792,6 @@
       "zh_CN": "无尽模式  +%d:%02d",
       "zh_TW": "無盡模式  +%d:%02d"
     },
-    "Win in %s to open": {
-      "en": "Win in %s to open",
-      "fr": "Gagnez en %s pour l’ouvrir",
-      "de": "Siege in %s, um sie zu öffnen",
-      "es": "Gana en %s para abrirla",
-      "it": "Vinci in %s per aprirla",
-      "pt_BR": "Vença em %s para abrir",
-      "pl": "Wymaga zwycięstwa: %s",
-      "tr": "Açmak için %s eyaletinde kazan",
-      "ru": "Нужна победа: %s",
-      "uk": "Потрібна перемога: %s",
-      "ja": "%sで勝利すると解放",
-      "ko": "%s에서 승리하면 열림",
-      "zh_CN": "在%s获胜后解锁",
-      "zh_TW": "在%s獲勝後解鎖"
-    },
     "March here": {
       "en": "March here",
       "fr": "Marcher ici",
@@ -2838,22 +2822,6 @@
       "ja": "軍団の規模の推移",
       "ko": "시간에 따른 군단 규모"
     },
-    "Hard, Endless and Decimatio in %s": {
-      "en": "Hard, Endless and Decimatio in %s",
-      "fr": "Difficile, Infini et Decimatio en %s",
-      "de": "Schwer, Endlos und Decimatio in %s",
-      "es": "Difícil, Infinito y Decimatio en %s",
-      "it": "Difficile, Infinito e Decimatio in %s",
-      "pt_BR": "Difícil, Infinito e Decimatio em %s",
-      "pl": "Trudny, Nieskończony i Decimatio w prowincji %s",
-      "tr": "%s eyaletinde Zor, Sonsuz ve Decimatio",
-      "ru": "Сложный, Бесконечный и Decimatio в провинции %s",
-      "uk": "Складний, Нескінченний і Decimatio у провінції %s",
-      "ja": "%sでハード、エンドレス、Decimatio",
-      "ko": "%s에서 하드, 무한, Decimatio",
-      "zh_CN": "%s的困难、无尽和 Decimatio",
-      "zh_TW": "%s的困難、無盡和 Decimatio"
-    },
     "Achievement": {
       "en": "Achievement",
       "fr": "Succès",
@@ -2895,22 +2863,6 @@
       "ko": "Steam 위시리스트에 추가",
       "zh_CN": "在 Steam 上添加愿望单",
       "zh_TW": "在 Steam 上加入願望清單"
-    },
-    "%s is open": {
-      "en": "%s is open",
-      "fr": "%s est ouverte",
-      "de": "%s ist geöffnet",
-      "es": "%s está abierta",
-      "it": "%s è aperta",
-      "pt_BR": "%s está aberta",
-      "pl": "Otwarto: %s",
-      "tr": "%s açıldı",
-      "ru": "Открыто: %s",
-      "uk": "Відкрито: %s",
-      "ja": "%sが開放された",
-      "ko": "%s 개방",
-      "zh_CN": "%s 已开放",
-      "zh_TW": "%s 已開放"
     },
     "Not enough timber: %d needed": {
       "en": "Not enough timber: %d needed",
@@ -3013,6 +2965,70 @@
       "ko": "%s 분노의 포효",
       "zh_CN": "%s愤怒地咆哮",
       "zh_TW": "%s憤怒地咆哮"
+    },
+    "Easy": {
+      "en": "Easy",
+      "fr": "Facile",
+      "de": "Leicht",
+      "es": "Fácil",
+      "it": "Facile",
+      "pt_BR": "Fácil",
+      "pl": "Łatwy",
+      "tr": "Kolay",
+      "ru": "Лёгкий",
+      "uk": "Легкий",
+      "ja": "イージー",
+      "ko": "이지",
+      "zh_CN": "简单",
+      "zh_TW": "簡單"
+    },
+    "Medium": {
+      "en": "Medium",
+      "fr": "Moyen",
+      "de": "Mittel",
+      "es": "Medio",
+      "it": "Medio",
+      "pt_BR": "Médio",
+      "pl": "Średni",
+      "tr": "Orta",
+      "ru": "Средний",
+      "uk": "Середній",
+      "ja": "ノーマル",
+      "ko": "노멀",
+      "zh_CN": "普通",
+      "zh_TW": "普通"
+    },
+    "Endless and Decimatio in %s": {
+      "en": "Endless and Decimatio in %s",
+      "fr": "Infini et Decimatio en %s",
+      "de": "Endlos und Decimatio in %s",
+      "es": "Infinito y Decimatio en %s",
+      "it": "Infinito e Decimatio in %s",
+      "pt_BR": "Infinito e Decimatio em %s",
+      "pl": "Nieskończony i Decimatio w prowincji %s",
+      "tr": "%s eyaletinde Sonsuz ve Decimatio",
+      "ru": "Бесконечный и Decimatio в провинции %s",
+      "uk": "Нескінченний і Decimatio у провінції %s",
+      "ja": "%sでエンドレスとDecimatio",
+      "ko": "%s에서 무한과 Decimatio",
+      "zh_CN": "%s的无尽和 Decimatio",
+      "zh_TW": "%s的無盡和 Decimatio"
+    },
+    "Win here to open Endless and Decimatio": {
+      "en": "Win here to open Endless and Decimatio",
+      "fr": "Gagnez ici pour débloquer Infini et Decimatio",
+      "de": "Gewinne hier, um Endlos und Decimatio freizuschalten",
+      "es": "Gana aquí para desbloquear Infinito y Decimatio",
+      "it": "Vinci qui per sbloccare Infinito e Decimatio",
+      "pt_BR": "Vença aqui para desbloquear Infinito e Decimatio",
+      "pl": "Wygraj tutaj, aby odblokować Nieskończony i Decimatio",
+      "tr": "Sonsuz ve Decimatio için burada kazanın",
+      "ru": "Победи здесь, чтобы открыть Бесконечный и Decimatio",
+      "uk": "Переможіть тут, щоб розблокувати Нескінченний і Decimatio",
+      "ja": "ここで勝利するとエンドレスとDecimatioがアンロックされます",
+      "ko": "여기서 승리하면 무한과 Decimatio가 열립니다",
+      "zh_CN": "在此获胜即可解锁无尽和 Decimatio",
+      "zh_TW": "在此獲勝即可解鎖無盡和 Decimatio"
     }
   }
 }
