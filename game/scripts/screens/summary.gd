@@ -36,10 +36,13 @@ static func held_line(sim: Sim) -> String:
 	return TranslationServer.translate("Endless  +%d:%02d") % [extra / 60, extra % 60]
 
 
-## What the run unlocked, from the profile at its start and now: the modes of a province won for the first time,
+## What the run unlocked, from the profile at its start and now: new provinces, the modes of a province won for the first time,
 ## new commanders and new achievements, each as {kind, id, text}.
 static func unlocks(before: Dictionary, after: Dictionary, content: Content, province: String) -> Array:
 	var out: Array = []
+	for id in after.unlocked.provinces:
+		if not before.unlocked.provinces.has(id) and content.ready("provinces", id):
+			out.append({"kind": "province", "id": id, "text": TranslationServer.translate("%s is open") % str(content.provinces[id].name)})
 	var was: Dictionary = before.records.get(province, {})
 	var now: Dictionary = after.records.get(province, {})
 	if bool(now.get("won", false)) and not bool(was.get("won", false)) and content.provinces.has(province):
@@ -192,10 +195,24 @@ func _unlocked(c: CanvasItem, ui: Ui, gained: Array, area: Rect2) -> float:
 	return band.end.y
 
 
-## The picture for one unlock: a laurel for a province's modes or an achievement, or the new commander's man.
+## The picture for one unlock: the province's ground, a laurel for its modes or an achievement, or the new commander's man.
 func _unlock_picture(c: CanvasItem, ui: Ui, u: Dictionary, box: Rect2, a: float) -> void:
 	var tint := Color(1, 1, 1, a)
 	match u.kind:
+		"province":
+			# The province shows the last prop of its own, such as a Gaulish village.
+			c.draw_rect(box, Color(0.42, 0.5, 0.28, a))
+			var atlas: Atlas = main.world.atlas
+			var prop := ""
+			for key in main.content.provinces[u.id].get("art", []):
+				if str(key).begins_with("prop:"):
+					prop = str(key).trim_prefix("prop:")
+			if atlas != null and atlas.props.has(prop):
+				var f := atlas.prop_frame(prop)
+				var src: Rect2 = f[0]
+				var k := minf(box.size.x / src.size.x, box.size.y / src.size.y)
+				var size := src.size * k
+				c.draw_texture_rect_region(atlas.texture, Rect2(box.get_center() - size / 2.0, size), src, tint)
 		"commander":
 			var atlas: Atlas = main.world.atlas
 			var unit := "commander"

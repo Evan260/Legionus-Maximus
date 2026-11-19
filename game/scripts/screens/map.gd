@@ -1,6 +1,6 @@
 class_name MapScreen
 extends RefCounted
-## The map: the painted frontier with the legion's road from Rome through the provinces, and a panel for the one selected.
+## The map: the painted frontier with the legion's road from Rome through the provinces in the order they open, and a panel for the one selected.
 
 ## The difficulties, easiest first, with their names.
 const LEVELS := [["easy", "Easy"], ["medium", "Medium"], ["hard", "Hard"]]
@@ -66,7 +66,20 @@ static func clock(seconds: float) -> String:
 	return "%d:%02d" % [int(seconds) / 60, int(seconds) % 60]
 
 
-## The provinces on the road, in order.
+## A province the legion can march to: drawn, and unlocked by winning the one before it.
+func is_open(id: String) -> bool:
+	return main.content.ready("provinces", id) and Profile.province_unlocked(id)
+
+
+## What opens a locked province: winning the drawn one before it, or its art when that is all it waits for.
+func locked_text(id: String) -> String:
+	var before: String = main.content.province_before(id)
+	if main.content.ready("provinces", id) and before != "" and not Profile.record_of(before).won:
+		return tr("Win in %s to open") % main.content.provinces[before].name
+	return tr("Not ready yet")
+
+
+## The provinces on the road, in the order they open.
 func road() -> Array:
 	var ids: Array = []
 	for id in main.content.provinces:
@@ -75,10 +88,12 @@ func road() -> Array:
 	return ids
 
 
-## The state of a province's node: won, open, or fog for one that is not drawn yet.
+## The state of a province's node: won, open, locked, or fog for one that is not drawn yet.
 func state_of(id: String) -> String:
 	if not main.content.ready("provinces", id):
 		return "fog"
+	if not is_open(id):
+		return "locked"
 	return "won" if Profile.record_of(id).won else "open"
 
 
@@ -89,7 +104,7 @@ func state_text(id: String) -> String:
 			return tr("Hard won") if Profile.record_of(id).hard_won else tr("Won")
 		"open":
 			return tr("Marching here") if main.run_setup.province == id else tr("March here")
-	return tr("Not ready yet")
+	return locked_text(id)
 
 
 ## Where the map is drawn: the whole 640 by 360 box.
@@ -231,8 +246,8 @@ func _node(c: CanvasItem, ui: Ui, id: String, now: float) -> void:
 	var p := spot(id)
 	var state := state_of(id)
 	var hit := Rect2(p - Vector2.ONE * (NODE_R + 6.0), Vector2.ONE * (NODE_R + 6.0) * 2.0)
-	ui.register(hit, "prov:" + id, state != "fog")
-	var chosen: bool = main.run_setup.province == id and state != "fog"
+	ui.register(hit, "prov:" + id, state == "won" or state == "open")
+	var chosen: bool = main.run_setup.province == id and (state == "won" or state == "open")
 	# The province the legion marches to next glows, so a click on another visibly moves the choice there.
 	if chosen:
 		var glow := 0.5 + 0.5 * sin(now * 4.0)
@@ -252,6 +267,10 @@ func _node(c: CanvasItem, ui: Ui, id: String, now: float) -> void:
 			c.draw_circle(p, NODE_R + 2.0, Ui.INK)
 			c.draw_circle(p, NODE_R, Ui.GOLD_LIGHT if chosen else Ui.GOLD)
 			c.draw_circle(p, NODE_R - 3.0, Ui.RED)
+		"locked":
+			c.draw_circle(p, NODE_R + 2.0, Color(0.1, 0.07, 0.05, 0.85))
+			c.draw_circle(p, NODE_R, Color(0.42, 0.38, 0.34))
+			c.draw_circle(p, NODE_R - 3.0, Color(0.27, 0.24, 0.21))
 	if chosen:
 		_banner(c, p)
 
@@ -345,7 +364,7 @@ func _labels(c: CanvasItem, ui: Ui, ids: Array) -> Array:
 		plates.append(at)
 		var state := state_of(id)
 		c.draw_rect(at.grow(3.0), SHADE)
-		var name_col := Ui.GOLD_LIGHT if state != "fog" else Color(0.78, 0.74, 0.68)
+		var name_col := Ui.GOLD_LIGHT if state == "won" or state == "open" else Color(0.78, 0.74, 0.68)
 		ui.text(c, name, Vector2(at.position.x, at.position.y + Ui.px), name_col, HORIZONTAL_ALIGNMENT_CENTER, at.size.x)
 		if two:
 			var col := Ui.CREAM if state == "open" else (Color(0.6, 0.85, 0.5) if state == "won" else Color(0.72, 0.66, 0.6))
@@ -387,12 +406,12 @@ func _panel(c: CanvasItem, ui: Ui, id: String) -> void:
 	var w := r.size.x - 16.0
 	var y := r.position.y + 6.0 + Ui.px
 	var state := state_of(id)
-	ui.fit_text(c, info.name.to_upper(), w, Vector2(x, y), Ui.INK if state != "fog" else Ui.MUTED)
+	ui.fit_text(c, info.name.to_upper(), w, Vector2(x, y), Ui.INK if state != "fog" and state != "locked" else Ui.MUTED)
 	y += Ui.leading()
 	var tag := state_text(id).to_upper()
 	ui.fit_text(c, tag, w, Vector2(x, y), Ui.RED if state == "open" else Ui.BROWN)
 	y += Ui.leading() + 2.0
-	if state == "fog":
+	if state == "fog" or state == "locked":
 		return
 	var rec := Profile.record_of(id)
 	var results: Array = [tr("Best time %s") % clock(rec.best_time) if rec.best_time > 0.0 else tr("Not won yet")]
@@ -460,7 +479,7 @@ func _links(ui: Ui, ids: Array) -> void:
 	var node := "prov:" + selected
 	var levels: Array = []
 	var switches: Array = []
-	if state_of(selected) != "fog":
+	if state_of(selected) in ["won", "open"]:
 		for l in LEVELS:
 			levels.append("%s:%s" % [l[0], selected])
 		if Profile.record_of(selected).won:

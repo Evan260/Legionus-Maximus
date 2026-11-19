@@ -1620,6 +1620,7 @@ func test_endless_keeps_going_after_the_chieftain(b: Dictionary) -> void:
 	Profile.data = Profile.defaults()
 	Profile.record_run(s)
 	check(bool(Profile.record_of(s.province).won), "the win is recorded")
+	check(Profile.province_unlocked("gaul"), "and opens the next province")
 	Profile.data = saved
 	var plain := _mode_sim(b, {"seed": 110})
 	var since := s.time
@@ -1848,6 +1849,7 @@ func test_winning_germania_unlocks_the_archer_captain(b: Dictionary) -> void:
 	p.record_run(s)
 	check(p.commander_unlocked("archer_captain"), "winning in Germania unlocks the archer captain")
 	check(p.record_of("germania").won and is_equal_approx(p.record_of("germania").best_time, 900.0), "the win and its time are recorded")
+	check(p.province_unlocked("gaul"), "the next province opens")
 	check(not p.commander_unlocked("legate") and not p.commander_unlocked("engineer"), "the others stay locked")
 	check(not p.record_of("germania").hard_won, "a Medium win is not a hard win")
 	var faster := Sim.new(b, all, {"seed": 133, "difficulty": "hard"})
@@ -1863,6 +1865,14 @@ func test_winning_germania_unlocks_the_archer_captain(b: Dictionary) -> void:
 	easy.victory = true
 	gentle.record_run(easy)
 	check(gentle.record_of("gaul").won and not gentle.record_of("gaul").hard_won, "an Easy win counts as won")
+	var bold := _fresh_profile()
+	var hard := Sim.new(b, all, {"seed": 136, "difficulty": "hard"})
+	hard.time = 900.0
+	hard.over = true
+	hard.victory = true
+	bold.record_run(hard)
+	check(bold.record_of("germania").won and bold.record_of("germania").hard_won and bold.province_unlocked("gaul"), "a Hard win counts as won and opens the next province")
+	bold.free()
 	gentle.free()
 	check(is_equal_approx(p.record_of("germania").best_time, 700.0), "the best time keeps the fastest win")
 	var kills := Sim.new(b, all, {"seed": 134})
@@ -1922,7 +1932,7 @@ func test_damaged_profile_loads_defaults(b: Dictionary) -> void:
 	check(p.data.denarii == 75, "a readable number is kept")
 	check(p.data.ranks == {"damage": 2}, "a rank with the wrong type is dropped and the rest kept")
 	check(p.data.totals.kills == 0 and p.data.totals.runs == 3, "totals merge by key")
-	check(p.data.unlocked.commanders == ["tribune", "legate"] and not p.data.unlocked.has("provinces"), "unlocks keep the readable ids")
+	check(p.data.unlocked.commanders == ["tribune", "legate"] and p.data.unlocked.provinces == ["germania"], "unlocks keep the readable ids")
 	check(p.data.seen == {"wolf": true}, "seen keeps the true entries")
 	check(not p.data.has("old_key"), "unknown keys are not carried")
 	p.free()
@@ -2594,7 +2604,7 @@ func _cuts_in(loc: String, scale: int, c: Content, sim: Sim, cuts: Array) -> voi
 	_fit(cuts, loc, scale, "marching here", tr_.call("Marching here").to_upper(), 300.0)
 	# The line under each province's name on the map, in its plate.
 	var plate_w := 200.0 if not big else 260.0
-	for s in [tr_.call("March here"), tr_.call("Marching here"), tr_.call("Won"), tr_.call("Hard won"), tr_.call("Not ready yet")]:
+	for s in [tr_.call("Win in %s to open") % _longest(provinces), tr_.call("March here"), tr_.call("Marching here"), tr_.call("Won"), tr_.call("Hard won"), tr_.call("Not ready yet")]:
 		_fit(cuts, loc, scale, "map plate", s, plate_w)
 	# Level-up cards: three or four across.
 	for n in [3, 4]:
@@ -5027,16 +5037,30 @@ func _with_undrawn(base: Content) -> Content:
 	return c
 
 
-func test_every_drawn_province_is_open_while_an_undrawn_one_waits_for_art(b: Dictionary) -> void:
+func test_winning_germania_opens_gaul_while_an_undrawn_province_waits_for_art(b: Dictionary) -> void:
 	var c := _with_undrawn(content)
 	check(c.ready("provinces", "gaul") and not c.ready("provinces", "hibernia"), "Gaul is drawn and the made-up Hibernia is not")
-	var map := MapScreen.new(_map_host(c, b, "germania"))
-	var saved: Dictionary = Profile.data
-	Profile.data = Profile.defaults()
-	check(map.state_of("gaul") == "open" and map.state_of("britannia") == "open", "a new profile can march to any drawn province")
-	check(map.state_of("hibernia") == "fog" and map.state_text("hibernia") == "Not ready yet", "the undrawn one stays in fog")
-	Profile.data = saved
-	map.main.free()
+	check(c.province_before("gaul") == "germania", "the drawn province before Gaul is Germania")
+	check(c.province_before("germania") == "", "nothing comes before Germania")
+	var drawn := _with_undrawn(content)
+	drawn.available["prop:hibernian_bog"] = true
+	drawn.available["ground:hibernia"] = true
+	check(drawn.province_before("gaul") == "hibernia", "once it is drawn it comes between them")
+	var p := _fresh_profile()
+	var s := Sim.new(b, c, {"seed": 901})
+	s.time = 900.0
+	s.over = true
+	s.victory = true
+	p.record_run(s)
+	check(p.province_unlocked("gaul"), "winning in Germania opens Gaul")
+	var old := _fresh_profile()
+	old.data.records["germania"] = {"best_time": 900.0, "longest": 900.0, "won": true, "hard_won": false}
+	check(not old.province_unlocked("gaul"), "a profile that won Germania before Gaul was drawn starts without it")
+	old.open_won_provinces(content)
+	check(old.province_unlocked("gaul"), "and finds it open once the game starts")
+	old.free()
+	_cleanup_profile_files()
+	p.free()
 
 
 ## A stand-in for main with what the map reads: the content, the balance and the run's choices.
@@ -5361,10 +5385,18 @@ func _dacia_sim(b: Dictionary, seed_value: int) -> Sim:
 	return s
 
 
-func test_dacia_follows_gaul_on_the_road(_b: Dictionary) -> void:
+func test_winning_gaul_opens_dacia(b: Dictionary) -> void:
 	check(content.ready("provinces", "dacia"), "Dacia is drawn")
-	var ids: Array = content.provinces.keys()
-	check(ids.find("dacia") == ids.find("gaul") + 1, "Dacia comes after Gaul")
+	check(content.province_before("dacia") == "gaul", "the drawn province before Dacia is Gaul")
+	var p := _fresh_profile()
+	var s := Sim.new(b, content, {"seed": 940, "province": "gaul"})
+	s.time = 900.0
+	s.over = true
+	s.victory = true
+	p.record_run(s)
+	check(p.province_unlocked("dacia"), "winning in Gaul opens Dacia")
+	_cleanup_profile_files()
+	p.free()
 
 
 func test_dacia_is_snowy_mountains_with_pines_rocks_and_ice(b: Dictionary) -> void:
@@ -5688,10 +5720,18 @@ func _parthia_sim(b: Dictionary, seed_value: int) -> Sim:
 	return s
 
 
-func test_parthia_follows_dacia_on_the_road(_b: Dictionary) -> void:
+func test_winning_dacia_opens_parthia(b: Dictionary) -> void:
 	check(content.ready("provinces", "parthia"), "Parthia is drawn")
-	var ids: Array = content.provinces.keys()
-	check(ids.find("parthia") == ids.find("dacia") + 1, "Parthia comes after Dacia")
+	check(content.province_before("parthia") == "dacia", "the drawn province before Parthia is Dacia")
+	var p := _fresh_profile()
+	var s := Sim.new(b, content, {"seed": 960, "province": "dacia"})
+	s.time = 900.0
+	s.over = true
+	s.victory = true
+	p.record_run(s)
+	check(p.province_unlocked("parthia"), "winning in Dacia opens Parthia")
+	_cleanup_profile_files()
+	p.free()
 
 
 func test_parthia_is_open_desert_with_oases_walls_and_dunes(b: Dictionary) -> void:
@@ -6058,27 +6098,53 @@ func _britannia_sim(b: Dictionary, seed_value: int) -> Sim:
 	return s
 
 
-func test_britannia_ends_the_road(_b: Dictionary) -> void:
+func test_winning_parthia_opens_britannia(b: Dictionary) -> void:
 	check(content.ready("provinces", "britannia"), "Britannia is drawn")
 	check(content.provinces.keys().back() == "britannia", "Britannia is the last province on the road")
+	check(content.province_before("britannia") == "parthia" and content.province_before("gaul") == "germania", "it follows Parthia, and Gaul follows Germania")
+	var p := _fresh_profile()
+	var before: Dictionary = p.data.duplicate(true)
+	var s := Sim.new(b, content, {"seed": 980, "province": "parthia"})
+	s.time = 900.0
+	s.over = true
+	s.victory = true
+	p.record_run(s)
+	check(p.province_unlocked("britannia"), "winning in Parthia opens Britannia")
+	var lines: Array = SummaryScreen.unlocks(before, p.data, content, "parthia")
+	var said := false
+	for u in lines:
+		said = said or (u.kind == "province" and u.id == "britannia" and str(u.text) == "Britannia is open")
+	check(said, "and the summary says Britannia is open")
+	var old := _fresh_profile()
+	old.data.records["germania"] = {"best_time": 900.0, "longest": 900.0, "won": true, "hard_won": false}
+	old.data.unlocked.provinces = ["germania", "britannia"]
+	old.open_won_provinces(content)
+	check(old.province_unlocked("gaul") and not old.province_unlocked("britannia"), "a profile that opened Britannia straight after Germania waits for Parthia now")
+	old.free()
+	_cleanup_profile_files()
+	p.free()
 
 
 func test_the_map_shows_all_five_provinces_in_order(b: Dictionary) -> void:
-	var host := _map_host(content, b, "germania")
+	var host_script := GDScript.new()
+	host_script.source_code = "extends Node\nvar content\nvar balance\nvar run_setup := {}\n"
+	host_script.reload()
+	var host: Node = Node.new()
+	host.set_script(host_script)
+	host.content = content
+	host.balance = b
+	host.run_setup = {"province": "germania", "difficulty": "medium", "endless": false, "decimatio": false}
 	var map := MapScreen.new(host)
 	check(map.road() == ["germania", "gaul", "dacia", "parthia", "britannia"], "the road runs Germania, Gaul, Dacia, Parthia, Britannia (%s)" % str(map.road()))
 	var saved: Dictionary = Profile.data
 	Profile.data = Profile.defaults()
-	var all_open := true
-	for id in map.road():
-		all_open = all_open and map.state_of(id) == "open"
-	check(all_open, "a new profile can march to every province")
-	check(map.state_text("germania") == "Marching here" and map.state_text("britannia") == "March here", "the chosen one says the legion marches there")
-	map.activate("prov:britannia")
-	check(host.run_setup.province == "britannia" and map.state_text("britannia") == "Marching here", "choosing Britannia with no win anywhere marches there")
-	Profile.data.records["parthia"] = {"best_time": 900.0, "longest": 900.0, "won": true, "hard_won": true}
-	check(map.state_of("parthia") == "won" and map.state_text("parthia") == "Hard won", "a province won on Hard says so")
-	check(MapScreen.route("parthia", "britannia", 0.0)[0] == MapScreen.spot("parthia"), "and the road runs on from Parthia to Britannia")
+	check(map.state_of("germania") == "open" and map.state_of("gaul") == "locked" and map.state_of("britannia") == "locked", "a new profile has only Germania open and no province in fog")
+	check(map.locked_text("britannia") == "Win in Parthia to open", "Britannia waits for a win in Parthia")
+	for id in ["germania", "gaul", "dacia", "parthia"]:
+		Profile.data.records[id] = {"best_time": 900.0, "longest": 900.0, "won": true, "hard_won": false}
+	Profile.open_won_provinces(content)
+	check(map.state_of("parthia") == "won" and map.state_of("britannia") == "open", "with Parthia won Britannia is open")
+	check(MapScreen.route("parthia", "britannia", 0.0)[0] == MapScreen.spot("parthia"), "and the road runs on from Parthia to it")
 	Profile.data = saved
 	host.free()
 
@@ -6088,6 +6154,8 @@ func test_the_map_chooses_the_difficulty_and_keeps_modes_for_a_win(b: Dictionary
 	var map := MapScreen.new(host)
 	var saved: Dictionary = Profile.data
 	Profile.data = Profile.defaults()
+	Profile.data.records["germania"] = {"best_time": 900.0, "longest": 900.0, "won": true, "hard_won": false}
+	Profile.open_won_provinces(content)
 	map.activate("easy:gaul")
 	check(host.run_setup.difficulty == "easy" and host.run_setup.province == "gaul", "Easy is chosen, and with it the province of the panel")
 	check(Profile.data.settings.difficulty == "easy" and Profile.data.settings.province == "gaul", "both are kept in the settings")
@@ -7162,16 +7230,17 @@ func test_an_endless_win_triumphs_and_goes_on(b: Dictionary) -> void:
 
 
 func test_the_summary_lists_what_a_win_unlocked(b: Dictionary) -> void:
-	var before := Profile.merge_saved({"unlocked": {"commanders": ["tribune"]}, "achievements": []})
-	var after := Profile.merge_saved({"unlocked": {"commanders": ["tribune", "archer_captain"]},
+	var before := Profile.merge_saved({"unlocked": {"commanders": ["tribune"], "provinces": ["germania"]}, "achievements": []})
+	var after := Profile.merge_saved({"unlocked": {"commanders": ["tribune", "archer_captain"], "provinces": ["germania", "gaul"]},
 		"records": {"germania": {"won": true, "best_time": 700.0}}, "achievements": ["win_germania"]})
 	var got := SummaryScreen.unlocks(before, after, content, "germania")
 	var kinds: Array = got.map(func(u: Dictionary) -> String: return u.kind)
-	check(kinds == ["modes", "commander", "achievement"], "a first win lists the modes, the commander and the achievement in that order (%s)" % [kinds])
-	if got.size() == 3:
-		check(got[0].text == "Endless and Decimatio in %s" % str(content.provinces.germania.name), "the modes line names the province (%s)" % got[0].text)
-		check(str(content.commanders.archer_captain.name) in got[1].text, "the commander line names him (%s)" % got[1].text)
-		check(got[2].text == str(content.achievements.win_germania.name), "the achievement line names it")
+	check(kinds == ["province", "modes", "commander", "achievement"], "a first win lists the new province, the modes, the commander and the achievement in that order (%s)" % [kinds])
+	if got.size() == 4:
+		check(str(content.provinces.gaul.name) in got[0].text, "the province line names it (%s)" % got[0].text)
+		check(str(content.commanders.archer_captain.name) in got[2].text, "the commander line names him (%s)" % got[2].text)
+		check(got[1].text == "Endless and Decimatio in %s" % str(content.provinces.germania.name), "the modes line names the province (%s)" % got[1].text)
+		check(got[3].text == str(content.achievements.win_germania.name), "the achievement line names it")
 	check(SummaryScreen.unlocks(after, after, content, "germania").is_empty(), "a run that unlocks nothing lists nothing")
 
 

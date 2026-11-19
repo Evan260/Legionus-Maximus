@@ -34,7 +34,7 @@ static func defaults() -> Dictionary:
 	return {
 		"denarii": 0,
 		"ranks": {},
-		"unlocked": {"commanders": ["tribune"]},
+		"unlocked": {"commanders": ["tribune"], "provinces": ["germania"]},
 		"records": {},
 		"seen": {},
 		"totals": {"kills": 0, "runs": 0, "wins": 0, "ravine_tips": 0},
@@ -71,10 +71,11 @@ static func merge_saved(saved: Dictionary) -> Dictionary:
 			if _is_number(saved.ranks[id]):
 				out.ranks[str(id)] = maxi(0, int(saved.ranks[id]))
 	if saved.get("unlocked") is Dictionary:
-		if saved.unlocked.get("commanders") is Array:
-			for id in saved.unlocked.commanders:
-				if id is String and not out.unlocked.commanders.has(id):
-					out.unlocked.commanders.append(id)
+		for kind in ["commanders", "provinces"]:
+			if saved.unlocked.get(kind) is Array:
+				for id in saved.unlocked[kind]:
+					if id is String and not out.unlocked[kind].has(id):
+						out.unlocked[kind].append(id)
 	if saved.get("records") is Dictionary:
 		for id in saved.records:
 			if saved.records[id] is Dictionary:
@@ -255,12 +256,14 @@ func buy_commander(id: String, content: Content) -> bool:
 	return true
 
 
-## Wins every drawn province with its modes, opens every commander, maxes every upgrade and fills the codex, for --max-state; it is never saved.
+## Opens every drawn province with its modes and every commander, maxes every upgrade and fills the codex, for --max-state; it is never saved.
 func max_out(content: Content) -> void:
 	data.denarii = 1000000
 	for p in content.provinces:
 		if not content.ready("provinces", p):
 			continue
+		if not province_unlocked(p):
+			data.unlocked.provinces.append(p)
 		var rec := record_of(p)
 		rec.won = true
 		rec.hard_won = true
@@ -275,6 +278,10 @@ func max_out(content: Content) -> void:
 	for kind in Content.GROUPS.keys() + ["enemies", "commanders", "gods"]:
 		for id in content.get(kind):
 			data.seen[id] = true
+
+
+func province_unlocked(id: String) -> bool:
+	return data.unlocked.provinces.has(id)
 
 
 ## Plain words for how a commander is unlocked.
@@ -329,6 +336,21 @@ func record_run(sim: Sim) -> void:
 	save()
 
 
+## Opens every province whose drawn predecessor has been won. A province waiting for its art is passed over, so winning one opens
+## the next that can be played; it also runs at start, so a profile that won a province before the next was drawn finds it open.
+func open_won_provinces(content: Content) -> void:
+	for p in content.provinces:
+		var before: String = content.province_before(p)
+		if not content.ready("provinces", p):
+			continue
+		var won := before == "" or bool(record_of(before).won)
+		if won and before != "" and not province_unlocked(p):
+			data.unlocked.provinces.append(p)
+		# A province stays open only while the one before it on the road is won, unless it has been won itself.
+		elif not won and province_unlocked(p) and not bool(record_of(p).won):
+			data.unlocked.provinces.erase(p)
+
+
 func _unlock(sim: Sim) -> void:
 	var content: Content = sim.content
 	var provinces: Array = content.provinces.keys()
@@ -336,6 +358,7 @@ func _unlock(sim: Sim) -> void:
 	for p in provinces:
 		if not bool(record_of(p).won):
 			all_won = false
+	open_won_provinces(content)
 	for id in content.commanders:
 		if commander_unlocked(id):
 			continue

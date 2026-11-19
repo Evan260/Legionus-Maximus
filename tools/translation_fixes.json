@@ -3029,6 +3029,38 @@
       "ko": "여기서 승리하면 무한과 Decimatio가 열립니다",
       "zh_CN": "在此获胜即可解锁无尽和 Decimatio",
       "zh_TW": "在此獲勝即可解鎖無盡和 Decimatio"
+    },
+    "Win in %s to open": {
+      "en": "Win in %s to open",
+      "fr": "Gagnez en %s pour l’ouvrir",
+      "de": "Siege in %s, um sie zu öffnen",
+      "es": "Gana en %s para abrirla",
+      "it": "Vinci in %s per aprirla",
+      "pt_BR": "Vença em %s para abrir",
+      "pl": "Wymaga zwycięstwa: %s",
+      "tr": "Açmak için %s eyaletinde kazan",
+      "ru": "Нужна победа: %s",
+      "uk": "Потрібна перемога: %s",
+      "ja": "%sで勝利すると解放",
+      "ko": "%s에서 승리하면 열림",
+      "zh_CN": "在%s获胜后解锁",
+      "zh_TW": "在%s獲勝後解鎖"
+    },
+    "%s is open": {
+      "en": "%s is open",
+      "fr": "%s est ouverte",
+      "de": "%s ist geöffnet",
+      "es": "%s está abierta",
+      "it": "%s è aperta",
+      "pt_BR": "%s está aberta",
+      "pl": "Otwarto: %s",
+      "tr": "%s açıldı",
+      "ru": "Открыто: %s",
+      "uk": "Відкрито: %s",
+      "ja": "%sが開放された",
+      "ko": "%s 개방",
+      "zh_CN": "%s 已开放",
+      "zh_TW": "%s 已開放"
     }
   }
 }

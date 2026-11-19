@@ -78,6 +78,7 @@ func _ready() -> void:
 	balance = JSON.parse_string(FileAccess.get_file_as_string("res://data/balance.json"))
 	content = Content.load_all(Content.available_art())
 	Steamworks.content = content
+	Profile.open_won_provinces(content)
 	if args.has("max-state"):
 		Profile.max_out(content)
 	Lang.changed.connect(_language_changed)
@@ -442,7 +443,7 @@ func _new_sim() -> void:
 func _load_run_setup() -> void:
 	var settings: Dictionary = Profile.data.settings
 	var offered := Game.commanders(content, balance)
-	if content.ready("provinces", str(settings.get("province", ""))) and Game.province_allowed(settings.province, balance):
+	if content.ready("provinces", str(settings.get("province", ""))) and Profile.province_unlocked(settings.province) and Game.province_allowed(settings.province, balance):
 		run_setup.province = settings.province
 	if settings.get("difficulty", "") in Sim.DIFFICULTIES:
 		run_setup.difficulty = settings.difficulty
@@ -477,6 +478,7 @@ func _sample_profile() -> void:
 		"records": {"germania": {"best_time": 1110.0, "longest": 1200.0, "won": true, "hard_won": false}},
 		"seen": {"legionary": true, "archer": true, "pilum": true, "barbarian_club": true, "wolf": true, "berserker": true},
 		"totals": {"kills": 2400, "runs": 9, "wins": 1}, "unlocked": {"commanders": ["tribune", "archer_captain"]}})
+	Profile.open_won_provinces(content)
 
 
 ## Back to the camp, with the legion standing on the field as the chosen commander and the quartermaster's ranks would start it.
@@ -667,6 +669,9 @@ func _back() -> void:
 
 func _activate(id: String) -> void:
 	if not ui.is_enabled(id):
+		# A locked province on the map answers with the back sound, so the press is heard while the panel says what opens it.
+		if state == "map" and id.begins_with("prov:"):
+			Audio.play("back")
 		return
 	Audio.play("click")
 	if state == "camp":
