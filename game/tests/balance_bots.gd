@@ -4,9 +4,10 @@ extends SceneTree
 ## `"upgrades": "two_thirds"` (or --upgrades=two_thirds) plays with every quartermaster upgrade at two-thirds of its ranks, as a player well into the game.
 ## `--upgrades=full` plays with every upgrade at its last rank and three triumphs, as the most upgraded player.
 ## `--until=SECONDS` ends each run there (default 1200), so a round that only asks who reaches 12:00 can stop at 720.
+## `--difficulty=easy|medium|hard` (or `"difficulty"` in the file) plays at that difficulty (default medium).
 
-func run(balance: Dictionary, content: Content, seed: int, mode: String, province := "germania", bonuses := {}, until := 1200.0) -> String:
-	var sim := Sim.new(balance, content, {"seed": seed, "province": province, "profile_bonuses": bonuses})
+func run(balance: Dictionary, content: Content, seed: int, mode: String, province := "germania", bonuses := {}, until := 1200.0, difficulty := "medium") -> String:
+	var sim := Sim.new(balance, content, {"seed": seed, "province": province, "profile_bonuses": bonuses, "difficulty": difficulty})
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
 	var dt := 1.0 / 30.0
@@ -77,6 +78,8 @@ func _init() -> void:
 			over.modes = Array(kv[1].split(","))
 		elif kv.size() == 2 and kv[0] == "upgrades":
 			over.upgrades = kv[1]
+		elif kv.size() == 2 and kv[0] == "difficulty":
+			over.difficulty = kv[1]
 		elif kv.size() == 2 and kv[0] == "until":
 			over.until = float(kv[1])
 		elif kv.size() == 2 and kv[0] == "seeds":
@@ -91,5 +94,5 @@ func _init() -> void:
 			bonuses[id] = 3 if content.quartermaster[id].get("repeat", false) else int(content.quartermaster[id].ranks)
 	for mode in over.get("modes", ["idle", "straight", "circle", "face", "smart"]):
 		for seed in over.get("seeds", [1, 2, 3, 4, 5, 6]):
-			print(run(balance, content, seed, mode, str(over.get("province", "germania")), bonuses, float(over.get("until", 1200.0))))
+			print(run(balance, content, seed, mode, str(over.get("province", "germania")), bonuses, float(over.get("until", 1200.0)), str(over.get("difficulty", "medium"))))
 	quit()
