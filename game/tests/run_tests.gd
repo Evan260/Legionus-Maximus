@@ -512,6 +512,28 @@ func test_far_barbarians_come_round_again(b: Dictionary) -> void:
 	check(back.length() < float(b.recycle_radius) and (absf(back.x) >= Horde.view.x / 2.0 or absf(back.y) >= Horde.view.y / 2.0), "brought back to just beyond the screen (%s)" % back)
 
 
+func test_a_crowd_never_throws_a_boss_faster_than_his_charge(b: Dictionary) -> void:
+	for kind in ["berserker", "war_band_leader", "barbarian_club"]:
+		var s := Sim.new(b, content, {"seed": 17})
+		s.terrain.clear()
+		var at: Vector2 = s.commander.pos + Vector2(220, 0)
+		var i := s.horde.spawn(kind, at, kind != "barbarian_club")
+		var id := s.horde.e_id[i]
+		for k in 60:
+			s.horde.spawn("barbarian_club", at + Vector2.from_angle(k * 0.7) * (k % 5))
+		var dt := 1.0 / 30.0
+		var cap: float = s.horde.k_top[s.horde.e_kind[i]] * (float(b.crowd_pace) if kind == "barbarian_club" else 1.0) * dt
+		var worst := 0.0
+		for t in 30:
+			var j := s.horde.e_id.find(id)
+			var before := s.horde.e_pos[j]
+			s.update(dt, Vector2.ZERO, false)
+			j = s.horde.e_id.find(id)
+			if j >= 0:
+				worst = maxf(worst, before.distance_to(s.horde.e_pos[j]))
+		check(worst <= cap + 0.01, "%s in a packed crowd moves at most %.1f px a step (%.1f)" % [kind, cap, worst])
+
+
 func test_every_direction_has_a_name(b: Dictionary) -> void:
 	check(Sim.dir_name(Vector2.RIGHT) == "east", "right is east")
 	check(Sim.dir_name(Vector2.DOWN) == "south", "down is south")

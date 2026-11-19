@@ -132,6 +132,7 @@
   "separation_range": 300,
   "crowd_spacing": 1.5,
   "crowd_give": 0.3,
+  "crowd_pace": 8.0,
   "spawn_mix": {"later_start": 0.25, "later_seconds": 900},
   "foot_pace": 0.82,
   "difficulty": {

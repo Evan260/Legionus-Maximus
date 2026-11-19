@@ -37,6 +37,8 @@ var k_beh := PackedByteArray()
 var k_range := PackedFloat32Array()
 var k_dash_every := PackedFloat32Array()
 var k_dash_mult := PackedFloat32Array()
+## The fastest an enemy of the kind can go on his own: his walk, or his charge where he has one.
+var k_top := PackedFloat32Array()
 var k_dash_secs := PackedFloat32Array()
 var k_burst := PackedFloat32Array()
 var k_flank_cos := PackedFloat32Array()
@@ -337,6 +339,7 @@ func _init(balance: Dictionary, game_content: Content, random: RandomNumberGener
 			burst = float(info.dps) * float(ch.burst_seconds)
 		k_dash_every.append(every)
 		k_dash_mult.append(mult)
+		k_top.append(float(info.speed) * maxf(1.0, mult))
 		k_dash_secs.append(secs)
 		k_burst.append(burst)
 		var flank: Dictionary = info.get("flank", {})
@@ -2055,6 +2058,7 @@ func _move(dt: float, sim: Sim) -> void:
 	var hunt_pace := float(b.get("pursuit", {}).get("pace", 0.0)) * sim.base_pace()
 	var sep_range: float = b.separation_range
 	var crowd_give: float = b.get("crowd_give", 0.3)
+	var crowd_pace: float = b.get("crowd_pace", 1.0)
 	var spacing: float = b.get("crowd_spacing", 1.0)
 	var units := sim.units
 	var ug_near := sim.ug_near
@@ -2103,6 +2107,7 @@ func _move(dt: float, sim: Sim) -> void:
 		if d > recycle and e_tag[i] != CHIEF and e_guard[i] == Vector2.ZERO:
 			# Barbarians left far behind come round again from ahead, so the field never empties.
 			e_pos[i] = open_point(cpos - to * (b.spawn_radius / d))
+			e_push[i] = Vector2.ZERO
 			continue
 		if e_stun[i] > 0.0:
 			e_stun[i] -= dt
@@ -2362,8 +2367,15 @@ func _move(dt: float, sim: Sim) -> void:
 				if v.length_squared() < spd * spd * 0.09:
 					# A barbarian with nobody to slide past sidesteps round the crowd to find a gap, rather than waiting behind it.
 					v += Vector2(-to.y, to.x) / maxf(d, 0.001) * spd * 0.6 * (1.0 if e_id[i] % 2 == 0 else -1.0)
+		var np := p + v * dt
 		# A painted warrior's charge carries him through the crowd without being shoved aside.
-		var np := p + v * dt + (Vector2.ZERO if dashing and k_fearless[kind] == 1 else push * 0.6)
+		if push != Vector2.ZERO and not (dashing and k_fearless[kind] == 1):
+			# However many neighbours he overlaps, the crowd never carries a boss faster than his charge, nor a barbarian past `crowd_pace` times his.
+			var step := v * dt + (push - shoved) * 0.6
+			var most := maxf(v.length(), k_top[kind] * (crowd_pace if e_tag[i] == ORDINARY else 1.0)) * dt
+			if step.length_squared() > most * most:
+				step *= most / step.length()
+			np = p + step + shoved * 0.6
 		# Trees and rocks push the barbarian back out, read straight from the terrain grid since this runs for the whole horde.
 		# Barbarians well off the screen pass through, since nobody sees them and the check is costly for a full horde.
 		var gx := floori((np.x - t_origin.x) / t_cell)
