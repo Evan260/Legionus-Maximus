@@ -737,11 +737,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		swallow_input = true
 		get_viewport().set_input_as_handled()
 		return
+	# The press itself says where it landed; the last known mouse position can lag behind a click that came without a move first.
+	var at := Vector2.INF
+	if event is InputEventMouse:
+		at = hud.make_input_local(event).position - Ui.offset
 	if screens.has(state):
 		if event is InputEventMouseMotion:
-			ui.hover(hud.get_global_mouse_position() - Ui.offset)
+			ui.hover(at)
 		elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-			var id := ui.at(hud.get_global_mouse_position() - Ui.offset)
+			var id := ui.at(at)
 			if id != "":
 				ui.focus = id
 				_activate(id)
@@ -749,11 +753,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if state != "choose" and state != "pray":
 		return
 	if event is InputEventMouseMotion:
-		var i: int = hud.choice_at(hud.get_global_mouse_position() - Ui.offset)
+		var i: int = hud.choice_at(at)
 		if i >= 0:
 			selected = i
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		var i: int = hud.choice_at(hud.get_global_mouse_position() - Ui.offset)
+		var i: int = hud.choice_at(at)
 		if i >= 0:
 			if state == "pray":
 				_call_god(i)
