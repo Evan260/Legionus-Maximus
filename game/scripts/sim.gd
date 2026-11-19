@@ -13,6 +13,8 @@ const PLUNGE_SECONDS := 0.55
 const COUNTED := ["hit", "kill", "coin", "arrow", "pilum", "bolt"]
 const EVENT_CAP := 64
 const DIRS := ["east", "south-east", "south", "south-west", "west", "north-west", "north", "north-east"]
+## The difficulties a run can be played at, easiest first.
+const DIFFICULTIES := ["easy", "medium", "hard"]
 
 var b: Dictionary
 var rng := RandomNumberGenerator.new()
@@ -103,7 +105,8 @@ var _u_cells_ready := false
 var _ug_pos := PackedVector2Array()
 var content: Content
 var commander_id := "tribune"
-var hard := false
+## The run's difficulty, one of DIFFICULTIES; Easy and Hard scale the horde by their blocks in balance.json.
+var difficulty := "medium"
 var endless := false
 var decimatio := false
 var bonuses := {}
@@ -154,7 +157,9 @@ func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
 	commander_id = options.get("commander", "tribune")
 	if not game_content.commanders.has(commander_id):
 		commander_id = "tribune"
-	hard = options.get("hard", false)
+	difficulty = options.get("difficulty", "medium")
+	if not difficulty in DIFFICULTIES:
+		difficulty = "medium"
 	endless = options.get("endless", false)
 	decimatio = options.get("decimatio", false)
 	ravine_tip = options.get("ravine_tip", true)
@@ -174,6 +179,7 @@ func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
 	legion.commander.max_hp = legion.max_hp_of("commander")
 	legion.commander.hp = legion.commander.max_hp
 	horde = Horde.new(b, content, rng, legion.commander, province)
+	horde.run_difficulty = difficulty
 	terrain = Terrain.new(rng.seed, b.forest, b.get("ravines", {}))
 	terrain.field = b.get("fields", {}).get(province, {})
 	terrain.mountain = b.get("mountains", {}).get(province, {})
@@ -184,7 +190,6 @@ func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
 	terrain.fell_seconds = float(b.felling.seconds)
 	objectives.place_start(self, options.get("objectives_near", false))
 	terrain.refresh(legion.commander.pos)
-	horde.hard = hard
 	horde.sim_ref = weakref(self)
 	rerolls = int(b.rerolls) + int(kit.get("rerolls", 0)) + int(bonus_amount("rerolls"))
 	banishes = int(b.banishes) + int(bonus_amount("banishes"))
@@ -869,7 +874,7 @@ func _kill(i: int) -> void:
 	killed_kinds[id] = true
 	if horde.e_bare[i] == 1:
 		horde.bare_kills += 1
-	var pay := 0.0 if horde.e_bare[i] == 1 else float(content.enemies[id].coins) * (1.0 + float(b.drills.plunder) * rank("plunder") + bonus_amount("denarii")) * (float(b.hard.denarii_mult) if hard else 1.0)
+	var pay := 0.0 if horde.e_bare[i] == 1 else float(content.enemies[id].coins) * (1.0 + float(b.drills.plunder) * rank("plunder") + bonus_amount("denarii")) * horde.level_mult("denarii_mult")
 	# A fraction of a coin is paid as the same chance of one more.
 	var value := int(pay) + (1 if pay > floorf(pay) and rng.randf() < pay - floorf(pay) else 0)
 	var fell := _plunged.has(horde.e_id[i])

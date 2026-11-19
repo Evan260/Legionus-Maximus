@@ -58,7 +58,9 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	ui.text(c, money, Vector2(0, 31 if big else 23), Ui.GOLD_LIGHT, HORIZONTAL_ALIGNMENT_RIGHT, Ui.W - 24, true)
 	var setup: Dictionary = main.run_setup
 	var modes: Array = []
-	for key in ["hard", "endless", "decimatio"]:
+	if setup.difficulty != "medium":
+		modes.append(tr(setup.difficulty.capitalize()))
+	for key in ["endless", "decimatio"]:
 		if setup[key]:
 			modes.append(tr(key.capitalize()))
 	var line: String = "%s, %s" % [main.content.provinces[setup.province].name, main.content.commanders[setup.commander].name]

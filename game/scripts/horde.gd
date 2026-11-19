@@ -244,7 +244,8 @@ var elite_ids: Array = []
 ## The elites that came on the boss timer, as opposed to an objective's defenders.
 var timed_ids: Array = []
 var chief_dead := false
-var hard := false
+## The run's difficulty: "easy", "medium" or "hard".
+var run_difficulty := "medium"
 var sim_ref: WeakRef
 var carts: Array = []
 # Burning pots thrown by war priests: each lands where a red ring marks it and hurts every Roman inside.
@@ -452,8 +453,8 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 	if tag == ELITE:
 		power = early_boss_mult() * difficulty("elites")
 		hp *= early_boss_health() * (1.0 + float(b.bosses.health_growth) * time)
-	if hard:
-		hp *= float(b.hard.health_mult)
+	hp *= level_mult("health_mult")
+	power *= level_mult("damage_mult")
 	var owner_sim: Sim = sim_ref.get_ref() if sim_ref != null else null
 	var since: float = owner_sim.endless_since if owner_sim != null else -1.0
 	if since >= 0.0 and tag != CHIEF:
@@ -604,6 +605,11 @@ func _pick_ordinary() -> String:
 	return open[open.size() - 1]
 
 
+## A number from the run's difficulty block in balance.json (`easy` or `hard`), 1 on Medium.
+func level_mult(key: String) -> float:
+	return float(b.get(run_difficulty, {}).get(key, 1.0)) if run_difficulty in Sim.DIFFICULTIES and run_difficulty != "medium" else 1.0
+
+
 ## A number from this province's `difficulty` block in balance.json, 1 where it sets none.
 func difficulty(key: String) -> float:
 	return float(b.get("difficulty", {}).get(province, {}).get(key, 1.0))
@@ -686,7 +692,7 @@ func update(dt: float, sim: Sim) -> void:
 
 
 func _spawn(dt: float, sim: Sim) -> void:
-	spawn_acc += (b.spawn_per_second_start + b.spawn_per_second_growth * time) * (float(b.hard.spawn_mult) if hard else 1.0) * sim.objectives.spawn_mult(time) * difficulty("spawn") * dt
+	spawn_acc += (b.spawn_per_second_start + b.spawn_per_second_growth * time) * level_mult("spawn_mult") * sim.objectives.spawn_mult(time) * difficulty("spawn") * dt
 	while spawn_acc >= 1.0:
 		spawn_acc -= 1.0
 		if e_pos.size() < int(b.max_enemies) and not ordinary.is_empty():

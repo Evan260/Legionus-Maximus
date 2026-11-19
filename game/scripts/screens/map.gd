@@ -1,8 +1,11 @@
 class_name MapScreen
 extends RefCounted
-## The map: the painted frontier with the legion's road from Rome through the provinces in the order they open, and a panel for the one selected.
+## The map: the painted frontier with the legion's road from Rome through the provinces, and a panel for the one selected.
 
-const MODES := [["hard", "Hard"], ["endless", "Endless"], ["decimatio", "Decimatio"]]
+## The difficulties, easiest first, with their names.
+const LEVELS := [["easy", "Easy"], ["medium", "Medium"], ["hard", "Hard"]]
+## The modes a province opens once it is won.
+const MODES := [["endless", "Endless"], ["decimatio", "Decimatio"]]
 ## The painted map's projection, the same as tools/art/make_map.py: equirectangular from 11.5°W and 58.9°N, with longitude scaled by cos 42°.
 const WEST := -11.5
 const NORTH := 58.9
@@ -47,6 +50,12 @@ func activate(id: String) -> void:
 				setup[m[0]] = false
 		Profile.data.settings.province = setup.province
 		Profile.save()
+	elif parts[0] in Sim.DIFFICULTIES:
+		if parts[1] != setup.province:
+			activate("prov:" + parts[1])
+		setup.difficulty = parts[0]
+		Profile.data.settings.difficulty = parts[0]
+		Profile.save()
 	elif Profile.record_of(parts[1]).won:
 		if parts[1] != setup.province:
 			activate("prov:" + parts[1])
@@ -57,20 +66,7 @@ static func clock(seconds: float) -> String:
 	return "%d:%02d" % [int(seconds) / 60, int(seconds) % 60]
 
 
-## A province the legion can march to: drawn, and unlocked by winning the one before it.
-func is_open(id: String) -> bool:
-	return main.content.ready("provinces", id) and Profile.province_unlocked(id)
-
-
-## What opens a locked province: winning the drawn one before it, or its art when that is all it waits for.
-func locked_text(id: String) -> String:
-	var before: String = main.content.province_before(id)
-	if main.content.ready("provinces", id) and before != "" and not Profile.record_of(before).won:
-		return tr("Win in %s to open") % main.content.provinces[before].name
-	return tr("Not ready yet")
-
-
-## The provinces on the road, in the order they open.
+## The provinces on the road, in order.
 func road() -> Array:
 	var ids: Array = []
 	for id in main.content.provinces:
@@ -79,12 +75,10 @@ func road() -> Array:
 	return ids
 
 
-## The state of a province's node: won, open, locked, or fog for one that is not drawn yet.
+## The state of a province's node: won, open, or fog for one that is not drawn yet.
 func state_of(id: String) -> String:
 	if not main.content.ready("provinces", id):
 		return "fog"
-	if not is_open(id):
-		return "locked"
 	return "won" if Profile.record_of(id).won else "open"
 
 
@@ -95,7 +89,7 @@ func state_text(id: String) -> String:
 			return tr("Hard won") if Profile.record_of(id).hard_won else tr("Won")
 		"open":
 			return tr("Marching here") if main.run_setup.province == id else tr("March here")
-	return locked_text(id)
+	return tr("Not ready yet")
 
 
 ## Where the map is drawn: the whole 640 by 360 box.
@@ -119,7 +113,7 @@ static func spot(id: String) -> Vector2:
 
 ## The panel with the selected province's records and modes, over the steppe at the top right.
 static func panel_rect() -> Rect2:
-	return Rect2(Ui.W - 254, 8, 246, 68) if Ui.scale == 1 else Rect2(Ui.W - 260, 8, 252, 172)
+	return Rect2(Ui.W - 254, 8, 246, 38.0 + 5.0 * Ui.leading()) if Ui.scale == 1 else Rect2(Ui.W - 260, 8, 252, 172)
 
 
 ## The road from one province to the next: a smooth curve through the towns on its route, or a bent line where it has none.
@@ -237,7 +231,13 @@ func _node(c: CanvasItem, ui: Ui, id: String, now: float) -> void:
 	var p := spot(id)
 	var state := state_of(id)
 	var hit := Rect2(p - Vector2.ONE * (NODE_R + 6.0), Vector2.ONE * (NODE_R + 6.0) * 2.0)
-	ui.register(hit, "prov:" + id, state == "won" or state == "open")
+	ui.register(hit, "prov:" + id, state != "fog")
+	var chosen: bool = main.run_setup.province == id and state != "fog"
+	# The province the legion marches to next glows, so a click on another visibly moves the choice there.
+	if chosen:
+		var glow := 0.5 + 0.5 * sin(now * 4.0)
+		c.draw_circle(p, NODE_R + 5.0 + 4.0 * glow, Color(1.0, 0.85, 0.4, 0.5 - 0.3 * glow))
+		c.draw_arc(p, NODE_R + 4.0, 0.0, TAU, 32, Ui.GOLD, 2.0)
 	if ui.focus == "prov:" + id:
 		c.draw_arc(p, NODE_R + 6.0, 0.0, TAU, 32, Ui.GOLD_LIGHT, 2.0)
 	match state:
@@ -249,16 +249,10 @@ func _node(c: CanvasItem, ui: Ui, id: String, now: float) -> void:
 			if Profile.record_of(id).hard_won:
 				_pennant(c, p + Vector2(NODE_R - 1.0, -NODE_R - 2.0))
 		"open":
-			var pulse := 0.5 + 0.5 * sin(now * 4.0)
-			c.draw_circle(p, NODE_R + 4.0 + 4.0 * pulse, Color(1.0, 0.85, 0.4, 0.45 - 0.3 * pulse))
 			c.draw_circle(p, NODE_R + 2.0, Ui.INK)
-			c.draw_circle(p, NODE_R, Ui.GOLD.lerp(Ui.GOLD_LIGHT, pulse))
+			c.draw_circle(p, NODE_R, Ui.GOLD_LIGHT if chosen else Ui.GOLD)
 			c.draw_circle(p, NODE_R - 3.0, Ui.RED)
-		"locked":
-			c.draw_circle(p, NODE_R + 2.0, Color(0.1, 0.07, 0.05, 0.85))
-			c.draw_circle(p, NODE_R, Color(0.42, 0.38, 0.34))
-			c.draw_circle(p, NODE_R - 3.0, Color(0.27, 0.24, 0.21))
-	if main.run_setup.province == id and state != "fog":
+	if chosen:
 		_banner(c, p)
 
 
@@ -351,7 +345,7 @@ func _labels(c: CanvasItem, ui: Ui, ids: Array) -> Array:
 		plates.append(at)
 		var state := state_of(id)
 		c.draw_rect(at.grow(3.0), SHADE)
-		var name_col := Ui.GOLD_LIGHT if state == "won" or state == "open" else Color(0.78, 0.74, 0.68)
+		var name_col := Ui.GOLD_LIGHT if state != "fog" else Color(0.78, 0.74, 0.68)
 		ui.text(c, name, Vector2(at.position.x, at.position.y + Ui.px), name_col, HORIZONTAL_ALIGNMENT_CENTER, at.size.x)
 		if two:
 			var col := Ui.CREAM if state == "open" else (Color(0.6, 0.85, 0.5) if state == "won" else Color(0.72, 0.66, 0.6))
@@ -381,7 +375,7 @@ func _header(c: CanvasItem, ui: Ui, _plates: Array) -> void:
 	ui.text(c, hint, Vector2(0, Ui.H - 6), Ui.CREAM, HORIZONTAL_ALIGNMENT_CENTER, Ui.W, true, size)
 
 
-## The parchment panel for one province: its name and state, description, records and the mode switches.
+## The parchment panel for one province: its name and state, records, the difficulty and, once it is won, the mode switches.
 func _panel(c: CanvasItem, ui: Ui, id: String) -> void:
 	var content: Content = main.content
 	var info: Dictionary = content.provinces[id]
@@ -393,12 +387,12 @@ func _panel(c: CanvasItem, ui: Ui, id: String) -> void:
 	var w := r.size.x - 16.0
 	var y := r.position.y + 6.0 + Ui.px
 	var state := state_of(id)
-	ui.fit_text(c, info.name.to_upper(), w, Vector2(x, y), Ui.INK if state != "fog" and state != "locked" else Ui.MUTED)
+	ui.fit_text(c, info.name.to_upper(), w, Vector2(x, y), Ui.INK if state != "fog" else Ui.MUTED)
 	y += Ui.leading()
 	var tag := state_text(id).to_upper()
 	ui.fit_text(c, tag, w, Vector2(x, y), Ui.RED if state == "open" else Ui.BROWN)
 	y += Ui.leading() + 2.0
-	if state == "fog" or state == "locked":
+	if state == "fog":
 		return
 	var rec := Profile.record_of(id)
 	var results: Array = [tr("Best time %s") % clock(rec.best_time) if rec.best_time > 0.0 else tr("Not won yet")]
@@ -409,16 +403,20 @@ func _panel(c: CanvasItem, ui: Ui, id: String) -> void:
 		ui.fit_text(c, line, w, Vector2(x, y), Ui.INK)
 		y += Ui.leading()
 	var bh := 14.0 if not big else 22.0
-	var bottom := r.end.y - 6.0 - bh
+	var mode_rows := 1 if not big else MODES.size()
+	# Below the difficulty there is room for the mode switches or for the two lines that say how to open them.
+	var below := maxf(mode_rows * bh + (mode_rows - 1) * 4.0, 2.0 * Ui.leading())
+	var top := r.end.y - 6.0 - below - 4.0 - bh
+	_levels(c, ui, id, Rect2(x, top, w, bh))
+	top += bh + 4.0
 	if not rec.won:
-		ui.fit_text(c, tr("Win here to open these"), w, Vector2(x, bottom - 4.0), Ui.MUTED)
+		ui.wrap_fit(c, tr("Win here to open Endless and Decimatio"), Vector2(x, top + Ui.px - 1.0), w, Ui.MUTED, 2)
 		return
-	var columns := 3 if not big else 1
+	var columns := MODES.size() if not big else 1
 	var bw := (w - (columns - 1) * 4.0) / columns
-	var rows := MODES.size() / columns
 	for k in MODES.size():
 		var on: bool = setup[MODES[k][0]] and setup.province == id
-		var at := Vector2(x + (k % columns) * (bw + 4.0), bottom - (rows - 1 - k / columns) * (bh + 4.0))
+		var at := Vector2(x + (k % columns) * (bw + 4.0), top + (k / columns) * (bh + 4.0))
 		var b := Rect2(at, Vector2(bw, bh))
 		ui.button(c, b, "%s:%s" % [MODES[k][0], id], "")
 		var box := Rect2(b.position + Vector2(5.0, (bh - Ui.px) / 2.0), Vector2.ONE * Ui.px)
@@ -429,12 +427,46 @@ func _panel(c: CanvasItem, ui: Ui, id: String) -> void:
 		ui.fit_text(c, tr(MODES[k][1]), room, Vector2(box.end.x + 4.0, b.position.y + bh / 2.0 + Ui.px * 3 / 8), Ui.INK)
 
 
-## Keys and pad move along the road from node to node; up goes into the panel's switches and back down to the node.
+## The three-way difficulty choice across `row`, the chosen one filled red.
+func _levels(c: CanvasItem, ui: Ui, id: String, row: Rect2) -> void:
+	var widths := level_widths(row.size.x)
+	var x := row.position.x
+	for k in LEVELS.size():
+		var bw: float = widths[k]
+		var b := Rect2(Vector2(x, row.position.y), Vector2(bw, row.size.y))
+		x += bw + 4.0
+		ui.button(c, b, "%s:%s" % [LEVELS[k][0], id], "")
+		var chosen: bool = main.run_setup.difficulty == LEVELS[k][0]
+		if chosen:
+			c.draw_rect(b.grow(-2.0), Ui.RED)
+		ui.fit_text(c, tr(LEVELS[k][1]), bw - 4.0, Vector2(b.position.x, b.position.y + b.size.y / 2.0 + Ui.px * 3 / 8), Ui.CREAM if chosen else Ui.INK,
+			HORIZONTAL_ALIGNMENT_CENTER, bw)
+
+
+## The widths of the three difficulty buttons in a row `width` wide: each name's own width and an even share of the room left, so a long name keeps its size.
+static func level_widths(width: float) -> Array:
+	var room := width - (LEVELS.size() - 1) * 4.0
+	var names: Array = LEVELS.map(func(l: Array) -> float: return Ui.width_at(TranslationServer.translate(l[1]), Ui.px))
+	var spare := room
+	for n in names:
+		spare -= n
+	if spare < 0.0:
+		return LEVELS.map(func(_l: Array) -> float: return room / LEVELS.size())
+	return names.map(func(n: float) -> float: return n + spare / LEVELS.size())
+
+
+## Keys and pad move along the road from node to node; up goes into the panel at the chosen difficulty, down from there to the mode switches and back to the node.
 func _links(ui: Ui, ids: Array) -> void:
+	var node := "prov:" + selected
+	var levels: Array = []
 	var switches: Array = []
-	if state_of(selected) in ["won", "open"] and Profile.record_of(selected).won:
-		for m in MODES:
-			switches.append("%s:%s" % [m[0], selected])
+	if state_of(selected) != "fog":
+		for l in LEVELS:
+			levels.append("%s:%s" % [l[0], selected])
+		if Profile.record_of(selected).won:
+			for m in MODES:
+				switches.append("%s:%s" % [m[0], selected])
+	var chosen: String = levels[maxi(0, Sim.DIFFICULTIES.find(main.run_setup.difficulty))] if not levels.is_empty() else ""
 	for i in ids.size():
 		var here: String = "prov:" + ids[i]
 		var before: String = ("prov:" + ids[i - 1]) if i > 0 else here
@@ -442,12 +474,21 @@ func _links(ui: Ui, ids: Array) -> void:
 		ui.link(here, Vector2.LEFT, before)
 		ui.link(here, Vector2.RIGHT, after)
 		ui.link(here, Vector2.DOWN, after)
-		ui.link(here, Vector2.UP, switches[0] if not switches.is_empty() and ids[i] == selected else before)
+		ui.link(here, Vector2.UP, chosen if chosen != "" and ids[i] == selected else before)
+	for k in levels.size():
+		ui.link(levels[k], Vector2.LEFT, levels[maxi(k - 1, 0)])
+		ui.link(levels[k], Vector2.RIGHT, levels[mini(k + 1, levels.size() - 1)])
+		ui.link(levels[k], Vector2.UP, levels[k])
+		ui.link(levels[k], Vector2.DOWN, switches[0] if not switches.is_empty() else node)
 	var across := Ui.scale == 1
 	for k in switches.size():
-		var back := Vector2.DOWN if across else Vector2.LEFT
-		ui.link(switches[k], back, "prov:" + selected)
-		var prev := Vector2.LEFT if across else Vector2.UP
-		var next := Vector2.RIGHT if across else Vector2.DOWN
-		ui.link(switches[k], prev, switches[k - 1] if k > 0 else ("prov:" + selected if across else switches[k]))
-		ui.link(switches[k], next, switches[k + 1] if k < switches.size() - 1 else switches[k])
+		if across:
+			ui.link(switches[k], Vector2.UP, chosen)
+			ui.link(switches[k], Vector2.DOWN, node)
+			ui.link(switches[k], Vector2.LEFT, switches[maxi(k - 1, 0)])
+			ui.link(switches[k], Vector2.RIGHT, switches[mini(k + 1, switches.size() - 1)])
+		else:
+			ui.link(switches[k], Vector2.UP, switches[k - 1] if k > 0 else chosen)
+			ui.link(switches[k], Vector2.DOWN, switches[k + 1] if k < switches.size() - 1 else node)
+			ui.link(switches[k], Vector2.LEFT, node)
+			ui.link(switches[k], Vector2.RIGHT, switches[k])

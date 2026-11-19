@@ -3,7 +3,7 @@ extends Node
 ## It is an autoload named Profile. Tests and screenshots never touch the real file, since `disabled` is set before anything loads.
 
 const DEFAULT_PATH := "user://profile.json"
-const NO_SAVE_FLAGS := ["run-tests", "bench", "autoplay", "skip", "shot", "at", "screen", "page", "text-size", "lang", "card", "hard", "endless", "decimatio",
+const NO_SAVE_FLAGS := ["run-tests", "bench", "autoplay", "skip", "shot", "at", "screen", "page", "text-size", "lang", "card", "easy", "hard", "endless", "decimatio",
 	"commander", "chieftain-at", "as-demo", "objectives-near", "boss", "boss-act", "god", "god-at", "give", "go-to", "hold-choice", "win-at", "timber", "max-state",
 	"province", "seed", "men", "mortal", "trailer-shot", "no-save"]
 
@@ -34,7 +34,7 @@ static func defaults() -> Dictionary:
 	return {
 		"denarii": 0,
 		"ranks": {},
-		"unlocked": {"commanders": ["tribune"], "provinces": ["germania"]},
+		"unlocked": {"commanders": ["tribune"]},
 		"records": {},
 		"seen": {},
 		"totals": {"kills": 0, "runs": 0, "wins": 0, "ravine_tips": 0},
@@ -71,11 +71,10 @@ static func merge_saved(saved: Dictionary) -> Dictionary:
 			if _is_number(saved.ranks[id]):
 				out.ranks[str(id)] = maxi(0, int(saved.ranks[id]))
 	if saved.get("unlocked") is Dictionary:
-		for kind in ["commanders", "provinces"]:
-			if saved.unlocked.get(kind) is Array:
-				for id in saved.unlocked[kind]:
-					if id is String and not out.unlocked[kind].has(id):
-						out.unlocked[kind].append(id)
+		if saved.unlocked.get("commanders") is Array:
+			for id in saved.unlocked.commanders:
+				if id is String and not out.unlocked.commanders.has(id):
+					out.unlocked.commanders.append(id)
 	if saved.get("records") is Dictionary:
 		for id in saved.records:
 			if saved.records[id] is Dictionary:
@@ -96,6 +95,8 @@ static func merge_saved(saved: Dictionary) -> Dictionary:
 		for key in saved.settings:
 			var v: Variant = saved.settings[key]
 			if key in ["province", "commander"] and not v is String:
+				continue
+			if key == "difficulty" and not v in Sim.DIFFICULTIES:
 				continue
 			if SETTING_DEFAULTS.has(key):
 				v = _checked_setting(str(key), v)
@@ -254,14 +255,12 @@ func buy_commander(id: String, content: Content) -> bool:
 	return true
 
 
-## Opens every drawn province with its modes and every commander, maxes every upgrade and fills the codex, for --max-state; it is never saved.
+## Wins every drawn province with its modes, opens every commander, maxes every upgrade and fills the codex, for --max-state; it is never saved.
 func max_out(content: Content) -> void:
 	data.denarii = 1000000
 	for p in content.provinces:
 		if not content.ready("provinces", p):
 			continue
-		if not province_unlocked(p):
-			data.unlocked.provinces.append(p)
 		var rec := record_of(p)
 		rec.won = true
 		rec.hard_won = true
@@ -276,10 +275,6 @@ func max_out(content: Content) -> void:
 	for kind in Content.GROUPS.keys() + ["enemies", "commanders", "gods"]:
 		for id in content.get(kind):
 			data.seen[id] = true
-
-
-func province_unlocked(id: String) -> bool:
-	return data.unlocked.provinces.has(id)
 
 
 ## Plain words for how a commander is unlocked.
@@ -310,10 +305,9 @@ func record_run(sim: Sim) -> void:
 	var won := sim.victory and not sim.demo_over
 	if won:
 		data.totals.wins = int(data.totals.wins) + 1
-		if sim.hard:
+		rec.won = true
+		if sim.difficulty == "hard":
 			rec.hard_won = true
-		else:
-			rec.won = true
 		var won_at: float = sim.endless_since if sim.endless and sim.endless_since >= 0.0 else sim.time
 		if float(rec.best_time) <= 0.0 or won_at < float(rec.best_time):
 			rec.best_time = won_at
@@ -335,21 +329,6 @@ func record_run(sim: Sim) -> void:
 	save()
 
 
-## Opens every province whose drawn predecessor has been won. A province waiting for its art is passed over, so winning one opens
-## the next that can be played; it also runs at start, so a profile that won a province before the next was drawn finds it open.
-func open_won_provinces(content: Content) -> void:
-	for p in content.provinces:
-		var before: String = content.province_before(p)
-		if not content.ready("provinces", p):
-			continue
-		var won := before == "" or bool(record_of(before).won)
-		if won and before != "" and not province_unlocked(p):
-			data.unlocked.provinces.append(p)
-		# A province stays open only while the one before it on the road is won, unless it has been won itself.
-		elif not won and province_unlocked(p) and not bool(record_of(p).won):
-			data.unlocked.provinces.erase(p)
-
-
 func _unlock(sim: Sim) -> void:
 	var content: Content = sim.content
 	var provinces: Array = content.provinces.keys()
@@ -357,7 +336,6 @@ func _unlock(sim: Sim) -> void:
 	for p in provinces:
 		if not bool(record_of(p).won):
 			all_won = false
-	open_won_provinces(content)
 	for id in content.commanders:
 		if commander_unlocked(id):
 			continue

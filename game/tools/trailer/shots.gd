@@ -48,7 +48,6 @@ func _ready() -> void:
 	if shot == "map":
 		for p in MAP_WON:
 			Profile.data.records[p] = {"best_time": 1100.0, "longest": 1200.0, "won": true, "hard_won": false}
-		Profile.open_won_provinces(main.content)
 	# A legion that marches without fighting is hunted by extra beasts, which would swamp the marching shots.
 	if main.balance.has("pursuit"):
 		main.balance.pursuit.cap = 0.0

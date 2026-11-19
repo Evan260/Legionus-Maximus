@@ -107,15 +107,6 @@ func ready(kind: String, id: String) -> bool:
 	return true
 
 
-## The drawn province before `id` in the list, which must be won to open it; empty when no drawn province comes before it.
-func province_before(id: String) -> String:
-	var ids: Array = provinces.keys()
-	for k in range(ids.find(id) - 1, -1, -1):
-		if ready("provinces", ids[k]):
-			return ids[k]
-	return ""
-
-
 ## The ordinary enemies of a province that are drawn.
 func province_enemies(province: String) -> Array:
 	var out: Array = []
