@@ -4,7 +4,7 @@ A survivors-style action game in pixel art about leading a Roman legion through 
 
 You only steer. Every soldier fights on his own, and each level-up adds a recruit, a weapon or a drill, so a run that starts with the commander alone ends with a hundred men in formation holding off a screen full of enemies. Forest ridges and ravines leave only certain ways through, so the legion fells trees for timber to cut new roads, drive palisades and bridge the gorges. Elites with their own abilities come every 45 seconds, and the gods of Rome can be called on to clear the field. A run is won by retaking the eagles, burning the sacred grove and marching into the Roman fort that appears at 12 minutes, past the chieftain who comes out to stop you.
 
-The campaign map runs through five provinces, Germania, Gaul, Dacia, Parthia and Britannia, every one open from the start and each with its own ground, enemies, leader and difficulty. Each run is played on Easy, Medium or Hard, and winning a province opens its Endless and Decimatio modes. Eight kinds of recruit and six commanders can join the legion. A legion that keeps marching while it kills, instead of holding and fighting, raises the pursuit, which sends beasts and sprinters after it.
+The campaign map runs through five provinces, Germania, Gaul, Dacia, Parthia and Britannia, each opened by winning the one before and each with its own ground, enemies, leader and difficulty. Each run is played on Easy, Medium or Hard, and winning a province also opens its Endless and Decimatio modes. Eight kinds of recruit and six commanders can join the legion. A legion that keeps marching while it kills, instead of holding and fighting, raises the pursuit, which sends beasts and sprinters after it.
 
 ## Playing it
 
