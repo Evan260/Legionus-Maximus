@@ -138,8 +138,9 @@ func _draw() -> void:
 	var margin := 80.0
 	var view := Rect2(top_left - Vector2(margin, margin), screen + Vector2(margin, margin) * 2.0)
 
-	var see_through := Color(1, 1, 1, 0.15)
-	var him := Rect2(cam - Vector2(12, 40), Vector2(24, 40))
+	# Half see-through, so the tree still reads as a tree over the commander.
+	var see_through := Color(1, 1, 1, 0.5)
+	var him := Rect2(cam - Vector2(5, 26), Vector2(10, 26))
 	var chops: Dictionary = sim.terrain.chops
 	var shaking := float(sim.b.felling.shake_seconds)
 	_felling.clear()
@@ -164,7 +165,8 @@ func _draw() -> void:
 					at += Vector2(roundf(sin(sim.time * 45.0 + at.x) * 1.2), 0)
 				var mod := white
 				# A tree standing in front of the commander is seen through, so he is not lost once the legion cuts into a ridge.
-				if pr[2] > 0.0 and at.y > cam.y and Rect2(at - f[1], f[0].size).intersects(him):
+				# Only the middle of the picture counts, since the empty margins round a canopy hide nothing.
+				if pr[2] > 0.0 and at.y > cam.y and _solid_part(Rect2(at - f[1], f[0].size)).intersects(him):
 					mod = see_through
 				# The gate fades only half way, so the fort still reads while the commander walks under it.
 				elif pr[0] == "fort_gate" and at.y > cam.y and Rect2(at - f[1], f[0].size).intersects(him):
@@ -806,6 +808,11 @@ func _add_flames(view: Rect2) -> void:
 
 
 ## One flame of the atlas's flickering sheet at `ground` + `at`, sorted just in front of the thing standing at `ground`.
+## The part of a tree's picture that is canopy and trunk: a fifth in from each side and a tenth down from the top.
+static func _solid_part(r: Rect2) -> Rect2:
+	return Rect2(r.position + Vector2(r.size.x * 0.2, r.size.y * 0.1), Vector2(r.size.x * 0.6, r.size.y * 0.9))
+
+
 func _add_flame(ground: Vector2, at: Vector2, seed_i: int, k: int, fade: float) -> void:
 	var fl: Dictionary = atlas.props.flame
 	var f: Array = fl.frames[(int(sim.time * 10.0) + seed_i * 3 + k) % fl.frames.size()]
