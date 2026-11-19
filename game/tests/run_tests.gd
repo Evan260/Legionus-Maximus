@@ -318,13 +318,18 @@ func test_warriors_on_foot_never_outpace_the_legion(b: Dictionary) -> void:
 func test_every_full_choice_holds_a_recruit(b: Dictionary) -> void:
 	var s := Sim.new(b, Content.with_all_art(), {"seed": 122})
 	var always := true
+	var pair := true
 	for k in 50:
 		var picks := Upgrades.offers(s)
 		var has := false
+		var two := false
 		for id in picks:
 			has = has or s.content.recruits.has(id)
+			two = two or (s.content.recruits.has(id) and int(s.content.recruits[id].per_pick) > 1)
 		always = always and has
+		pair = pair and two
 	check(always, "fifty sets of choices each held a recruit")
+	check(pair, "and each a recruit who brings two men")
 
 
 func _quiet_sim(b: Dictionary, seed_value: int, art: Content = null) -> Sim:

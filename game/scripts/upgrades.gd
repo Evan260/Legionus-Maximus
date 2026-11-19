@@ -48,9 +48,15 @@ static func offers(sim: Sim, n: int = -1, skip: Array = []) -> Array:
 	# A full set of choices always holds one recruit while the legion has room, since a growing legion is the heart of the game.
 	if n >= 3:
 		var recruits: Array = []
+		var line: Array = []
 		for id in pool:
 			if sim.content.recruits.has(id):
 				recruits.append(id)
+				if int(sim.content.recruits[id].per_pick) > 1:
+					line.append(id)
+		# That recruit brings a pair of fighting men whenever one can, so the legion grows as fast as ever; the single specialists come among the other choices.
+		if not line.is_empty():
+			recruits = line
 		if not recruits.is_empty():
 			var r: String = recruits[sim.rng.randi_range(0, recruits.size() - 1)]
 			picks.append(r)
@@ -61,7 +67,7 @@ static func offers(sim: Sim, n: int = -1, skip: Array = []) -> Array:
 	for id in pool:
 		match sim.content.group_of(id):
 			"Recruit":
-				weights[id] = 3.0 * luck
+				weights[id] = 4.5 * luck
 			"Forged":
 				weights[id] = 6.0
 			"Arms":
