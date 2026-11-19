@@ -2379,7 +2379,8 @@ func _move(dt: float, sim: Sim) -> void:
 		# A painted warrior's charge carries him through the crowd without being shoved aside.
 		if push != Vector2.ZERO and not (dashing and k_fearless[kind] == 1):
 			# However many neighbours he overlaps, the crowd never carries a boss faster than his charge, nor a barbarian past `crowd_pace` times his.
-			var step := v * dt + (push - shoved) * 0.6
+			# The chieftain walks on through his own bodyguard instead of being held back by the ring round him.
+			var step := v * dt + ((push - shoved) * 0.6 if e_tag[i] != CHIEF else Vector2.ZERO)
 			var most := maxf(v.length(), k_top[kind] * (crowd_pace if e_tag[i] == ORDINARY else 1.0)) * dt
 			if step.length_squared() > most * most:
 				step *= most / step.length()
