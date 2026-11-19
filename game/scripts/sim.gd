@@ -1042,7 +1042,8 @@ func _unit_near(p: Vector2, r2: float) -> bool:
 
 func gain(value: int) -> void:
 	denarii += value
-	xp_carry += value * (1.0 + float(b.drills.glory) * rank("glory") + bonus_amount("experience"))
+	# The difficulty's `xp_mult` takes back its `denarii_mult`, so Hard pays more denarii without levelling the legion faster.
+	xp_carry += value * (1.0 + float(b.drills.glory) * rank("glory") + bonus_amount("experience")) * horde.level_mult("xp_mult")
 	xp += int(xp_carry)
 	xp_carry -= int(xp_carry)
 	while xp >= xp_next:

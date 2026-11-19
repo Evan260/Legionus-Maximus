@@ -544,6 +544,15 @@ func test_a_crowd_never_throws_a_boss_faster_than_his_charge(b: Dictionary) -> v
 		check(worst <= cap + 0.01, "%s in a packed crowd moves at most %.1f px a step (%.1f)" % [kind, cap, worst])
 
 
+func test_hard_kills_pay_more_denarii_but_no_more_experience(b: Dictionary) -> void:
+	var medium := Sim.new(b, content, {"seed": 18})
+	var hard := Sim.new(b, content, {"seed": 18, "difficulty": "hard"})
+	medium.gain(200)
+	hard.gain(int(200 * float(b.hard.denarii_mult)))
+	check(hard.denarii > medium.denarii, "Hard pays more denarii")
+	check(absi(hard.level - medium.level) == 0 and absi(hard.xp - medium.xp) <= 1, "but the same experience (%d/%d against %d/%d)" % [hard.level, hard.xp, medium.level, medium.xp])
+
+
 func test_every_direction_has_a_name(b: Dictionary) -> void:
 	check(Sim.dir_name(Vector2.RIGHT) == "east", "right is east")
 	check(Sim.dir_name(Vector2.DOWN) == "south", "down is south")
