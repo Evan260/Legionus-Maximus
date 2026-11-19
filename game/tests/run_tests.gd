@@ -279,6 +279,11 @@ func test_a_war_band_arrives_together(b: Dictionary) -> void:
 	for p in s.horde.e_pos:
 		tight = tight and p.distance_to(centre) <= float(b.war_band.spread) * 2.0
 	check(tight, "its men stand close together")
+	var apart := INF
+	for i in s.horde.e_pos.size():
+		for j in range(i + 1, s.horde.e_pos.size()):
+			apart = minf(apart, s.horde.e_pos[i].distance_to(s.horde.e_pos[j]))
+	check(apart >= float(b.war_band.spread) * 0.5, "and none stands on another (%.0f px apart)" % apart)
 
 
 func test_warriors_on_foot_never_outpace_the_legion(b: Dictionary) -> void:

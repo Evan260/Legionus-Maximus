@@ -900,10 +900,14 @@ func war_band_at(sim: Sim, centre: Vector2, mult := 1.0) -> void:
 		return
 	var wb: Dictionary = b.war_band
 	var n := int((float(wb.size_start) + float(wb.size_growth) * time) * mult * difficulty("spawn"))
+	var turn := rng.randf() * TAU
 	for i in n:
 		if e_pos.size() >= int(b.max_enemies):
 			break
-		spawn(_pick_ordinary(), beyond_screen(centre + Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(0.0, float(wb.spread))))
+		# The band stands in a loose spiral, `spread` apart, so it walks in as a crowd and never as one pile, and within reach of the legion so none is sent round again at once.
+		var at := beyond_screen(centre + Vector2.from_angle(turn + i * 2.39996) * float(wb.spread) * 0.55 * sqrt(i + 0.5))
+		var held: Vector2 = commander.pos + (at - commander.pos).limit_length(float(b.recycle_radius) - 10.0)
+		spawn(_pick_ordinary(), held if beyond_screen(held) == held else at)
 	sim.event("surge", commander.pos)
 
 
@@ -2091,6 +2095,9 @@ func _move(dt: float, sim: Sim) -> void:
 	var stuck_slip: float = b.detour.stuck_slip
 	var pace_k := minf(1.0, dt * 18.0)
 	var route_range: float = b.detour.get("route_range", solid_range)
+	# Everyone on the screen or just off it is spaced and kept out of the trees, however wide the window, so no crowd stands piled on one spot in view.
+	var seen_x := view.x / 2.0 + 64.0
+	var seen_y := view.y / 2.0 + 64.0
 	var slide_until := detour_seconds - float(b.detour.get("slide", 0.0))
 	var rear := -Vector2.from_angle(sim.facing_angle)
 	var ci := chieftain_index()
@@ -2105,8 +2112,8 @@ func _move(dt: float, sim: Sim) -> void:
 		var to := cpos - p
 		var d := to.length()
 		if d > recycle and e_tag[i] != CHIEF and e_guard[i] == Vector2.ZERO:
-			# Barbarians left far behind come round again from ahead, so the field never empties.
-			e_pos[i] = open_point(cpos - to * (b.spawn_radius / d))
+			# Barbarians left far behind come round again from ahead, so the field never empties, each at his own spot along the edge.
+			e_pos[i] = open_point(cpos - (to * (b.spawn_radius / d)).rotated(rng.randf_range(-0.35, 0.35)))
 			e_push[i] = Vector2.ZERO
 			continue
 		if e_stun[i] > 0.0:
@@ -2236,9 +2243,10 @@ func _move(dt: float, sim: Sim) -> void:
 			e_flee[i] -= dt
 			v = -to / maxf(d, 0.001) * spd * k_flee_mult[kind]
 		var push := e_push[i]
+		var seen := absf(to.x) < seen_x and absf(to.y) < seen_y
 		# Spacing from neighbours is worked out for a third of the horde each update, in turn.
 		# Enemies beyond the screen are not spaced apart, since nobody can see them bunch up.
-		if i % 3 == phase and d < sep_range:
+		if i % 3 == phase and (d < sep_range or seen):
 			push = Vector2.ZERO
 			var block := 0.0
 			var c := cidx(p)
@@ -2335,7 +2343,7 @@ func _move(dt: float, sim: Sim) -> void:
 					shoved = out.normalized() * maxf(0.0, Sim.UNIT_RADIUS + r - out.length()) * 2.0
 					push += shoved
 				v = Vector2.ZERO
-		if (i + frame) % 6 == 0 and d < route_range and e_detour[i] <= 0.0 and v != Vector2.ZERO and f_ready and not (dashing or circling or fleeing) and g == Vector2.ZERO:
+		if (i + frame) % 6 == 0 and (d < route_range or seen) and e_detour[i] <= 0.0 and v != Vector2.ZERO and f_ready and not (dashing or circling or fleeing) and g == Vector2.ZERO:
 			# A barbarian about to walk into a wood or a gorge takes the route map round it before he touches it.
 			var ahead := p + v * (f_cell / spd) - f_origin
 			var ax := floori(ahead.x / f_cell)
@@ -2380,7 +2388,7 @@ func _move(dt: float, sim: Sim) -> void:
 		# Barbarians well off the screen pass through, since nobody sees them and the check is costly for a full horde.
 		var gx := floori((np.x - t_origin.x) / t_cell)
 		var gy := floori((np.y - t_origin.y) / t_cell)
-		if d < solid_range and e_stuck[i] >= 0.0 and gx >= 0 and gy >= 0 and gx < t_n and gy < t_n:
+		if (d < solid_range or seen) and e_stuck[i] >= 0.0 and gx >= 0 and gy >= 0 and gx < t_n and gy < t_n:
 			var gc := gx + gy * t_n
 			var touched := false
 			for t in range(t_start[gc], t_start[gc + 1]):
@@ -2451,7 +2459,7 @@ func _move(dt: float, sim: Sim) -> void:
 		elif e_stuck[i] > 0.0:
 			e_stuck[i] = maxf(0.0, e_stuck[i] - dt)
 		e_pos[i] = np
-		if i % 3 == phase and d < route_range:
+		if i % 3 == phase and (d < route_range or seen):
 			e_want[i] = 1 if v != Vector2.ZERO else 0
 			e_pace[i] += ((np - p).length() / dt - e_pace[i]) * pace_k
 		if v != Vector2.ZERO:
