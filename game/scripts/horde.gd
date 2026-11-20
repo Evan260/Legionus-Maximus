@@ -101,6 +101,8 @@ var k_pass_range := PackedFloat32Array()
 var k_drop := PackedFloat32Array()
 # 1 for a kind that fights on foot, whose pace is held below the legion's march; beasts, riders, chariots and bosses are not.
 var k_foot := PackedByteArray()
+## 1 for chariots and riders, whose passes carry them far out and back, so they never give up the chase.
+var k_rides := PackedByteArray()
 # How far out from the legion's ranks a foot warrior starts his charge or sprint, so it is a lunge and never a way to run the legion down; -1 for the rest.
 var k_dash_reach := PackedFloat32Array()
 # How often a kind is picked from the later stream against the others (1 by default), how many of it may be alive at once (0 for no limit), and how many are.
@@ -170,6 +172,7 @@ var ordinary: Array = []
 var elites: Array = []
 var chief_kind := ""
 var spawn_acc := 0.0
+var cart_tip_shown := false
 ## Ordinary enemies on the screen or just off it, counted at the start of each spawn step and raised by every newcomer.
 var crowd := 0
 var next_surge := 0.0
@@ -396,6 +399,7 @@ func _init(balance: Dictionary, game_content: Content, random: RandomNumberGener
 		k_pass_every.append(float(pass_cfg.get("every", 1.0)))
 		k_pass_range.append(float(pass_cfg.get("range", 0.0)))
 		k_drop.append(float(info.get("drop", {}).get("chance", 0.0)))
+		k_rides.append(1 if beh == DRIVER or beh == CHARGER or info.get("mounted", false) else 0)
 		k_foot.append(1 if (beh == MELEE or beh == RANGED) and not info.get("mounted", false) and not info.get("elite", false) and not info.get("chieftain", false) else 0)
 		var dash: Dictionary = info.get("fearless", info.get("sprint", {}))
 		k_dash_reach.append(float(dash.get("reach", -1.0)) if k_foot[k_foot.size() - 1] == 1 else -1.0)
@@ -939,7 +943,7 @@ func war_band_at(sim: Sim, centre: Vector2, mult := 1.0) -> void:
 			break
 		# The band stands in a loose spiral, `spread` apart, so it walks in as a crowd and never as one pile, and within reach of the legion so none is sent round again at once.
 		var at := beyond_screen(centre + Vector2.from_angle(turn + i * 2.39996) * float(wb.spread) * 0.55 * sqrt(i + 0.5))
-		var held: Vector2 = commander.pos + (at - commander.pos).limit_length(float(b.recycle_radius) - 10.0)
+		var held: Vector2 = commander.pos + (at - commander.pos).limit_length(float(b.give_up_radius) - 10.0)
 		spawn(_pick_ordinary(), held if beyond_screen(held) == held else at)
 	sim.event("surge", commander.pos)
 
@@ -2077,7 +2081,8 @@ func war_cry(ci: int, sim: Sim) -> void:
 
 
 func _move(dt: float, sim: Sim) -> void:
-	var recycle: float = b.recycle_radius
+	var give_up: float = b.give_up_radius
+	var gone: Array = []
 	var cpos: Vector2 = commander.pos
 	var legion_reach := sim.legion_reach
 	var reach2 := legion_reach * legion_reach
@@ -2146,13 +2151,10 @@ func _move(dt: float, sim: Sim) -> void:
 		var p := e_pos[i]
 		var to := cpos - p
 		var d := to.length()
-		if d > recycle and e_tag[i] != CHIEF and e_guard[i] == Vector2.ZERO:
-			# Barbarians left far behind come round again from ahead, so the field never empties, each at his own spot along the edge.
-			var again := _comeback(p, cpos, to, d, sim)
-			if again != Vector2.INF:
-				e_pos[i] = again
-				e_push[i] = Vector2.ZERO
-				continue
+		if d > give_up and e_tag[i] != CHIEF and k_rides[kind] == 0 and e_guard[i] == Vector2.ZERO and (absf(to.x) >= seen_x or absf(to.y) >= seen_y):
+			# A barbarian the legion has left far behind gives up the chase, so marching away is a real escape.
+			gone.append(i)
+			continue
 		if e_stun[i] > 0.0:
 			e_stun[i] -= dt
 			e_fighting[i] = 0
@@ -2461,13 +2463,6 @@ func _move(dt: float, sim: Sim) -> void:
 				# Inside a wood there is no gap to slide through, so he slips between the trunks along the route map out to open ground.
 				e_stuck[i] = -stuck_slip
 				e_detour[i] = maxf(e_detour[i], stuck_slip)
-		elif d >= solid_range and not seen and v != Vector2.ZERO and not sim.terrain.is_open(np) and sim.terrain.is_open(p):
-			# Out of sight the trunks are not checked one by one, so the wood as a whole turns him back and the route map leads him round it.
-			e_way[i] = (p - np).normalized()
-			if e_detour[i] <= 0.0:
-				e_side[i] = 1 if Vector2(-e_way[i].y, e_way[i].x).dot(_route(p, to, sim)) >= 0.0 else -1
-			e_detour[i] = detour_seconds
-			np = p
 		# Wheat holds everyone in the grid, near or far and even while slipping through trees, since a field is too wide to pop out of unseen.
 		if fields_near and gx >= 0 and gy >= 0 and gx < t_n and gy < t_n and fd_start[gx + gy * t_n] < fd_start[gx + gy * t_n + 1]:
 			var kept := sim.terrain.field_push(np, r)
@@ -2518,37 +2513,10 @@ func _move(dt: float, sim: Sim) -> void:
 			e_face[i] = e_dir[i] if dashing else (v.normalized() if circling or fleeing else to / maxf(d, 0.001))
 		if e_flash[i] > 0.0:
 			e_flash[i] -= dt
+	for k in range(gone.size() - 1, -1, -1):
+		remove_at(gone[k])
 	sim.pressing = held
 	sim.legion.remove_fallen(sim)
-
-
-## Where a barbarian left far behind at p comes round again, or INF when every spot on his side lies across a wood from him, so he keeps walking round it instead.
-## One wandered much further off comes back from any side, and comes back regardless when woods lie every way, since nobody sees him so far out.
-func _comeback(p: Vector2, cpos: Vector2, to: Vector2, d: float, sim: Sim) -> Vector2:
-	var turn := rng.randf_range(-0.35, 0.35)
-	var first := Vector2.INF
-	for k in 5:
-		var at := open_point(cpos - (to * (b.spawn_radius / d)).rotated(turn + (k / 2) * 0.5 * (1 if k % 2 == 0 else -1)))
-		if _clear_line(p, at, sim):
-			return at
-		if k == 0:
-			first = at
-	if d < float(b.recycle_radius) * 2.5:
-		return Vector2.INF
-	for k in 8:
-		var at := open_point(cpos - (to * (b.spawn_radius / d)).rotated(turn + TAU * k / 8.0))
-		if _clear_line(p, at, sim):
-			return at
-	return first
-
-
-## True when nothing in the route map's closed squares lies on the straight line from a to b.
-func _clear_line(a: Vector2, b_: Vector2, sim: Sim) -> bool:
-	var steps := int(a.distance_to(b_) / (Terrain.FLOW_CELL * 0.5)) + 1
-	for k in range(1, steps + 1):
-		if not sim.terrain.is_open(a.lerp(b_, float(k) / steps)):
-			return false
-	return true
 
 
 ## A chariot's pass: it steers to run beside the legion just outside its ranks, holds its line as it passes, throwing javelins at the nearest
@@ -2564,7 +2532,11 @@ func _pass(i: int, p: Vector2, to: Vector2, d: float, spd: float, reach: float, 
 		var s := 1.0 if to.dot(side) >= 0.0 else -1.0
 		var mark: Vector2 = commander.pos - side * s * (reach + k_pass_gap[kind])
 		var want := (mark - p).normalized()
-		dir = dir.rotated(clampf(dir.angle_to(want), -k_pass_turn[kind] * dt, k_pass_turn[kind] * dt))
+		var swing := dir.angle_to(want)
+		# Heading straight away, either way round looks the same and the choice would flip each update, so each chariot keeps to one side.
+		if absf(swing) > PI - 0.3:
+			swing = PI if e_id[i] % 2 == 0 else -PI
+		dir = dir.rotated(clampf(swing, -k_pass_turn[kind] * dt, k_pass_turn[kind] * dt))
 	e_dir[i] = dir
 	e_cd[i] -= dt
 	if e_cd[i] <= 0.0 and d < reach + k_pass_range[kind]:
@@ -2834,6 +2806,9 @@ func spawn_cart() -> void:
 		if owner_sim.terrain.is_open(at) and owner_sim.terrain.ravine_edge(at) >= float(cfg.radius):
 			break
 	carts.append({"pos": at, "t": 0.0})
+	if owner_sim != null and not cart_tip_shown:
+		cart_tip_shown = true
+		owner_sim.objectives.notice = {"kind": "cart_tip", "at": owner_sim.time, "seconds": float(cfg.tip_seconds)}
 
 
 ## How solid a supply cart is drawn: whole, fading out over its last seconds.
@@ -2874,6 +2849,7 @@ func open_cart(sim: Sim, reward := "") -> void:
 func _cart_reward(sim: Sim, reward: String) -> void:
 	if reward == "":
 		reward = ["free_choice", "heal", "magnet"][rng.randi_range(0, 2)]
+	sim.objectives.notice = {"kind": "cart_" + reward, "at": sim.time}
 	match reward:
 		"free_choice":
 			sim.free_choices += 1
@@ -2901,7 +2877,7 @@ func _chests(sim: Sim) -> void:
 	var r: float = b.chest.radius
 	var keep: Array = []
 	for ch in chests:
-		if (ch.pos - commander.pos).length() < r:
+		if sim.units.any(func(u) -> bool: return (u.pos - ch.pos).length() < r):
 			sim.free_choices += 1
 		else:
 			keep.append(ch)

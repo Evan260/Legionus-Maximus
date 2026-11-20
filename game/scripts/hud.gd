@@ -450,6 +450,14 @@ func _notice_text(kind: String, sim: Sim) -> String:
 			return tr("The column joins the legion")
 		"grove":
 			return tr("The sacred grove burns: fewer barbarians for a minute")
+		"cart_tip":
+			return tr("A supply cart: march into it for a free level-up, healing or every coin pulled in")
+		"cart_free_choice":
+			return tr("Supply cart: a free level-up")
+		"cart_heal":
+			return tr("Supply cart: the legion is healed")
+		"cart_magnet":
+			return tr("Supply cart: every coin is pulled in")
 		"grove_tip":
 			return tr("Stand at the grove's altar to burn it: a free level-up and fewer barbarians for a minute")
 		"chieftain":

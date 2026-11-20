@@ -3088,6 +3088,49 @@
     "Stand at the grove's altar to burn it: a free level-up and fewer barbarians for a minute": {
       "es": "Ponte en el altar del bosque para quemarlo: una subida de nivel gratis y menos bárbaros durante un minuto",
       "tr": "Yakmak için koruluğun sunağında dur: ücretsiz seviye atlama ve bir dakika boyunca daha az barbar"
+    },
+    "A supply cart: march into it for a free level-up, healing or every coin pulled in": {
+      "fr": "Un chariot de ravitaillement : marchez dessus pour un niveau gratuit, des soins ou toutes les pièces attirées à vous",
+      "de": "Ein Versorgungswagen: Marschiere hinein für einen kostenlosen Levelaufstieg, Heilung oder alle Münzen auf einmal",
+      "es": "Un carro de suministros: marcha hacia él para una subida de nivel gratis, curación o todas las monedas atraídas hacia ti",
+      "it": "Un carro di rifornimenti: marcia su di esso per un livello gratuito, cure o tutte le monete attirate a te",
+      "pt_BR": "Uma carroça de suprimentos: marche até ela para um nível grátis, cura ou todas as moedas atraídas até você",
+      "pl": "Wóz z zaopatrzeniem: wkrocz w niego po darmowy awans, leczenie albo wszystkie monety przyciągnięte do ciebie",
+      "tr": "Bir ikmal arabası: ücretsiz seviye atlama, iyileşme ya da tüm paraların sana çekilmesi için üstüne yürü",
+      "ru": "Повозка с припасами: подойдите к ней за бесплатным уровнем, лечением или всеми монетами разом",
+      "uk": "Віз із припасами: підійдіть до нього за безкоштовним рівнем, лікуванням або всіма монетами разом"
+    },
+    "Supply cart: a free level-up": {
+      "fr": "Chariot de ravitaillement : un niveau gratuit",
+      "de": "Versorgungswagen: ein kostenloser Levelaufstieg",
+      "es": "Carro de suministros: una subida de nivel gratis",
+      "it": "Carro di rifornimenti: un livello gratuito",
+      "pt_BR": "Carroça de suprimentos: um nível grátis",
+      "pl": "Wóz z zaopatrzeniem: darmowy awans",
+      "tr": "İkmal arabası: ücretsiz seviye atlama",
+      "ru": "Повозка с припасами: бесплатный уровень",
+      "uk": "Віз із припасами: безкоштовний рівень"
+    },
+    "Supply cart: the legion is healed": {
+      "fr": "Chariot de ravitaillement : la légion est soignée",
+      "es": "Carro de suministros: la legión se cura",
+      "it": "Carro di rifornimenti: la legione è curata",
+      "pt_BR": "Carroça de suprimentos: a legião é curada",
+      "pl": "Wóz z zaopatrzeniem: legion został uleczony",
+      "tr": "İkmal arabası: lejyon iyileşti",
+      "ru": "Повозка с припасами: легион исцелён",
+      "uk": "Віз із припасами: легіон зцілено"
+    },
+    "Supply cart: every coin is pulled in": {
+      "fr": "Chariot de ravitaillement : toutes les pièces sont attirées à vous",
+      "de": "Versorgungswagen: Alle Münzen fliegen herbei",
+      "es": "Carro de suministros: todas las monedas vienen hacia ti",
+      "it": "Carro di rifornimenti: tutte le monete arrivano a te",
+      "pt_BR": "Carroça de suprimentos: todas as moedas vêm até você",
+      "pl": "Wóz z zaopatrzeniem: wszystkie monety lecą do ciebie",
+      "tr": "İkmal arabası: tüm paralar sana gelir",
+      "ru": "Повозка с припасами: все монеты летят к вам",
+      "uk": "Віз із припасами: усі монети летять до вас"
     }
   }
 }

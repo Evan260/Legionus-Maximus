@@ -750,7 +750,7 @@ func _add_objectives(view: Rect2) -> void:
 					draw_texture(shadow, (g.pos - Vector2(8, 3)).round())
 					_add(g.pos.y, f[0], g.pos - f[1], Color(1.0, 0.55, 0.55) if g.flash > 0.0 else Color.WHITE)
 			"grove":
-				_add_prop("altar", o.pos, Color(0.45, 0.4, 0.38) if o.done else Color.WHITE)
+				_add_prop("altar", o.pos, Color.WHITE)
 
 
 func _add_prop(key: String, pos: Vector2, mod: Color) -> void:
@@ -804,11 +804,13 @@ func _add_flames(view: Rect2) -> void:
 			for i in o.huts.size():
 				for k in 3:
 					_add_flame(o.huts[i], [Vector2(-12, -14), Vector2(0, -22), Vector2(12, -12)][k], i, k, clampf(left / 1.5, 0.0, 1.0))
-		elif o.kind == "grove" and o.done and sim.time - o.burnt_at < float(cfg.burn_seconds):
-			var fade := clampf((float(cfg.burn_seconds) - (sim.time - o.burnt_at)) / 2.0, 0.0, 1.0)
-			for i in o.oaks.size():
-				_add_flame(o.oaks[i], Vector2(0, -30), i, 0, fade)
-			_add_flame(o.pos, Vector2(0, -8), o.oaks.size(), 0, fade)
+		elif o.kind == "grove":
+			# The altar's fire always flickers, so its painted flames never sit still.
+			_add_flame(o.pos, Vector2(0, -8), o.oaks.size(), 0, 1.0)
+			if o.done and sim.time - o.burnt_at < float(cfg.burn_seconds):
+				var fade := clampf((float(cfg.burn_seconds) - (sim.time - o.burnt_at)) / 2.0, 0.0, 1.0)
+				for i in o.oaks.size():
+					_add_flame(o.oaks[i], Vector2(0, -30), i, 0, fade)
 
 
 ## One flame of the atlas's flickering sheet at `ground` + `at`, sorted just in front of the thing standing at `ground`.

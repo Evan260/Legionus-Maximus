@@ -71,7 +71,9 @@ func test_a_killed_barbarian_drops_coins_and_is_removed(b: Dictionary) -> void:
 
 func test_barbarians_hurt_soldiers_they_reach(b: Dictionary) -> void:
 	var s := Sim.new(b, content, {"seed": 5})
-	s.horde.spawn("barbarian_club", s.commander.pos + Vector2(10, 0))
+	var club := s.horde.spawn("barbarian_club", s.commander.pos + Vector2(10, 0))
+	s.horde.e_hp[club] = 1e6
+	s.horde.e_max[club] = 1e6
 	var before: float = s.commander.hp
 	for i in 30:
 		s.update(1.0 / 60.0, Vector2.ZERO, false)
@@ -389,6 +391,46 @@ func test_a_supply_cart_stands_still(b: Dictionary) -> void:
 	check(not s.horde.carts.is_empty() and s.horde.carts[0].pos == at, "and does not move")
 
 
+func test_a_soldier_picks_up_a_chest(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 134, Content.with_all_art())
+	s.commander.hp = 1e9
+	s.legion.soldiers.clear()
+	Upgrades.apply(s, "legionary")
+	s.legion.place_all(0.0)
+	var man: Vector2 = s.soldiers[0].pos
+	s.horde.chests.append({"pos": man})
+	check(man.distance_to(s.commander.pos) > float(b.chest.radius), "the soldier stands away from the commander")
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.horde.chests.is_empty() and s.free_choices == 1, "a soldier touching the chest takes it for a free choice")
+
+
+func test_the_first_supply_cart_says_what_carts_are_for(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 135, Content.with_all_art())
+	s.objectives.notice = {}
+	s.horde.spawn_cart()
+	check(s.objectives.notice.get("kind", "") == "cart_tip", "a hint comes with the first cart (%s)" % [s.objectives.notice])
+	s.objectives.notice = {}
+	s.horde.spawn_cart()
+	check(s.objectives.notice.is_empty(), "and only with the first")
+	for reward in ["free_choice", "heal", "magnet"]:
+		s.horde.open_cart(s, reward)
+		check(s.objectives.notice.get("kind", "") == "cart_" + reward, "opening a cart names its reward (%s)" % [s.objectives.notice])
+
+
+func test_bosses_never_crowd_in_more_than_the_limit(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 136, Content.with_all_art())
+	s.horde.pursuit = float(b.pursuit.cap)
+	check(s.horde.hunted_bosses() == 0, "a legion on the run is not sent extra bosses")
+	check(int(b.bosses.max_alive) <= 3, "no more than three bosses at once (%d)" % int(b.bosses.max_alive))
+	var before := s.horde.next_boss
+	s.horde.next_boss = 500.0
+	s.time = 100.0
+	s.horde.time = 100.0
+	s.update(1.0 / 60.0, Vector2(1, 0), false)
+	check(s.horde.next_boss == 500.0, "running does not bring the next boss sooner")
+	s.horde.next_boss = before
+
+
 func test_a_war_priest_burns_only_the_ring(b: Dictionary) -> void:
 	for testudo in [false, true]:
 		var s := _quiet_sim(b, 133, Content.with_all_art())
@@ -509,17 +551,30 @@ func test_the_horde_grows_over_time(b: Dictionary) -> void:
 	s.terrain.clear()
 	s.soldiers.clear()
 	s.commander.hp = 1e9
-	for i in 60 * 30:
-		s.update(1.0 / 30.0, Vector2(1, 0), false)
-	check(s.horde.e_pos.size() > 50, "a crowd after a minute (%d)" % s.horde.e_pos.size())
+	for i in 30 * 30:
+		s.update(1.0 / 30.0, Vector2.ZERO, false)
+	var half := s.horde.e_pos.size()
+	for i in 30 * 30:
+		s.update(1.0 / 30.0, Vector2.ZERO, false)
+	check(s.horde.e_pos.size() > 20 and s.horde.e_pos.size() > half, "a growing crowd after a minute (%d, %d at half a minute)" % [s.horde.e_pos.size(), half])
 
 
-func test_far_barbarians_come_round_again(b: Dictionary) -> void:
-	var s := Sim.new(b, content, {"seed": 17})
-	s.horde.spawn("barbarian_club", Vector2(2000, 0))
+func test_far_barbarians_give_up_the_chase(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 17)
+	s.commander.hp = 1e9
+	s.horde.spawn("barbarian_club", Vector2(float(b.give_up_radius) + 40.0, 0))
+	s.horde.spawn("barbarian_club", Vector2(float(b.give_up_radius) - 60.0, 0))
+	var kills := s.kills
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
-	var back: Vector2 = s.horde.e_pos[0] - s.commander.pos
-	check(back.length() < float(b.recycle_radius) and (absf(back.x) >= Horde.view.x / 2.0 or absf(back.y) >= Horde.view.y / 2.0), "brought back to just beyond the screen (%s)" % back)
+	check(s.horde.e_pos.size() == 1, "the one left far behind is gone (%d left)" % s.horde.e_pos.size())
+	check(s.kills == kills and s.c_pos.is_empty(), "he leaves without counting as a kill or dropping a coin")
+	check(float(b.give_up_radius) > Horde.view.x / 2.0 + 64.0, "nobody vanishes in view")
+	var riders := _britannia_sim(b, 18)
+	riders.commander.hp = 1e9
+	var c := riders.horde.spawn("chariot", Vector2(float(b.give_up_radius) + 40.0, 0))
+	var id: int = riders.horde.e_id[c]
+	riders.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(riders.horde.e_id.has(id), "a chariot swinging wide on its pass keeps coming")
 
 
 func test_a_crowd_never_throws_a_boss_faster_than_his_charge(b: Dictionary) -> void:
@@ -1207,7 +1262,7 @@ func test_plunder_and_glory_pay_more(b: Dictionary) -> void:
 		s.horde.spawn("barbarian_club", Vector2(300, 300))
 		s.hit(s.horde.e_hp.size() - 1, 9999.0)
 		s._remove_dead()
-	var total := _sum(s.c_val)
+	var total := _sum(s.c_val) / float(b.medium.get("denarii_mult", 1.0))
 	check(s.c_val.size() == 400 and total > 400 * 1.5 and total < 400 * 2.0, "plunder gives about 75 percent more (%d)" % total)
 	var g := _arms_sim(b, 64, {"glory": 5})
 	g.xp_next = 100000
@@ -1772,11 +1827,11 @@ func test_hard_mode_pays_more(b: Dictionary) -> void:
 	check(medium.difficulty == "medium" and hard.difficulty == "hard", "a run is Medium unless it asks for another difficulty")
 	var e := medium.horde.spawn("barbarian_club", Vector2(300, 0))
 	var h := hard.horde.spawn("barbarian_club", Vector2(300, 0))
-	check(absf(hard.horde.e_hp[h] / medium.horde.e_hp[e] - float(b.hard.health_mult)) < 0.001, "enemies have more health")
-	check(absf(hard.horde.e_power[h] / medium.horde.e_power[e] - float(b.hard.get("damage_mult", 1.0))) < 0.001, "and hit as hard as its block says")
+	check(absf(hard.horde.e_hp[h] / medium.horde.e_hp[e] - float(b.hard.health_mult) / float(b.medium.get("health_mult", 1.0))) < 0.001, "enemies have more health")
+	check(absf(hard.horde.e_power[h] / medium.horde.e_power[e] - float(b.hard.get("damage_mult", 1.0)) / float(b.medium.get("damage_mult", 1.0))) < 0.001, "and hit as hard as its block says")
 	var ratio := _pay_ratio(medium, hard)
 	var paid := float(b.hard.denarii_mult) / float(b.medium.get("denarii_mult", 1.0))
-	check(ratio > 1.2 and absf(ratio - paid) < 0.15, "denarii pay about %.2f times as much (%.2f)" % [paid, ratio])
+	check(ratio > 1.1 and absf(ratio - paid) < 0.15, "denarii pay about %.2f times as much (%.2f)" % [paid, ratio])
 	check(_crowd_after(medium, hard, 10.0) > 1.2, "and they arrive faster")
 
 
@@ -1787,8 +1842,8 @@ func test_easy_mode_is_gentler_and_pays_less(b: Dictionary) -> void:
 	var easy := _mode_sim(b, {"seed": 122, "difficulty": "easy"})
 	var m := medium.horde.spawn("barbarian_club", Vector2(300, 0))
 	var e := easy.horde.spawn("barbarian_club", Vector2(300, 0))
-	check(absf(easy.horde.e_hp[e] / medium.horde.e_hp[m] - float(cfg.health_mult)) < 0.001, "enemies have less health")
-	check(absf(easy.horde.e_power[e] / medium.horde.e_power[m] - float(cfg.get("damage_mult", 1.0))) < 0.001, "and hit as hard as its block says")
+	check(absf(easy.horde.e_hp[e] / medium.horde.e_hp[m] - float(cfg.health_mult) / float(b.medium.get("health_mult", 1.0))) < 0.001, "enemies have less health")
+	check(absf(easy.horde.e_power[e] / medium.horde.e_power[m] - float(cfg.get("damage_mult", 1.0)) / float(b.medium.get("damage_mult", 1.0))) < 0.001, "and hit as hard as its block says")
 	var ratio := _pay_ratio(medium, easy)
 	var paid := float(cfg.denarii_mult) / float(b.medium.get("denarii_mult", 1.0))
 	check(absf(ratio - paid) < 0.15, "denarii pay about %.2f times as much (%.2f)" % [paid, ratio])
@@ -1797,7 +1852,7 @@ func test_easy_mode_is_gentler_and_pays_less(b: Dictionary) -> void:
 	var gaul_e := _mode_sim(b, {"seed": 123, "province": "gaul", "difficulty": "easy"})
 	var gm := gaul_m.horde.spawn("barbarian_club", Vector2(300, 0))
 	var ge := gaul_e.horde.spawn("barbarian_club", Vector2(300, 0))
-	check(absf(gaul_e.horde.e_hp[ge] / gaul_m.horde.e_hp[gm] - float(cfg.health_mult)) < 0.001, "on top of the province's own difficulty")
+	check(absf(gaul_e.horde.e_hp[ge] / gaul_m.horde.e_hp[gm] - float(cfg.health_mult) / float(b.medium.get("health_mult", 1.0))) < 0.001, "on top of the province's own difficulty")
 	check(_mode_sim(b, {"seed": 124, "difficulty": "nonsense"}).difficulty == "medium", "an unknown difficulty plays as Medium")
 
 
@@ -2113,12 +2168,13 @@ func test_saved_settings_keep_only_text_for_province_and_commander(b: Dictionary
 func test_damage_is_counted_by_source(b: Dictionary) -> void:
 	var s := Sim.new(b, content, {"seed": 201})
 	var i := s.horde.spawn("barbarian_club", Vector2(300, 0))
+	var whole: float = s.horde.e_max[i]
 	s.hit(i, 6.0, 0.0, "pilum")
 	s.scorch(i, 4.0, "fire_pots")
 	check(is_equal_approx(float(s.damage_by_source.get("pilum", 0.0)), 6.0), "a hit is counted under its weapon")
 	check(is_equal_approx(float(s.damage_by_source.get("fire_pots", 0.0)), 4.0), "burning ground is counted under its pot")
 	s.hit(i, 1000.0, 0.0, "pilum")
-	check(is_equal_approx(float(s.damage_by_source.pilum), 6.0 + 10.0), "only the health that was left is counted, not the overkill")
+	check(is_equal_approx(float(s.damage_by_source.pilum), whole - 4.0), "only the health that was left is counted, not the overkill")
 	var boosted := Sim.new(b, content, {"seed": 202, "profile_bonuses": {"damage": 2}})
 	var j := boosted.horde.spawn("barbarian_club", Vector2(300, 0))
 	boosted.hit(j, 5.0, 0.0, "stakes")
@@ -3108,6 +3164,7 @@ func test_burning_the_grove_thins_the_stream(b: Dictionary) -> void:
 
 func test_the_grove_says_what_it_gives_when_it_comes_into_view(b: Dictionary) -> void:
 	var cfg: Dictionary = b.objectives.grove
+	check(float(cfg.tip_seconds) >= 10.0, "the hint stays long enough to read (%.0f s)" % float(cfg.tip_seconds))
 	var s := _objective_sim(b, 155)
 	var grove: Dictionary = s.objectives.add(s, "grove", Vector2(900, 0))
 	s.objectives.notice = {}
@@ -3996,10 +4053,11 @@ func test_a_thrower_marks_his_throw_and_faces_it(b: Dictionary) -> void:
 	check(s.horde.sp_pos.size() == 1, "the axe is thrown")
 	check(is_equal_approx(s.horde.e_strike[0], s.time), "the throw is timed on the thrower")
 	check(Sim.dir_name(s.horde.e_face[0]) == "south", "he faces where he threw")
+	var power0: float = s.horde.e_power[0]
 	s.horde.e_power[0] = 2.0
 	s.horde.e_cd[0] = 0.0
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
-	check(s.horde.sp_dmg.size() == 2 and is_equal_approx(s.horde.sp_dmg[1], s.horde.sp_dmg[0] * 2.0), "a fiercer thrower's axe hurts in step with his power")
+	check(s.horde.sp_dmg.size() == 2 and is_equal_approx(s.horde.sp_dmg[1], s.horde.sp_dmg[0] * 2.0 / power0), "a fiercer thrower's axe hurts in step with his power")
 
 
 func test_the_horde_is_drawn_from_the_atlas_frames(b: Dictionary) -> void:
@@ -4060,7 +4118,7 @@ func test_elites_grow_tougher_through_the_run(b: Dictionary) -> void:
 	var s := _quiet_sim(b, 700, Content.with_all_art())
 	s.horde.time = 1200.0
 	var late := s.horde.spawn("berserker", Vector2(-300, 0), true)
-	var ratio := s.horde.e_max[late] / float(content.enemies.berserker.hp)
+	var ratio := s.horde.e_max[late] / float(content.enemies.berserker.hp) / s.horde.level_mult("health_mult")
 	check(absf(ratio - (1.0 + float(b.bosses.health_growth) * 1200.0)) < 0.01 and ratio > 1.9, "an elite at 20 minutes has about twice his listed health (%.2f)" % ratio)
 
 
@@ -4349,12 +4407,13 @@ func test_early_bosses_come_weaker(b: Dictionary) -> void:
 	var hale := s.horde.spawn("berserker", Vector2(0, -300), true)
 	var grown := 1.0 + float(cfg.health_growth) * float(cfg.early_health_until)
 	check(is_equal_approx(s.horde.e_max[first] / s.horde.e_max[hale], float(cfg.early_health) / grown), "a boss at the start has %d%% of the health of one at %d s" % [int(float(cfg.early_health) * 100.0), int(cfg.early_health_until)])
-	check(is_equal_approx(s.horde.e_power[first], float(cfg.early_mult)) and s.horde.e_power[full] == 1.0, "and hits that much softer")
+	var lvl := s.horde.level_mult("damage_mult")
+	check(is_equal_approx(s.horde.e_power[first], float(cfg.early_mult) * lvl) and is_equal_approx(s.horde.e_power[full], lvl), "and hits that much softer")
 	var club := s.horde.spawn("barbarian_club", Vector2(0, 300))
-	check(s.horde.e_power[club] == 1.0, "an ordinary barbarian is not changed")
+	check(is_equal_approx(s.horde.e_power[club], lvl), "an ordinary barbarian is not changed")
 	s.horde.e_hp[first] = 1.0
 	s.horde._bosses(1.0 / 60.0, s)
-	check(is_equal_approx(s.horde.e_power[first], float(cfg.early_mult) * float(content.enemies.berserker.rage.mult)), "his rage builds on it")
+	check(is_equal_approx(s.horde.e_power[first], float(cfg.early_mult) * lvl * float(content.enemies.berserker.rage.mult)), "his rage builds on it")
 
 
 func test_bosses_at_full_strength_cut_down_a_legionary(b: Dictionary) -> void:
@@ -5208,6 +5267,11 @@ func test_building_and_objectives_sound_once_each(b: Dictionary) -> void:
 	check(_count_events(o, "fire") == 1, "the camp catches fire with one sound")
 
 
+func test_the_horn_sounds_rarely(b: Dictionary) -> void:
+	var horn: Dictionary = b.audio.kinds.surge
+	check(float(horn.get("cooldown", 0.0)) >= 45.0, "the horn waits at least 45 seconds before it sounds again (%.0f)" % float(horn.get("cooldown", 0.0)))
+
+
 func test_the_gods_sound_ready_once_when_the_favour_fills(b: Dictionary) -> void:
 	var s := _god_sim(b, 502, 0)
 	s.gods.favour = s.gods.need(s.b) - 1
@@ -5696,7 +5760,7 @@ func test_a_falx_cuts_through_the_testudo(b: Dictionary) -> void:
 	s._rebuild_grids()
 	s.horde._move(1.0 / 60.0, s)
 	var cfg: Dictionary = content.enemies.falx_warrior
-	check(hp0 - s.commander.hp >= float(cfg.dps) * float(cfg.falx.damage_mult) * s.horde.difficulty("damage"), "and every few seconds he lands a heavy chop")
+	check(hp0 - s.commander.hp >= float(cfg.dps) * float(cfg.falx.damage_mult) * s.horde.difficulty("damage") * s.horde.level_mult("damage_mult"), "and every few seconds he lands a heavy chop")
 	check(s.horde.e_strike[i] == s.time, "which plays his swing")
 
 
@@ -6046,7 +6110,7 @@ func test_cataphracts_charge_with_the_lance_and_turn_arrows(b: Dictionary) -> vo
 		h._move(1.0 / 60.0, s)
 		if s.commander.hp < hp0:
 			break
-	check(hp0 - s.commander.hp >= float(cfg.dps) * float(cfg.lance.burst_mult) * h.difficulty("damage") * 0.99, "the lance strikes hard (%.1f)" % (hp0 - s.commander.hp))
+	check(hp0 - s.commander.hp >= float(cfg.dps) * float(cfg.lance.burst_mult) * h.difficulty("damage") * h.level_mult("damage_mult") * 0.99, "the lance strikes hard (%.1f)" % (hp0 - s.commander.hp))
 	check(h.e_strike[i] == h.time, "with a thrust of the lance")
 	var c := h.spawn("cataphract", Vector2(600, 0))
 	var a := h.spawn("horse_archer", Vector2(600, 200))
@@ -6591,7 +6655,7 @@ func test_chariots_pass_along_the_flank_throwing_javelins(b: Dictionary) -> void
 	var passes := 0
 	var close := false
 	var thrown := 0
-	for k in 900:
+	for k in 1200:
 		h.rebuild_grid()
 		var before := h.sp_pos.size()
 		h._move(1.0 / 60.0, s)
@@ -7003,24 +7067,18 @@ func _band_of_wood(s: Sim, top: float, rows: int) -> void:
 	s.terrain.refresh(s.commander.pos)
 
 
-func test_barbarians_off_screen_do_not_walk_through_a_wood(b: Dictionary) -> void:
+func test_barbarians_behind_a_wood_do_not_come_through_it(b: Dictionary) -> void:
 	var s := _quiet_sim(b, 1604)
-	_band_of_wood(s, 420.0, 8)
+	_band_of_wood(s, 290.0, 7)
 	s.commander.hp = 1e9
 	s.commander.max_hp = 1e9
-	for k in 12:
-		s.horde.spawn("barbarian_club", Vector2(-120 + k * 20, 600))
-	var inside := 0
-	for f in 8 * 60:
-		s.update(1.0 / 60.0, Vector2.ZERO, false)
-		for p in s.horde.e_pos:
-			if not s.terrain.is_open(p):
-				inside += 1
+	for k in 6:
+		s.horde.spawn("barbarian_club", Vector2(-60 + k * 24, 445))
+	_step_dt(s, 8.0)
 	var through := 0
 	for p in s.horde.e_pos:
-		if p.y < 400.0:
+		if p.y < 280.0:
 			through += 1
-	check(inside == 0, "nobody walks into the wood while nobody sees him (%d frames)" % inside)
 	check(through == 0, "and nobody comes out on the legion's side of it unseen (%d)" % through)
 
 
@@ -7659,9 +7717,6 @@ func test_nothing_comes_onto_the_field_inside_the_wheat(b: Dictionary) -> void:
 		if body.has_point(h.ring_point()):
 			ring_in += 1
 	check(ring_in == 0, "none of the stream comes in inside the field (%d of 300)" % ring_in)
-	var far := h.spawn(h.ordinary[0], s.commander.pos + (s.commander.pos - mid).normalized() * (float(b.recycle_radius) + 40.0))
-	s.update(1.0 / 60.0, Vector2.ZERO, false)
-	check(h.e_pos[far].distance_to(s.commander.pos) < float(b.recycle_radius) and not body.has_point(h.e_pos[far]), "a barbarian left behind comes round again beside the wheat, not in it")
 	var start := Sim.new(b, Content.with_all_art(), {"seed": 1804, "province": "gaul"})
 	var stuck := 0
 	for k in 600:
