@@ -622,7 +622,8 @@ func _sortie(s: Dictionary, dt: float, sim: Sim) -> void:
 				if not s.struck.has(sim.horde.e_id[j]):
 					s.struck[sim.horde.e_id[j]] = true
 					sim.hit(j, dmg, 0.0, s.type, s.pos)
-		if d - move <= strike:
+		# The reach counts from the enemy's edge, since touching him pushes him away and a big one could never be reached at his centre.
+		if d - move <= strike + Sim.UNIT_RADIUS + sim.horde.k_radius[sim.horde.e_kind[t]]:
 			sim.strike(s, sim.horde.e_pos[t])
 			if not s.struck.has(sim.horde.e_id[t]):
 				sim.hit(t, dmg, 0.0, s.type, s.pos)

@@ -764,9 +764,26 @@ func test_cavalry_rides_out_and_back(b: Dictionary) -> void:
 		s.update(1.0 / 60.0, Vector2.ZERO, false)
 		went = maxf(went, cav.pos.distance_to(home))
 		s.commander.hp = 1e9
-	check(went > 30.0, "he rode out (%.0f)" % went)
+	check(went > 20.0, "he rode out (%.0f)" % went)
 	check(s.kills >= 1 or s.horde.e_hp[0] < s.horde.e_max[0], "and struck")
 	check(cav.pos.distance_to(s.commander.pos + s.slot_of(cav)) < 8.0, "and is back in his place")
+
+
+func test_cavalry_strikes_a_big_enemy_instead_of_pushing_him(b: Dictionary) -> void:
+	var s := _legion_sim(b, 8, ["cavalry"])
+	var cav: Dictionary = s.soldiers[0]
+	var home: Vector2 = cav.pos
+	var at := home + Vector2(0, 70) * signf(home.y)
+	s.horde.spawn("berserker", at)
+	var struck := false
+	for i in 90:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+		s.commander.hp = 1e9
+		if s.horde.e_hp[0] < s.horde.e_max[0]:
+			struck = true
+			break
+	check(struck, "the rider struck the berserker")
+	check(s.horde.e_pos[0].distance_to(at) < 40.0, "without carrying him along (%.0f)" % s.horde.e_pos[0].distance_to(at))
 
 
 func test_ballista_bolt_pierces_all(b: Dictionary) -> void:
