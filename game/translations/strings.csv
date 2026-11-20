@@ -22,6 +22,7 @@ Banked,Banked,En caisse,Kasse,En caja,In cassa,Em caixa,W skarbcu,Kasada,В ка
 Barbarian camp,Barbarian camp,Camp barbare,Barbarenlager,Campamento bárbaro,Accampamento barbaro,Acampamento bárbaro,Obóz barbarzyńców,Barbar kampı,Варварский лагерь,Табір варварів,蛮族の陣営,야만인 캠프,野蛮人营地,野蠻人營地
 Best time %s,Best time %s,Meilleur moment %s,Beste Zeit %s,Mejor momento %s,Il miglior momento %s,Melhor momento %s,Najlepszy czas %s,En iyi zaman %s,Лучшее время %s,Найкращий час %s,ベストタイム %s,가장 좋은 시간 %s,最佳时间 %s,最佳時間 %s
 Build a palisade,Build a palisade,Construire une palissade,Palisade bauen,Construir empalizada,Costruire una palizzata,Construir paliçada,Budowa palisady,Çit kur,Поставить частокол,Поставити частокіл,柵を築く,울타리 세우기,搭建栅栏,搭建柵欄
+Build a wall behind,Build a wall behind,Construis un mur derrière,Bau dahinter eine Mauer,Construye un muro detrás,Costruisci un muro dietro,Construa um muro atrás,Zbuduj mur za,Arkasına bir duvar inşa et,Постройте стену позади,Побудуйте стіну позаду,壁を築け,뒤에 벽을 쌓으라,在后面筑起一堵墙,在後面築起一道牆
 Button %d,Button %d,Bouton %d,Knopf %d,Botón %d,Pulsante %d,Botão %d,Przycisk %d,Düğme %d,Кнопка %d,Кнопка %d,ボタン %d,버튼 %d,按钮 %d,按鈕 %d
 Call one,Call one,Choisis un dieu,Wähle einen Gott,Elige un dios,Scegli un dio,Escolha um deus,Wybierz boga,Bir tanrı seç,Выбери бога,Обери бога,一柱を選べ,신 하나를 고르세요,选一位神,選一位神
 Call the gods,Call the gods,Invoquer les dieux,Die Götter anrufen,Invocar a los dioses,Invocare gli dei,Invocar os deuses,Wezwij bogów,Tanrılara yakar,Воззвать к богам,Звернутися до богів,神々に祈る,신들에게 기도,祈求诸神,祈求眾神
@@ -530,6 +531,7 @@ content.recruits.standard_bearer.text,A standard bearer raises the attack speed 
 march,march,marche,marschieren,marchar,marcia,marchar,marsz,yürü,марш,марш,行軍,행군,行军,行軍
 move,move,déplacer,bewegen,mover,muovi,mover,ruch,hareket,движение,рух,移動,이동,移动,移動
 not now,not now,plus tard,später,ahora no,non ora,agora não,nie teraz,şimdi değil,не сейчас,не зараз,後で,나중에,稍后,稍後
+palisade,palisade,palissade,Palisade,empalizada,palizzata,paliçada,palisada,palisat,частокол,частокіл,柵,목책,栅栏,柵欄
 palisade: %d timber from felled trees,palisade: %d timber from felled trees,palissade : %d bois d’arbres abattus,Palisade: %d Holz von gefällten Bäumen,empalizada: %d de madera de árboles talados,palizzata: %d legname da alberi abbattuti,paliçada: %d de madeira de árvores derrubadas,palisada: %d drewna ze ściętych drzew,çit: kesilen ağaçlardan %d kereste,частокол: %d древесины со срубленных деревьев,частокіл: %d деревини зі зрубаних дерев,柵：倒した木の木材 %d,목책: 벤 나무의 목재 %d,栅栏：砍倒的树木提供木材 %d,柵欄：砍倒的樹木提供木材 %d
 pause,pause,pause,Pause,pausa,pausa,pausa,pauza,duraklat,пауза,пауза,一時停止,일시정지,暂停,暫停
 presence.Status_Camp,In the camp,Dans le camp,Im Lager,En el campamento,Nel campo,No acampamento,W obozie,Kampta,В лагере,У таборі,キャンプにいる,야영지에서,在营地中,在營地中
@@ -537,3 +539,5 @@ presence.Status_Marching,"Marching through %province%, minute %minute%, legion o
 reroll,reroll,relancer,neu würfeln,volver a tirar,rilancia,sortear de novo,losuj ponownie,yeniden çek,перебросить,перекинути,引き直し,다시 뽑기,重抽,重抽
 take it,take it,prendre,nehmen,tomar,prendi,pegar,weź,al,взять,взяти,決定,결정,选定,選定
 testudo: 80% less harm,testudo: 80% less harm,testudo : 80 % de dégâts en moins,Testudo: 80% weniger Schaden,testudo: 80% menos daño,testudo: 80% danni in meno,testudo: 80% menos dano,testudo: 80% mniej obrażeń,testudo: %80 daha az hasar,testudo: на 80% меньше урона,testudo: на 80% менше шкоди,testudo：被害80%減,testudo: 피해 80% 감소,testudo：伤害减少80%,testudo：傷害減少80%
+wall,wall,mur,Mauer,muro,muro,muro,mur,duvar,стена,стіна,防壁,방벽,城墙,城牆
+"wall behind the legion: %d timber, the enemy slowly breaks it","wall behind the legion: %d timber, the enemy slowly breaks it","Mur derrière la Légion : %d du bois, l’ennemi le brise lentement",Mauer hinter der Legion: %d Holz durchbricht der Feind sie langsam,"Muro detrás de la Legión: %d madera, el enemigo la rompe lentamente","Muro dietro la legione: %d legname, il nemico lo rompe lentamente","Muralha atrás da Legião: %d madeira, o inimigo a quebra lentamente",Mur za legionem: %d drewno wróg powoli go przełamuje,"Lejyonun arkasındaki duvar: %d keresteyi, düşman yavaşça kırıyor",Стена за легионом: %d дерево враг медленно её ломает,Стіна за легіоном: %d дерево ворог повільно її ламає,軍団の背後の壁:木材 %d 、敵はゆっくりとそれを壊していく,군단 뒤의 성벽: %d 나무를 적은 적이 천천히 부수고 있다,军团后方的墙： %d 木头，敌人慢慢将其破坏,軍團後方的城牆： %d 木頭，敵人慢慢將其摧毀

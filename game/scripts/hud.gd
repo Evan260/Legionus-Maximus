@@ -179,6 +179,7 @@ func _top_bar(sim: Sim) -> void:
 	plated_text((tr("Testudo") if sim.testudo_left <= 0.0 else tr("Hold!")).to_upper(), Vector2(46, H - 6), GOLD_LIGHT if ready or sim.testudo_left > 0.0 else Color(0.7, 0.66, 0.6))
 	_timber(sim, H)
 	_favour(sim, W, H)
+	_timber_keys(sim, W, H)
 	if choosing:
 		return
 	_health(sim)
@@ -218,6 +219,8 @@ func _timber(sim: Sim, H: float) -> void:
 	var refused: Dictionary = sim.bridge_refused
 	if not refused.is_empty() and sim.time - float(refused.at) < float(sim.b.bridge.notice_seconds) and float(refused.at) >= sim.palisade_refused_at:
 		line = tr("No ravine ahead to bridge") if refused.why == "ravine" else tr("Not enough timber: %d needed") % int(sim.b.bridge.cost)
+	elif sim.wall_refused_at > sim.palisade_refused_at and sim.time - sim.wall_refused_at < float(sim.b.wall.notice_seconds):
+		line = tr("Not enough timber: %d needed") % int(sim.b.wall.cost)
 	elif sim.palisade_refused_at >= 0.0 and sim.time - sim.palisade_refused_at < float(sim.b.palisade.notice_seconds):
 		line = tr("Not enough timber: %d needed") % cost
 	if line != "":
@@ -249,6 +252,28 @@ func _bridge_cost(at: Vector2, cost: int, enough: bool) -> void:
 	draw_rect(Rect2(at.x, top + k, 12 * k, k), wood.lightened(0.3))
 	draw_rect(Rect2(at.x, top + 5 * k, 12 * k, k), wood.darkened(0.3))
 	text(str(cost), Vector2(at.x + 12 * k + 4.0, at.y), GOLD_LIGHT if enough else CREAM)
+
+
+## The keys that spend timber, listed at the bottom right above the favour, each lit once the legion has its cost.
+func _timber_keys(sim: Sim, W: float, H: float) -> void:
+	if main.state != "play":
+		return
+	var y := H - 46.0
+	var lines := timber_keys(sim.b, sim.timber)
+	lines.reverse()
+	for line in lines:
+		plated_text(str(line.text).to_upper(), Vector2(0, y), GOLD_LIGHT if line.enough else MUTED, HORIZONTAL_ALIGNMENT_RIGHT, W - 8.0)
+		y -= Ui.leading() + 2.0
+
+
+## The palisade, wall and bridge keys with the timber each costs, and whether the legion has that much.
+static func timber_keys(balance: Dictionary, timber: int) -> Array:
+	var out: Array = []
+	for row in [["build", "palisade", balance.palisade], ["wall", "wall", balance.wall], ["bridge", "bridge", balance.bridge]]:
+		var cost := int(row[2].cost)
+		var keys := Controls.key_of(row[0]) + " / " + Controls.pad_of(row[0])
+		out.append({"text": Controls.part(keys, row[1]) + "  (%d)" % cost, "enough": timber >= cost})
+	return out
 
 
 ## The favour of the gods at the bottom right: a wreath over a bar that fills with kills, glowing with the key to call them once full.

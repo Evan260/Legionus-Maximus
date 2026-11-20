@@ -3048,6 +3048,38 @@
       "ko": "%s 개방",
       "zh_CN": "%s 已开放",
       "zh_TW": "%s 已開放"
+    },
+    "palisade": {
+      "en": "palisade",
+      "fr": "palissade",
+      "de": "Palisade",
+      "es": "empalizada",
+      "it": "palizzata",
+      "pt_BR": "paliçada",
+      "pl": "palisada",
+      "tr": "palisat",
+      "ru": "частокол",
+      "uk": "частокіл",
+      "ja": "柵",
+      "ko": "목책",
+      "zh_CN": "栅栏",
+      "zh_TW": "柵欄"
+    },
+    "wall": {
+      "en": "wall",
+      "fr": "mur",
+      "de": "Mauer",
+      "es": "muro",
+      "it": "muro",
+      "pt_BR": "muro",
+      "pl": "mur",
+      "tr": "duvar",
+      "ru": "стена",
+      "uk": "стіна",
+      "ja": "防壁",
+      "ko": "방벽",
+      "zh_CN": "城墙",
+      "zh_TW": "城牆"
     }
   }
 }
