@@ -16,7 +16,7 @@ GODOT --path game
 
 Add `-- --autoplay` to watch the legion play itself, with `--skip=SECONDS` to start later in the run. Every other flag for looking at a screen, a boss or a god is listed in [CLAUDE.md](CLAUDE.md). None of them is saved.
 
-Move with WASD, the arrow keys or the left stick. Space or the south face button forms the testudo, E or the west face button drives a palisade, C or the right shoulder button lays a bridge, and F or the north face button calls the gods once their favour is full.
+Move with WASD, the arrow keys or the left stick. Space or the south face button forms the testudo, E or the west face button drives a palisade, C or the right shoulder button lays a bridge, F or the left shoulder button builds a wall behind the legion, and G or the north face button calls the gods once their favour is full.
 
 ## The project
 

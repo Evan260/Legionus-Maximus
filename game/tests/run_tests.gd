@@ -3354,7 +3354,7 @@ func test_barbarians_slowly_break_through_a_wall(b: Dictionary) -> void:
 
 func test_the_wall_has_its_own_key(b: Dictionary) -> void:
 	Controls.install({})
-	check(_has_key("wall", KEY_G) and _has_button("wall", JOY_BUTTON_LEFT_SHOULDER), "G and the left shoulder build a wall")
+	check(_has_key("wall", KEY_F) and _has_button("wall", JOY_BUTTON_LEFT_SHOULDER), "F and the left shoulder build a wall")
 	check(Controls.ACTIONS.any(func(a: Array) -> bool: return a[0] == "wall"), "the settings let it be rebound")
 
 
@@ -3870,14 +3870,14 @@ func test_hints_follow_the_last_device_used(b: Dictionary) -> void:
 
 func test_the_gods_have_their_own_key(b: Dictionary) -> void:
 	Controls.install({})
-	check(_has_key("pray", KEY_F) and _has_button("pray", JOY_BUTTON_Y), "F and the north face button call the gods")
+	check(_has_key("pray", KEY_G) and _has_button("pray", JOY_BUTTON_Y), "G and the north face button call the gods")
 	check(Controls.ACTIONS.any(func(a: Array) -> bool: return a[0] == "pray"), "the settings let it be rebound")
-	check(Controls.hint("pray") == "F  call the gods", "on the keyboard the hint names only the key (%s)" % Controls.hint("pray"))
+	check(Controls.hint("pray") == "G  call the gods", "on the keyboard the hint names only the key (%s)" % Controls.hint("pray"))
 	Controls.pad_in_use = true
 	check(Controls.hint("pray") == "Y  call the gods", "with a gamepad in hand only the button (%s)" % Controls.hint("pray"))
 	Controls.pad_in_use = false
 	for other in ["testudo", "build", "pause", "up", "down", "left", "right", "quit", "reroll", "banish", "fullscreen"]:
-		check(not _has_key(other, KEY_F), "F is not also %s" % other)
+		check(not _has_key(other, KEY_G), "G is not also %s" % other)
 	for other in ["testudo", "build", "pause", "back"]:
 		check(not _has_button(other, JOY_BUTTON_Y), "Y is not also %s" % other)
 

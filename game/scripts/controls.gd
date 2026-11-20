@@ -8,7 +8,7 @@ const ACTIONS := [["up", "March up"], ["down", "March down"], ["left", "March le
 	["testudo", "Testudo"], ["build", "Build a palisade"], ["wall", "Build a wall behind"], ["bridge", "Lay a bridge"], ["pray", "Call the gods"], ["reroll", "Reroll"], ["banish", "Banish"], ["pause", "Pause"], ["confirm", "Confirm"], ["back", "Back"]]
 const KEYS := {
 	"left": [KEY_A, KEY_LEFT], "right": [KEY_D, KEY_RIGHT], "up": [KEY_W, KEY_UP], "down": [KEY_S, KEY_DOWN],
-	"testudo": [KEY_SPACE], "build": [KEY_E], "wall": [KEY_G], "bridge": [KEY_C], "pray": [KEY_F], "reroll": [KEY_R], "banish": [KEY_B], "confirm": [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER], "pause": [KEY_ESCAPE], "quit": [KEY_Q],
+	"testudo": [KEY_SPACE], "build": [KEY_E], "wall": [KEY_F], "bridge": [KEY_C], "pray": [KEY_G], "reroll": [KEY_R], "banish": [KEY_B], "confirm": [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER], "pause": [KEY_ESCAPE], "quit": [KEY_Q],
 	"fullscreen": [KEY_F11], "back": [KEY_ESCAPE],
 }
 const PADS := {"back": JOY_BUTTON_B, "reroll": JOY_BUTTON_Y, "banish": JOY_BUTTON_X, "testudo": JOY_BUTTON_A, "build": JOY_BUTTON_X, "wall": JOY_BUTTON_LEFT_SHOULDER, "bridge": JOY_BUTTON_RIGHT_SHOULDER, "pray": JOY_BUTTON_Y, "confirm": JOY_BUTTON_A, "pause": JOY_BUTTON_START,
