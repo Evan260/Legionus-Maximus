@@ -2758,8 +2758,10 @@ func test_reroll_and_banish_can_be_rebound(_b: Dictionary) -> void:
 	for e in InputMap.action_get_events("reroll"):
 		has_t = has_t or (e is InputEventKey and e.physical_keycode == KEY_T)
 	check(has_t, "the rebound reroll key is in the input map")
-	check(Controls.hint("reroll", 2) == "T / Y  reroll (2)", "the reroll hint names the new key (%s)" % Controls.hint("reroll", 2))
-	check(Controls.hint("banish", 1) == "B / LB  banish (1)", "the banish hint names the new button (%s)" % Controls.hint("banish", 1))
+	check(Controls.hint("reroll", 2) == "T  reroll (2)", "the reroll hint names the new key (%s)" % Controls.hint("reroll", 2))
+	Controls.pad_in_use = true
+	check(Controls.hint("banish", 1) == "LB  banish (1)", "with a gamepad in hand the banish hint names the new button (%s)" % Controls.hint("banish", 1))
+	Controls.pad_in_use = false
 	Controls.install({})
 	Profile.data = saved
 
@@ -3361,6 +3363,7 @@ func test_the_timber_keys_are_listed_with_their_costs(b: Dictionary) -> void:
 	var all := " ".join(lines.map(func(l: Dictionary) -> String: return l.text))
 	for action in ["build", "wall", "bridge"]:
 		check(all.contains(Controls.key_of(action)), "the %s key is shown" % action)
+	check(not all.contains("/") and not all.contains(Controls.pad_of("wall")), "and no gamepad button beside it")
 	check(str(lines[0].text).contains(str(int(b.palisade.cost))), "with its cost")
 	check(lines[0].enough == (5 >= int(b.palisade.cost)) and lines[2].enough == (5 >= int(b.bridge.cost)), "lit only when the timber is there")
 
@@ -3844,11 +3847,33 @@ func test_the_gods_do_not_one_shot_a_boss(b: Dictionary) -> void:
 	check(ci >= 0 and c.horde.e_id[ci] == cid and c.horde.e_hp[ci] >= c.horde.e_max[ci] * (1.0 - share) - 1.0, "the chieftain survives the storm of Jupiter")
 
 
+func test_hints_follow_the_last_device_used(b: Dictionary) -> void:
+	Controls.pad_in_use = false
+	var button := InputEventJoypadButton.new()
+	button.button_index = JOY_BUTTON_A
+	button.pressed = true
+	Controls.note_input(button)
+	check(Controls.pad_in_use, "a gamepad button switches the hints to the gamepad")
+	var drift := InputEventJoypadMotion.new()
+	drift.axis = JOY_AXIS_LEFT_X
+	drift.axis_value = 0.1
+	var key := InputEventKey.new()
+	key.physical_keycode = KEY_W
+	key.pressed = true
+	Controls.note_input(key)
+	check(not Controls.pad_in_use, "a key switches them back")
+	Controls.note_input(drift)
+	check(not Controls.pad_in_use, "a resting stick's drift does not")
+
+
 func test_the_gods_have_their_own_key(b: Dictionary) -> void:
 	Controls.install({})
 	check(_has_key("pray", KEY_F) and _has_button("pray", JOY_BUTTON_Y), "F and the north face button call the gods")
 	check(Controls.ACTIONS.any(func(a: Array) -> bool: return a[0] == "pray"), "the settings let it be rebound")
-	check(Controls.hint("pray") == "F / Y  call the gods", "the hint names the keys (%s)" % Controls.hint("pray"))
+	check(Controls.hint("pray") == "F  call the gods", "on the keyboard the hint names only the key (%s)" % Controls.hint("pray"))
+	Controls.pad_in_use = true
+	check(Controls.hint("pray") == "Y  call the gods", "with a gamepad in hand only the button (%s)" % Controls.hint("pray"))
+	Controls.pad_in_use = false
 	for other in ["testudo", "build", "pause", "up", "down", "left", "right", "quit", "reroll", "banish", "fullscreen"]:
 		check(not _has_key(other, KEY_F), "F is not also %s" % other)
 	for other in ["testudo", "build", "pause", "back"]:

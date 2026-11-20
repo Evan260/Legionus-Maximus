@@ -734,6 +734,10 @@ func _take(i: int) -> void:
 		_open_choices()
 
 
+func _input(event: InputEvent) -> void:
+	Controls.note_input(event)
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if state == "settings" and screens.settings.capture(event):
 		swallow_input = true

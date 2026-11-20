@@ -113,6 +113,25 @@ static func slot_text(saved: Dictionary, action: String, kind: String, slot: int
 	return key_name(list[slot]) if kind == "keys" else pad_name(list[slot])
 
 
+## Whether the player last used a gamepad, so the hints name its buttons instead of the keys.
+static var pad_in_use := false
+
+
+## Notes which device the player just used; a stick has to move well off centre so a resting stick's drift does not count.
+static func note_input(event: InputEvent) -> void:
+	if event is InputEventJoypadButton and event.pressed:
+		pad_in_use = true
+	elif event is InputEventJoypadMotion and absf(event.axis_value) > 0.5:
+		pad_in_use = true
+	elif (event is InputEventKey or event is InputEventMouseButton) and event.pressed:
+		pad_in_use = false
+
+
+## The key of an action, or its button while the player is on a gamepad.
+static func shown(action: String) -> String:
+	return pad_of(action) if pad_in_use else key_of(action)
+
+
 ## The first key of an action in the player's own bindings.
 static func key_of(action: String) -> String:
 	return slot_text(Profile.setting("bindings"), action, "keys", 0)
@@ -135,7 +154,7 @@ static func part(keys: String, word: String) -> String:
 
 ## The key hint at the foot of a screen, naming the player's current keys; `count` is the rerolls or banishes left.
 static func hint(kind: String, count := 0) -> String:
-	var both := func(action: String) -> String: return key_of(action) + " / " + pad_of(action)
+	var both := func(action: String) -> String: return shown(action)
 	var sides := key_of("left") + " / " + key_of("right")
 	var parts: Array = []
 	match kind:

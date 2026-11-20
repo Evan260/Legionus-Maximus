@@ -271,8 +271,7 @@ static func timber_keys(balance: Dictionary, timber: int) -> Array:
 	var out: Array = []
 	for row in [["build", "palisade", balance.palisade], ["wall", "wall", balance.wall], ["bridge", "bridge", balance.bridge]]:
 		var cost := int(row[2].cost)
-		var keys := Controls.key_of(row[0]) + " / " + Controls.pad_of(row[0])
-		out.append({"text": Controls.part(keys, row[1]) + "  (%d)" % cost, "enough": timber >= cost})
+		out.append({"text": Controls.part(Controls.shown(row[0]), row[1]) + "  (%d)" % cost, "enough": timber >= cost})
 	return out
 
 
