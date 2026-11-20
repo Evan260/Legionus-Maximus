@@ -449,7 +449,9 @@ func _notice_text(kind: String, sim: Sim) -> String:
 		"column":
 			return tr("The column joins the legion")
 		"grove":
-			return tr("The sacred grove burns")
+			return tr("The sacred grove burns: fewer barbarians for a minute")
+		"grove_tip":
+			return tr("Stand at the grove's altar to burn it: a free level-up and fewer barbarians for a minute")
 		"chieftain":
 			return tr("The %s falls: now hold the fort") % chief_name(sim)
 		"roar":

@@ -166,7 +166,8 @@ func _draw() -> void:
 				var mod := white
 				# A tree standing in front of the commander is seen through, so he is not lost once the legion cuts into a ridge.
 				# Only the middle of the picture counts, since the empty margins round a canopy hide nothing.
-				if pr[2] > 0.0 and at.y > cam.y and _solid_part(Rect2(at - f[1], f[0].size)).intersects(him):
+				# A log lies low on the ground and hides nobody, so it stays solid.
+				if (pr[2] > 0.0 or Terrain.SOLID.has(pr[0])) and pr[0] != "log" and at.y > cam.y and _solid_part(Rect2(at - f[1], f[0].size)).intersects(him):
 					mod = see_through
 				# The gate fades only half way, so the fort still reads while the commander walks under it.
 				elif pr[0] == "fort_gate" and at.y > cam.y and Rect2(at - f[1], f[0].size).intersects(him):

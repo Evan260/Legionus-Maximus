@@ -3080,6 +3080,14 @@
       "ko": "방벽",
       "zh_CN": "城墙",
       "zh_TW": "城牆"
+    },
+    "The sacred grove burns: fewer barbarians for a minute": {
+      "it": "Il bosco sacro brucia: meno barbari per un minuto",
+      "pl": "Święty gaj płonie: mniej barbarzyńców przez minutę"
+    },
+    "Stand at the grove's altar to burn it: a free level-up and fewer barbarians for a minute": {
+      "es": "Ponte en el altar del bosque para quemarlo: una subida de nivel gratis y menos bárbaros durante un minuto",
+      "tr": "Yakmak için koruluğun sunağında dur: ücretsiz seviye atlama ve bir dakika boyunca daha az barbar"
     }
   }
 }

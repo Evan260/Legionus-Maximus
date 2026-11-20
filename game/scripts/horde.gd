@@ -301,7 +301,7 @@ func _init(balance: Dictionary, game_content: Content, random: RandomNumberGener
 		var beh: int = BEHAVIOURS.get(info.behaviour, MELEE)
 		k_radius.append(float(info.radius))
 		max_radius = maxf(max_radius, float(info.radius))
-		k_speed.append(float(info.speed))
+		k_speed.append(float(info.speed) * float(b.get("enemy_speed_mult", 1.0)))
 		k_dps.append(float(info.dps))
 		k_beh.append(beh)
 		k_range.append(float(info.get("range", 0.0)))
@@ -2148,9 +2148,11 @@ func _move(dt: float, sim: Sim) -> void:
 		var d := to.length()
 		if d > recycle and e_tag[i] != CHIEF and e_guard[i] == Vector2.ZERO:
 			# Barbarians left far behind come round again from ahead, so the field never empties, each at his own spot along the edge.
-			e_pos[i] = open_point(cpos - (to * (b.spawn_radius / d)).rotated(rng.randf_range(-0.35, 0.35)))
-			e_push[i] = Vector2.ZERO
-			continue
+			var again := _comeback(p, cpos, to, d, sim)
+			if again != Vector2.INF:
+				e_pos[i] = again
+				e_push[i] = Vector2.ZERO
+				continue
 		if e_stun[i] > 0.0:
 			e_stun[i] -= dt
 			e_fighting[i] = 0
@@ -2459,6 +2461,13 @@ func _move(dt: float, sim: Sim) -> void:
 				# Inside a wood there is no gap to slide through, so he slips between the trunks along the route map out to open ground.
 				e_stuck[i] = -stuck_slip
 				e_detour[i] = maxf(e_detour[i], stuck_slip)
+		elif d >= solid_range and not seen and v != Vector2.ZERO and not sim.terrain.is_open(np) and sim.terrain.is_open(p):
+			# Out of sight the trunks are not checked one by one, so the wood as a whole turns him back and the route map leads him round it.
+			e_way[i] = (p - np).normalized()
+			if e_detour[i] <= 0.0:
+				e_side[i] = 1 if Vector2(-e_way[i].y, e_way[i].x).dot(_route(p, to, sim)) >= 0.0 else -1
+			e_detour[i] = detour_seconds
+			np = p
 		# Wheat holds everyone in the grid, near or far and even while slipping through trees, since a field is too wide to pop out of unseen.
 		if fields_near and gx >= 0 and gy >= 0 and gx < t_n and gy < t_n and fd_start[gx + gy * t_n] < fd_start[gx + gy * t_n + 1]:
 			var kept := sim.terrain.field_push(np, r)
@@ -2511,6 +2520,35 @@ func _move(dt: float, sim: Sim) -> void:
 			e_flash[i] -= dt
 	sim.pressing = held
 	sim.legion.remove_fallen(sim)
+
+
+## Where a barbarian left far behind at p comes round again, or INF when every spot on his side lies across a wood from him, so he keeps walking round it instead.
+## One wandered much further off comes back from any side, and comes back regardless when woods lie every way, since nobody sees him so far out.
+func _comeback(p: Vector2, cpos: Vector2, to: Vector2, d: float, sim: Sim) -> Vector2:
+	var turn := rng.randf_range(-0.35, 0.35)
+	var first := Vector2.INF
+	for k in 5:
+		var at := open_point(cpos - (to * (b.spawn_radius / d)).rotated(turn + (k / 2) * 0.5 * (1 if k % 2 == 0 else -1)))
+		if _clear_line(p, at, sim):
+			return at
+		if k == 0:
+			first = at
+	if d < float(b.recycle_radius) * 2.5:
+		return Vector2.INF
+	for k in 8:
+		var at := open_point(cpos - (to * (b.spawn_radius / d)).rotated(turn + TAU * k / 8.0))
+		if _clear_line(p, at, sim):
+			return at
+	return first
+
+
+## True when nothing in the route map's closed squares lies on the straight line from a to b.
+func _clear_line(a: Vector2, b_: Vector2, sim: Sim) -> bool:
+	var steps := int(a.distance_to(b_) / (Terrain.FLOW_CELL * 0.5)) + 1
+	for k in range(1, steps + 1):
+		if not sim.terrain.is_open(a.lerp(b_, float(k) / steps)):
+			return false
+	return true
 
 
 ## A chariot's pass: it steers to run beside the legion just outside its ranks, holds its line as it passes, throwing javelins at the nearest

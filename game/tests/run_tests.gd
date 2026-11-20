@@ -1630,6 +1630,15 @@ func test_the_crowd_round_the_legion_stops_growing_at_its_limit(b: Dictionary) -
 	check(b.crowd.easy < b.crowd.medium and b.crowd.medium < b.crowd.hard, "the limit rises with the difficulty")
 
 
+func test_enemies_walk_at_the_balance_share_of_their_listed_speed(b: Dictionary) -> void:
+	var s := Sim.new(b, content, {"seed": 142})
+	var mult := float(b.enemy_speed_mult)
+	check(mult < 1.0, "enemies are slowed from their listed speed (%.2f)" % mult)
+	for id in ["barbarian_club", "wolf", "berserker"]:
+		var want := float(content.enemies[id].speed) * mult
+		check(absf(s.horde.k_speed[s.horde.kind_of[id]] - want) < 0.001, "%s walks at %.1f" % [id, want])
+
+
 func test_province_only_spawns_its_ready_enemies(b: Dictionary) -> void:
 	var s := Sim.new(b, content, {"seed": 100})
 	var ready_ids: Array = content.province_enemies("germania")
@@ -3067,11 +3076,18 @@ func test_burning_the_grove_thins_the_stream(b: Dictionary) -> void:
 	var s := _objective_sim(b, 153)
 	var grove: Dictionary = s.objectives.add(s, "grove", Vector2(500, 0))
 	var oaks := 0
+	var solid := 0
 	for pr in s.terrain.extras:
-		if pr[0] == "oak" and pr[2] > 0.0 and absf(pr[1].distance_to(grove.pos) - float(cfg.ring)) < 1.0:
+		if pr[1].distance_to(grove.pos) < float(cfg.ring) + 30.0 and pr[2] > 0.0:
+			solid += 1
+		if pr[0] == "oak" and absf(pr[1].distance_to(grove.pos) - float(cfg.ring)) < 1.0:
 			oaks += 1
 	var slots := int(TAU * float(cfg.ring) / float(cfg.oak_step))
-	check(oaks > slots / 2 and oaks < slots, "solid oaks ring the altar with gaps to enter (%d of %d)" % [oaks, slots])
+	check(oaks > slots / 2 and oaks < slots, "oaks ring the altar with gaps (%d of %d)" % [oaks, slots])
+	check(solid == 0, "nothing in the grove's ring blocks the legion (%d solid)" % solid)
+	var ring_oak: Vector2 = grove.oaks[0]
+	s.terrain.refresh(ring_oak)
+	check(s.terrain.push_out(ring_oak, Sim.UNIT_RADIUS) == ring_oak, "a soldier standing on a ring oak is not pushed away")
 	s.commander.pos = grove.pos + Vector2(10, 0)
 	_step_dt(s, float(cfg.hold) * 0.5)
 	check(not grove.done and grove.hold > 0.0, "half the time in the grove is not enough")
@@ -3088,6 +3104,22 @@ func test_burning_the_grove_thins_the_stream(b: Dictionary) -> void:
 	s.horde._spawn(0.25, s)
 	var want := (2.0 + float(s.b.spawn_per_second_growth) * s.time) * 0.25 * float(cfg.calm_mult) * s.horde.level_mult("spawn_mult")
 	check(is_equal_approx(s.horde.spawn_acc, want), "the horde's stream reads the thinning (%.3f of %.3f)" % [s.horde.spawn_acc, want])
+
+
+func test_the_grove_says_what_it_gives_when_it_comes_into_view(b: Dictionary) -> void:
+	var cfg: Dictionary = b.objectives.grove
+	var s := _objective_sim(b, 155)
+	var grove: Dictionary = s.objectives.add(s, "grove", Vector2(900, 0))
+	s.objectives.notice = {}
+	s.commander.pos = grove.pos + Vector2(float(cfg.tip_within) + 200.0, 0)
+	s.objectives.update(0.1, s)
+	check(s.objectives.notice.is_empty(), "no hint while the grove is far off")
+	s.commander.pos = grove.pos + Vector2(float(cfg.tip_within) - 10.0, 0)
+	s.objectives.update(0.1, s)
+	check(s.objectives.notice.get("kind", "") == "grove_tip", "a hint once the grove is in view (%s)" % [s.objectives.notice])
+	s.objectives.notice = {}
+	s.objectives.update(0.1, s)
+	check(s.objectives.notice.is_empty(), "the hint is shown only once")
 
 
 func test_leaving_the_grove_loses_the_hold(b: Dictionary) -> void:
@@ -6441,7 +6473,7 @@ func test_painted_warriors_charge_through_the_crowd_and_frighten(b: Dictionary) 
 	for k in 6:
 		h.rebuild_grid()
 		h._move(1.0 / 60.0, s)
-	var want := float(content.enemies.painted_warrior.speed) * float(cfg.speed_mult) * 6.0 / 60.0
+	var want := float(content.enemies.painted_warrior.speed) * float(b.enemy_speed_mult) * float(cfg.speed_mult) * 6.0 / 60.0
 	check(absf((x0 - h.e_pos[i].x) - want) < 1.0, "the crowd in front does not shove him aside (%.1f of %.1f)" % [x0 - h.e_pos[i].x, want])
 	for u in s.soldiers:
 		u.afraid = 0.0
@@ -6950,6 +6982,46 @@ func test_barbarians_go_round_a_wood_without_standing_still(b: Dictionary) -> vo
 				reached[s.horde.e_id[i]] = true
 	check(reached.size() >= 8, "they find the way round the wood to the legion (%d of 10)" % reached.size())
 	check(still < 3.0, "and between them stand pressing into the trees for under three seconds (%.1f)" % still)
+
+
+func _band_of_wood(s: Sim, top: float, rows: int) -> void:
+	s.terrain.empty = false
+	var wood := {}
+	for cx in range(-8, 9):
+		for cy in range(-8, 9):
+			wood[Vector2i(cx, cy)] = []
+	for row in rows:
+		for col in 60:
+			var at := Vector2(-650 + col * 22 + (11 if row % 2 == 1 else 0), top + row * 19)
+			var key := Vector2i(floori(at.x / Terrain.CHUNK), floori(at.y / Terrain.CHUNK))
+			var list: Array = wood.get(key, [])
+			list.append(["fir", at, 8.0])
+			wood[key] = list
+	for key in wood:
+		s.terrain._chunks[key] = wood[key]
+	s.terrain._anchor = Vector2i(1 << 30, 0)
+	s.terrain.refresh(s.commander.pos)
+
+
+func test_barbarians_off_screen_do_not_walk_through_a_wood(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 1604)
+	_band_of_wood(s, 420.0, 8)
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	for k in 12:
+		s.horde.spawn("barbarian_club", Vector2(-120 + k * 20, 600))
+	var inside := 0
+	for f in 8 * 60:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+		for p in s.horde.e_pos:
+			if not s.terrain.is_open(p):
+				inside += 1
+	var through := 0
+	for p in s.horde.e_pos:
+		if p.y < 400.0:
+			through += 1
+	check(inside == 0, "nobody walks into the wood while nobody sees him (%d frames)" % inside)
+	check(through == 0, "and nobody comes out on the legion's side of it unseen (%d)" % through)
 
 
 func test_a_barbarian_held_in_place_counts_as_still(b: Dictionary) -> void:

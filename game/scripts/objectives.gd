@@ -83,16 +83,12 @@ func add(sim: Sim, kind: String, pos: Vector2) -> Dictionary:
 				if open:
 					continue
 				var at := pos + Vector2.from_angle(a) * ring
+				# The ring is scenery that the legion walks through, since a legion standing at the altar is wider than the ring.
 				if stones.is_empty():
-					pieces.append([tree, at, Terrain.SOLID[tree]])
+					pieces.append([tree, at, 0.0])
 					o.oaks.append(at)
 				else:
-					# A province of standing stones rings its grove with the stone circle's groups, each solid on its stones.
-					var moor: Dictionary = sim.b.moors[sim.province]
-					var anchor := at + Vector2(float(stones.lift[0]), float(stones.lift[1]))
-					pieces.append(["stone_circle", anchor, 0.0])
-					for off in moor.circle_stones:
-						pieces.append(["", anchor + Vector2(float(off[0]), float(off[1])), float(moor.stone_radius)])
+					pieces.append(["stone_circle", at + Vector2(float(stones.lift[0]), float(stones.lift[1])), 0.0])
 	sim.terrain.add_clearing(pos, float(cfg.clearing), pieces)
 	list.append(o)
 	return o
@@ -305,6 +301,10 @@ func _column(o: Dictionary, dt: float, sim: Sim) -> void:
 
 func _grove(o: Dictionary, dt: float, sim: Sim) -> void:
 	var cfg: Dictionary = sim.b.objectives.grove
+	var quiet := notice.is_empty() or sim.time - float(notice.at) >= float(notice.get("seconds", sim.b.objectives.notice_seconds))
+	if not o.get("tipped", false) and quiet and sim.commander.pos.distance_to(o.pos) < float(cfg.tip_within):
+		o.tipped = true
+		notice = {"kind": "grove_tip", "at": sim.time, "seconds": float(cfg.tip_seconds)}
 	if sim.commander.pos.distance_to(o.pos) < float(cfg.inside):
 		o.woken = true
 		o.band_cd -= dt
