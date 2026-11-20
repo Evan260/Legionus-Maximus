@@ -30,14 +30,14 @@ FFMPEG = (Path.home() / "AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg_Mic
           / "ffmpeg-9.0.2-full_build/bin/ffmpeg.exe")
 LOOK = ["--autoplay", "--no-save", "--seed=7"]
 # The legion's newer recruits, given beside --men's legionaries and archers so the later shots show a mixed legion.
-MIXED = "slinger:2,cavalry:2,ballista:1,centurion:1"
-LARGE = "slinger:4,cavalry:4,ballista:2,centurion:2,standard_bearer:1,medicus:1"
+MIXED = "archer:2,cavalry:2,ballista:1,centurion:1"
+LARGE = "archer:4,cavalry:4,ballista:2,centurion:2,standard_bearer:1,medicus:1"
 # name: (seconds to record, the second a quick screenshot of it is taken at, its look flags). The edit takes its part of each from
 # edit.gd; a shot runs a moment before the part that is used, so the field has settled.
 SHOTS = {
     "skirmish": (8, 3.0, [*LOOK, "--trailer-shot=skirmish", "--men=8"]),
     "levelup": (7, 2.5, [*LOOK, "--trailer-shot=levelup", "--men=8"]),
-    "archers": (8, 3.0, [*LOOK, "--trailer-shot=archers", "--men=4:legionary", "--give=archer:3,slinger:4,ballista:2"]),
+    "archers": (8, 3.0, [*LOOK, "--trailer-shot=archers", "--men=4:legionary", "--give=archer:7,ballista:2"]),
     "fell": (9, 5.0, [*LOOK, "--trailer-shot=fell", "--men=14", f"--give={MIXED}"]),
     "bridge": (8, 3.0, [*LOOK, "--trailer-shot=bridge", "--men=14", f"--give={MIXED}", "--go-to=bridge"]),
     "whirl": (8, 1.0, [*LOOK, "--trailer-shot=whirl", "--men=10", f"--give={MIXED}", "--boss=berserker", "--boss-act=whirl"]),

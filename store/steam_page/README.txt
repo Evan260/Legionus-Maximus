@@ -81,5 +81,5 @@ STILL TO DECIDE BEFORE SUBMITTING
 - Release date: "Coming soon", or a season and year such as "Summer 2027".
 - Price in CAD, which Steamworks asks for separately and which Valve reviews.
 - The system requirements are estimates; check them on an older computer and a Steam Deck before release.
-- The page describes the five provinces, the eight recruits, the six commanders and the three modes now in the game.
+- The page describes the five provinces, the seven recruits, the six commanders and the three modes now in the game.
   When more land, add them to about_this_game.txt.

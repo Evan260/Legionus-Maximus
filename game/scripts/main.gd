@@ -771,7 +771,7 @@ func _bench() -> void:
 	for id in content.arms:
 		if content.arms[id].implemented:
 			s.ranks[id] = 3
-	var mix := ["legionary", "archer", "slinger", "cavalry", "standard_bearer", "medicus", "ballista", "centurion", "legionary", "archer"]
+	var mix := ["legionary", "archer", "cavalry", "standard_bearer", "medicus", "ballista", "centurion", "legionary", "archer"]
 	for i in 100:
 		s.add_soldier(mix[i % mix.size()])
 	var kinds := ["barbarian_club", "barbarian_spear", "axe_thrower", "wolf", "chariot", "barbarian_club"]

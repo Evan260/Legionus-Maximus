@@ -2312,19 +2312,6 @@
       "en": "Legionaries",
       "pl": "Legioniści"
     },
-    "content.recruits.slinger.name": {
-      "en": "Slingers",
-      "fr": "Frondeurs",
-      "de": "Schleuderer",
-      "it": "Frombolieri",
-      "pt_BR": "Fundibulários",
-      "tr": "Sapancılar",
-      "uk": "Пращники",
-      "ja": "投石兵",
-      "ko": "투석병",
-      "zh_CN": "投石兵",
-      "zh_TW": "投石兵"
-    },
     "content.recruits.archer.name": {
       "en": "Archers",
       "ja": "弓兵",

@@ -38,7 +38,7 @@ import make_logo  # noqa: E402
 # Drills that keep the autoplay legion alive long enough to show a late run; every one is in the game.
 HARDY = "lorica:9,rations:9,veterans:9,reserves:9,shield_wall:9"
 # The newer recruits beside the legionaries and archers, so every screenshot shows a mixed legion.
-MEN = "slinger:3,cavalry:2,ballista:2,centurion:1,standard_bearer:1,medicus:1"
+MEN = "archer:3,cavalry:2,ballista:2,centurion:1,standard_bearer:1,medicus:1"
 LATE = ["--autoplay", "--skip=780", f"--give={HARDY},{MEN},pilum:3,fire_arrows:3"]
 # Nine minutes in, the legion of about seventy is still in clean ranks, with war bands and elites closing in.
 MID = ["--autoplay", "--skip=540", f"--give={HARDY},pilum:3"]

@@ -6,7 +6,7 @@ Legionus Maximus is a survivors-style action game in pixel art. You lead a Roman
 [list]
 [*]One control that matters: where you march. The formation turns as you turn, shields to the front and archers behind.
 [*]Five provinces, each with its own ground, its own warriors, its own elites and its own chieftain: Arminius in Germania, Vercingetorix in Gaul, Decebalus in Dacia, the shah of Parthia and Boudica in Britannia.
-[*]Eight kinds of soldier to recruit, from legionaries and archers to cavalry, a medicus, a ballista crew and a centurion.
+[*]Seven kinds of soldier to recruit, from legionaries and archers to cavalry, a medicus, a ballista crew and a centurion.
 [*]From a handful of men to a legion of a hundred, every one of them on the field and fighting.
 [*]Five gods of Rome to call on when their favour is full: lightning, an earthquake, war frenzy, a rain of fire and healing light.
 [*]Fell trees for timber, drive palisades across the barbarians' path and lay bridges over the ravines.
@@ -26,7 +26,7 @@ The campaign map follows the real geography of the empire. Win a province and th
 [h2]A legion that grows with every level[/h2]
 Fallen barbarians drop denarii, and the denarii fill the level bar. Each level pauses the battle and offers three choices:
 [list]
-[*][b]Recruits:[/b] eight kinds of soldier, each with his own health. Legionaries hold the front, archers and slingers shoot from the rear, cavalry ride out at the flanks, a standard bearer quickens the men round him, a medicus heals the wounded, a ballista crew fires heavy bolts down a line and a centurion's shout stuns the enemies round him.
+[*][b]Recruits:[/b] seven kinds of soldier, each with his own health. Legionaries hold the front, archers shoot from the rear, cavalry ride out at the flanks, a standard bearer quickens the men round him, a medicus heals the wounded, a ballista crew fires heavy bolts down a line and a centurion's shout stuns the enemies round him.
 [*][b]Arms:[/b] twelve weapons that fire on their own, from pilum volleys, the scorpio and the onager to war dogs, fire pots, caltrops and a ring of torches. Each has five ranks.
 [*][b]Forged forms:[/b] bring two arms to their last rank and they can be forged into one, such as Greek fire or the siege train. There are six to find.
 [*][b]Drills:[/b] fifteen upgrades for the whole legion, from forced marches and better armour to reserves who replace the fallen.

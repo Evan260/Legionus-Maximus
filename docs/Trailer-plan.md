@@ -10,8 +10,8 @@ One beat is 0.667 seconds of the game's own music, 90 beats a minute, and every 
 |---|---|---|---|---|
 | 1 | Card: Germania, AD 9. | | | 4 |
 | 2 | `skirmish`, 2x: the commander and 8 men against a band of 16 | Germania | Lead the legion. | 7 |
-| 3 | `levelup`: the level-up opens mid-fight offering slingers, cavalrymen and a ballista crew, and the ballista crew is picked out and taken | Germania | Choose your men. | 6 |
-| 4 | `archers`, 2x: legionaries in front, archers, slingers and two ballistas behind, loosing at a band charging in | Germania | Every man fights. | 7 |
+| 3 | `levelup`: the level-up opens mid-fight offering a medicus, cavalrymen and a ballista crew, and the ballista crew is picked out and taken | Germania | Choose your men. | 6 |
+| 4 | `archers`, 2x: legionaries in front, archers and two ballistas behind, loosing at a band charging in | Germania | Every man fights. | 7 |
 | 5 | `fell`: the legion marches into a forest and fells it | Germania | Fell the forest. | 6 |
 | 6 | `bridge`: a bridge laid over a ravine and marched across | Germania | Bridge the gorge. | 6 |
 | 7 | `whirl`, 2x: the berserker's ring shows and the legion marches out of it | Germania | Step out of the ring. | 7 |

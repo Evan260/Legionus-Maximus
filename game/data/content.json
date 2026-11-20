@@ -54,31 +54,6 @@
    ],
    "per_pick": 2
   },
-  "slinger": {
-   "name": "Slingers",
-   "text": "Two slingers join the rear and throw stones that knock enemies back.",
-   "history": "Slingers from the Balearic Islands hurled lead bullets that could break a shield.",
-   "place": "rear",
-   "attack": "missile",
-   "hp": 28,
-   "damage": 8,
-   "cooldown": 1.3,
-   "max": 0,
-   "implemented": true,
-   "promotion": {
-    "text": "Stones bounce once.",
-    "bounces": 1
-   },
-   "range": 130,
-   "knockback": 14,
-   "art": [
-    "unit:slinger",
-    "icon:slinger"
-   ],
-   "per_pick": 2,
-   "bounce_reach": 70,
-   "stone_speed": 200
-  },
   "cavalry": {
    "name": "Cavalrymen",
    "text": "Two horsemen ride out at enemies near the flanks.",

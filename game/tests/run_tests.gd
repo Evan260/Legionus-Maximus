@@ -580,7 +580,7 @@ func test_every_content_entry_has_a_name_and_text(b: Dictionary) -> void:
 		for id in entries:
 			check(str(entries[id].get("name", "")) != "", "%s %s has a name" % [kind, id])
 			check(str(entries[id].get("text", "")) != "", "%s %s has a text" % [kind, id])
-	check(content.recruits.size() == 8 and content.arms.size() == 12 and content.forged.size() == 6 and content.drills.size() == 15, "the full set of recruits, arms, forged forms and drills")
+	check(content.recruits.size() == 7 and content.arms.size() == 12 and content.forged.size() == 6 and content.drills.size() == 15, "the full set of recruits, arms, forged forms and drills")
 	check(content.provinces.size() == 5 and content.commanders.size() == 6, "five provinces and six commanders")
 	for p in content.provinces:
 		var pr: Dictionary = content.provinces[p]
@@ -651,7 +651,7 @@ func test_places_by_kind(b: Dictionary) -> void:
 	var types: Array = []
 	for i in 12:
 		types.append("legionary")
-	types.append_array(["centurion", "archer", "archer", "slinger", "ballista", "cavalry", "cavalry", "medicus", "standard_bearer"])
+	types.append_array(["centurion", "archer", "archer", "ballista", "cavalry", "cavalry", "medicus", "standard_bearer"])
 	var s := _legion_sim(b, 1, types)
 	var places: Array = s.legion.formation()
 	check(places.size() == s.soldiers.size(), "one place per soldier")
@@ -817,13 +817,13 @@ func test_centurion_shout_stuns(b: Dictionary) -> void:
 
 func test_recruit_without_art_is_not_offered(b: Dictionary) -> void:
 	var art: Dictionary = content.available.duplicate()
-	art.erase("unit:slinger")
+	art.erase("unit:medicus")
 	var c := Content.load_all(art)
 	var s := Sim.new(b, c, {"seed": 11})
-	check(c.recruits.slinger.implemented and not c.ready("recruits", "slinger"), "the slinger is implemented but has no art")
+	check(c.recruits.medicus.implemented and not c.ready("recruits", "medicus"), "the medicus is implemented but has no art")
 	for i in 30:
-		check(not Upgrades.offers(s, 10).has("slinger"), "the slinger is never offered")
-	check(not Upgrades.available(s).has("slinger"), "and is not available")
+		check(not Upgrades.offers(s, 10).has("medicus"), "the medicus is never offered")
+	check(not Upgrades.available(s).has("medicus"), "and is not available")
 
 
 func test_a_full_legion_of_every_kind_has_no_overlapping_places(b: Dictionary) -> void:
@@ -2093,7 +2093,7 @@ func test_every_damage_path_names_its_source(b: Dictionary) -> void:
 		for id in mixed.get(kind):
 			if mixed.get(kind)[id].implemented:
 				s.ranks[id] = 3
-	for t in ["archer", "slinger", "cavalry", "standard_bearer", "centurion", "ballista", "medicus"]:
+	for t in ["archer", "cavalry", "standard_bearer", "centurion", "ballista", "medicus"]:
 		s.add_soldier(t)
 	var kinds := ["barbarian_club", "barbarian_spear", "wolf"]
 	for i in 90:
@@ -3354,7 +3354,7 @@ func test_a_full_legion_files_through_the_gate_and_stands_inside(b: Dictionary) 
 	s.commander.max_hp = 1e9
 	s.commander.hp = 1e9
 	while s.soldiers.size() < int(b.legion_cap):
-		s.legion.add(["legionary", "archer", "slinger"][s.soldiers.size() % 3])
+		s.legion.add(["legionary", "archer", "cavalry"][s.soldiers.size() % 3])
 	var fort: Dictionary = s.objectives.fort
 	s.commander.pos = fort.pos + Vector2(0, 320)
 	s.facing_angle = -PI / 2.0
@@ -4613,7 +4613,7 @@ func test_the_legion_marches_over_its_bridge(b: Dictionary) -> void:
 func test_a_big_legion_files_over_a_bridge_without_being_shoved(b: Dictionary) -> void:
 	var s := _quiet_sim(b, 1505)
 	while s.soldiers.size() < 40:
-		s.legion.add(["legionary", "archer", "slinger"][s.soldiers.size() % 3])
+		s.legion.add(["legionary", "archer", "cavalry"][s.soldiers.size() % 3])
 	_gorge(s, -600, 600, 100, 60)
 	s.commander.pos = Vector2(0, 0)
 	s.facing_angle = PI / 2.0

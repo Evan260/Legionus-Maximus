@@ -12,7 +12,7 @@ const END_DROP := 75.0
 const FIELD_SIDE := 80.0
 const END_SIDE := 170.0
 ## The level-up shot: the recruits offered, the one taken, and when the level comes, when it is picked out and when it is taken, in seconds.
-const LEVEL_CHOICES := ["slinger", "cavalry", "ballista"]
+const LEVEL_CHOICES := ["medicus", "cavalry", "ballista"]
 const LEVEL_TAKE := "ballista"
 const LEVEL_AT := 1.0
 const PICK_AT := 2.0
