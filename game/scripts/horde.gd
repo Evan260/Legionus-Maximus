@@ -2076,6 +2076,8 @@ func _move(dt: float, sim: Sim) -> void:
 	var t_items := sim.terrain.items
 	var t_solid := sim.terrain.solid
 	var t_tree := sim.terrain.solid_tree
+	var wall_hold := float(sim.b.wall.hold)
+	var wall_boss := float(sim.b.wall.boss_batter)
 	var rv_start := sim.terrain.rv_start
 	var fd_start := sim.terrain.fd_start
 	var fields_near := not sim.terrain.fd_rect.is_empty()
@@ -2389,6 +2391,7 @@ func _move(dt: float, sim: Sim) -> void:
 		# Barbarians well off the screen pass through, since nobody sees them and the check is costly for a full horde.
 		var gx := floori((np.x - t_origin.x) / t_cell)
 		var gy := floori((np.y - t_origin.y) / t_cell)
+		var battering := false
 		if (d < solid_range or seen) and e_stuck[i] >= 0.0 and gx >= 0 and gy >= 0 and gx < t_n and gy < t_n:
 			var gc := gx + gy * t_n
 			var touched := false
@@ -2407,6 +2410,9 @@ func _move(dt: float, sim: Sim) -> void:
 						e_stun[i] = k_rush_stun[kind]
 					if v != Vector2.ZERO and t_tree[t_items[t]] == 1:
 						sim.terrain.horde_chop(Vector2(so.x, so.y), chop_rate)
+					elif v != Vector2.ZERO and t_tree[t_items[t]] == Terrain.WALL:
+						battering = true
+						sim.terrain.batter(Vector2(so.x, so.y), dt * (wall_boss if e_tag[i] != ORDINARY else 1.0), wall_hold)
 					# A barbarian walking into a tree or rock slides along it on the side that leads towards the legion, and keeps that side a while.
 					if v != Vector2.ZERO:
 						touched = true
@@ -2416,7 +2422,7 @@ func _move(dt: float, sim: Sim) -> void:
 						e_detour[i] = detour_seconds
 			if r > Terrain.MAX_UNIT:
 				np = sim.terrain.push_out_wide(np, r)
-			elif touched and e_tag[i] == ORDINARY and not sim.terrain.is_open(p):
+			elif touched and not battering and e_tag[i] == ORDINARY and not sim.terrain.is_open(p):
 				# Inside a wood there is no gap to slide through, so he slips between the trunks along the route map out to open ground.
 				e_stuck[i] = -stuck_slip
 				e_detour[i] = maxf(e_detour[i], stuck_slip)
@@ -2450,6 +2456,9 @@ func _move(dt: float, sim: Sim) -> void:
 		# A barbarian wedged among trees who makes no headway for a while slips through them for a moment to get free; a boss never does, since he would seem to teleport.
 		if e_tag[i] != ORDINARY:
 			pass
+		elif battering:
+			# A barbarian held by a wall batters it down rather than slipping through it.
+			e_stuck[i] = 0.0
 		elif e_stuck[i] < 0.0:
 			e_stuck[i] = minf(0.0, e_stuck[i] + dt)
 		elif v != Vector2.ZERO and (np - p).length_squared() < v.length_squared() * dt * dt * 0.0625:

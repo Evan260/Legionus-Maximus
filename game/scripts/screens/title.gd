@@ -27,6 +27,7 @@ static func how_to_play(balance: Dictionary) -> Array:
 		Controls.march_keys() + "  " + TranslationServer.translate("march"),
 		key.call("testudo") + TranslationServer.translate("testudo: 80% less harm"),
 		key.call("build") + TranslationServer.translate("palisade: %d timber from felled trees") % int(balance.palisade.cost),
+		key.call("wall") + TranslationServer.translate("wall behind the legion: %d timber, the enemy slowly breaks it") % int(balance.wall.cost),
 		key.call("bridge") + TranslationServer.translate("bridge over a ravine: %d timber") % int(balance.bridge.cost),
 		key.call("pray") + TranslationServer.translate("call the gods when the wreath is full"),
 		key.call("pause") + TranslationServer.translate("pause"),

@@ -3293,6 +3293,78 @@ func test_a_palisade_rots_away(b: Dictionary) -> void:
 	check(s.terrain.posts.is_empty() and not _solid_at(s, post_at), "after %d seconds they are gone" % int(b.palisade.seconds))
 
 
+func test_a_wall_costs_timber_and_closes_the_way_behind_the_rear(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 307)
+	_field(s, [])
+	for i in 10:
+		s.add_soldier("legionary")
+	s.legion.place_all(s.facing_angle)
+	var cfg: Dictionary = b.wall
+	s.timber = int(cfg.cost) - 1
+	check(not s.build_wall(), "too little timber builds no wall")
+	check(s.terrain.posts.is_empty() and s.wall_refused_at == s.time, "and a notice shows")
+	s.timber = int(cfg.cost)
+	check(s.build_wall(), "with enough timber the wall goes up")
+	check(s.timber == 0 and s.terrain.posts.size() == int(cfg.stakes), "it spends its cost on %d stakes (%d)" % [int(cfg.stakes), s.terrain.posts.size()])
+	var dir := Vector2.from_angle(s.facing_angle)
+	var rear := 0.0
+	for u in s.units_in_formation():
+		rear = minf(rear, (u.pos - s.commander.pos).dot(dir))
+	var behind := true
+	var across: Array = []
+	for post in s.terrain.posts:
+		var off: Vector2 = post[1] - s.commander.pos
+		behind = behind and off.dot(dir) <= rear - float(cfg.behind) + float(cfg.bow) + 0.5
+		across.append(post[1])
+	check(behind, "every stake stands behind the rear rank")
+	across.sort_custom(func(p: Vector2, q: Vector2) -> bool: return (p - s.commander.pos).dot(dir.orthogonal()) < (q - s.commander.pos).dot(dir.orthogonal()))
+	var tight := true
+	for k in across.size() - 1:
+		tight = tight and across[k].distance_to(across[k + 1]) < (float(cfg.radius) + 6.0) * 2.0
+	check(tight, "no barbarian fits between two stakes")
+	check(_solid_at(s, across[0]), "the wall is solid")
+
+
+func test_barbarians_slowly_break_through_a_wall(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 308)
+	_field(s, [])
+	var cfg: Dictionary = b.wall
+	var n := 44
+	for k in n:
+		s.terrain.add_post(s.commander.pos + Vector2.from_angle(TAU * k / n) * 75.0, float(cfg.radius), 1e9, "wall")
+	s.terrain.refresh(s.commander.pos)
+	for k in 30:
+		s.horde.spawn("barbarian_club", s.commander.pos + Vector2.from_angle(TAU * k / 30.0) * 130.0)
+	var inside := func() -> int:
+		var c := 0
+		for p in s.horde.e_pos:
+			if p.distance_to(s.commander.pos) < 60.0:
+				c += 1
+		return c
+	_step_dt(s, 6.0)
+	check(inside.call() == 0 and s.terrain.posts.size() == n, "for a while the wall holds them all out")
+	_step_dt(s, 40.0)
+	check(s.terrain.posts.size() < n, "pressing on it, they break stakes (%d left)" % s.terrain.posts.size())
+	check(inside.call() > 0 or s.kills > 0, "and get through")
+
+
+func test_the_wall_has_its_own_key(b: Dictionary) -> void:
+	Controls.install({})
+	check(_has_key("wall", KEY_G) and _has_button("wall", JOY_BUTTON_LEFT_SHOULDER), "G and the left shoulder build a wall")
+	check(Controls.ACTIONS.any(func(a: Array) -> bool: return a[0] == "wall"), "the settings let it be rebound")
+
+
+func test_the_timber_keys_are_listed_with_their_costs(b: Dictionary) -> void:
+	Controls.install({})
+	var lines: Array = Hud.timber_keys(b, 5)
+	check(lines.size() == 3, "palisade, wall and bridge are listed (%d)" % lines.size())
+	var all := " ".join(lines.map(func(l: Dictionary) -> String: return l.text))
+	for action in ["build", "wall", "bridge"]:
+		check(all.contains(Controls.key_of(action)), "the %s key is shown" % action)
+	check(str(lines[0].text).contains(str(int(b.palisade.cost))), "with its cost")
+	check(lines[0].enough == (5 >= int(b.palisade.cost)) and lines[2].enough == (5 >= int(b.bridge.cost)), "lit only when the timber is there")
+
+
 func test_the_palisade_has_its_own_key(b: Dictionary) -> void:
 	Controls.install({})
 	check(_has_key("build", KEY_E) and _has_button("build", JOY_BUTTON_X), "E and the west face button build")

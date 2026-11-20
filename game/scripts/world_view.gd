@@ -175,9 +175,12 @@ func _draw() -> void:
 	if not sim.terrain.posts.is_empty():
 		var sf := atlas.prop_frame("stake")
 		var fade := float(sim.b.palisade.fade)
+		var hold := float(sim.b.wall.hold)
 		for post in sim.terrain.posts:
 			if view.has_point(post[1]):
-				_add(post[1].y, sf[0], post[1] - sf[1], Color(1, 1, 1, clampf((post[3] - sim.time) / fade, 0.0, 1.0)))
+				# A wall stake darkens as the horde batters it, so the player sees where it is about to give.
+				var worn := 1.0 - 0.5 * clampf(float(sim.terrain.battered.get(post[1], 0.0)) / hold, 0.0, 1.0)
+				_add(post[1].y, sf[0], post[1] - sf[1], Color(worn, worn, worn, clampf((post[3] - sim.time) / fade, 0.0, 1.0)))
 
 
 	var gold := Color(1.0, 0.92, 0.7)

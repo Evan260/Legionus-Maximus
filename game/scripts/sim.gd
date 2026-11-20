@@ -138,6 +138,8 @@ var _hurt_heard := -1e9
 var timber := 0
 ## When a palisade was last asked for without the timber for it, for the notice.
 var palisade_refused_at := -1.0
+## When a wall was last asked for without the timber for it, for the notice.
+var wall_refused_at := -1.0
 ## The last bridge asked for that could not be laid, {at, why} with why "timber" or "ravine".
 var bridge_refused := {}
 ## Whether the legion faces a ravine it could bridge, looked at a few times a second for the hint.
@@ -506,16 +508,44 @@ func palisade_points() -> Array:
 	return out
 
 
+## Where the wall's stakes go: a line across the legion's facing, `behind` px beyond its rear rank, its ends bowed forward round the rear.
+func wall_points() -> Array:
+	var cfg: Dictionary = b.wall
+	var dir := Vector2.from_angle(facing_angle)
+	var rear := 0.0
+	for u in units_in_formation():
+		rear = minf(rear, (u.pos - commander.pos).dot(dir))
+	var n := int(cfg.stakes)
+	var out: Array = []
+	for k in n:
+		var t := (k - (n - 1) / 2.0) / maxf(1.0, (n - 1) / 2.0)
+		out.append(commander.pos + dir * (rear - float(cfg.behind) + float(cfg.bow) * t * t) + dir.orthogonal() * t * (n - 1) / 2.0 * float(cfg.gap))
+	return out
+
+
 ## Spends timber on a line of stakes ahead of the legion, leaving out any place a man stands; without the timber it is refused.
 func build_palisade() -> bool:
-	var cfg: Dictionary = b.palisade
-	if timber < int(cfg.cost):
+	if timber < int(b.palisade.cost):
 		event("back", commander.pos)
 		palisade_refused_at = time
 		return false
+	return _drive_stakes(palisade_points(), b.palisade, "stake")
+
+
+## Spends timber on a wall of stakes behind the legion that the horde can batter down; without the timber it is refused.
+func build_wall() -> bool:
+	if timber < int(b.wall.cost):
+		event("back", commander.pos)
+		wall_refused_at = time
+		return false
+	return _drive_stakes(wall_points(), b.wall, "wall")
+
+
+## Drives the stakes of `points` that stand clear of men and ravines and pays `cfg.cost`; with no room for any, the timber is kept.
+func _drive_stakes(points: Array, cfg: Dictionary, kind: String) -> bool:
 	var radius := float(cfg.radius)
 	var spots: Array = []
-	for p in palisade_points():
+	for p in points:
 		var free := not terrain.over_ravine(p, -radius)
 		for u in [commander] + soldiers:
 			free = free and u.pos.distance_to(p) >= radius + UNIT_RADIUS
@@ -526,7 +556,7 @@ func build_palisade() -> bool:
 		return false
 	timber -= int(cfg.cost)
 	for p in spots:
-		terrain.add_post(p, radius, time + float(cfg.seconds))
+		terrain.add_post(p, radius, time + float(cfg.seconds), kind)
 	terrain.refresh(commander.pos)
 	event("palisade", commander.pos)
 	return true

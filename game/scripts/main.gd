@@ -558,6 +558,8 @@ func _process(dt: float) -> void:
 				build = sim.timber >= int(balance.palisade.cost) and look_march == Vector2.INF
 			if build:
 				sim.build_palisade()
+			if Input.is_action_just_pressed("wall"):
+				sim.build_wall()
 			if Input.is_action_just_pressed("bridge"):
 				sim.build_bridge()
 			sim.update(minf(dt, 1.0 / 30.0), move, testudo)

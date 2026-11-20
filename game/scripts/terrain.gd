@@ -22,6 +22,8 @@ var origin := Vector2.ZERO
 var solid := PackedVector3Array()
 ## 1 for each entry of `solid` that is a tree the legion can fell.
 var solid_tree := PackedByteArray()
+# The mark in solid_tree of a wall stake, which the horde batters instead of chopping.
+const WALL := 2
 var start := PackedInt32Array()
 var items := PackedInt32Array()
 var clear_radius := 200.0
@@ -35,6 +37,8 @@ var posts: Array = []
 var felled := {}
 ## Chopping done on each tree being cut, by position, as [seconds, clock of the last blow, seconds of it by the legion].
 var chops := {}
+## Seconds of battering each wall stake has taken, by its position.
+var battered := {}
 ## Logs from trees the legion felled since the last take_logs().
 var logs := 0
 ## The run's time, set by the sim, so the drawing knows which trees are being cut right now.
@@ -117,6 +121,7 @@ func clear() -> void:
 	extras.clear()
 	_extra_at.clear()
 	posts.clear()
+	battered.clear()
 	_chunks.clear()
 	_laid.clear()
 	_laid_streams.clear()
@@ -227,13 +232,13 @@ func remove_extras(at: Array) -> void:
 	_anchor = Vector2i(1 << 30, 0)
 
 
-## Drives a stake that rots at `until`; it is solid from the next refresh.
-func add_post(p: Vector2, radius: float, until: float) -> void:
+## Drives a stake that rots at `until`; it is solid from the next refresh. A "wall" stake can also be battered down by the horde.
+func add_post(p: Vector2, radius: float, until: float, kind := "stake") -> void:
 	# The list stays in rotting order, since stakes driven later can rot sooner than a palisade's.
 	var at := posts.size()
 	while at > 0 and posts[at - 1][3] > until:
 		at -= 1
-	posts.insert(at, ["stake", p, radius, until])
+	posts.insert(at, [kind, p, radius, until])
 	_anchor = Vector2i(1 << 30, 0)
 
 
@@ -242,13 +247,31 @@ func rot_posts(now: float) -> bool:
 	var gone := false
 	while not posts.is_empty() and posts[0][3] <= now:
 		var post: Array = posts.pop_front()
+		battered.erase(post[1])
 		gone = true
 		# Stakes are listed after every other prop, so the search runs from the end.
 		for k in range(solid.size() - 1, -1, -1):
-			if solid[k].x == post[1].x and solid[k].y == post[1].y and solid_tree[k] == 0:
+			if solid[k].x == post[1].x and solid[k].y == post[1].y and solid_tree[k] != 1:
 				_drop_solid(k)
 				break
 	return gone
+
+
+## Adds dt of battering to the wall stake at `at` and knocks it down once it has taken `hold` seconds; true when it falls.
+func batter(at: Vector2, dt: float, hold: float) -> bool:
+	battered[at] = float(battered.get(at, 0.0)) + dt
+	if battered[at] < hold:
+		return false
+	battered.erase(at)
+	for i in posts.size():
+		if posts[i][1] == at:
+			posts.remove_at(i)
+			break
+	for k in range(solid.size() - 1, -1, -1):
+		if solid_tree[k] == WALL and solid[k].x == at.x and solid[k].y == at.y:
+			_drop_solid(k)
+			break
+	return true
 
 
 ## Every prop whose chunk overlaps the rectangle, as [kind, position, radius] with radius 0 for the ones that do not block.
@@ -984,7 +1007,7 @@ func refresh(p: Vector2) -> void:
 		if r <= 0.0:
 			continue
 		solid.append(Vector3(pr[1].x, pr[1].y, r))
-		solid_tree.append(1 if TREES.has(pr[0]) and not _extra_at.has(pr[1]) else 0)
+		solid_tree.append(1 if TREES.has(pr[0]) and not _extra_at.has(pr[1]) else (WALL if pr[0] == "wall" else 0))
 		var reach := r + MAX_UNIT
 		var x0 := clampi(floori((pr[1].x - reach - origin.x) / CELL), 0, GN - 1)
 		var x1 := clampi(floori((pr[1].x + reach - origin.x) / CELL), 0, GN - 1)

@@ -5,13 +5,13 @@ extends RefCounted
 
 # The actions the settings screen lets the player rebind, with their names.
 const ACTIONS := [["up", "March up"], ["down", "March down"], ["left", "March left"], ["right", "March right"],
-	["testudo", "Testudo"], ["build", "Build a palisade"], ["bridge", "Lay a bridge"], ["pray", "Call the gods"], ["reroll", "Reroll"], ["banish", "Banish"], ["pause", "Pause"], ["confirm", "Confirm"], ["back", "Back"]]
+	["testudo", "Testudo"], ["build", "Build a palisade"], ["wall", "Build a wall behind"], ["bridge", "Lay a bridge"], ["pray", "Call the gods"], ["reroll", "Reroll"], ["banish", "Banish"], ["pause", "Pause"], ["confirm", "Confirm"], ["back", "Back"]]
 const KEYS := {
 	"left": [KEY_A, KEY_LEFT], "right": [KEY_D, KEY_RIGHT], "up": [KEY_W, KEY_UP], "down": [KEY_S, KEY_DOWN],
-	"testudo": [KEY_SPACE], "build": [KEY_E], "bridge": [KEY_C], "pray": [KEY_F], "reroll": [KEY_R], "banish": [KEY_B], "confirm": [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER], "pause": [KEY_ESCAPE], "quit": [KEY_Q],
+	"testudo": [KEY_SPACE], "build": [KEY_E], "wall": [KEY_G], "bridge": [KEY_C], "pray": [KEY_F], "reroll": [KEY_R], "banish": [KEY_B], "confirm": [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER], "pause": [KEY_ESCAPE], "quit": [KEY_Q],
 	"fullscreen": [KEY_F11], "back": [KEY_ESCAPE],
 }
-const PADS := {"back": JOY_BUTTON_B, "reroll": JOY_BUTTON_Y, "banish": JOY_BUTTON_X, "testudo": JOY_BUTTON_A, "build": JOY_BUTTON_X, "bridge": JOY_BUTTON_RIGHT_SHOULDER, "pray": JOY_BUTTON_Y, "confirm": JOY_BUTTON_A, "pause": JOY_BUTTON_START,
+const PADS := {"back": JOY_BUTTON_B, "reroll": JOY_BUTTON_Y, "banish": JOY_BUTTON_X, "testudo": JOY_BUTTON_A, "build": JOY_BUTTON_X, "wall": JOY_BUTTON_LEFT_SHOULDER, "bridge": JOY_BUTTON_RIGHT_SHOULDER, "pray": JOY_BUTTON_Y, "confirm": JOY_BUTTON_A, "pause": JOY_BUTTON_START,
 	"left": JOY_BUTTON_DPAD_LEFT, "right": JOY_BUTTON_DPAD_RIGHT, "up": JOY_BUTTON_DPAD_UP, "down": JOY_BUTTON_DPAD_DOWN}
 const STICK := [["left", JOY_AXIS_LEFT_X, -1.0], ["right", JOY_AXIS_LEFT_X, 1.0], ["up", JOY_AXIS_LEFT_Y, -1.0], ["down", JOY_AXIS_LEFT_Y, 1.0]]
 const PAD_NAMES := {JOY_BUTTON_A: "A", JOY_BUTTON_B: "B", JOY_BUTTON_X: "X", JOY_BUTTON_Y: "Y", JOY_BUTTON_BACK: "Back", JOY_BUTTON_START: "Start",
@@ -22,7 +22,7 @@ const KEY_NAMES := {KEY_UP: "Up", KEY_DOWN: "Down", KEY_LEFT: "Left", KEY_RIGHT:
 	KEY_ENTER: "Enter", KEY_TAB: "Tab", KEY_BACKSPACE: "Backspace"}
 # The words of the key hints, each translated on its own so no translation has to keep a key in its place.
 const HINT_WORDS := ["move", "choose", "back", "buy a rank", "take it", "call", "not now", "reroll", "banish",
-	"call the gods", "bridge", "cancel", "change a key or button", "change a volume"]
+	"call the gods", "bridge", "palisade", "wall", "cancel", "change a key or button", "change a volume"]
 
 
 ## The keys and pad buttons an action has: the saved ones, or the defaults when none are saved or the saved list is empty.

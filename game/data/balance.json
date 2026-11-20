@@ -27,6 +27,7 @@
   "bridge": {"cost": 8, "width": 60, "reach": 56, "longest": 360, "overhang": 18, "notice_seconds": 1.5, "look_every": 0.25, "tip_within": 170, "tip_seconds": 7, "tip_runs": 3},
   "felling": {"seconds": 3.0, "timber": 1, "shake_seconds": 0.25, "barbarian_rate": 0.2},
   "palisade": {"cost": 4, "stakes": 7, "ahead": 50, "gap": 14, "bow": 8, "radius": 6, "seconds": 40, "fade": 3, "notice_seconds": 1.5},
+  "wall": {"cost": 6, "stakes": 13, "behind": 30, "gap": 11, "bow": 10, "radius": 6, "seconds": 45, "hold": 15, "boss_batter": 3, "notice_seconds": 1.5},
   "guard_release": {"seconds": 4.0, "speed_mult": 1.4},
   "triumph": {"seconds": 3.5, "wave_speed": 520, "coin_speed": 700, "cheer": 9.0, "hop": 4},
   "chieftain_guard": {"count": 10, "radius": 48},
