@@ -610,7 +610,7 @@ func _pick_ordinary() -> String:
 
 ## A number from the run's difficulty block in balance.json (`easy` or `hard`), 1 on Medium.
 func level_mult(key: String) -> float:
-	return float(b.get(run_difficulty, {}).get(key, 1.0)) if run_difficulty in Sim.DIFFICULTIES and run_difficulty != "medium" else 1.0
+	return float(b.get(run_difficulty, {}).get(key, 1.0)) if run_difficulty in Sim.DIFFICULTIES else 1.0
 
 
 ## A number from this province's `difficulty` block in balance.json, 1 where it sets none.

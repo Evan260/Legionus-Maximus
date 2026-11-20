@@ -547,7 +547,7 @@ func test_a_crowd_never_throws_a_boss_faster_than_his_charge(b: Dictionary) -> v
 func test_hard_kills_pay_more_denarii_but_no_more_experience(b: Dictionary) -> void:
 	var medium := Sim.new(b, content, {"seed": 18})
 	var hard := Sim.new(b, content, {"seed": 18, "difficulty": "hard"})
-	medium.gain(200)
+	medium.gain(int(200 * float(b.medium.denarii_mult)))
 	hard.gain(int(200 * float(b.hard.denarii_mult)))
 	check(hard.denarii > medium.denarii, "Hard pays more denarii")
 	check(absi(hard.level - medium.level) == 0 and absi(hard.xp - medium.xp) <= 1, "but the same experience (%d/%d against %d/%d)" % [hard.level, hard.xp, medium.level, medium.xp])
@@ -1736,7 +1736,8 @@ func test_hard_mode_pays_more(b: Dictionary) -> void:
 	check(absf(hard.horde.e_hp[h] / medium.horde.e_hp[e] - float(b.hard.health_mult)) < 0.001, "enemies have more health")
 	check(absf(hard.horde.e_power[h] / medium.horde.e_power[e] - float(b.hard.get("damage_mult", 1.0))) < 0.001, "and hit as hard as its block says")
 	var ratio := _pay_ratio(medium, hard)
-	check(ratio > 1.3 and ratio < 1.7, "denarii pay about %.1f times as much (%.2f)" % [float(b.hard.denarii_mult), ratio])
+	var paid := float(b.hard.denarii_mult) / float(b.medium.get("denarii_mult", 1.0))
+	check(ratio > 1.2 and absf(ratio - paid) < 0.15, "denarii pay about %.2f times as much (%.2f)" % [paid, ratio])
 	check(_crowd_after(medium, hard, 10.0) > 1.2, "and they arrive faster")
 
 
@@ -1750,7 +1751,8 @@ func test_easy_mode_is_gentler_and_pays_less(b: Dictionary) -> void:
 	check(absf(easy.horde.e_hp[e] / medium.horde.e_hp[m] - float(cfg.health_mult)) < 0.001, "enemies have less health")
 	check(absf(easy.horde.e_power[e] / medium.horde.e_power[m] - float(cfg.get("damage_mult", 1.0))) < 0.001, "and hit as hard as its block says")
 	var ratio := _pay_ratio(medium, easy)
-	check(absf(ratio - float(cfg.denarii_mult)) < 0.15, "denarii pay about %.2f times as much (%.2f)" % [float(cfg.denarii_mult), ratio])
+	var paid := float(cfg.denarii_mult) / float(b.medium.get("denarii_mult", 1.0))
+	check(absf(ratio - paid) < 0.15, "denarii pay about %.2f times as much (%.2f)" % [paid, ratio])
 	check(_crowd_after(medium, easy, 10.0) < 0.9, "and fewer of them come")
 	var gaul_m := _mode_sim(b, {"seed": 123, "province": "gaul"})
 	var gaul_e := _mode_sim(b, {"seed": 123, "province": "gaul", "difficulty": "easy"})
@@ -3054,7 +3056,7 @@ func test_burning_the_grove_thins_the_stream(b: Dictionary) -> void:
 	s.b.spawn_per_second_start = 2.0
 	s.horde.spawn_acc = 0.0
 	s.horde._spawn(0.25, s)
-	var want := (2.0 + float(s.b.spawn_per_second_growth) * s.time) * 0.25 * float(cfg.calm_mult)
+	var want := (2.0 + float(s.b.spawn_per_second_growth) * s.time) * 0.25 * float(cfg.calm_mult) * s.horde.level_mult("spawn_mult")
 	check(is_equal_approx(s.horde.spawn_acc, want), "the horde's stream reads the thinning (%.3f of %.3f)" % [s.horde.spawn_acc, want])
 
 
