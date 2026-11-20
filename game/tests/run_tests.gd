@@ -1600,6 +1600,36 @@ func test_a_province_turns_on_with_its_ground_and_draws_it(b: Dictionary) -> voi
 	check(Content.ground_path("hibernia") == "res://assets/grounds/germania.png", "a province without a file falls back to Germania's ground")
 
 
+func test_the_crowd_round_the_legion_stops_growing_at_its_limit(b: Dictionary) -> void:
+	for level in ["easy", "medium", "hard"]:
+		var s := Sim.new(b, content, {"seed": 140, "difficulty": level})
+		s.commander.max_hp = 1e9
+		s.commander.hp = 1e9
+		var most := int(b.crowd[level])
+		var crowd := 0
+		for i in most:
+			s.horde.spawn("barbarian_club", s.commander.pos + Vector2.from_angle(i * 2.39996) * 150.0)
+		s.time = 400.0
+		s.horde.time = 400.0
+		s.horde.next_surge = 400.5
+		s.horde.next_band = 400.5
+		var before := s.horde.e_pos.size()
+		for f in 120:
+			s.update(1.0 / 60.0, Vector2.ZERO, false)
+			crowd = maxi(crowd, s.horde.crowd)
+		check(crowd <= most + 2, "on %s the crowd stays near %d (%d)" % [level, most, crowd])
+		check(s.horde.e_pos.size() <= before + 2, "on %s no surge or band is added to a full crowd (%d from %d)" % [level, s.horde.e_pos.size(), before])
+	var thin := Sim.new(b, content, {"seed": 141})
+	thin.commander.max_hp = 1e9
+	thin.commander.hp = 1e9
+	thin.time = 400.0
+	thin.horde.time = 400.0
+	var start := thin.horde.e_pos.size()
+	_step_dt(thin, 2.0)
+	check(thin.horde.e_pos.size() > start + 5, "a thin crowd still gets its stream (%d from %d)" % [thin.horde.e_pos.size(), start])
+	check(b.crowd.easy < b.crowd.medium and b.crowd.medium < b.crowd.hard, "the limit rises with the difficulty")
+
+
 func test_province_only_spawns_its_ready_enemies(b: Dictionary) -> void:
 	var s := Sim.new(b, content, {"seed": 100})
 	var ready_ids: Array = content.province_enemies("germania")

@@ -39,6 +39,7 @@
   "surge_size_start": 8,
   "surge_size_growth": 0.035,
   "max_enemies": 1100,
+  "crowd": {"easy": 80, "medium": 120, "hard": 200, "margin": 160, "ease_from": 0.5},
   "confirm_delay": 0.3,
   "bite_every": 0.8,
   "hurt_every": 0.4,

@@ -170,6 +170,8 @@ var ordinary: Array = []
 var elites: Array = []
 var chief_kind := ""
 var spawn_acc := 0.0
+## Ordinary enemies on the screen or just off it, counted at the start of each spawn step and raised by every newcomer.
+var crowd := 0
 var next_surge := 0.0
 var next_cart := 0.0
 var next_band := 0.0
@@ -486,6 +488,8 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 	e_push.append(Vector2.ZERO)
 	e_block.append(0.0)
 	e_tag.append(tag)
+	if tag == ORDINARY:
+		crowd += 1
 	var beh := k_beh[kind]
 	var wait := 0.0
 	if tag == CHIEF:
@@ -695,10 +699,11 @@ func update(dt: float, sim: Sim) -> void:
 
 
 func _spawn(dt: float, sim: Sim) -> void:
-	spawn_acc += (b.spawn_per_second_start + b.spawn_per_second_growth * time) * level_mult("spawn_mult") * sim.objectives.spawn_mult(time) * difficulty("spawn") * dt
+	crowd = _count_crowd()
+	spawn_acc += (b.spawn_per_second_start + b.spawn_per_second_growth * time) * level_mult("spawn_mult") * sim.objectives.spawn_mult(time) * difficulty("spawn") * crowd_ease() * dt
 	while spawn_acc >= 1.0:
 		spawn_acc -= 1.0
-		if e_pos.size() < int(b.max_enemies) and not ordinary.is_empty():
+		if not full() and not ordinary.is_empty():
 			spawn(_pick_ordinary(), ring_point())
 	if time >= next_band:
 		next_band += float(b.war_band.every)
@@ -710,7 +715,7 @@ func _spawn(dt: float, sim: Sim) -> void:
 		var side := rng.randf() * TAU
 		var n := int((b.surge_size_start + b.surge_size_growth * time) * difficulty("spawn"))
 		for i in n:
-			if e_pos.size() >= int(b.max_enemies) or ordinary.is_empty():
+			if full() or ordinary.is_empty():
 				break
 			var a := side + rng.randf_range(-0.6, 0.6)
 			var r: float = b.spawn_radius + rng.randf_range(0.0, 80.0)
@@ -725,6 +730,34 @@ func _spawn(dt: float, sim: Sim) -> void:
 		next_cart += float(b.cart.every)
 		if content.available.has("prop:supply_cart"):
 			spawn_cart()
+
+
+## How many ordinary enemies the run lets gather round the legion, from the `crowd` block in balance.json.
+func crowd_limit() -> int:
+	var cfg: Dictionary = b.get("crowd", {})
+	return int(cfg.get(run_difficulty, cfg.get("medium", 1 << 30)))
+
+
+## True when no more enemies may join: the field is at its total or the crowd round the legion is at its limit.
+func full() -> bool:
+	return e_pos.size() >= int(b.max_enemies) or crowd >= crowd_limit()
+
+
+## The share of the stream that still arrives: all of it until the crowd is half its limit, then less and less, none at the limit.
+func crowd_ease() -> float:
+	var most := float(crowd_limit())
+	var from := float(b.get("crowd", {}).get("ease_from", 0.5))
+	return clampf((most - crowd) / maxf(1.0, most * (1.0 - from)), 0.0, 1.0)
+
+
+func _count_crowd() -> int:
+	var half := view / 2.0 + Vector2.ONE * float(b.get("crowd", {}).get("margin", 160.0))
+	var n := 0
+	for i in e_pos.size():
+		var off: Vector2 = e_pos[i] - commander.pos
+		if e_tag[i] == ORDINARY and absf(off.x) <= half.x and absf(off.y) <= half.y:
+			n += 1
+	return n
 
 
 ## Once a second, weighs how much the legion marches against how much it kills, and sends hunters after one that runs.
@@ -783,7 +816,7 @@ func _hunt(sim: Sim, cfg: Dictionary, moved: Vector2) -> void:
 	var tough := 1.0 + float(cfg.tough) * maxf(0.0, pursuit - 1.0)
 	var fierce := 1.0 + float(cfg.fierce) * maxf(0.0, pursuit - 1.0)
 	for k in n:
-		if e_pos.size() >= int(b.max_enemies):
+		if full():
 			break
 		var wide := spread if k % 2 == 1 else float(cfg.spread_min)
 		var a := ahead + rng.randf_range(-wide, wide)
@@ -902,7 +935,7 @@ func war_band_at(sim: Sim, centre: Vector2, mult := 1.0) -> void:
 	var n := int((float(wb.size_start) + float(wb.size_growth) * time) * mult * difficulty("spawn"))
 	var turn := rng.randf() * TAU
 	for i in n:
-		if e_pos.size() >= int(b.max_enemies):
+		if full():
 			break
 		# The band stands in a loose spiral, `spread` apart, so it walks in as a crowd and never as one pile, and within reach of the legion so none is sent round again at once.
 		var at := beyond_screen(centre + Vector2.from_angle(turn + i * 2.39996) * float(wb.spread) * 0.55 * sqrt(i + 0.5))
@@ -1050,7 +1083,7 @@ func summon(ci: int, sim: Sim) -> void:
 	var n := int(cfg.fury_count) if chief_fury else int(cfg.count)
 	var side := rng.randf() * TAU
 	for k in n:
-		if e_pos.size() >= int(b.max_enemies):
+		if full():
 			break
 		var a := side + rng.randf_range(-0.5, 0.5)
 		spawn(kind, open_point(commander.pos + Vector2(cos(a) * 1.15, sin(a) * 0.75) * float(b.spawn_radius)))
@@ -1625,7 +1658,7 @@ func _form_wedge(i: int, st: Dictionary, cfg: Dictionary) -> void:
 	var gap := float(cfg.spacing)
 	st.wedge = []
 	for k in int(cfg.riders):
-		if e_pos.size() >= int(b.max_enemies):
+		if full():
 			break
 		var row := k / 2 + 1
 		var off := Vector2(-row * gap, row * gap * 0.8 * (1.0 if k % 2 == 0 else -1.0))
@@ -1685,7 +1718,7 @@ func start_storm(ci: int, sim: Sim) -> void:
 	var n := int(cfg.riders)
 	var turn := rng.randf() * TAU
 	for k in n:
-		if e_pos.size() >= int(b.max_enemies):
+		if full():
 			break
 		var a := turn + TAU * k / n
 		var j := spawn(kind, open_point(commander.pos + Vector2(cos(a) * 1.15, sin(a) * 0.75) * float(cfg.ring) * 1.6))
@@ -1761,7 +1794,7 @@ func _send_train(cfg: Dictionary) -> void:
 	var at := open_point(commander.pos + Vector2(cos(side) * 1.15, sin(side) * 0.75) * float(b.spawn_radius))
 	var n := int(cfg.train)
 	for k in n:
-		if e_pos.size() >= int(b.max_enemies):
+		if full():
 			break
 		var j := spawn(kind, at + Vector2.from_angle(side).orthogonal() * (k - (n - 1) / 2.0) * 22.0)
 		arrow_storm.train.append(e_id[j])
@@ -2523,7 +2556,7 @@ func _set_down(i: int, sim: Sim) -> void:
 	var at := e_pos[i]
 	var n := int(cfg.count)
 	for k in n:
-		if e_pos.size() >= int(b.max_enemies):
+		if full():
 			break
 		spawn(kind, at + side * (k - (n - 1) / 2.0) * 16.0 - e_dir[i] * 10.0)
 	sim.effects.append({"kind": "shout", "pos": at, "t": 0.0, "radius": 24.0})
