@@ -351,7 +351,17 @@ func _health(sim: Sim) -> void:
 
 
 ## The name of this province's last enemy (the war chief, a king, the shah or the queen), as the HUD calls him.
-func chief_name(sim: Sim) -> String:
+## The places the edge badges point to: the objectives and the fort, and the chieftain while he lives, as
+## [kind, position, name, unit], the last two set only for the chieftain.
+static func targets_of(sim: Sim) -> Array:
+	var out: Array = sim.objectives.targets()
+	var ci := sim.chieftain_index()
+	if ci >= 0:
+		out.append(["chieftain", sim.horde.e_pos[ci], chief_name(sim).to_upper(), sim.horde.kind_ids[sim.horde.e_kind[ci]]])
+	return out
+
+
+static func chief_name(sim: Sim) -> String:
 	var kind: String = sim.horde.chief_kind if sim.horde.chief_kind != "" else "chieftain"
 	return str(sim.content.enemies[kind].name)
 
@@ -518,8 +528,11 @@ static func arrow_layout(targets: Array, cpos: Vector2, view: Vector2, top: floa
 	# The badges go down first, so the labels written after them step round every badge.
 	for t in targets:
 		var off: Vector2 = t[1] - cpos
+		var extra := {"title": str(t[2]) if t.size() > 2 else "", "unit": str(t[3]) if t.size() > 3 else ""}
 		if Rect2(Vector2.ZERO, view).grow(-EDGE).has_point(view / 2.0 + off):
-			out.append({"kind": t[0], "off": off, "on_screen": true, "badge": Rect2(), "foot": view / 2.0 + off - Vector2(0, LABEL_RISE.get(t[0], 50.0))})
+			# The chieftain on screen needs no label, since his health bar under the clock names him.
+			if t[0] != "chieftain":
+				out.append({"kind": t[0], "off": off, "on_screen": true, "badge": Rect2(), "foot": view / 2.0 + off - Vector2(0, LABEL_RISE.get(t[0], 50.0))}.merged(extra))
 			continue
 		# The badge and its point stay below the top bar and above the bridge hint and the rest of the bottom row.
 		var room := badge_room(Rect2(0, top, view.x, view.y - top - low), off.normalized())
@@ -534,9 +547,9 @@ static func arrow_layout(targets: Array, cpos: Vector2, view: Vector2, top: floa
 		var dir := off.normalized()
 		var tip_at := c + dir * (radius + tip_length() * 0.7)
 		placed.append(Rect2(tip_at, Vector2.ZERO).grow(radius * 0.5))
-		out.append({"kind": t[0], "off": off, "on_screen": false, "centre": c, "dir": dir, "badge": box, "along": along})
+		out.append({"kind": t[0], "off": off, "on_screen": false, "centre": c, "dir": dir, "badge": box, "along": along}.merged(extra))
 	for l in out:
-		var name := TranslationServer.translate(_name_key(l.kind)).to_upper()
+		var name: String = l.title if l.title != "" else TranslationServer.translate(_name_key(l.kind)).to_upper()
 		var dist := "" if l.on_screen else TranslationServer.translate("%d m") % int(l.off.length() / metre)
 		if l.on_screen:
 			var nw := Ui.width_at(name, Ui.px)
@@ -662,7 +675,7 @@ func _objective_arrows(sim: Sim, avoid: Array) -> void:
 		spot = Rect2((view.x - nw) / 2.0, minf(view.y * 0.7 - Ui.px, view.y - bottom_band(view) - h - 2.0), nw, h)
 		# The notice keeps its place under the legion and the badges and labels step round it.
 		avoid = avoid + [spot]
-	var laid := arrow_layout(sim.objectives.targets(), sim.commander.pos, view, top, float(sim.b.objectives.metre_px), avoid)
+	var laid := arrow_layout(targets_of(sim), sim.commander.pos, view, top, float(sim.b.objectives.metre_px), avoid)
 	var atlas: Atlas = main.world.atlas
 	var radius := badge_radius()
 	# The point pulses so it catches the eye at the edge of a busy screen.
@@ -680,7 +693,7 @@ func _objective_arrows(sim: Sim, avoid: Array) -> void:
 		if r.size.x == 0.0:
 			continue
 		draw_rect(r.grow(2.0), Color(0.08, 0.05, 0.04, 0.55))
-		text(l.name, Vector2(r.position.x, r.position.y + Ui.px), GOLD_LIGHT if l.kind != "fort" else CREAM, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
+		text(l.name, Vector2(r.position.x, r.position.y + Ui.px), GOLD_LIGHT if l.kind != "fort" and l.kind != "chieftain" else CREAM, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
 		text(l.dist, Vector2(r.position.x, r.position.y + Ui.px + Ui.leading()), CREAM, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
 
 
@@ -688,7 +701,7 @@ func _objective_arrows(sim: Sim, avoid: Array) -> void:
 func _badge(l: Dictionary, atlas: Atlas, radius: float, reach: float, now: float) -> void:
 	var c: Vector2 = l.centre
 	var dir: Vector2 = l.dir
-	var fort: bool = l.kind == "fort"
+	var fort: bool = l.kind == "fort" or l.kind == "chieftain"
 	var rim := Color(0.86, 0.22, 0.16) if fort else GOLD
 	var bright := Color(1.0, 0.55, 0.42) if fort else Color(1.0, 0.95, 0.62)
 	var side := dir.orthogonal()
@@ -711,6 +724,15 @@ func _badge(l: Dictionary, atlas: Atlas, radius: float, reach: float, now: float
 	draw_circle(c, radius - 2.0, INK)
 	draw_circle(c, radius - 3.0, Color(0.2, 0.14, 0.1))
 	draw_circle(c, radius - 7.0, Color(0.26, 0.19, 0.13))
+	var unit: String = l.get("unit", "")
+	if atlas != null and unit != "" and atlas.units.has(unit):
+		# The chieftain's badge carries the man himself, facing out of the disc.
+		var uf: Rect2 = atlas.unit_frame(unit, "idle" if atlas.units[unit].has("idle") else "move", "south", 0.0)[0]
+		var room := (radius - 3.0) * 2.0
+		var uk := minf(room / uf.size.x, room / uf.size.y)
+		var usize := (uf.size * uk).round()
+		draw_texture_rect_region(atlas.texture, Rect2((c - usize / 2.0).round(), usize), uf)
+		return
 	var key: String = BADGE_ICON.get(l.kind, "")
 	if atlas != null and atlas.props.has(key):
 		var f: Rect2 = atlas.prop_frame(key)[0]

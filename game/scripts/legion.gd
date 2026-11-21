@@ -257,6 +257,9 @@ func _column(places: Array, sim: Sim) -> Array:
 				continue
 		if not lane.both_ways and way < 0.0:
 			continue
+		# Outside the gate the legion files in only while heading for it, close by, so fighting along the wall keeps its formation.
+		if not lane.both_ways and along < 0.0 and (facing.dot(lane.dir) < float(_l.bridge_aim) or -along > maxf(front, 0.0) + float(_l.bridge_approach)):
+			continue
 		var order := _row_major(places)
 		var out: Array = []
 		out.resize(soldiers.size())

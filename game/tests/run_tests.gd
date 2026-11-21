@@ -5107,6 +5107,48 @@ func test_the_legion_files_for_a_bridge_only_when_heading_onto_it(b: Dictionary)
 	check(not s.legion._column(places, s).is_empty(), "just across, the men still on the deck keep filing over")
 
 
+func test_the_legion_files_for_the_fort_gate_only_when_heading_in(b: Dictionary) -> void:
+	var s := _fort_sim(b, 1507)
+	while s.soldiers.size() < 30:
+		s.legion.add(["legionary", "archer"][s.soldiers.size() % 2])
+	var fort: Dictionary = s.objectives.fort
+	var gate: Vector2 = fort.pos
+	var places: Array = s.legion.formation()
+	var front := 0.0
+	for p in places:
+		front = maxf(front, p.x)
+	var cases := [
+		["fighting along the wall below the gate", gate + Vector2(0, 60), 0.0, false],
+		["fighting with his back to the gate", gate + Vector2(0, 60), PI / 2.0, false],
+		["heading for the gate from far off", gate + Vector2(0, front + 300.0), -PI / 2.0, false],
+		["heading for the gate close by", gate + Vector2(0, front + 20.0), -PI / 2.0, true]]
+	for c in cases:
+		s.commander.pos = c[1]
+		s.facing_angle = c[2]
+		var filed := not s.legion._column(places, s).is_empty()
+		check(filed == c[3], "%s: %s" % [c[0], "files into a column" if filed else "keeps its formation"])
+
+
+func test_the_hud_points_to_the_chieftain_off_screen(b: Dictionary) -> void:
+	var s := Sim.new(b, content, {"seed": 1508})
+	s.time = float(b.chieftain_at) - 0.01
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	var ci := s.chieftain_index()
+	check(ci >= 0, "the chieftain has come")
+	s.horde.e_pos[ci] = s.commander.pos + Vector2(1500, 300)
+	var targets := Hud.targets_of(s)
+	var chief: Array = targets.filter(func(t: Array) -> bool: return t[0] == "chieftain")
+	check(chief.size() == 1 and chief[0][1] == s.horde.e_pos[ci], "the HUD points to him")
+	var view := Vector2(640, 360)
+	var laid := Hud.arrow_layout(chief, s.commander.pos, view, 40.0)
+	check(laid.size() == 1 and not laid[0].on_screen and laid[0].name == Hud.chief_name(s).to_upper(), "with a badge at the edge under his own name (%s)" % (laid[0].name if not laid.is_empty() else "none"))
+	s.horde.e_pos[ci] = s.commander.pos + Vector2(60, 0)
+	check(Hud.arrow_layout(Hud.targets_of(s).filter(func(t: Array) -> bool: return t[0] == "chieftain"), s.commander.pos, view, 40.0).is_empty(), "and no label when he is on screen, where his bar names him")
+	s.hit(s.chieftain_index(), 1e9)
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(not Hud.targets_of(s).any(func(t: Array) -> bool: return t[0] == "chieftain"), "once he falls the badge goes")
+
+
 func test_barbarians_cross_a_bridge(b: Dictionary) -> void:
 	var s := _quiet_sim(b, 1504)
 	_gorge(s, -1400, 1400, 100, 50)

@@ -27,7 +27,7 @@ extends Node
 ##   --give=ID,ID:RANK  start the run with these arms or drills at the rank (default 1), or that many of a recruit, for looking at them
 ##   --timber=N         with --autoplay, start the run carrying that much timber
 ##   --men=N            with --autoplay, start the run with N soldiers, legionaries and archers
-##   --boss=ID          with --autoplay, bring that elite or the chieftain beside the legion; --boss-act=whirl|shield|band|mend|curse|blink|rage|roar,
+##   --boss=ID          with --autoplay, bring that elite or the chieftain beside the legion; --boss-act=far (stunned, off screen, for the edge badge)|whirl|shield|band|mend|curse|blink|rage|roar,
 ##                      fall (with --go-to=ravine) stands him at the lip for the legion to shove in,
 ##                      duel|rally|blast|flee for the Gaulish elites and siege|summon for the Gaulish king, onrush|blizzard for the Dacian elites and
 ##                      sweep|rockfall|leap for the Dacian king, wedge|trample for the Parthian elites and storm|elephants for the shah,
@@ -157,8 +157,12 @@ func _bring_boss(kind: String, act: String) -> void:
 		return
 	var h := sim.horde
 	var at: Vector2 = sim.commander.pos + (Vector2(130, 50) if act in ["curse", "blizzard", "skyfire"] else (Vector2(30, 25) if act in ["whirl", "sweep"] else (Vector2(160, 60) if act == "leap" else (Vector2(200, 40) if act in ["wedge", "trample", "scythe", "drive"] else Vector2(60, 50)))))
+	if act == "far":
+		at = sim.commander.pos + Vector2(700, -160)
 	if kind == h.chief_kind:
 		var ci := h.spawn_chieftain(at)
+		if act == "far":
+			h.e_stun[ci] = 1e9
 		if act == "roar":
 			h.e_hp[ci] = h.e_max[ci] * 0.5 + 1.0
 		elif act == "siege" or act == "summon":
