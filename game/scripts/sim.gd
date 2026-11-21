@@ -934,16 +934,13 @@ func _kill(i: int) -> void:
 	if horde.e_tag[i] == Horde.ELITE:
 		horde.drop_chest(at)
 	if horde.e_id[i] == horde.chieftain_id:
-		# His death wins only once the fort has been on screen; before that the legion still has to hold the fort.
-		if objectives.fort_seen():
-			if not victory:
-				win(horde.e_pos[i])
-		else:
-			objectives.notice = {"kind": "chieftain", "at": time}
+		# His death opens the fort, and holding it wins the run.
+		if not victory:
+			objectives.notice = {"kind": "chieftain", "at": time, "seconds": 6.0}
 	horde.remove_at(i)
 
 
-## The chieftain's death, or holding the fort once he has fallen, wins the run; an endless run keeps going and counts the win once.
+## Holding the fort once the chieftain has fallen wins the run; an endless run keeps going and counts the win once.
 func win(pos: Vector2) -> void:
 	victory = true
 	event("victory", pos)

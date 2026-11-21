@@ -12,7 +12,7 @@
     "notice_seconds": 3.5,
     "camp": {"wake": 250, "huts": 6, "hut_ring": 72, "hut_radius": 14, "touch": 16, "leader": {"germania": "war_band_leader", "gaul": "champion", "dacia": "falx_band", "parthia": "cataphract_charge", "britannia": "chariot_charge"}, "burn_seconds": 4},
     "column": {"wake": 300, "guards": 4, "guard_ring": 24, "reach": 40, "band_from": 160},
-    "grove": {"ring": 96, "oak_step": 22, "trees": {"dacia": "pine", "parthia": "palm"}, "centre": {"parthia": "well"}, "stones": {"britannia": {"ring": 116, "step": 60, "lift": [2, 20]}}, "gaps": 3, "gap_width": 0.6, "inside": 80, "hold": 5.0, "band_every": 2.5, "band_from": 230, "calm_seconds": 60, "calm_mult": 0.5, "burn_seconds": 10, "tip_within": 300, "tip_seconds": 10}
+    "grove": {"ring": 96, "oak_step": 22, "trees": {"dacia": "pine", "parthia": "palm"}, "centre": {"parthia": "well"}, "stones": {"britannia": {"ring": 116, "step": 60, "lift": [2, 20], "radius": 9}}, "gaps": 3, "gap_width": 0.6, "inside": 80, "hold": 5.0, "band_every": 2.5, "band_from": 230, "calm_seconds": 60, "calm_mult": 0.5, "burn_seconds": 10, "tip_within": 300, "tip_seconds": 10}
   },
   "fort": {"near": 900, "far": 1200, "arc": 0.9, "clearing": 200, "half": 90, "room_margin": 16, "hold": 4.0, "inside_margin": 8, "seen_within": [290, 150], "tries": 16, "tower_x": 34, "tower_radius": 12, "stake_gap": 12, "stake_radius": 6},
   "terrain_clear_radius": 200,

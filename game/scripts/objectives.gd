@@ -85,12 +85,13 @@ func add(sim: Sim, kind: String, pos: Vector2) -> Dictionary:
 				if open:
 					continue
 				var at := pos + Vector2.from_angle(a) * ring
-				# The ring is scenery that the legion walks through, since a legion standing at the altar is wider than the ring.
+				# A ring of trees is scenery that the legion walks through, since a legion standing at the altar is wider than the ring.
 				if stones.is_empty():
 					pieces.append([tree, at, 0.0])
 					o.oaks.append(at)
 				else:
-					pieces.append(["stone_circle", at + Vector2(float(stones.lift[0]), float(stones.lift[1])), 0.0])
+					# Standing stones are far apart and tall, so they are solid: the men walk between them rather than through them.
+					pieces.append(["stone_circle", at + Vector2(float(stones.lift[0]), float(stones.lift[1])), float(stones.get("radius", 0.0))])
 	sim.terrain.add_clearing(pos, float(cfg.clearing), pieces)
 	list.append(o)
 	return o

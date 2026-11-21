@@ -3102,31 +3102,6 @@
       "ru": "Повозка с припасами: все монеты летят к вам",
       "uk": "Віз із припасами: усі монети летять до вас"
     },
-    "Survive %d minutes, then kill the chieftain.": {
-      "fr": "Survivez %d minutes, puis tuez le chef.",
-      "it": "Sopravvivi %d minuti, poi uccidi il capo.",
-      "pl": "Przetrwaj %d minut, potem zabij wodza.",
-      "tr": "%d dakika hayatta kalın, sonra reisi öldürün.",
-      "ru": "Выживите %d минут, затем убейте вождя.",
-      "uk": "Виживіть %d хвилин, потім убийте вождя.",
-      "ko": "%d분을 버틴 뒤 족장을 죽이세요.",
-      "zh_CN": "撑 %d 分钟，然后杀掉酋长。"
-    },
-    "A Roman fort is in sight: slay the %s to win": {
-      "fr": "Un fort romain est en vue : abattez %s pour gagner",
-      "de": "Ein römisches Fort ist in Sicht: Besiegt %s, um zu siegen",
-      "es": "Un fuerte romano a la vista: abate a %s para ganar",
-      "it": "Un forte romano è in vista: abbatti %s per vincere",
-      "pt_BR": "Um forte romano à vista: derrote %s para vencer",
-      "pl": "Rzymski fort w zasięgu wzroku: pokonaj %s, by wygrać",
-      "tr": "Bir Roma kalesi göründü: kazanmak için %s düşmeli",
-      "ru": "Римская крепость в виду: победа, когда %s падёт",
-      "uk": "Римську фортецю видно: перемога, щойно %s впаде",
-      "ja": "ローマの砦が見えた: %sを倒せば勝利だ",
-      "ko": "로마 요새가 보인다: %s 쓰러뜨리면 승리",
-      "zh_CN": "罗马堡垒就在眼前：击倒%s即可获胜",
-      "zh_TW": "羅馬堡壘就在眼前：擊倒%s即可獲勝"
-    },
     "The fort is yours once the %s falls": {
       "fr": "Le fort sera à vous quand %s tombera",
       "de": "Das Fort gehört euch, sobald %s fällt",
@@ -3174,6 +3149,29 @@
       "ru": "testudo: на 80% меньше урона, останавливает натиск боссов",
       "uk": "testudo: на 80% менше шкоди, зупиняє натиск босів",
       "ja": "testudo:被ダメージ80%減、ボスの突進を止める"
+    },
+    "A Roman fort is in sight: slay the %s, then hold it": {
+      "fr": "Un fort romain est en vue : abattez %s, puis tenez-le",
+      "de": "Ein römisches Fort ist in Sicht: Besiegt %s, dann haltet es",
+      "es": "Un fuerte romano a la vista: abate a %s y luego mantenlo",
+      "it": "Un forte romano è in vista: abbatti %s, poi tienilo",
+      "pt_BR": "Um forte romano à vista: derrote %s e depois defenda-o",
+      "pl": "Rzymski fort w zasięgu wzroku: pokonaj %s, a potem go utrzymaj",
+      "tr": "Bir Roma kalesi göründü: önce %s düşmeli, sonra kaleyi tut",
+      "ru": "Римская крепость в виду: когда %s падёт, удержите её",
+      "uk": "Римську фортецю видно: щойно %s впаде, утримайте її",
+      "ko": "로마 요새가 보인다: %s 쓰러뜨린 뒤 요새를 지켜라"
+    },
+    "Survive %d minutes, kill the chieftain, then hold the fort.": {
+      "es": "Sobrevive %d minutos, mata al caudillo y luego defiende el fuerte.",
+      "it": "Sopravvivi %d minuti, uccidi il capo, poi tieni la fortezza.",
+      "pt_BR": "Sobreviva %d minutos, mate o chefe e depois defenda o forte.",
+      "pl": "Przetrwaj %d minut, zabij wodza, a potem utrzymaj fort.",
+      "tr": "%d dakika hayatta kalın, reisi öldürün, sonra kaleyi tutun.",
+      "ru": "Выживите %d минут, убейте вождя, затем удержите крепость.",
+      "uk": "Виживіть %d хвилин, убийте вождя, потім утримайте фортецю.",
+      "ko": "%d분을 버틴 뒤 족장을 죽이고 요새를 지키세요.",
+      "zh_CN": "撑 %d 分钟，杀掉酋长，然后守住堡垒。"
     }
   }
 }

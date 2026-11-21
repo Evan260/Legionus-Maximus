@@ -494,7 +494,7 @@ static func notice_line(kind: String, sim: Sim) -> String:
 		"fort_barred":
 			return TranslationServer.translate("The fort is yours once the %s falls") % chief_name(sim)
 	if sim.chieftain_index() >= 0:
-		return TranslationServer.translate("A Roman fort is in sight: slay the %s to win") % chief_name(sim)
+		return TranslationServer.translate("A Roman fort is in sight: slay the %s, then hold it") % chief_name(sim)
 	return TranslationServer.translate("A Roman fort is in sight: hold it")
 
 ## The sprite drawn inside each target's badge.

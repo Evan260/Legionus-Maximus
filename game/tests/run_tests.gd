@@ -527,17 +527,31 @@ func test_lorica_raises_health(b: Dictionary) -> void:
 	check(s.soldiers[-1].max_hp > float(content.recruits.legionary.hp), "new recruits arrive with it")
 
 
-func test_the_chieftain_comes_and_his_death_wins(b: Dictionary) -> void:
+## Kills the chieftain, then stands the commander in the fort until it is held.
+func _kill_chief_and_hold(s: Sim, b: Dictionary) -> void:
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	s.hit(s.chieftain_index(), 1e9)
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	s.commander.pos = s.objectives.fort.centre
+	_step_dt(s, float(b.fort.hold) + 0.2)
+
+
+func test_the_chieftain_comes_and_holding_the_fort_after_his_death_wins(b: Dictionary) -> void:
 	var s := Sim.new(b, content, {"seed": 13})
 	s.time = float(b.chieftain_at) - 0.01
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
 	var ci := s.chieftain_index()
 	check(ci >= 0, "the chieftain arrived")
-	s.objectives.fort.seen = true
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
 	s.hit(ci, 1e9)
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
-	_step_dt(s, float(b.triumph.most_seconds) + 0.1)
-	check(s.over and s.victory, "once the fort has been seen, his death ends the run in victory, after its triumph")
+	_step_dt(s, 1.0)
+	check(not s.victory and s.objectives.notice.get("kind", "") == "chieftain", "his death alone does not win, and a notice sends the legion to the fort")
+	s.commander.pos = s.objectives.fort.centre
+	_step_dt(s, float(b.fort.hold) + 0.2 + float(b.triumph.most_seconds))
+	check(s.over and s.victory, "holding the fort then ends the run in victory, after its triumph")
 
 
 func test_the_chieftain_killed_by_the_triumph_does_not_win_again(b: Dictionary) -> void:
@@ -1801,10 +1815,8 @@ func test_endless_keeps_going_after_the_chieftain(b: Dictionary) -> void:
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
 	var ci := s.chieftain_index()
 	check(ci >= 0, "the chieftain arrived")
-	s.objectives.fort.seen = true
-	s.hit(ci, 1e9)
-	s.update(1.0 / 60.0, Vector2.ZERO, false)
-	check(not s.over and s.victory, "his death does not end an endless run but wins it")
+	_kill_chief_and_hold(s, b)
+	check(not s.over and s.victory, "his death and the fort held do not end an endless run but win it")
 	_step_dt(s, float(b.triumph.most_seconds) + 0.1)
 	s.commander.hp = 0.0
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
@@ -1828,11 +1840,9 @@ func test_endless_keeps_going_after_the_chieftain(b: Dictionary) -> void:
 	var normal := _mode_sim(b, {"seed": 111})
 	normal.time = float(b.chieftain_at) - 0.01
 	normal.update(1.0 / 60.0, Vector2.ZERO, false)
-	normal.objectives.fort.seen = true
-	normal.hit(normal.chieftain_index(), 1e9)
-	normal.update(1.0 / 60.0, Vector2.ZERO, false)
+	_kill_chief_and_hold(normal, b)
 	_step_dt(normal, float(b.triumph.most_seconds) + 0.1)
-	check(normal.over and normal.victory, "a normal run still ends with the chieftain")
+	check(normal.over and normal.victory, "a normal run still ends with the chieftain and the fort")
 
 
 func test_decimatio_takes_one_in_ten(b: Dictionary) -> void:
@@ -3168,6 +3178,26 @@ func test_the_grove_is_ringed_with_its_provinces_own_props(b: Dictionary) -> voi
 		check(kinds.has(want) and (want == "oak" or not kinds.has("oak")), "the grove in %s is ringed with %s (%s)" % [province, want, kinds.keys()])
 
 
+func test_the_legion_walks_between_the_standing_stones_not_through_them(b: Dictionary) -> void:
+	var s := _britannia_sim(b, 157)
+	s.objectives.list.clear()
+	var circle: Dictionary = s.objectives.add(s, "grove", Vector2(0, 400))
+	var stones: Array = s.terrain.extras.filter(func(pr: Array) -> bool: return pr[0] == "stone_circle" and pr[1].distance_to(circle.pos) < 200.0)
+	check(not stones.is_empty() and stones.all(func(pr: Array) -> bool: return pr[2] > 0.0), "every standing stone is solid")
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	var inside := false
+	var through := false
+	for k in 12 * 60:
+		s.update(1.0 / 60.0, (circle.pos - s.commander.pos).normalized() if s.commander.pos.distance_to(circle.pos) > 8.0 else Vector2.ZERO, false)
+		inside = inside or s.commander.pos.distance_to(circle.pos) < float(b.objectives.grove.inside)
+		for u in s.units:
+			for pr in stones:
+				through = through or u.pos.distance_to(pr[1]) < float(pr[2])
+	check(inside, "the commander still marches into the middle of the circle")
+	check(not through, "and no man stands inside a stone")
+
+
 func test_the_desert_grove_is_a_well_that_does_not_burn(b: Dictionary) -> void:
 	var s := Sim.new(b, Content.with_all_art(), {"seed": 156, "province": "parthia"})
 	s.objectives.list.clear()
@@ -3294,8 +3324,8 @@ func test_the_fort_appears_with_the_chieftain_and_holding_it_wins(b: Dictionary)
 	_step_dt(s, float(cfg.hold) + 0.2)
 	check(not s.victory, "holding the fort while the chieftain lives does not win")
 	s.hit(s.chieftain_index(), 1e9)
-	_step_dt(s, float(b.triumph.most_seconds) + 0.2)
-	check(s.over and s.victory, "his death wins the run")
+	_step_dt(s, float(cfg.hold) + float(b.triumph.most_seconds) + 0.5)
+	check(s.over and s.victory, "once he is dead, holding the fort wins the run")
 	var e := _mode_sim(b, {"seed": 157, "endless": true})
 	e.objectives.list.clear()
 	e.time = float(b.chieftain_at) - 0.01
@@ -3303,13 +3333,11 @@ func test_the_fort_appears_with_the_chieftain_and_holding_it_wins(b: Dictionary)
 	e.commander.max_hp = 1e9
 	e.commander.hp = 1e9
 	e.commander.pos = e.objectives.fort.centre
-	e.objectives.fort.seen = true
-	e.hit(e.chieftain_index(), 1e9)
-	e.update(1.0 / 60.0, Vector2.ZERO, false)
-	check(not e.over and e.victory and e.endless_since >= 0.0, "in an endless run his death wins and the march goes on")
+	_kill_chief_and_hold(e, b)
+	check(not e.over and e.victory and e.endless_since >= 0.0, "in an endless run holding the fort after his death wins and the march goes on")
 	var since := e.endless_since
 	_step_dt(e, float(cfg.hold) + 0.2)
-	check(e.endless_since == since and not e.over, "and holding the fort after it keeps the endless clock")
+	check(e.endless_since == since and not e.over, "and staying in the fort keeps the endless clock")
 
 
 func test_the_hud_points_to_objectives_off_screen(b: Dictionary) -> void:
@@ -3823,8 +3851,8 @@ func test_the_fort_cannot_be_held_while_the_chieftain_lives(b: Dictionary) -> vo
 	check(not s.victory, "standing in the fort while the chieftain lives does not win")
 	check(s.objectives.notice.get("kind", "") == "fort_barred", "and a notice says he must fall first")
 	s.hit(s.chieftain_index(), 1e9)
-	s.update(1.0 / 60.0, Vector2.ZERO, false)
-	check(s.victory, "once he falls the run is won")
+	_step_dt(s, hold + 0.2)
+	check(s.victory, "once he falls, holding the fort wins the run")
 
 
 func test_horses_follow_the_legion_into_the_fort(b: Dictionary) -> void:

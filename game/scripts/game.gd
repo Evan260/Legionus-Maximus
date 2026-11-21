@@ -58,7 +58,7 @@ static func confirm_allowed(state: String, opened_at: float, now: float, balance
 static func goal_text(balance: Dictionary) -> String:
 	if is_demo():
 		return TranslationServer.translate("Survive %d minutes.") % int(float(balance.demo.seconds) / 60.0)
-	return TranslationServer.translate("Survive %d minutes, then kill the chieftain.") % int(float(balance.chieftain_at) / 60.0)
+	return TranslationServer.translate("Survive %d minutes, kill the chieftain, then hold the fort.") % int(float(balance.chieftain_at) / 60.0)
 
 
 ## Whether the run counts as under way: on the field, at a choice, paused, or in the settings opened from the pause.
