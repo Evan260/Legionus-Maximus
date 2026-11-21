@@ -48,6 +48,7 @@ var _train_marks := PackedVector2Array()
 # The ground and the wheat fields are drawn by two layers behind this node, so the wheat can have a shader of its own that frays its edges.
 var _floor := Node2D.new()
 var _wheat := Node2D.new()
+var _wheat_tile: Texture2D
 
 
 func _ready() -> void:
@@ -347,17 +348,15 @@ func _draw_fields() -> void:
 			shapes.append(_field_shape(f, fields))
 	_wheat.material.set_shader_parameter("fields", shapes)
 	_wheat.material.set_shader_parameter("count", shapes.size())
-	var src: Rect2 = atlas.prop_frame("wheat_field")[0]
-	var tw := src.size.x
-	var th := src.size.y
+	if _wheat_tile == null:
+		# The tile has a texture of its own so it repeats across a whole field in one piece, with no seams where atlas pieces would meet.
+		var src: Rect2 = atlas.prop_frame("wheat_field")[0]
+		_wheat_tile = ImageTexture.create_from_image(atlas.texture.get_image().get_region(Rect2i(src)))
 	for f in fields:
 		var area: Rect2 = f.grow(FIELD_FRAY).intersection(view)
-		for tx in range(floori(area.position.x / tw), floori((area.end.x - 0.01) / tw) + 1):
-			for ty in range(floori(area.position.y / th), floori((area.end.y - 0.01) / th) + 1):
-				var tile := Rect2(tx * tw, ty * th, tw, th).intersection(area)
-				if tile.size.x <= 0.0 or tile.size.y <= 0.0:
-					continue
-				_wheat.draw_texture_rect_region(atlas.texture, tile, Rect2(src.position + tile.position - Vector2(tx * tw, ty * th), tile.size))
+		if area.size.x > 0.0 and area.size.y > 0.0:
+			# The texture repeats from world (0, 0), so neighbouring fields share their rows.
+			_wheat.draw_texture_rect_region(_wheat_tile, area, area)
 
 
 ## A field as the shader's x, y, width, height, pushed into any field whose side it lies along, so the seam of an L-shaped field gets no edge.
