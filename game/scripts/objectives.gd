@@ -90,17 +90,12 @@ func add(sim: Sim, kind: String, pos: Vector2) -> Dictionary:
 				if open:
 					continue
 				var at := pos + Vector2.from_angle(a) * ring
-				# A ring of trees is scenery that the legion walks through, since a legion standing at the altar is wider than the ring.
+				# A ring of trees or standing stones is scenery that the legion walks through, since a legion standing at the altar is wider than the ring.
 				if stones.is_empty():
 					pieces.append([tree, at, 0.0])
 					o.oaks.append(at)
 				else:
-					# Each picture is a cluster of standing stones; every stone in it is solid, as on the open moor, so the men walk round a cluster and never stand among its stones.
-					var foot := at + Vector2(float(stones.lift[0]), float(stones.lift[1]))
-					pieces.append(["stone_circle", foot, 0.0])
-					var moor: Dictionary = sim.b.get("moors", {}).get(sim.province, {})
-					for off in moor.get("circle_stones", []):
-						pieces.append(["", foot + Vector2(float(off[0]), float(off[1])), float(moor.stone_radius)])
+					pieces.append(["stone_circle", at + Vector2(float(stones.lift[0]), float(stones.lift[1])), 0.0])
 	sim.terrain.add_clearing(pos, float(cfg.clearing), pieces)
 	list.append(o)
 	return o

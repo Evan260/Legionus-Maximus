@@ -3511,61 +3511,49 @@ func test_the_grove_is_ringed_with_its_provinces_own_props(b: Dictionary) -> voi
 		check(kinds.has(want) and (want == "oak" or not kinds.has("oak")), "the grove in %s is ringed with %s (%s)" % [province, want, kinds.keys()])
 
 
-func test_the_legion_walks_between_the_standing_stones_not_through_them(b: Dictionary) -> void:
+func test_the_legion_walks_through_the_groves_standing_stones(b: Dictionary) -> void:
 	var s := _britannia_sim(b, 157)
 	s.objectives.list.clear()
 	var circle: Dictionary = s.objectives.add(s, "grove", Vector2(0, 400))
 	var pictures: Array = s.terrain.extras.filter(func(pr: Array) -> bool: return pr[0] == "stone_circle" and pr[1].distance_to(circle.pos) < 200.0)
 	var stones: Array = s.terrain.extras.filter(func(pr: Array) -> bool: return pr[0] == "" and pr[2] > 0.0 and pr[1].distance_to(circle.pos) < 200.0)
-	check(not pictures.is_empty() and pictures.all(func(pic: Array) -> bool: return stones.filter(func(pr: Array) -> bool: return pr[1].distance_to(pic[1]) < 45.0).size() >= 5), "every cluster of standing stones is solid")
+	check(not pictures.is_empty() and stones.is_empty(), "the grove's standing stones are scenery with nothing solid under them (%d blockers)" % stones.size())
 	s.commander.hp = 1e9
 	s.commander.max_hp = 1e9
 	var inside := false
-	var through := false
 	for k in 12 * 60:
 		s.update(1.0 / 60.0, (circle.pos - s.commander.pos).normalized() if s.commander.pos.distance_to(circle.pos) > 8.0 else Vector2.ZERO, false)
 		inside = inside or s.commander.pos.distance_to(circle.pos) < float(b.objectives.grove.inside)
-		for u in s.units:
-			for pr in stones:
-				through = through or u.pos.distance_to(pr[1]) < float(pr[2])
-	check(inside, "the commander still marches into the middle of the circle")
-	check(not through, "and no man stands inside a stone")
+	check(inside, "the commander marches into the middle of the circle")
 
 
-func test_nobody_stands_inside_a_cluster_of_standing_stones(b: Dictionary) -> void:
+func test_nobody_stands_inside_a_cluster_of_standing_stones_on_the_moor(b: Dictionary) -> void:
 	var cfg: Dictionary = b.moors.britannia
 	var stones: Array = cfg.circle_stones
 	var mid := Vector2.ZERO
 	for off in stones:
 		mid += Vector2(float(off[0]), float(off[1]))
 	mid /= stones.size()
-	for place in ["moor", "grove"]:
-		var s := _britannia_sim(b, 158)
-		s.objectives.list.clear()
-		var anchor := Vector2(0, -200)
-		if place == "moor":
-			var group: Array = [["stone_circle", anchor, 0.0]]
-			for off in stones:
-				group.append(["", anchor + Vector2(float(off[0]), float(off[1])), float(cfg.stone_radius)])
-			s.terrain.add_clearing(anchor, 1.0, group)
-		else:
-			var grove: Dictionary = s.objectives.add(s, "grove", Vector2(0, -320))
-			var ring: Array = s.terrain.extras.filter(func(pr: Array) -> bool: return pr[0] == "stone_circle")
-			ring.sort_custom(func(p: Array, q: Array) -> bool: return p[1].distance_to(s.commander.pos) < q[1].distance_to(s.commander.pos))
-			anchor = ring[0][1]
-		s.terrain.refresh(s.commander.pos)
-		while s.soldiers.size() < 20:
-			s.legion.add(["cavalry", "legionary"][s.soldiers.size() % 2])
-		s.legion.place_all(s.facing_angle)
-		var centre: Vector2 = anchor + mid
-		var inside := 0
-		for k in 10 * 60:
-			var to: Vector2 = centre - s.commander.pos
-			s.update(1.0 / 60.0, to.normalized() if to.length() > 4.0 else Vector2.ZERO, false)
-			for u in s.units:
-				if u.pos.distance_to(centre) < 20.0:
-					inside += 1
-		check(inside == 0, "marching at a cluster of standing stones (%s), no man ever stands inside it (%d times)" % [place, inside])
+	var s := _britannia_sim(b, 158)
+	s.objectives.list.clear()
+	var anchor := Vector2(0, -200)
+	var group: Array = [["stone_circle", anchor, 0.0]]
+	for off in stones:
+		group.append(["", anchor + Vector2(float(off[0]), float(off[1])), float(cfg.stone_radius)])
+	s.terrain.add_clearing(anchor, 1.0, group)
+	s.terrain.refresh(s.commander.pos)
+	while s.soldiers.size() < 20:
+		s.legion.add(["cavalry", "legionary"][s.soldiers.size() % 2])
+	s.legion.place_all(s.facing_angle)
+	var centre: Vector2 = anchor + mid
+	var inside := 0
+	for k in 10 * 60:
+		var to: Vector2 = centre - s.commander.pos
+		s.update(1.0 / 60.0, to.normalized() if to.length() > 4.0 else Vector2.ZERO, false)
+		for u in s.units:
+			if u.pos.distance_to(centre) < 20.0:
+				inside += 1
+	check(inside == 0, "marching at a cluster of standing stones on the moor, no man ever stands inside it (%d times)" % inside)
 
 
 func test_the_desert_grove_is_a_well_that_does_not_burn(b: Dictionary) -> void:
