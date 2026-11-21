@@ -3514,6 +3514,45 @@ func test_a_wall_goes_behind_the_army_not_behind_a_straggler(b: Dictionary) -> v
 	check(deepest >= rear - float(cfg.behind) - 0.5, "the wall stands behind the main army's rear (%.0f px back, rear %.0f)" % [deepest, rear])
 
 
+func test_a_charging_boss_is_stopped_by_a_wall(b: Dictionary) -> void:
+	for kind in ["gaul_king", "falx_band"]:
+		var s := _gaul_sim(b, 1660, "gaul" if kind == "gaul_king" else "dacia")
+		s.horde.cleave_cd = 1e9
+		s.horde.summon_cd = 1e9
+		s.horde.siege_cd = 1e9
+		for t in ["sweep_cd", "rockfall_cd", "leap_cd", "salvo_cd"]:
+			s.horde.set(t, 1e9)
+		s.commander.pos = Vector2.ZERO
+		s.legion.place_all(s.facing_angle)
+		s._rebuild_grids()
+		var wall_x := -s.legion_reach - (6.0 if kind == "gaul_king" else 40.0)
+		var cfg: Dictionary = b.wall
+		for k in 21:
+			s.terrain.add_post(Vector2(wall_x, -110.0 + k * float(cfg.gap)), float(cfg.radius), 1e9, "wall")
+		s.terrain.refresh(s.commander.pos)
+		var r := float(content.enemies[kind].radius)
+		var i := s.horde.spawn_chieftain(Vector2(wall_x - r - 7.0, 0)) if kind == "gaul_king" else s.horde.spawn(kind, Vector2(wall_x - r - 120.0, 0), true)
+		var id: int = s.horde.e_id[i]
+		if kind == "gaul_king":
+			s.horde.charge_cd = 0.0
+		else:
+			var st: Dictionary = s.horde.boss_state(i)
+			for key in st:
+				if str(key).ends_with("_cd"):
+					st[key] = 1e9
+			st.onrush_cd = 0.0
+		var through := false
+		var charged := false
+		for k in 4 * 60:
+			s.update(1.0 / 60.0, Vector2.ZERO, false)
+			charged = charged or s.horde.charging or (kind != "gaul_king" and float(s.horde.boss_state(s.horde.e_id.find(id)).get("rush_left", 0.0)) > 0.0)
+			var j := s.horde.e_id.find(id)
+			if j >= 0:
+				through = through or s.horde.e_pos[j].x > wall_x
+		check(charged, "the %s charges at the legion beyond the wall" % kind)
+		check(not through, "the %s's charge stops at a wall and never comes out the other side" % kind)
+
+
 func test_barbarians_slowly_break_through_a_wall(b: Dictionary) -> void:
 	var s := _quiet_sim(b, 308)
 	_field(s, [])

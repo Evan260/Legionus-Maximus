@@ -1255,7 +1255,14 @@ func _drive_on(ci: int, dt: float, sim: Sim) -> void:
 		k += 1
 	var seg := maxf(lens[k] - lens[k - 1], 0.001)
 	var kind := e_kind[ci]
-	var at := sim.terrain.push_out_wide(pts[k - 1].lerp(pts[k], clampf((dist - lens[k - 1]) / seg, 0.0, 1.0)), k_radius[kind])
+	var path := pts[k - 1].lerp(pts[k], clampf((dist - lens[k - 1]) / seg, 0.0, 1.0))
+	var at := sim.terrain.push_out_wide(path, k_radius[kind])
+	# A wall, tree or rock that pushes her back against her path ends the drive where she stands, since the steps beyond would come out on its far side.
+	if (at - path).dot(pts[k] - pts[k - 1]) < -0.5:
+		drive = {}
+		chief_hold = 0.0
+		e_pos[ci] = sim.terrain.push_out_wide(e_pos[ci], k_radius[kind])
+		return
 	hold_pos = at
 	e_pos[ci] = at
 	e_face[ci] = (pts[k] - pts[k - 1]).normalized()
@@ -1557,7 +1564,12 @@ func _onrush(i: int, st: Dictionary, cfg: Dictionary, timer: String, dt: float, 
 	if st.rush_left > 0.0:
 		st.rush_left = maxf(0.0, st.rush_left - dt)
 		var k: float = 1.0 - st.rush_left / float(cfg.seconds)
-		var at: Vector2 = sim.terrain.push_out_wide(st.rush_from + st.rush_dir * float(cfg.length) * k, k_radius[e_kind[i]])
+		var lane: Vector2 = st.rush_from + st.rush_dir * float(cfg.length) * k
+		var at: Vector2 = sim.terrain.push_out_wide(lane, k_radius[e_kind[i]])
+		# A wall, tree or rock that pushes the lane back against the charge ends it where it stands, since the steps beyond would come out on its far side.
+		if (at - lane).dot(st.rush_dir) < -0.5:
+			st.rush_left = 0.0
+			at = sim.terrain.push_out_wide(p, k_radius[e_kind[i]])
 		_hold_boss(st, at, st.rush_left)
 		e_pos[i] = at
 		e_face[i] = st.rush_dir
@@ -2954,7 +2966,6 @@ func near(p: Vector2, r: float) -> Array:
 	return out
 
 
-## Takes enemy i out by moving the last one into its place, array by array.
 ## Takes away the barbarians who gave up the chase this update. They wait until the legion has fought, since the soldiers
 ## find their targets through the grid built at the start of the update and removing anyone earlier would shift its places.
 func drop_gave_up() -> void:
@@ -2968,6 +2979,7 @@ func drop_gave_up() -> void:
 	_gave_up.clear()
 
 
+## Takes enemy i out by moving the last one into its place, array by array.
 func remove_at(i: int) -> void:
 	if e_id[i] == chieftain_id:
 		chief_dead = true
