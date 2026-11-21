@@ -7893,6 +7893,7 @@ func test_a_win_ends_in_a_triumph(b: Dictionary) -> void:
 			far_id = s.horde.e_id[i]
 	var start: Vector2 = s.commander.pos
 	var steps := 0
+	var clear_at := -1
 	while not s.over and steps < 600:
 		s.update(1.0 / 60.0, Vector2.RIGHT, false)
 		steps += 1
@@ -7900,8 +7901,11 @@ func test_a_win_ends_in_a_triumph(b: Dictionary) -> void:
 			near_gone_at = steps
 		if far_gone_at < 0.0 and not s.horde.e_id.has(far_id):
 			far_gone_at = steps
+		if clear_at < 0 and s.horde.e_pos.is_empty() and s.c_pos.is_empty():
+			clear_at = steps
 	check(s.over and s.victory, "then the run ends in victory")
-	check(absf(steps / 60.0 - float(cfg.seconds)) < 0.1, "after about %.1f s (%.2f)" % [float(cfg.seconds), steps / 60.0])
+	var ends_by := maxf(float(cfg.seconds), clear_at / 60.0 + float(cfg.linger))
+	check(steps / 60.0 >= float(cfg.seconds) - 0.02 and steps / 60.0 <= ends_by + 0.1, "no sooner than %.1f s and no later than %.1f s after the field is clear (%.2f)" % [float(cfg.seconds), float(cfg.linger), steps / 60.0])
 	check(s.horde.e_pos.is_empty(), "every barbarian on the field dies")
 	check(near_gone_at > 0.0 and far_gone_at > near_gone_at, "in a wave from the commander outwards (%d then %d)" % [near_gone_at, far_gone_at])
 	check(s.c_pos.is_empty() and s.denarii >= money + 60, "every coin flies to the commander and is counted (%d)" % (s.denarii - money))

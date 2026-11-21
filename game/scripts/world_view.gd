@@ -209,7 +209,7 @@ func _draw() -> void:
 		draw_texture(shadow, _snap(u.pos - Vector2(8, 3)))
 		var hop := Vector2.ZERO
 		if cheering and not u.moving:
-			hop.y = -absf(sin(sim.triumph_t * float(sim.b.triumph.cheer) + float(u.anim))) * float(sim.b.triumph.hop)
+			hop.y = -sin(PI * _cheer_phase(u) / float(sim.b.triumph.cheer_cycle)) * float(sim.b.triumph.hop)
 		_add(u.pos.y, f[0], u.pos - f[1] + hop, mod, true)
 
 	if _kinds_of != sim:
@@ -392,9 +392,14 @@ func _draw_triumph_wave() -> void:
 
 
 ## A soldier cheering the win: he turns to the front and swings his weapon or raises his shield again and again, each in his own time.
+## How far each man is through his cheer, in seconds from 0 to `triumph.cheer_cycle`, a little out of step with his neighbours.
+func _cheer_phase(u: Dictionary) -> float:
+	return fmod(sim.triumph_t + float(u.anim) * 0.37, float(sim.b.triumph.cheer_cycle))
+
+
 func _cheer_frame(u: Dictionary) -> Array:
-	var period := Atlas.ATTACK_FRAMES / Atlas.ATTACK_FPS * 1.6
-	var f := atlas.attack_frame(u.type, "south", fmod(sim.triumph_t + float(u.anim) * 0.37, period))
+	# The swing plays slower than a blow, so the raised weapons read as a cheer and not a twitch.
+	var f := atlas.attack_frame(u.type, "south", _cheer_phase(u) * float(sim.b.triumph.cheer_swing))
 	if not f.is_empty():
 		return f
 	return atlas.unit_frame(u.type, "idle", "south", 0.0)
