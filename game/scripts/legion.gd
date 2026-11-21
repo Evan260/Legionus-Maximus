@@ -33,8 +33,8 @@ const GATE_DEPTH := 30.0
 # The commander and soldiers below full health this update, in roll order, gathered for the medici; only they can be the worst hurt.
 var _hurt: Array = []
 var _hurt_ready := false
-## The bridge whose deck the commander last stood on, so the men behind him keep filing over it after he steps off; -1 for none.
-var _crossing := -1
+## The middle of the bridge whose deck the commander last stood on, so the men behind him keep filing over it after he steps off; INF for none.
+var _crossing := Vector2.INF
 
 
 func _init(balance: Dictionary, game_content: Content, random: RandomNumberGenerator, ranks: Dictionary) -> void:
@@ -245,7 +245,7 @@ func _column(places: Array, sim: Sim) -> Array:
 		var ahead: bool = absf(along) <= lane.half_len + lead if lane.both_ways else along >= -lead and along <= lane.half_len
 		if not ahead or absf(off.dot(side)) > lane.side:
 			if lane.has("bridge") and _crossing == lane.bridge:
-				_crossing = -1
+				_crossing = Vector2.INF
 			continue
 		var way := 1.0 if facing.dot(lane.dir) >= 0.0 else -1.0
 		if lane.has("bridge"):
@@ -285,7 +285,7 @@ func _lanes(sim: Sim) -> Array:
 	for i in sim.terrain.bridges.size():
 		var br: Dictionary = sim.terrain.bridges[i]
 		out.append({"pos": br.pos, "dir": br.dir, "half_len": br.half_len, "half_w": br.half_w, "side": br.half_w + float(_l.bridge_side),
-			"lead": float(_l.bridge_lead), "both_ways": true, "bridge": i})
+			"lead": float(_l.bridge_lead), "both_ways": true, "bridge": br.pos})
 	var fort: Dictionary = sim.objectives.fort
 	if not fort.is_empty() and not sim.objectives.fort_reached:
 		out.append({"pos": fort.pos, "dir": Vector2.UP, "half_len": float(fort.half), "half_w": float(fort.gate_half), "side": float(fort.half),

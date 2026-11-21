@@ -333,7 +333,10 @@ var _hit_at := -1e9
 ## The commander's health in a big bar along the bottom of the screen, with the numbers on it.
 func _health(sim: Sim) -> void:
 	var c: Dictionary = sim.commander
-	if c.hp < _last_hp:
+	# A clock behind the last blow is a new run's, so the last run's blow does not flash the bar.
+	if sim.time < _hit_at:
+		_hit_at = -1e9
+	elif c.hp < _last_hp:
 		_hit_at = sim.time
 	_last_hp = c.hp
 	var since := sim.time - _hit_at

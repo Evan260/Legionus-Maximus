@@ -8748,3 +8748,75 @@ func test_achillas_opens_the_sluices_across_the_legions_path(b: Dictionary) -> v
 		h._sluice_on(1.0 / 60.0, s)
 		t += 1.0 / 60.0
 	check(h.flood.is_empty(), "and the water drains after %.0f seconds" % float(cfg.seconds))
+
+
+func test_a_stunned_or_fallen_general_calls_off_what_he_was_warning_of(b: Dictionary) -> void:
+	for fate in ["stun", "death"]:
+		var s := _aegyptus_sim(b, 2005)
+		var h := s.horde
+		h.spawn_chieftain(Vector2(-250, 0))
+		h.cleave_cd = 1e9
+		h.sluice_cd = 0.0
+		h._chieftain(1.0 / 60.0, s)
+		var ci := h.chieftain_index()
+		if fate == "stun":
+			h.e_stun[ci] = 3.0
+			h._chieftain(1.0 / 60.0, s)
+		else:
+			h.drive = {"t": 0.0, "warn": 1.0}
+			h.sweep = {"t": 0.0}
+			s.hit(ci, 1e9)
+			s._remove_dead()
+		check(h.flood.is_empty(), "a %s calls off the flood he marked" % fate)
+		if fate == "death":
+			check(h.drive.is_empty() and h.sweep.is_empty(), "and no marked path or sweep outlives him")
+		var v := _hispania_sim(b, 1992)
+		var vh := v.horde
+		vh.spawn_chieftain(Vector2(250, 0))
+		vh.cleave_cd = 1e9
+		vh.ambush_cd = 0.0
+		vh._chieftain(1.0 / 60.0, v)
+		var vi := vh.chieftain_index()
+		if fate == "stun":
+			vh.e_stun[vi] = 3.0
+			vh._chieftain(1.0 / 60.0, v)
+		else:
+			v.hit(vi, 1e9)
+			v._remove_dead()
+		check(vh.ambush_wait <= 0.0, "a %s calls off the ambush he warned of" % fate)
+
+
+func test_a_win_stands_when_the_commander_falls_in_the_same_moment(b: Dictionary) -> void:
+	var s := _fort_sim(b, 405)
+	s.commander.pos = s.objectives.fort.centre
+	s.objectives.fort.hold = float(b.fort.hold) - 0.001
+	s.commander.hp = 0.0
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.objectives.fort_reached and s.victory, "the fort held in the commander's last moment still wins the run")
+
+
+func test_rations_do_not_raise_a_fallen_commander(b: Dictionary) -> void:
+	var s := Sim.new(b, content, {"seed": 406})
+	s.ranks["rations"] = 3
+	s.commander.hp = -0.01
+	s._regen(1.0 / 60.0)
+	check(s.commander.hp <= 0.0, "rations do not heal a commander who has fallen")
+
+
+func test_sprites_far_north_keep_their_depth_order(b: Dictionary) -> void:
+	var view: GDScript = load("res://scripts/world_view.gd")
+	var cam := -150000.0
+	var ground: int = view.depth_key(cam - 60000.0, cam, 3)
+	var man: int = view.depth_key(cam + 10.0, cam, 1)
+	var behind: int = view.depth_key(cam - 10.0, cam, 2)
+	check(ground >= 0 and behind >= 0 and man >= 0, "depth keys far north stay positive")
+	check(ground < behind and behind < man, "and keep the ground under the men, and the further man behind the nearer")
+	check(ground % 65536 == 3 and man % 65536 == 1, "and each key still names its sprite")
+
+
+func test_a_boss_shoved_into_a_canal_falls_into_the_water(b: Dictionary) -> void:
+	var s := _aegyptus_sim(b, 2006)
+	var i := s.horde.spawn("camel_captain", Vector2(100, 0), true)
+	s._fall(i, Vector2(100, 0), Vector2(90, 0))
+	var into: Vector2 = s.effects[-1].into
+	check(into.length() <= float(b.canals.aegyptus.width[0]) * 0.5, "he sinks within the canal, not on its far bank (%.0f px)" % into.length())

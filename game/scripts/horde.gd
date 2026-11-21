@@ -264,8 +264,8 @@ var elite_ids: Array = []
 ## The elites that came on the boss timer, as opposed to an objective's defenders.
 var timed_ids: Array = []
 var chief_dead := false
-# How many rockfalls have come down, so each soldier is struck by one rock of a fall at most.
-var rock_volleys := 0
+# How many rockfalls and marked volleys have come down, so each soldier is struck once by each at most.
+var volley_ids := 0
 # The ids of the barbarians who gave up the chase this update, taken away once the legion has fought.
 var _gave_up: Array = []
 ## The run's difficulty: "easy", "medium" or "hard".
@@ -991,7 +991,7 @@ func _chieftain(dt: float, sim: Sim) -> void:
 		_roar(ci, sim)
 	_place_wall(ci)
 	if e_stun[ci] > 0.0:
-		# A stun holds his timers and calls off a charge, sweep or leap he was warning of or running.
+		# A stun holds his timers and calls off a charge, sweep, leap, ambush or flood he was warning of or running.
 		charge_warn = 0.0
 		charging = false
 		chief_hold = 0.0
@@ -1001,6 +1001,8 @@ func _chieftain(dt: float, sim: Sim) -> void:
 		drive = {}
 		feint = {}
 		e_flee[ci] = 0.0
+		ambush_wait = 0.0
+		_drop_unopened_flood()
 		return
 	var rate := float(fury.rate_mult) if chief_fury else 1.0
 	cleave_cd -= dt * rate
@@ -1194,12 +1196,12 @@ func start_sweep(ci: int, sim: Sim) -> bool:
 func rockfall(ci: int, sim: Sim) -> void:
 	var cfg: Dictionary = content.enemies[kind_ids[e_kind[ci]]].attacks.rockfall
 	var n := int(cfg.fury_count) if chief_fury else int(cfg.count)
-	rock_volleys += 1
+	volley_ids += 1
 	for k in n:
 		var at: Vector2 = commander.pos
 		if k > 0:
 			at += Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(float(cfg.radius), float(cfg.spread) + sim.legion_reach * 0.5)
-		foe_lobs.append({"from": at, "to": at, "t": 0.0, "dur": float(cfg.delay) + 0.12 * k, "radius": float(cfg.radius), "dmg": float(cfg.damage), "slam": true, "rock": true, "volley_id": rock_volleys})
+		foe_lobs.append({"from": at, "to": at, "t": 0.0, "dur": float(cfg.delay) + 0.12 * k, "radius": float(cfg.radius), "dmg": float(cfg.damage), "slam": true, "rock": true, "volley_id": volley_ids})
 	e_strike[ci] = time
 	sim.event("bellow", e_pos[ci])
 
@@ -1427,6 +1429,12 @@ func open_sluices(ci: int, sim: Sim) -> void:
 	e_strike[ci] = time
 	sim.objectives.notice = {"kind": "sluice", "at": time}
 	sim.event("carnyx", e_pos[ci])
+
+
+## A band still only marked is called off with the general who marked it; water already flowing drains in its own time.
+func _drop_unopened_flood() -> void:
+	if not flood.is_empty() and not flood.open:
+		flood = {}
 
 
 ## Whether p stands in the band the general floods.
@@ -2003,12 +2011,13 @@ func _arrow_storm(dt: float, sim: Sim) -> void:
 	st.next = float(cfg.volley_every)
 	st.quiver -= 1
 	var zones := mini(int(cfg.zones), (riders.size() + 1) / 2)
+	volley_ids += 1
 	for k in zones:
 		var from := e_pos[e_id.find(riders[rng.randi_range(0, riders.size() - 1)])]
 		var at: Vector2 = commander.pos
 		if k > 0:
 			at += Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(float(cfg.radius), float(cfg.spread) + sim.legion_reach * 0.5)
-		foe_lobs.append({"from": from, "to": at, "t": 0.0, "dur": float(cfg.delay), "radius": float(cfg.radius), "dmg": float(cfg.damage), "volley": true})
+		foe_lobs.append({"from": from, "to": at, "t": 0.0, "dur": float(cfg.delay), "radius": float(cfg.radius), "dmg": float(cfg.damage), "volley": true, "volley_id": volley_ids})
 	sim.event("arrow", commander.pos)
 
 
@@ -2274,7 +2283,7 @@ func _foe_lobs(dt: float, sim: Sim) -> void:
 			continue
 		for u in sim.units:
 			if (u.pos - l.to).length() < l.radius + Sim.UNIT_RADIUS:
-				# The rocks of one fall overlap, so each soldier is struck by only one of them.
+				# The rings of one fall or volley overlap, so each soldier is struck by only one of them.
 				if l.has("volley_id"):
 					if u.get("rocked", -1) == l.volley_id:
 						continue
@@ -3202,6 +3211,15 @@ func remove_at(i: int) -> void:
 		chief_dead = true
 		e_guard.fill(Vector2.ZERO)
 		guards_alive = 0
+		# What he was warning of or running dies with him, so no marked path, ambush or flood outlives him.
+		charge_warn = 0.0
+		charging = false
+		sweep = {}
+		leap = {}
+		drive = {}
+		feint = {}
+		ambush_wait = 0.0
+		_drop_unopened_flood()
 	elif e_guard[i] != Vector2.ZERO:
 		guards_alive -= 1
 	if e_tag[i] == ELITE:

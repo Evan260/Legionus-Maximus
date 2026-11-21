@@ -349,8 +349,8 @@ func update(dt: float, move: Vector2, testudo_pressed: bool) -> void:
 	_flush_events()
 	if commander.hp <= 0.0:
 		over = true
-		# A chieftain already slain in an endless run keeps the win.
-		victory = endless_since >= 0.0
+		# A run already won, or a chieftain already slain in an endless run, keeps the win.
+		victory = victory or endless_since >= 0.0
 	elif not over and demo_seconds > 0.0 and time >= demo_seconds:
 		over = true
 		victory = true
@@ -658,7 +658,8 @@ func _fall(i: int, at: Vector2, lip: Vector2) -> void:
 	plunge(i, lip)
 	var before := kills
 	_kill(i)
-	effects[-1].into = (at - lip).normalized() * float(b.ravines.width[0]) * 0.5
+	var widths: Array = terrain.canal.width if not terrain.canal.is_empty() else b.ravines.width
+	effects[-1].into = (at - lip).normalized() * float(widths[0]) * 0.5
 	legion.veterans(kills - before, self)
 
 
@@ -1148,7 +1149,7 @@ func _regen(dt: float) -> void:
 	var own := bonus_amount("regeneration")
 	if r <= 0.0 and own <= 0.0:
 		return
-	if r > 0.0:
+	if r > 0.0 and commander.hp > 0.0:
 		commander.hp = minf(commander.max_hp, commander.hp + r * dt)
 	for u in soldiers:
 		u.hp = minf(u.max_hp, u.hp + (r + own) * dt)

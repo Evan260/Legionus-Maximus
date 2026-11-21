@@ -110,8 +110,13 @@ func _process(dt: float) -> void:
 		_wheat.queue_redraw()
 
 
+## A sprite's place in the drawing order, from its depth measured from the camera so the key stays positive however far the legion marches.
+static func depth_key(y: float, cam_y: float, index: int) -> int:
+	return (int(y - cam_y) + 100000) * 65536 + index
+
+
 func _add(y: float, rect: Rect2, dest: Vector2, mod: Color, moving := false, size := Vector2.ZERO) -> void:
-	_keys.append((int(y) + 100000) * 65536 + _rects.size())
+	_keys.append(depth_key(y, _cam.y, _rects.size()))
 	_rects.append(rect)
 	_dests.append(_snap(dest) if moving else dest.round())
 	_mods.append(mod)

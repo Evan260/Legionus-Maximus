@@ -50,7 +50,8 @@ func tick(_dt: float) -> void:
 	var age: float = main.clock - main.opened_at
 	if not revealing() or age < COUNT_FROM or age > COUNT_TO:
 		return
-	if age - _ticked >= 0.09:
+	# A new reveal starts its count again, so the clinks do too.
+	if age - _ticked >= 0.09 or age < _ticked:
 		_ticked = age
 		Audio.play("tally")
 
