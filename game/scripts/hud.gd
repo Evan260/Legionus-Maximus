@@ -466,6 +466,10 @@ func _notice_text(kind: String, sim: Sim) -> String:
 			return tr("The %s roars in fury") % chief_name(sim)
 		"ravine":
 			return tr("Fell trees for timber, then bridge the ravine at its edge")
+		"fort_barred":
+			return tr("The fort is yours once the %s falls") % chief_name(sim)
+	if sim.chieftain_index() >= 0:
+		return tr("A Roman fort is in sight: slay the %s to win") % chief_name(sim)
 	return tr("A Roman fort is in sight: hold it")
 
 

@@ -109,9 +109,9 @@ func _ready() -> void:
 	_load_run_setup()
 	_new_sim()
 	ui.focus = "march"
-	if args.get("screen", "") == "summary":
+	if args.get("screen", "") in ["summary", "victory"]:
 		_sample_profile()
-		_summary_shot()
+		_summary_shot(args.screen == "victory")
 	elif args.has("screen") and screens.has(args.screen):
 		_sample_profile()
 		_enter_camp()
@@ -370,8 +370,15 @@ func _go_to_ravine(bridge: bool, at_end := false) -> void:
 
 
 ## Runs an autoplay to its end and shows the summary, for a screenshot.
-func _summary_shot() -> void:
+## Plays a run to its end for a look at the summary; with `won`, the run is won at once and the summary opens on the victory reveal.
+func _summary_shot(won := false) -> void:
 	_start()
+	if won:
+		for i in 60 * 30:
+			sim.update(1.0 / 30.0, Vector2(cos(sim.time * 0.3), sin(sim.time * 0.3)), false)
+			while sim.pending_levels > 0:
+				Upgrades.apply(sim, Upgrades.offers(sim)[0])
+		sim.win(sim.commander.pos)
 	while not sim.over:
 		sim.update(1.0 / 30.0, Vector2(cos(sim.time * 0.3), sin(sim.time * 0.3)), false)
 		while sim.pending_levels > 0:
@@ -499,6 +506,11 @@ func _finish_run() -> void:
 	ui.focus = "camp"
 	Profile.record_run(sim)
 	Steamworks.check(sim, true)
+	if sim.victory and not sim.demo_over:
+		Audio.play("laurels")
+		var next := Game.next_province(content, balance, sim.province)
+		if next != "":
+			screens.map.activate("prov:" + next)
 
 
 func _start() -> void:
@@ -625,6 +637,11 @@ func _screen_input(dt: float) -> void:
 	if state == "camp":
 		for u in [camp_sim.commander] + camp_sim.soldiers:
 			u.anim += dt * 6.0
+	if state == "over" and screens.over.revealing():
+		screens.over.tick(dt)
+		if (Input.is_action_just_pressed("confirm") or Input.is_action_just_pressed("back")) and Game.confirm_allowed(state, opened_at, clock, balance):
+			screens.over.skip()
+		return
 	if Input.is_action_just_pressed("back") or (state == "pause" and Input.is_action_just_pressed("pause")):
 		_back()
 		return
@@ -656,8 +673,10 @@ func _back() -> void:
 	match state:
 		"title":
 			pass
-		"camp", "over":
+		"camp":
 			go_to_title()
+		"over":
+			go_to_camp()
 		"pause":
 			screens.pause.confirming = false
 			state = "play"
@@ -751,6 +770,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event is InputEventMouseMotion:
 			ui.hover(at)
 		elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			if state == "over" and screens.over.revealing():
+				if Game.confirm_allowed(state, opened_at, clock, balance):
+					screens.over.skip()
+				return
 			var id := ui.at(at)
 			if id != "":
 				ui.focus = id

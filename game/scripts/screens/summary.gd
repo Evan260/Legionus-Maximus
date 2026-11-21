@@ -5,12 +5,54 @@ extends RefCounted
 const BARS := 8
 ## Seconds between one unlock appearing and the next.
 const UNLOCK_STEP := 0.35
+## Seconds the victory reveal plays before the summary panel, and when its denarii count starts and ends.
+const REVEAL := 5.0
+const COUNT_FROM := 1.2
+const COUNT_TO := 3.0
+## How many coins rain down the victory reveal.
+const RAIN := 46
 
 var main: Node
+var _ticked := 0.0
 
 
 func _init(owner_node: Node) -> void:
 	main = owner_node
+
+
+## Whether a run ended in a victory that earns the reveal before the panel; the demo's time limit does not.
+static func reveals(sim: Sim) -> bool:
+	return sim.victory and not sim.demo_over
+
+
+## Seconds since the summary opened, less the reveal for a victory, so the panel's own animations start when it shows.
+func panel_age() -> float:
+	var age: float = main.clock - main.opened_at
+	return age - REVEAL if reveals(main.sim) else age
+
+
+func revealing() -> bool:
+	return reveals(main.sim) and main.clock - main.opened_at < REVEAL
+
+
+## Jumps from the reveal to the panel.
+func skip() -> void:
+	main.opened_at = main.clock - REVEAL
+
+
+## The denarii the reveal's count shows `age` seconds in, rising from none to the run's total.
+static func counted(total: int, age: float) -> int:
+	return int(round(total * clampf((age - COUNT_FROM) / (COUNT_TO - COUNT_FROM), 0.0, 1.0)))
+
+
+## Clinks a coin now and then while the reveal's count rises.
+func tick(_dt: float) -> void:
+	var age: float = main.clock - main.opened_at
+	if not revealing() or age < COUNT_FROM or age > COUNT_TO:
+		return
+	if age - _ticked >= 0.09:
+		_ticked = age
+		Audio.play("tally")
 
 
 func activate(id: String) -> void:
@@ -108,6 +150,9 @@ static func wide_button_width() -> float:
 func draw(c: CanvasItem, ui: Ui) -> void:
 	var sim: Sim = main.sim
 	var s := Ui.scale
+	if revealing():
+		_reveal(c, ui, sim, main.clock - main.opened_at)
+		return
 	var title := tr("Victory").to_upper() if sim.victory else tr("The commander has fallen").to_upper()
 	var modes: Array = []
 	if sim.difficulty != "medium":
@@ -154,6 +199,86 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 		ui.button(c, Rect2(r.end.x - 12.0 - 2.0 * bw - 16.0 - wide, r.end.y - h - 6.0, wide, h), "wishlist", tr("Wishlist").to_upper(), "", true, null, true)
 
 
+## The victory reveal over the darkened field: gold rays turning behind a great VICTORY between laurels, coins raining,
+## the denarii won counting up, and the province the legion marches to next.
+func _reveal(c: CanvasItem, ui: Ui, sim: Sim, age: float) -> void:
+	var view: Vector2 = Ui.view
+	var centre := Vector2(view.x / 2.0, view.y * 0.36)
+	c.draw_rect(Rect2(Vector2.ZERO, view), Color(0.05, 0.03, 0.02, 0.8 * clampf(age * 2.0, 0.0, 1.0)))
+	var glow := clampf(age * 1.5, 0.0, 1.0)
+	var tip := view.length() * 0.55
+	for k in 18:
+		var a0 := age * 0.2 + TAU * k / 18.0
+		var core := Color(Ui.GOLD_LIGHT, 0.22 * glow)
+		var edge := Color(Ui.GOLD, 0.0)
+		c.draw_polygon(PackedVector2Array([centre, centre + Vector2.from_angle(a0) * tip, centre + Vector2.from_angle(a0 + 0.12) * tip]),
+			PackedColorArray([core, edge, edge]))
+	_rain(c, view, age)
+	# The word lands large and settles, with a flash of light as it does.
+	var land := clampf(age / 0.5, 0.0, 1.0)
+	var word := tr("Victory").to_upper()
+	# The word and a laurel either side keep within the screen, whatever the text size and language.
+	var settled := float(Ui.px * 6)
+	settled = minf(settled, settled * (view.x - 24.0) / (Ui.width_at(word, int(settled)) + 3.25 * settled))
+	var size := int(settled * (1.0 + 1.2 * pow(1.0 - land, 2.0)))
+	var w := Ui.font().get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	if age > 0.4 and age < 0.9:
+		c.draw_rect(Rect2(Vector2.ZERO, view), Color(1.0, 0.92, 0.6, 0.35 * (1.0 - (age - 0.4) / 0.5)))
+	var y := centre.y + size * 0.35
+	c.draw_string(Ui.font(), Vector2(5, y + 5), word, HORIZONTAL_ALIGNMENT_CENTER, view.x, size, Color(Ui.INK, land))
+	c.draw_string(Ui.font(), Vector2(0, y), word, HORIZONTAL_ALIGNMENT_CENTER, view.x, size, Color(Ui.GOLD_LIGHT, land))
+	var wreath := clampf((age - 0.3) / 0.5, 0.0, 1.0)
+	if wreath > 0.0:
+		var lsize := Vector2(size, size) * 1.3 * (1.0 + 0.4 * (1.0 - wreath))
+		for side in [-1.0, 1.0]:
+			var at := Vector2(centre.x + side * (w / 2.0 + lsize.x * 0.75 + 40.0 * (1.0 - wreath)), centre.y)
+			c.draw_texture_rect(Hud.LAUREL, Rect2(at - lsize / 2.0, lsize), false, Color(1, 1, 1, wreath))
+	var line_a := clampf((age - 0.7) * 3.0, 0.0, 1.0)
+	var won := tr("%s is won") % str(sim.content.provinces[sim.province].name)
+	ui.text(c, won.to_upper(), Vector2(0, y + Ui.leading() * 1.6), Color(Ui.CREAM, line_a), HORIZONTAL_ALIGNMENT_CENTER, view.x, true)
+	if age >= COUNT_FROM:
+		var total := sim.banked_denarii()
+		var shown := counted(total, age)
+		var pop := 1.0 + 0.25 * clampf(1.0 - (age - COUNT_TO) * 4.0, 0.0, 1.0) * (1.0 if age >= COUNT_TO else 0.0)
+		var big := int(Ui.px * 2 * pop)
+		var money := tr("+%d denarii") % shown
+		var my := y + Ui.leading() * 3.6
+		var mw := Ui.font().get_string_size(money, HORIZONTAL_ALIGNMENT_LEFT, -1, big).x
+		_coin(c, Vector2(view.x / 2.0 - mw / 2.0 - 12.0 * Ui.scale, my - big * 0.35), 5.0 * Ui.scale)
+		c.draw_string(Ui.font(), Vector2(3, my + 3), money, HORIZONTAL_ALIGNMENT_CENTER, view.x, big, Ui.INK)
+		c.draw_string(Ui.font(), Vector2(0, my), money, HORIZONTAL_ALIGNMENT_CENTER, view.x, big, Ui.GOLD_LIGHT)
+	var next: String = main.run_setup.province
+	if age >= COUNT_TO + 0.3 and next != sim.province and sim.content.provinces.has(next):
+		var na := clampf((age - COUNT_TO - 0.3) * 3.0, 0.0, 1.0)
+		var on := tr("The legion marches on to %s") % str(sim.content.provinces[next].name)
+		ui.text(c, on, Vector2(0, y + Ui.leading() * 5.4), Color(Ui.CREAM, na), HORIZONTAL_ALIGNMENT_CENTER, view.x, true)
+	if age >= 1.0:
+		ui.text(c, Controls.hint("victory"), Vector2(0, view.y - 10), Color(Ui.CREAM, 0.8), HORIZONTAL_ALIGNMENT_CENTER, view.x, true)
+
+
+## Gold coins tumbling down the screen, each on its own column, speed and spin, the same every time for the same moment.
+func _rain(c: CanvasItem, view: Vector2, age: float) -> void:
+	for i in RAIN:
+		var seed_x := fposmod(sin(i * 12.9898) * 43758.5453, 1.0)
+		var seed_v := fposmod(sin(i * 78.233) * 12543.123, 1.0)
+		var start := fposmod(sin(i * 3.71) * 9157.77, 1.0) * 1.2
+		var t := age - start
+		if t < 0.0:
+			continue
+		var fall := 70.0 + 90.0 * seed_v
+		var p := Vector2(seed_x * view.x + sin(t * 2.0 + i) * 6.0, -12.0 + fposmod(t * fall, view.y + 24.0))
+		var spin := absf(cos(t * (3.0 + 4.0 * seed_v) + i))
+		_coin(c, p, (2.5 + 1.5 * seed_v) * Ui.scale, spin)
+
+
+## A pixel coin, narrowed by `spin` as it turns edge-on.
+func _coin(c: CanvasItem, at: Vector2, r: float, spin := 1.0) -> void:
+	var w := maxf(1.0, r * spin)
+	c.draw_rect(Rect2(at.x - w - 1.0, at.y - r - 1.0, 2.0 * w + 2.0, 2.0 * r + 2.0), Color(0.36, 0.2, 0.05))
+	c.draw_rect(Rect2(at.x - w, at.y - r, 2.0 * w, 2.0 * r), Ui.GOLD)
+	c.draw_rect(Rect2(at.x - w, at.y - r, maxf(1.0, w * 0.7), 2.0 * r), Ui.GOLD_LIGHT)
+
+
 ## The gold band of what the run unlocked, each with its picture, appearing one after another, kept within `area`'s height; returns the y below it.
 func _unlocked(c: CanvasItem, ui: Ui, gained: Array, area: Rect2) -> float:
 	var s := Ui.scale
@@ -174,7 +299,7 @@ func _unlocked(c: CanvasItem, ui: Ui, gained: Array, area: Rect2) -> float:
 	c.draw_rect(band, Color(0.24, 0.15, 0.1))
 	c.draw_rect(Rect2(band.position, Vector2(band.size.x, 1)), Ui.GOLD_LIGHT)
 	ui.text(c, tr("Unlocked").to_upper(), Vector2(band.position.x + 6.0, band.position.y + 2.0 + Ui.px), Ui.GOLD_LIGHT)
-	var age: float = main.clock - main.opened_at
+	var age := panel_age()
 	if more > 0:
 		var k_more := shown.size()
 		var at_more := Vector2(band.position.x + 6.0 + (k_more % cols) * col_w, band.position.y + Ui.leading() + 4.0 + (k_more / cols) * row_h)

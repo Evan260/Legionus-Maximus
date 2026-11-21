@@ -515,7 +515,7 @@ func test_the_chieftain_comes_and_his_death_wins(b: Dictionary) -> void:
 	s.objectives.fort.seen = true
 	s.hit(ci, 1e9)
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
-	_step_dt(s, float(b.triumph.seconds) + 0.1)
+	_step_dt(s, float(b.triumph.most_seconds) + 0.1)
 	check(s.over and s.victory, "once the fort has been seen, his death ends the run in victory, after its triumph")
 
 
@@ -1764,7 +1764,7 @@ func test_endless_keeps_going_after_the_chieftain(b: Dictionary) -> void:
 	s.hit(ci, 1e9)
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
 	check(not s.over and s.victory, "his death does not end an endless run but wins it")
-	_step_dt(s, float(b.triumph.seconds) + 0.1)
+	_step_dt(s, float(b.triumph.most_seconds) + 0.1)
 	s.commander.hp = 0.0
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
 	check(s.over and s.victory, "the win stands when the legion falls later")
@@ -1790,7 +1790,7 @@ func test_endless_keeps_going_after_the_chieftain(b: Dictionary) -> void:
 	normal.objectives.fort.seen = true
 	normal.hit(normal.chieftain_index(), 1e9)
 	normal.update(1.0 / 60.0, Vector2.ZERO, false)
-	_step_dt(normal, float(b.triumph.seconds) + 0.1)
+	_step_dt(normal, float(b.triumph.most_seconds) + 0.1)
 	check(normal.over and normal.victory, "a normal run still ends with the chieftain")
 
 
@@ -2810,7 +2810,7 @@ func test_hints_name_the_players_own_keys(_b: Dictionary) -> void:
 	Controls.rebind(Profile.data.settings.bindings, "left", "keys", 0, KEY_J)
 	Controls.rebind(Profile.data.settings.bindings, "confirm", "keys", 0, KEY_E)
 	check(Controls.hint("level") == "J / D  choose     E  take it", "the level-up hint shows the rebound keys")
-	check(Controls.hint("summary").begins_with("E  Camp"), "the summary hint shows the rebound confirm key")
+	check(Controls.hint("summary").begins_with("E  choose"), "the summary hint shows the rebound confirm key (%s)" % Controls.hint("summary"))
 	check(Controls.hint("pick").begins_with("W J S D  move"), "the move hint shows the rebound march keys")
 	Controls.install({})
 	Profile.data = saved
@@ -2889,7 +2889,7 @@ func test_a_word_too_long_for_a_line_is_broken(b: Dictionary) -> void:
 
 
 func test_title_goal_comes_from_the_balance(b: Dictionary) -> void:
-	check(str(int(float(b.chieftain_at) / 60.0)) in Game.goal_text(b) and "fort" in Game.goal_text(b), "the full game names the minutes to the chieftain and the fort")
+	check(str(int(float(b.chieftain_at) / 60.0)) in Game.goal_text(b) and "chieftain" in Game.goal_text(b), "the full game names the minutes to the chieftain")
 	Game.demo_forced = true
 	check(str(int(float(b.demo.seconds) / 60.0)) in Game.goal_text(b) and not "chieftain" in Game.goal_text(b), "the demo names its minutes and no chieftain")
 	Game.demo_forced = false
@@ -3228,22 +3228,29 @@ func test_the_fort_appears_with_the_chieftain_and_holding_it_wins(b: Dictionary)
 	var cp: Vector2 = s.horde.e_pos[ci]
 	check(cp.distance_to(fort.pos) < d and (cp - s.commander.pos).dot(fort.pos - s.commander.pos) > 0.0, "between the legion and the fort")
 	s.horde.e_pos[ci] = s.commander.pos + Vector2(0, 2000)
+	s.horde.e_stun[ci] = 1e9
+	s.commander.max_hp = 1e9
+	s.commander.hp = 1e9
 	s.commander.pos = fort.centre
-	_step_dt(s, float(cfg.hold) + 0.2 + float(b.triumph.seconds))
-	check(s.over and s.victory, "holding the fort wins the run")
+	_step_dt(s, float(cfg.hold) + 0.2)
+	check(not s.victory, "holding the fort while the chieftain lives does not win")
+	s.hit(s.chieftain_index(), 1e9)
+	_step_dt(s, float(b.triumph.most_seconds) + 0.2)
+	check(s.over and s.victory, "his death wins the run")
 	var e := _mode_sim(b, {"seed": 157, "endless": true})
 	e.objectives.list.clear()
 	e.time = float(b.chieftain_at) - 0.01
 	e.update(1.0 / 60.0, Vector2.ZERO, false)
+	e.commander.max_hp = 1e9
+	e.commander.hp = 1e9
 	e.commander.pos = e.objectives.fort.centre
-	_step_dt(e, float(cfg.hold) + 0.2)
-	check(not e.over and e.victory and e.endless_since >= 0.0, "in an endless run the fort wins and the march goes on")
-	var since := e.endless_since
-	e.update(1.0 / 60.0, Vector2.ZERO, false)
-	check(e.endless_since == since, "and the win is counted once")
+	e.objectives.fort.seen = true
 	e.hit(e.chieftain_index(), 1e9)
 	e.update(1.0 / 60.0, Vector2.ZERO, false)
-	check(e.endless_since == since and not e.over, "the chieftain's death later keeps the endless clock")
+	check(not e.over and e.victory and e.endless_since >= 0.0, "in an endless run his death wins and the march goes on")
+	var since := e.endless_since
+	_step_dt(e, float(cfg.hold) + 0.2)
+	check(e.endless_since == since and not e.over, "and holding the fort after it keeps the endless clock")
 
 
 func test_the_hud_points_to_objectives_off_screen(b: Dictionary) -> void:
@@ -3620,7 +3627,7 @@ func test_holding_the_fort_wins_the_run(b: Dictionary) -> void:
 	s.commander.pos = fort.centre
 	_step_dt(s, hold * 0.5)
 	check(not s.over and fort.hold > 0.0, "half the time inside the walls is not enough")
-	_step_dt(s, hold * 0.5 + 0.2 + float(b.triumph.seconds))
+	_step_dt(s, hold * 0.5 + 0.2 + float(b.triumph.most_seconds))
 	check(s.over and s.victory, "holding the fort for %d seconds wins the run" % int(hold))
 	var l := _fort_sim(b, 402)
 	l.commander.pos = l.objectives.fort.centre
@@ -3630,6 +3637,113 @@ func test_holding_the_fort_wins_the_run(b: Dictionary) -> void:
 	l.commander.pos = l.objectives.fort.centre
 	_step_dt(l, hold * 0.5)
 	check(not l.over, "time inside drains away when the commander leaves")
+
+
+func test_the_fort_cannot_be_held_while_the_chieftain_lives(b: Dictionary) -> void:
+	var hold := float(b.fort.hold)
+	var s := _fort_sim(b, 404)
+	var fort: Dictionary = s.objectives.fort
+	var ci := s.horde.spawn_chieftain(fort.pos + Vector2(0, 900))
+	s.horde.e_stun[ci] = 1e9
+	s.commander.max_hp = 1e9
+	s.commander.hp = 1e9
+	s.commander.pos = fort.centre
+	_step_dt(s, hold * 2.0)
+	check(not s.victory, "standing in the fort while the chieftain lives does not win")
+	check(s.objectives.notice.get("kind", "") == "fort_barred", "and a notice says he must fall first")
+	s.hit(s.chieftain_index(), 1e9)
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.victory, "once he falls the run is won")
+
+
+func test_horses_follow_the_legion_into_the_fort(b: Dictionary) -> void:
+	var s := _fort_sim(b, 405)
+	var fort: Dictionary = s.objectives.fort
+	s.commander.max_hp = 1e9
+	s.commander.hp = 1e9
+	for k in 6:
+		s.add_soldier("cavalry")
+	s.commander.pos = fort.centre
+	s.facing_angle = -PI / 2.0
+	s.legion.place_all(s.facing_angle)
+	# Barbarians stand just outside the east wall, stunned and too tough to die, within a rider's reach.
+	for k in 6:
+		var e := s.horde.spawn("barbarian_club", fort.centre + Vector2(float(fort.half) + 14.0, -40.0 + k * 16.0))
+		s.horde.e_stun[e] = 1e9
+		s.horde.e_hp[e] = 1e9
+		s.horde.e_max[e] = 1e9
+	var rider: Dictionary = s.soldiers.filter(func(so: Dictionary) -> bool: return so.type == "cavalry")[0]
+	rider.pos = fort.centre + Vector2(float(fort.half) + 60.0, 0)
+	rider.sortie = 1
+	var rode_out := false
+	# The hold is kept from winning, so the riders are watched while the legion holds the fort.
+	for k in 12 * 30:
+		fort.hold = 0.0
+		s.update(1.0 / 30.0, Vector2.ZERO, false)
+		for so in s.soldiers:
+			rode_out = rode_out or (so != rider and so.sortie != 0)
+	check(not rode_out, "while the commander holds the fort no rider charges out")
+	var out := 0
+	for so in s.soldiers:
+		if not s.objectives.in_fort(so.pos, s):
+			out += 1
+	check(out == 0, "and a rider already out comes back in through the gate (%d outside)" % out)
+	var t := _fort_sim(b, 406)
+	t.commander.pos = t.objectives.fort.centre
+	t.add_soldier("cavalry")
+	t.legion.place_all(t.facing_angle)
+	var late: Dictionary = t.soldiers.filter(func(so: Dictionary) -> bool: return so.type == "cavalry")[0]
+	late.pos = t.objectives.fort.centre + Vector2(0, -float(t.objectives.fort.half) - 80.0)
+	late.sortie = 1
+	t.win(t.commander.pos)
+	_step_dt(t, float(b.triumph.most_seconds))
+	check(t.objectives.in_fort(late.pos, t), "a rider out on a charge when the run is won rides back in for the triumph")
+
+
+func test_a_victory_opens_with_a_reveal_that_counts_the_denarii(b: Dictionary) -> void:
+	var s := _won_sim(b, 1653)
+	s.win(s.commander.pos)
+	check(SummaryScreen.reveals(s), "a won run opens with the victory reveal")
+	s.demo_over = true
+	check(not SummaryScreen.reveals(s), "the demo reaching its limit does not")
+	var lost := _won_sim(b, 1654)
+	check(not SummaryScreen.reveals(lost), "nor does a lost run")
+	check(SummaryScreen.counted(250, 0.0) == 0 and SummaryScreen.counted(250, SummaryScreen.COUNT_FROM) == 0, "the count starts at nothing")
+	var mid := SummaryScreen.counted(250, (SummaryScreen.COUNT_FROM + SummaryScreen.COUNT_TO) / 2.0)
+	check(mid > 100 and mid < 150, "rises through the middle (%d)" % mid)
+	check(SummaryScreen.counted(250, SummaryScreen.COUNT_TO) == 250 and SummaryScreen.counted(250, SummaryScreen.REVEAL) == 250, "and lands on the run's denarii")
+	check(SummaryScreen.COUNT_TO < SummaryScreen.REVEAL, "before the reveal gives way to the summary")
+
+
+func test_the_triumph_waits_for_the_last_coin_and_barbarian(b: Dictionary) -> void:
+	var cfg: Dictionary = b.triumph
+	var s := _won_sim(b, 1652)
+	s.drop_coin(s.commander.pos + Vector2(float(cfg.coin_speed) * float(cfg.seconds) * 1.5, 0), 5)
+	s.win(s.commander.pos)
+	var steps := 0
+	var early := false
+	while not s.over and steps < 60 * 60:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+		steps += 1
+		early = early or (s.over and (s.c_pos.size() > 0 or not s.horde.e_pos.is_empty()))
+	check(not early, "the run does not end while a coin or barbarian is left")
+	check(s.over and s.c_pos.is_empty() and s.horde.e_pos.is_empty(), "it ends once the field is clear")
+	check(steps / 60.0 <= float(cfg.most_seconds) + 0.1, "and never waits past %.0f s (%.1f)" % [float(cfg.most_seconds), steps / 60.0])
+
+
+func test_a_win_marches_on_to_the_next_province(b: Dictionary) -> void:
+	var saved: Dictionary = Profile.data
+	Profile.data = Profile.defaults()
+	Profile.data.records["germania"] = Profile.record_of("germania")
+	Profile.data.records.germania.won = true
+	Profile.open_won_provinces(content)
+	var next := Game.next_province(content, b, "germania")
+	if content.ready("provinces", "gaul"):
+		check(next == "gaul", "after Germania is won the map moves on to Gaul (%s)" % next)
+	check(Game.next_province(content, b, content.provinces.keys()[-1]) == "", "after the last province there is nowhere further")
+	Profile.data = Profile.defaults()
+	check(Game.next_province(content, b, "germania") == "", "a province that is still locked is not chosen")
+	Profile.data = saved
 
 
 func test_the_run_does_not_end_before_the_fort_is_seen(b: Dictionary) -> void:
@@ -7592,7 +7706,7 @@ func test_a_win_ends_in_a_triumph(b: Dictionary) -> void:
 func test_an_endless_win_triumphs_and_goes_on(b: Dictionary) -> void:
 	var s := _won_sim(b, 1651, {"endless": true})
 	s.win(s.commander.pos)
-	_step_dt(s, float(b.triumph.seconds) + 0.5)
+	_step_dt(s, float(b.triumph.most_seconds) + 0.5)
 	check(not s.over and s.victory and s.triumph_left <= 0.0, "an endless run holds its triumph and then marches on")
 	check(s.endless_since >= 0.0, "counting the endless time from the win")
 

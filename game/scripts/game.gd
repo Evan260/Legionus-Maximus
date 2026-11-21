@@ -34,6 +34,16 @@ static func province_allowed(id: String, balance: Dictionary) -> bool:
 	return not is_demo() or id == str(balance.demo.province)
 
 
+## The first province after `from` on the road that is drawn, open and allowed in this build, or "" when there is none.
+static func next_province(content: Content, balance: Dictionary, from: String) -> String:
+	var ids: Array = content.provinces.keys()
+	for k in range(ids.find(from) + 1, ids.size()):
+		var id: String = ids[k]
+		if content.ready("provinces", id) and Profile.province_unlocked(id) and province_allowed(id, balance):
+			return id
+	return ""
+
+
 ## The run's length limit in seconds, or 0 for none.
 static func run_cap(balance: Dictionary) -> float:
 	return float(balance.demo.seconds) if is_demo() else 0.0
@@ -48,7 +58,7 @@ static func confirm_allowed(state: String, opened_at: float, now: float, balance
 static func goal_text(balance: Dictionary) -> String:
 	if is_demo():
 		return TranslationServer.translate("Survive %d minutes.") % int(float(balance.demo.seconds) / 60.0)
-	return TranslationServer.translate("Survive %d minutes, then hold the fort or kill the chieftain.") % int(float(balance.chieftain_at) / 60.0)
+	return TranslationServer.translate("Survive %d minutes, then kill the chieftain.") % int(float(balance.chieftain_at) / 60.0)
 
 
 ## Whether the run counts as under way: on the field, at a choice, paused, or in the settings opened from the pause.

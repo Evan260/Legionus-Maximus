@@ -133,6 +133,8 @@ var _chieftain_heard := false
 ## Seconds left of the triumph after a win, and how long it has played.
 var triumph_left := 0.0
 var triumph_t := 0.0
+# When in the triumph the last barbarian and coin went and every man reached his place, or -1 while any is left.
+var _clear_at := -1.0
 var _hurt_heard := -1e9
 ## Logs from felled trees, spent on palisades.
 var timber := 0
@@ -940,7 +942,7 @@ func _kill(i: int) -> void:
 	horde.remove_at(i)
 
 
-## The chieftain's death or holding the fort wins the run; an endless run keeps going and counts the win once.
+## The chieftain's death, or holding the fort once he has fallen, wins the run; an endless run keeps going and counts the win once.
 func win(pos: Vector2) -> void:
 	victory = true
 	event("victory", pos)
@@ -951,6 +953,7 @@ func win(pos: Vector2) -> void:
 	commander.moving = false
 	triumph_left = float(b.triumph.seconds)
 	triumph_t = 0.0
+	_clear_at = -1.0
 	if endless and endless_since < 0.0:
 		endless_since = time
 
@@ -969,16 +972,26 @@ func _triumph(dt: float) -> void:
 		i -= 1
 	if kills > before:
 		legion.veterans(kills - before, self)
-	# Men still filing into the fort walk on to their places while the rest cheer.
+	# Men still filing into the fort, and riders called back from a charge, walk on to their places while the rest cheer.
+	for so in soldiers:
+		so.sortie = 0
 	legion.follow(dt, self)
+	var settled := true
 	for so in soldiers:
 		so.pos = terrain.push_out(so.pos, UNIT_RADIUS)
+		settled = settled and so.pos.distance_to(so.target) <= 4.0
 	c_pull.fill(1)
 	_coins(dt, float(cfg.coin_speed))
 	_effects(dt)
 	_float_numbers(dt)
 	_flush_events()
-	triumph_left -= dt
+	if horde.e_pos.is_empty() and c_pos.is_empty() and settled:
+		if _clear_at < 0.0:
+			_clear_at = triumph_t
+	else:
+		_clear_at = -1.0
+	var end := maxf(float(cfg.seconds), _clear_at + float(cfg.linger)) if _clear_at >= 0.0 else float(cfg.most_seconds)
+	triumph_left = minf(end, float(cfg.most_seconds)) - triumph_t
 	if triumph_left <= 0.0 and not endless:
 		over = true
 

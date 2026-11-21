@@ -1755,22 +1755,6 @@
       "es": "Autores posteriores hablaron de carros britanos con guadañas en las ruedas, aunque César nunca los menciona.",
       "pt_BR": "Autores posteriores falaram de carros bretões com foices nas rodas, embora César nunca os mencione."
     },
-    "Survive %d minutes, then hold the fort or kill the chieftain.": {
-      "en": "Survive %d minutes, then hold the fort or kill the chieftain.",
-      "fr": "Survivez %d minutes, puis tenez le fort ou tuez le chef.",
-      "de": "Überlebe %d Minuten, halte die Stellung oder töte den Häuptling.",
-      "es": "Sobrevive %d minutos y luego mantén el fuerte o mata al caudillo.",
-      "it": "Sopravvivi %d minuti, poi tieni la fortezza o uccidi il capo.",
-      "pt_BR": "Sobreviva %d minutos, depois defenda o forte ou mate o chefe.",
-      "pl": "Przetrwaj %d minut, potem utrzymaj fort lub zabij wodza.",
-      "tr": "%d dakika hayatta kalın, sonra kaleyi koruyun ya da reisi öldürün.",
-      "ru": "Выжить %d минут, затем удерживать крепость или убей вождя.",
-      "uk": "Вижити %d хвилин, потім утримувати фортецю або вбити вождя.",
-      "ja": "%d分生き延びて、砦を守るか、族長を殺すか。",
-      "ko": "%d분을 버텨서 요새를 지키거나 족장을 죽이세요.",
-      "zh_CN": "撑 %d 分钟，然后守住阵地或者杀掉酋长。",
-      "zh_TW": "撐 %d 分鐘，然後守住堡壘或殺掉酋長。"
-    },
     "Survive {minutes} minutes with {soldiers} soldiers or fewer": {
       "en": "Survive {minutes} minutes with {soldiers} soldiers or fewer",
       "fr": "Survivre {minutes} minutes avec {soldiers} soldats ou moins",
@@ -3131,6 +3115,48 @@
       "tr": "İkmal arabası: tüm paralar sana gelir",
       "ru": "Повозка с припасами: все монеты летят к вам",
       "uk": "Віз із припасами: усі монети летять до вас"
+    },
+    "Survive %d minutes, then kill the chieftain.": {
+      "fr": "Survivez %d minutes, puis tuez le chef.",
+      "it": "Sopravvivi %d minuti, poi uccidi il capo.",
+      "pl": "Przetrwaj %d minut, potem zabij wodza.",
+      "tr": "%d dakika hayatta kalın, sonra reisi öldürün.",
+      "ru": "Выживите %d минут, затем убейте вождя.",
+      "uk": "Виживіть %d хвилин, потім убийте вождя.",
+      "ko": "%d분을 버틴 뒤 족장을 죽이세요.",
+      "zh_CN": "撑 %d 分钟，然后杀掉酋长。"
+    },
+    "A Roman fort is in sight: slay the %s to win": {
+      "fr": "Un fort romain est en vue : abattez %s pour gagner",
+      "de": "Ein römisches Fort ist in Sicht: Besiegt %s, um zu siegen",
+      "es": "Un fuerte romano a la vista: abate a %s para ganar",
+      "it": "Un forte romano è in vista: abbatti %s per vincere",
+      "pt_BR": "Um forte romano à vista: derrote %s para vencer",
+      "pl": "Rzymski fort w zasięgu wzroku: pokonaj %s, by wygrać",
+      "tr": "Bir Roma kalesi göründü: kazanmak için %s düşmeli",
+      "ru": "Римская крепость в виду: победа, когда %s падёт",
+      "uk": "Римську фортецю видно: перемога, щойно %s впаде",
+      "ja": "ローマの砦が見えた: %sを倒せば勝利だ",
+      "ko": "로마 요새가 보인다: %s 쓰러뜨리면 승리",
+      "zh_CN": "罗马堡垒就在眼前：击倒%s即可获胜",
+      "zh_TW": "羅馬堡壘就在眼前：擊倒%s即可獲勝"
+    },
+    "The fort is yours once the %s falls": {
+      "fr": "Le fort sera à vous quand %s tombera",
+      "de": "Das Fort gehört euch, sobald %s fällt",
+      "es": "El fuerte será tuyo cuando caiga %s",
+      "it": "Il forte sarà tuo quando %s cadrà",
+      "pt_BR": "O forte será seu quando %s cair",
+      "tr": "%s düştüğünde kale senin olacak",
+      "ru": "Форт будет вашим, когда %s падёт",
+      "uk": "Форт буде вашим, коли %s впаде",
+      "ja": "%sが倒れれば砦はお前のものだ",
+      "ko": "%s 쓰러지면 요새는 네 것이다",
+      "zh_CN": "%s倒下之时，堡垒便归你所有",
+      "zh_TW": "%s倒下之時，堡壘便歸你所有"
+    },
+    "The legion marches on to %s": {
+      "ja": "軍団は%sへ進軍する"
     }
   }
 }

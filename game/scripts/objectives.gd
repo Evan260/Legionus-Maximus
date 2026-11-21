@@ -203,6 +203,11 @@ func _fort(dt: float, sim: Sim) -> void:
 		if not fort.entered:
 			fort.entered = true
 			sim.event("fort", fort.centre)
+		if sim.chieftain_index() >= 0:
+			if notice.get("kind", "") != "fort_barred":
+				notice = {"kind": "fort_barred", "at": sim.time}
+			fort.hold = 0.0
+			return
 		fort.hold += dt
 		if fort.hold >= float(cfg.hold):
 			fort_reached = true
