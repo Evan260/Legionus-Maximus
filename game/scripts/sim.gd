@@ -504,7 +504,7 @@ func formation_reach(dir: Vector2) -> Vector2:
 			continue
 		var place: Vector2 = commander.pos + places[i].rotated(facing_angle)
 		var at: Vector2 = so.pos if so.pos.distance_to(place) <= straggle else place
-		var d := (at - commander.pos).dot(dir)
+		var d: float = (at - commander.pos).dot(dir)
 		reach = Vector2(minf(reach.x, d), maxf(reach.y, d))
 	return reach
 
