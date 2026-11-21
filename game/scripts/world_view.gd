@@ -31,6 +31,9 @@ var _k_attack := PackedByteArray()
 var _k_shadow := PackedFloat32Array()
 # How much larger than its art each kind is drawn, such as the war elephant.
 var _k_scale := PackedFloat32Array()
+# How far each kind's picture can reach from where it stands, so a big one is still drawn while part of it is on screen.
+var _k_reach := PackedFloat32Array()
+var _max_reach := 0.0
 # Every enemy kind's walk, attack and stance frames, so drawing the horde reads arrays instead of the atlas's JSON: slot (kind * 3 + action) * 8 + direction gives where its frames start in _f_rect, how many there are and the anchor.
 var _f_start := PackedInt32Array()
 var _f_count := PackedInt32Array()
@@ -217,11 +220,15 @@ func _draw() -> void:
 	var h: Horde = sim.horde
 	var strike_secs := Atlas.ATTACK_FRAMES / Atlas.ATTACK_FPS
 	var loop_t := sim.time * Atlas.ATTACK_FPS
+	var wide := view.grow(maxf(0.0, _max_reach - 80.0))
 	for i in h.e_pos.size():
 		var p: Vector2 = h.e_pos[i]
-		if not view.has_point(p):
+		if not wide.has_point(p):
 			continue
 		var kind := h.e_kind[i]
+		var reach := _k_reach[kind]
+		if not (view.has_point(p) if reach <= 80.0 else view.grow(reach - 80.0).has_point(p)):
+			continue
 		var slot := kind * 24 + Sim.dir_index(h.e_face[i])
 		var fi: int
 		var since := sim.time - h.e_strike[i]
@@ -412,6 +419,9 @@ func _index_kinds() -> void:
 	_k_attack.resize(h.kind_ids.size())
 	_k_shadow.resize(h.kind_ids.size())
 	_k_scale.resize(h.kind_ids.size())
+	_k_reach.resize(h.kind_ids.size())
+	_k_reach.fill(0.0)
+	_max_reach = 0.0
 	for k in h.kind_ids.size():
 		_k_type[k] = h.kind_ids[k]
 		_k_attack[k] = 1 if atlas.units.has(h.kind_ids[k]) and atlas.units[h.kind_ids[k]].has("attack") else 0
@@ -436,6 +446,8 @@ func _index_kinds() -> void:
 				var anim: Dictionary = unit[action][Sim.DIRS[d]]
 				for f in anim.frames:
 					_f_rect.append(Rect2(f[0], f[1], f[2], f[3]))
+					_k_reach[k] = maxf(_k_reach[k], maxf(float(f[2]), float(f[3])) * _k_scale[k])
+					_max_reach = maxf(_max_reach, _k_reach[k])
 				_f_count[slot] = anim.frames.size()
 				_f_anchor[slot] = Vector2(anim.anchor[0], anim.anchor[1])
 

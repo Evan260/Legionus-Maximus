@@ -27,7 +27,7 @@ extends Node
 ##   --give=ID,ID:RANK  start the run with these arms or drills at the rank (default 1), or that many of a recruit, for looking at them
 ##   --timber=N         with --autoplay, start the run carrying that much timber
 ##   --men=N            with --autoplay, start the run with N soldiers, legionaries and archers
-##   --boss=ID          with --autoplay, bring that elite or the chieftain beside the legion; --boss-act=far (stunned, off screen, for the edge badge)|whirl|shield|band|mend|curse|blink|rage|roar,
+##   --boss=ID          with --autoplay, bring that elite or the chieftain beside the legion; --boss-act=far (stunned, off screen, for the edge badge)|edge (stunned, his feet below the screen, for a look at a big boss half in view)|whirl|shield|band|mend|curse|blink|rage|roar,
 ##                      fall (with --go-to=ravine) stands him at the lip for the legion to shove in,
 ##                      duel|rally|blast|flee for the Gaulish elites and siege|summon for the Gaulish king, onrush|blizzard for the Dacian elites and
 ##                      sweep|rockfall|leap for the Dacian king, wedge|trample for the Parthian elites and storm|elephants for the shah,
@@ -192,7 +192,11 @@ func _bring_boss(kind: String, act: String) -> void:
 	if not content.enemies[kind].get("elite", false):
 		_bring_group(kind, act)
 		return
+	if act == "edge":
+		at = sim.commander.pos + Vector2(0, get_viewport().get_visible_rect().size.y / 2.0 + 95.0)
 	var i := h.spawn(kind, at + (Vector2(-30, -20) if act == "flee" else Vector2.ZERO), true)
+	if act == "edge":
+		h.e_stun[i] = 1e9
 	if act == "fall":
 		_stand_at_lip(i)
 	var st := h.boss_state(i)
