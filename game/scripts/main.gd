@@ -813,7 +813,7 @@ func _input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if state == "settings" and screens.settings.capture(event):
+	if (state == "settings" and screens.settings.capture(event)) or (state == "saves" and screens.saves.capture(event)):
 		swallow_input = true
 		get_viewport().set_input_as_handled()
 		return

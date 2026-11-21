@@ -3840,20 +3840,23 @@
       "zh_CN": "空",
       "zh_TW": "空"
     },
-    "It will be gone for good.": {
-      "fr": "Elle sera perdue pour de bon.",
-      "de": "Das lässt sich nicht rückgängig machen.",
-      "es": "No se podrá recuperar.",
-      "it": "Non potrà essere recuperata.",
-      "pt_BR": "Não será possível recuperá-lo.",
-      "pl": "Nie da się jej przywrócić.",
-      "tr": "Geri getirilemez.",
-      "ru": "Её нельзя будет вернуть.",
-      "uk": "Її не можна буде повернути.",
-      "ja": "元に戻すことはできません。",
-      "ko": "되돌릴 수 없습니다.",
-      "zh_CN": "删除后无法恢复。",
-      "zh_TW": "刪除後無法復原。"
+    "It will be gone for good. Type \"%s\" to delete it.": {
+      "fr": "Elle sera perdue pour de bon. Tapez « %s » pour la supprimer.",
+      "de": "Das lässt sich nicht rückgängig machen. Geben Sie „%s“ ein, um es zu löschen.",
+      "es": "No se podrá recuperar. Escribe «%s» para eliminarla.",
+      "it": "Non potrà essere recuperata. Digita \"%s\" per eliminarla.",
+      "pt_BR": "Não será possível recuperá-lo. Digite \"%s\" para excluí-lo.",
+      "pl": "Nie da się jej przywrócić. Wpisz „%s”, aby ją usunąć.",
+      "tr": "Geri getirilemez. Silmek için \"%s\" yazın.",
+      "ru": "Её нельзя будет вернуть. Введите «%s», чтобы удалить её.",
+      "uk": "Її не можна буде повернути. Введіть «%s», щоб видалити її.",
+      "ja": "元に戻すことはできません。削除するには「%s」と入力してください。",
+      "ko": "되돌릴 수 없습니다. 삭제하려면 \"%s\"를 입력하세요.",
+      "zh_CN": "删除后无法恢复。输入“%s”即可删除。",
+      "zh_TW": "刪除後無法復原。輸入「%s」即可刪除。"
+    },
+    "delete": {
+      "tr": "sil"
     },
     "Last played %s": {
       "fr": "Dernière partie : %s",

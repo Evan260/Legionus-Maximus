@@ -1,10 +1,13 @@
 class_name SavesScreen
 extends RefCounted
-## The load list: one row for each of the three save slots, saying what game is in it, with Play and Delete, and a question before a game is deleted.
+## The load list: one row for each of the three save slots, saying what game is in it, with Play and Delete, and a question before a game is deleted
+## that is answered by typing the word "delete", as in the other Slow Sunday games, so no stray press can delete a game.
 
 var main: Node
 ## The slot whose deletion is being asked about, or 0.
 var confirming := 0
+## What has been typed into the question so far.
+var typed := ""
 
 
 func _init(owner_node: Node) -> void:
@@ -20,12 +23,39 @@ func activate(id: String) -> void:
 				main.go_to_camp()
 		"delete":
 			confirming = int(parts[1])
+			typed = ""
 			# The question opens on Cancel, so a second press of the confirm key never deletes a game.
 			main.ui.focus = "no"
 		"no":
 			back()
 		"yes":
-			_delete(confirming)
+			if word_typed():
+				_delete(confirming)
+
+
+## Whether the word that deletes a game has been typed; the English word works in every language too, for a keyboard that cannot easily type the translated one.
+func word_typed() -> bool:
+	return typed.strip_edges().to_lower() in [tr("delete").to_lower(), "delete"]
+
+
+## Takes every key pressed while the question is open, so letters go into the word and never move the menu; returns true when the event was used.
+func capture(event: InputEvent) -> bool:
+	if confirming == 0 or not event is InputEventKey or not event.pressed:
+		return false
+	match event.keycode:
+		KEY_ESCAPE:
+			if not event.echo:
+				Audio.play("back")
+				back()
+		KEY_BACKSPACE:
+			typed = typed.left(-1)
+		KEY_ENTER, KEY_KP_ENTER:
+			if not event.echo and word_typed():
+				_delete(confirming)
+		_:
+			if event.unicode >= 32 and typed.length() < 20:
+				typed += char(event.unicode)
+	return true
 
 
 ## Leaves the question for the list, or the list for the title; false when the screen itself should close.
@@ -100,13 +130,13 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 
 ## Asks before a game is deleted, saying what is in it, since a deleted game cannot be brought back.
 func _draw_question(c: CanvasItem, ui: Ui) -> void:
-	var r := ui.frame(c, tr("Delete a game").to_upper(), Controls.hint("pick"))
+	var r := ui.frame(c, tr("Delete a game").to_upper(), Controls.hint("type"))
 	var info := Profile.slot_info(confirming)
 	var said: Array = summary(info, main.content, main.balance) if not info.is_empty() else [tr("This game could not be read.")]
-	said.append(tr("It will be gone for good."))
+	said.append(tr("It will be gone for good. Type \"%s\" to delete it.") % tr("delete"))
 	var width := r.size.x - 80.0
 	var bh := 24.0 if Ui.scale == 1 else 30.0
-	var y := r.get_center().y - ((said.size() + 1) * Ui.leading() + 18.0 + bh) / 2.0 + Ui.px
+	var y := r.get_center().y - ((said.size() + 1) * Ui.leading() + 30.0 + 2.0 * bh) / 2.0 + Ui.px
 	ui.text(c, (tr("Delete slot %d?") % confirming).to_upper(), Vector2(r.position.x, y), Ui.BROWN, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
 	y += 6.0
 	for i in said.size():
@@ -114,5 +144,20 @@ func _draw_question(c: CanvasItem, ui: Ui) -> void:
 		ui.fit_text(c, said[i], width, Vector2(r.position.x, y), Ui.RED if i == said.size() - 1 else Ui.INK, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
 	var bw := 140.0 if Ui.scale == 1 else 200.0
 	var cx := r.get_center().x
-	ui.button(c, Rect2(cx - bw - 6.0, y + 12.0, bw, bh), "yes", tr("Delete").to_upper(), "", true, null, true)
+	var field := Rect2(cx - bw - 6.0, y + 12.0, 2.0 * bw + 12.0, bh)
+	# A sunken box with a blinking cursor, so it reads as the place to type and not as another button.
+	c.draw_rect(field.grow(1), Ui.INK)
+	c.draw_rect(field, Ui.CREAM)
+	c.draw_rect(Rect2(field.position, Vector2(field.size.x, 2)), Ui.PARCH_DARK)
+	c.draw_rect(Rect2(field.position, Vector2(2, field.size.y)), Ui.PARCH_DARK)
+	var at := Vector2(field.position.x + 8.0, field.get_center().y + Ui.px / 2.0 - 1.0)
+	if typed == "":
+		ui.text(c, tr("delete").to_upper(), at, Ui.MUTED)
+	else:
+		ui.fit_text(c, typed.to_upper(), field.size.x - 24.0, at, Ui.INK)
+	if int(Time.get_ticks_msec() / 500) % 2 == 0:
+		var x := at.x + (Ui.width_at(typed.to_upper(), Ui.px) + 2.0 if typed != "" else 0.0)
+		c.draw_rect(Rect2(x, field.position.y + 5.0, 2.0, field.size.y - 10.0), Ui.INK)
+	y += bh + 6.0
+	ui.button(c, Rect2(cx - bw - 6.0, y + 12.0, bw, bh), "yes", tr("Delete").to_upper(), "", word_typed(), null, true)
 	ui.button(c, Rect2(cx + 6.0, y + 12.0, bw, bh), "no", tr("Cancel").to_upper(), "", true, null, true)

@@ -2424,6 +2424,20 @@ func test_the_title_offers_continue_new_game_and_load(b: Dictionary) -> void:
 	_return_profile(kept)
 
 
+func _key_press(code: Key, ch: String) -> InputEventKey:
+	var e := InputEventKey.new()
+	e.pressed = true
+	e.keycode = code
+	e.physical_keycode = code
+	e.unicode = ch.unicode_at(0) if ch != "" else 0
+	return e
+
+
+func _type_word(saves: SavesScreen, word: String) -> void:
+	for ch in word:
+		saves.capture(_key_press(KEY_A, ch))
+
+
 func test_the_load_list_plays_and_deletes_slots(b: Dictionary) -> void:
 	var kept := _borrow_profile()
 	var m := FakeMenuMain.new()
@@ -2445,16 +2459,34 @@ func test_the_load_list_plays_and_deletes_slots(b: Dictionary) -> void:
 	saves.activate("delete:2")
 	check(saves.back() and saves.confirming == 0 and Profile.slot_taken(2), "and so does the back key")
 	check(not saves.back(), "which then leaves the list")
+	check(not saves.capture(_key_press(KEY_D, "d")), "keys are not taken for typing while no question is open")
 	saves.activate("delete:2")
 	saves.activate("yes")
-	check(not Profile.slot_taken(2) and Profile.slot == 1, "confirming deletes the game")
+	check(Profile.slot_taken(2) and saves.confirming == 2 and not saves.word_typed(), "Delete does nothing until the word is typed")
+	check(saves.capture(_key_press(KEY_D, "d")), "a letter goes into the typed word, not to the menu")
+	for ch in "eletex":
+		saves.capture(_key_press(KEY_A, ch))
+	check(not saves.word_typed(), "a wrong word does not delete")
+	saves.capture(_key_press(KEY_BACKSPACE, ""))
+	check(saves.word_typed(), "Backspace takes off the last letter (%s)" % saves.typed)
+	saves.capture(_key_press(KEY_ENTER, ""))
+	check(not Profile.slot_taken(2) and Profile.slot == 1, "Enter with the word typed deletes the game")
+	saves.activate("delete:1")
+	_type_word(saves, "delete")
+	saves.capture(_key_press(KEY_ESCAPE, ""))
+	check(saves.confirming == 0 and Profile.slot_taken(1), "Escape leaves the question and keeps the game")
+	saves.activate("delete:1")
+	check(saves.typed == "", "and the word starts empty each time")
+	saves.back()
 	Profile.new_game()
 	Profile.save()
 	Profile.load_slot(1)
 	saves.activate("delete:1")
+	_type_word(saves, "DELETE")
 	saves.activate("yes")
-	check(Profile.slot == 2 and m.used == 2, "deleting the open game opens the one saved last")
+	check(Profile.slot == 2 and m.used == 2, "deleting the open game opens the one saved last, the word typed in any case")
 	saves.activate("delete:2")
+	_type_word(saves, "delete")
 	saves.activate("yes")
 	check(Profile.slot == 0 and m.state == "title" and m.ui.focus == "new", "deleting the last game goes back to the title on New game")
 	var info := {"won": ["germania", "gaul", "nowhere"], "denarii": 1240, "runs": 3, "saved_at": 0.0}
