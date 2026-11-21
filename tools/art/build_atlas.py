@@ -59,6 +59,10 @@ FOLDERS = {"berserker": "berserker_big", "war_band_leader": "war_band_leader_big
            "falx_band": "falx_band_big", "priest": "priest_big", "dacian_king": "dacian_king_big",
            "cataphract_charge": "cataphract_charge_big", "war_elephant": "war_elephant_136", "shah": "shah_big",
            "druid": "druid_big", "chariot_charge": "chariot_charge_96", "chariot": "chariot_72", "warrior_queen": "warrior_queen_big"}
+# Animations drawn from their mirror image, as unit: {folder: the folder it mirrors}. PixelLab drew the mountain bear off
+# centre, so the right edge of its canvas cuts off his head running east and his snout striking east and south-east.
+MIRROR = {"mountain_bear": {"t_running_east": "t_running_west", "t_running_south-east": "t_running_south-west",
+                            "attack_east": "attack_west", "attack_south-east": "attack_south-west"}}
 # The atlas stays one page so the horde draws in one batch, and grows wide before tall.
 WIDTH = 8192
 MAX_SIDE = 8192
@@ -150,6 +154,16 @@ def torso_x(images, anchor, height):
     return float(np.mean(xs)) if xs else 0.0
 
 
+def frames_of(unit, src, folder):
+    """The frames of one animation folder in name order, flipped from their mirror folder where MIRROR says so."""
+    mirrored = MIRROR.get(unit, {}).get(folder)
+    paths = sorted((src / (mirrored or folder)).glob("frame_*.png"))
+    frames = [Image.open(p).convert("RGBA") for p in paths]
+    if mirrored:
+        frames = [im.transpose(Image.Transpose.FLIP_LEFT_RIGHT) for im in frames]
+    return frames, [p.name for p in paths]
+
+
 def main():
     sets = []
     for unit, action in UNITS.items():
@@ -157,7 +171,7 @@ def main():
         attacks = all((src / f"attack_{d}").is_dir() for d in DIRS)
         for d in DIRS:
             folder = src / f"t_{action}_{d}"
-            frames = [Image.open(p).convert("RGBA") for p in sorted(folder.glob("frame_*.png"))]
+            frames, _ = frames_of(unit, src, folder.name)
             if not frames:
                 raise SystemExit(f"missing {folder}")
             # The first frame is the standing pose itself, which the loop already passes through.
@@ -172,10 +186,9 @@ def main():
             sets.append((("units", unit, "move", d), images, anchor))
             sets.append((("units", unit, "idle", d), idle, idle_anchor))
             if attacks:
-                names = sorted(p.name for p in (src / f"attack_{d}").iterdir())
+                frames, names = frames_of(unit, src, f"attack_{d}")
                 if names != [f"frame_{i:02d}.png" for i in range(9)]:
                     raise SystemExit(f"{src / f'attack_{d}'} must hold exactly frame_00 to frame_08")
-                frames = [Image.open(src / f"attack_{d}" / n).convert("RGBA") for n in names]
                 # The strike starts from the standing pose, so the anchor comes from it and the pose itself is left out.
                 images, anchor = crop_set(frames[1:], (frames[0].width / 2, feet(frames[:1])))
                 sets.append((("units", unit, "attack", d), images, anchor))
