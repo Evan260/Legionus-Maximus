@@ -660,22 +660,6 @@
       "zh_CN": "暂停",
       "zh_TW": "暫停"
     },
-    "testudo: 80% less harm": {
-      "en": "testudo: 80% less harm",
-      "fr": "testudo : 80 % de dégâts en moins",
-      "de": "Testudo: 80% weniger Schaden",
-      "es": "testudo: 80% menos daño",
-      "it": "testudo: 80% danni in meno",
-      "pt_BR": "testudo: 80% menos dano",
-      "pl": "testudo: 80% mniej obrażeń",
-      "tr": "testudo: %80 daha az hasar",
-      "ru": "testudo: на 80% меньше урона",
-      "uk": "testudo: на 80% менше шкоди",
-      "ja": "testudo：被害80%減",
-      "ko": "testudo: 피해 80% 감소",
-      "zh_CN": "testudo：伤害减少80%",
-      "zh_TW": "testudo：傷害減少80%"
-    },
     "palisade: %d timber from felled trees": {
       "en": "palisade: %d timber from felled trees",
       "fr": "palissade : %d bois d’arbres abattus",
@@ -3178,6 +3162,18 @@
     },
     "Stand at the sacred well to seize it: a free level-up and fewer barbarians for a minute": {
       "ja": "聖なる井戸に立って奪い取れ:無料レベルアップと、1分間蛮族が減る"
+    },
+    "testudo: 80% less harm, stops boss charges": {
+      "fr": "testudo : 80 % de dégâts en moins, brise les charges des chefs",
+      "de": "Testudo: 80 % weniger Schaden, hält Sturmangriffe der Bosse auf",
+      "es": "testudo: 80 % menos daño, detiene las cargas de los jefes",
+      "it": "testudo: 80% di danni in meno, ferma le cariche dei capi",
+      "pt_BR": "testudo: 80% menos dano, detém as investidas dos chefes",
+      "pl": "testudo: 80% mniej obrażeń, zatrzymuje szarże bossów",
+      "tr": "testudo: %80 daha az hasar, boss hücumlarını durdurur",
+      "ru": "testudo: на 80% меньше урона, останавливает натиск боссов",
+      "uk": "testudo: на 80% менше шкоди, зупиняє натиск босів",
+      "ja": "testudo:被ダメージ80%減、ボスの突進を止める"
     }
   }
 }

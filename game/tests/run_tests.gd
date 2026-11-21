@@ -3602,6 +3602,48 @@ func test_a_charging_boss_is_stopped_by_a_wall(b: Dictionary) -> void:
 		check(not through, "the %s's charge stops at a wall and never comes out the other side" % kind)
 
 
+func test_the_testudo_stops_a_boss_charge(b: Dictionary) -> void:
+	for kind in ["gaul_king", "falx_band"]:
+		var s := _gaul_sim(b, 1661, "gaul" if kind == "gaul_king" else "dacia")
+		s.horde.cleave_cd = 1e9
+		s.horde.summon_cd = 1e9
+		s.horde.siege_cd = 1e9
+		for t in ["sweep_cd", "rockfall_cd", "leap_cd", "salvo_cd"]:
+			s.horde.set(t, 1e9)
+		s.commander.pos = Vector2.ZERO
+		s.legion.place_all(s.facing_angle)
+		s._rebuild_grids()
+		var r := float(content.enemies[kind].radius)
+		var i := s.horde.spawn_chieftain(Vector2(-s.legion_reach - 10.0, 0)) if kind == "gaul_king" else s.horde.spawn(kind, Vector2(-s.legion_reach - r - 120.0, 0), true)
+		var id: int = s.horde.e_id[i]
+		if kind == "gaul_king":
+			s.horde.charge_cd = 0.0
+		else:
+			var st: Dictionary = s.horde.boss_state(i)
+			for key in st:
+				if str(key).ends_with("_cd"):
+					st[key] = 1e9
+			st.onrush_cd = 0.0
+		var hp := 0.0
+		for so in s.soldiers:
+			hp += so.hp
+		var places: Array = s.soldiers.map(func(so: Dictionary) -> Vector2: return so.pos)
+		var dazed := false
+		for k in 4 * 60:
+			s.testudo_left = 5.0
+			s.update(1.0 / 60.0, Vector2.ZERO, false)
+			var j := s.horde.e_id.find(id)
+			dazed = dazed or (j >= 0 and s.horde.e_stun[j] > 0.0)
+		var after := 0.0
+		var thrown := 0.0
+		for n in s.soldiers.size():
+			after += s.soldiers[n].hp
+			thrown = maxf(thrown, s.soldiers[n].pos.distance_to(places[n]))
+		check(after >= hp - 1.0, "the %s's charge into the testudo hurts nobody (%.0f of %.0f health left)" % [kind, after, hp])
+		check(thrown < 12.0, "and throws nobody aside (%.0f px)" % thrown)
+		check(dazed, "and leaves him dazed against the shields")
+
+
 func test_barbarians_slowly_break_through_a_wall(b: Dictionary) -> void:
 	var s := _quiet_sim(b, 308)
 	_field(s, [])

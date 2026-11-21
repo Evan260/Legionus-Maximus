@@ -25,7 +25,7 @@ static func how_to_play(balance: Dictionary) -> Array:
 	var key := func(action: String) -> String: return Controls.key_of(action) + "  "
 	return [
 		Controls.march_keys() + "  " + TranslationServer.translate("march"),
-		key.call("testudo") + TranslationServer.translate("testudo: 80% less harm"),
+		key.call("testudo") + TranslationServer.translate("testudo: 80% less harm, stops boss charges"),
 		key.call("build") + TranslationServer.translate("palisade: %d timber from felled trees") % int(balance.palisade.cost),
 		key.call("wall") + TranslationServer.translate("wall behind the legion: %d timber, the enemy slowly breaks it") % int(balance.wall.cost),
 		key.call("bridge") + TranslationServer.translate("bridge over a ravine: %d timber") % int(balance.bridge.cost),

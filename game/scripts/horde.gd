@@ -1266,6 +1266,10 @@ func _drive_on(ci: int, dt: float, sim: Sim) -> void:
 		chief_hold = 0.0
 		e_pos[ci] = sim.terrain.push_out_wide(e_pos[ci], k_radius[kind])
 		return
+	if _shields_stop(ci, at, k_radius[kind], sim):
+		drive = {}
+		chief_hold = 0.0
+		return
 	hold_pos = at
 	e_pos[ci] = at
 	e_face[ci] = (pts[k] - pts[k - 1]).normalized()
@@ -1350,6 +1354,10 @@ func _chieftain_after(sim: Sim) -> void:
 		charging = false
 		return
 	var kind := e_kind[ci]
+	if _shields_stop(ci, e_pos[ci], k_radius[kind], sim):
+		charging = false
+		e_dash[ci] = 0.0
+		return
 	var throw := float(content.enemies[kind_ids[kind]].attacks.charge.throw)
 	var reach := k_radius[kind] + Sim.UNIT_RADIUS + 2.0
 	var side := charge_dir.orthogonal()
@@ -1573,6 +1581,10 @@ func _onrush(i: int, st: Dictionary, cfg: Dictionary, timer: String, dt: float, 
 		if (at - lane).dot(st.rush_dir) < -0.5:
 			st.rush_left = 0.0
 			at = sim.terrain.push_out_wide(p, k_radius[e_kind[i]])
+		if _shields_stop(i, at, k_radius[e_kind[i]] + float(cfg.get("blade", 0.0)), sim):
+			st.rush_left = 0.0
+			_hold_boss(st, p, 0.0)
+			return
 		_hold_boss(st, at, st.rush_left)
 		e_pos[i] = at
 		e_face[i] = st.rush_dir
@@ -1695,6 +1707,20 @@ func _in_wedge(at: Vector2, dir: Vector2, off: Vector2) -> Vector2:
 
 
 ## Rides down the Romans a charging rider at p reaches: each is hurt once per charge (`mark`) and thrown to the side.
+## Whether the legion's testudo meets a charging boss whose body of `radius` at p reaches a soldier; if it does, the
+## charge breaks on the shields and leaves him dazed for a moment.
+func _shields_stop(i: int, p: Vector2, radius: float, sim: Sim) -> bool:
+	if sim.testudo_left <= 0.0:
+		return false
+	var reach := radius + Sim.UNIT_RADIUS + 2.0
+	for u in sim.units:
+		if (u.pos - p).length_squared() <= reach * reach:
+			e_stun[i] = maxf(e_stun[i], float(b.testudo_block_stun))
+			sim.event("shield", p)
+			return true
+	return false
+
+
 func _ride_down(p: Vector2, radius: float, dir: Vector2, mark: int, dmg: float, throw: float, sim: Sim) -> bool:
 	var reach := radius + Sim.UNIT_RADIUS + 2.0
 	var side: Vector2 = dir.orthogonal()

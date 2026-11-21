@@ -92,6 +92,7 @@
   "testudo_recharge": 15.0,
   "testudo_damage_taken": 0.2,
   "testudo_speed": 0.5,
+  "testudo_block_stun": 1.5,
   "enemy_health_growth": 0.002,
   "enemy_health_curve": 0.0142,
   "pilum": {
