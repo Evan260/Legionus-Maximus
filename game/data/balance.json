@@ -237,8 +237,9 @@
     "province": "germania"
   },
   "gods": {
-    "favour_first": 1200,
-    "favour_step": 1200,
+    "favour_first": 1000,
+    "favour_step": 900,
+    "gather_seconds": 4.0,
     "view_half": [330, 190],
     "boss_share": 0.15,
     "banner_seconds": 2.5,

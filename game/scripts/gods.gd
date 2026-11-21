@@ -22,6 +22,8 @@ var bolts: Array = []
 var meteors: Array = []
 var flash := 0.0
 var quake := 0.0
+## Seconds left in which every coin on the field flies to the commander, so the coins of the barbarians a god kills come in too.
+var gather_left := 0.0
 
 ## The three gods drawn when the favour filled, kept until one is called so closing the choice draws none afresh.
 var offer: Array = []
@@ -95,6 +97,8 @@ func invoke(sim: Sim, id: String) -> void:
 	called[id] = true
 	last = {"id": id, "at": sim.time}
 	_boss_taken.clear()
+	gather_left = float(g.gather_seconds)
+	sim.c_pull.fill(1)
 	match id:
 		"jupiter":
 			storm_left = float(g.jupiter.seconds)
@@ -142,6 +146,9 @@ func update(dt: float, sim: Sim) -> void:
 	frenzy_left = maxf(0.0, frenzy_left - dt)
 	burn_left = maxf(0.0, burn_left - dt)
 	patches_left = maxf(0.0, patches_left - dt)
+	if gather_left > 0.0:
+		gather_left -= dt
+		sim.c_pull.fill(1)
 	if not bolts.is_empty():
 		var keep: Array = []
 		for bolt in bolts:

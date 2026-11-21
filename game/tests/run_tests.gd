@@ -4022,6 +4022,23 @@ func _fill_favour(s: Sim) -> void:
 	s.gods.favour = s.gods.need(s.b)
 
 
+func test_a_god_called_gathers_every_coin(b: Dictionary) -> void:
+	var s := _god_sim(b, 506, 0)
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	for k in 6:
+		s.drop_coin(s.commander.pos + Vector2.from_angle(k) * 900.0, 3)
+	var money := s.denarii
+	_fill_favour(s)
+	s.gods.invoke(s, "mars")
+	_step_dt(s, 0.5)
+	s.drop_coin(s.commander.pos + Vector2(700, 0), 3)
+	_step_dt(s, float(b.gods.gather_seconds))
+	check(s.c_pos.is_empty(), "every coin on the field comes in, including those dropped just after the call (%d left)" % s.c_pos.size())
+	check(s.denarii >= money + 21, "and is counted (%d)" % (s.denarii - money))
+	check(int(b.gods.favour_first) <= 1000 and int(b.gods.favour_step) <= 900, "the gods can be called a little more often than before (%d, then %d more each time)" % [int(b.gods.favour_first), int(b.gods.favour_step)])
+
+
 func test_favour_fills_as_barbarians_die(b: Dictionary) -> void:
 	var s := _god_sim(b, 500, 0)
 	var need := int(b.gods.favour_first)
