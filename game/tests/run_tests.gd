@@ -9491,6 +9491,13 @@ func _sarmatia_sim(b: Dictionary, seed_value: int) -> Sim:
 	return s
 
 
+func test_the_steppe_hunts_with_riders_as_well_as_wolves(b: Dictionary) -> void:
+	var s := _sarmatia_sim(b, 9601)
+	s.horde.time = 600.0
+	var kinds := s.horde.hunters()
+	check(kinds.has("lasso_rider") and kinds.has("steppe_wolf"), "lasso riders hunt a running legion beside the wolves (%s)" % str(kinds))
+
+
 func _steppe_terrain(b: Dictionary, seed_value: int) -> Terrain:
 	var t := Terrain.new(seed_value, b.forest, b.ravines)
 	t.steppe = b.steppes.sarmatia

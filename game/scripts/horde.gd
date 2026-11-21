@@ -849,13 +849,7 @@ func _pursue(sim: Sim) -> void:
 
 ## Beasts and sprinters that come in ahead of the legion's march and, as the pursuit grows, from all round it, running at first and tougher and fiercer the longer the hunt goes on.
 func _hunt(sim: Sim, cfg: Dictionary, moved: Vector2) -> void:
-	var fast: Array = []
-	for id in ordinary:
-		var info: Dictionary = content.enemies[id]
-		if float(info.get("arrives", 0.0)) <= time and (info.behaviour == "beast" or info.has("sprint")):
-			fast.append(id)
-	if fast.is_empty() and not ordinary.is_empty():
-		fast.append(ordinary[0])
+	var fast := hunters()
 	if fast.is_empty():
 		return
 	var n := int(minf(pursuit, 1.0) * (float(cfg.hunt_start) + float(cfg.hunt_growth) * time) * float(cfg.province_mult.get(province, 1.0)))
@@ -887,6 +881,18 @@ func _hunt(sim: Sim, cfg: Dictionary, moved: Vector2) -> void:
 		e_power[i] *= fierce
 	if e_pos.size() > first:
 		sim.event("surge", commander.pos)
+
+
+## The ordinary enemies already on the field that can be sent hunting: beasts, sprinters and riders marked `hunts`, or the first kind when there are none.
+func hunters() -> Array:
+	var fast: Array = []
+	for id in ordinary:
+		var info: Dictionary = content.enemies[id]
+		if float(info.get("arrives", 0.0)) <= time and (info.behaviour == "beast" or info.has("sprint") or info.get("hunts", false)):
+			fast.append(id)
+	if fast.is_empty() and not ordinary.is_empty():
+		fast.append(ordinary[0])
+	return fast
 
 
 ## The extra bosses let loose on a legion the horde is hunting, one more for each step of the pursuit past the first.
