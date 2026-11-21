@@ -7875,6 +7875,37 @@ func test_the_fort_has_room_for_a_legion_grown_by_the_barracks(b: Dictionary) ->
 	check(s.legion.cap > int(b.legion_cap) and room >= float(b.fort.room_margin) - 0.01, "the yard keeps its margin for %d men (%.1f px)" % [s.legion.cap, room])
 
 
+func test_the_fort_walls_run_straight_from_tower_to_gate(b: Dictionary) -> void:
+	var s := _qm_sim(b, "recruit_cap", 0)
+	var half := 200.0
+	var w := float(b.fort.wall_step)
+	var gate_picture_half := 48.0
+	var back := {}
+	var front := {}
+	var left := -INF
+	var right := INF
+	var reach := Vector2(INF, -INF)
+	var sides: Array = []
+	for p in s.objectives._fort_pictures(Vector2.ZERO, half, b.fort):
+		if p[0] == "fort_wall":
+			if p[1].y < 0.0:
+				back[p[1].y] = true
+				reach = Vector2(minf(reach.x, p[1].x - w / 2.0), maxf(reach.y, p[1].x + w / 2.0))
+			else:
+				front[p[1].y] = true
+				if p[1].x < 0.0:
+					left = maxf(left, p[1].x + w / 2.0)
+				else:
+					right = minf(right, p[1].x - w / 2.0)
+		elif p[0] == "fort_side" and p[1].x < 0.0:
+			sides.append(p[1].y)
+	check(back.size() == 1 and front.size() == 1, "the back wall and the front walls each stand on one line")
+	check(reach.x <= -half and reach.y >= half, "the back wall runs from corner to corner")
+	check(left >= -gate_picture_half and left < -float(b.fort.tower_x) + float(b.fort.tower_radius) and right <= gate_picture_half and right > float(b.fort.tower_x) - float(b.fort.tower_radius), "the front walls reach in behind the gate on both sides, short of its opening (%.0f, %.0f)" % [left, right])
+	sides.sort()
+	check(not sides.is_empty() and sides[0] <= -half and sides[-1] >= half - float(b.fort.side_step), "the side walls run from the back towers to the front towers")
+
+
 func test_quartermaster_attack_speed_quickens_every_blow(b: Dictionary) -> void:
 	var plain := _qm_sim(b, "attack_speed", 0).attack_rate()
 	var drilled := _qm_sim(b, "attack_speed", 2).attack_rate()

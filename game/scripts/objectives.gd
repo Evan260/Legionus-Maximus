@@ -6,9 +6,11 @@ extends RefCounted
 ## Seconds the rescued column's cart takes to fade away.
 const CART_FADE := 1.5
 const KINDS := ["camp", "column", "grove"]
+## Pixels between the stakes of the fort's wall picture.
+const STAKE_SPACING := 4.0
 
 var list: Array = []
-## Empty until the fort appears; then {pos: foot of the gate, gate: its opening, centre, half: half its side, gate_half: half the gap between the gate towers, hold: seconds held, seen: been on screen}.
+## Empty until the fort appears; then {pos: foot of the gate, gate: its opening, centre, half: half its side, gate_half: half the gap between the gate towers, hold: seconds held, entered}.
 var fort := {}
 var fort_reached := false
 ## Denarii the finished objectives add to what the run banks.
@@ -167,19 +169,18 @@ func raise_fort(sim: Sim) -> void:
 ## blocker under each tower and tent so nobody stands inside them.
 func _fort_pictures(centre: Vector2, half: float, cfg: Dictionary) -> Array:
 	var out: Array = []
-	var wall := float(cfg.wall_step)
-	var gate_half := float(cfg.gate_width) / 2.0
-	# The front and back walls in pieces laid side by side; the front leaves room for the gate.
-	# The pieces are spread evenly from corner to corner, so both sides of the gate match.
-	var n := maxi(1, ceili(2.0 * half / wall))
-	for k in n:
-		var x := -half + (k + 0.5) * 2.0 * half / n
-		out.append(["fort_wall", centre + Vector2(x, -half + 10.0), 0.0])
-		if absf(x) >= gate_half + wall / 2.0 - 8.0:
-			out.append(["fort_wall", centre + Vector2(x, half + 10.0), 0.0])
-	# Each side wall is short pieces stacked up the screen, which reads as a palisade running away from the viewer.
-	var y := -half + 22.0
-	while y <= half + 6.0:
+	# The walls stand a little above the corners so their bank tucks behind the base of the gate and the towers.
+	var lift := float(cfg.wall_lift)
+	for x in _wall_run(-half, half, float(cfg.wall_step)):
+		out.append(["fort_wall", centre + Vector2(x, -half - lift), 0.0])
+	# The front walls start under the gate's towers, so the gate hides where they end.
+	var tuck := float(cfg.tower_x)
+	for sx in [-1.0, 1.0]:
+		for x in _wall_run(sx * tuck, sx * half, float(cfg.wall_step)):
+			out.append(["fort_wall", centre + Vector2(x, half - lift), 0.0])
+	# Each side wall is a strip of stakes standing one behind another, which reads as a palisade running away from the viewer.
+	var y := -half - lift
+	while y < half + float(cfg.side_step) / 2.0:
 		for sx in [-1.0, 1.0]:
 			out.append(["fort_side", centre + Vector2(sx * half, y), 0.0])
 		y += float(cfg.side_step)
@@ -207,6 +208,21 @@ func _fort_pictures(centre: Vector2, half: float, cfg: Dictionary) -> Array:
 	var head := centre + Vector2(0, -half + rim + 16.0)
 	out.append(["command_tent", head, 0.0])
 	out.append(["", head + Vector2(0, -12), float(cfg.command_radius)])
+	return out
+
+
+## The middles of wall pieces `width` wide laid edge to edge from `from` to `to`; the last is drawn back to end at `to`,
+## by whole stakes so its stakes stand on the same ones it covers.
+func _wall_run(from: float, to: float, width: float) -> Array:
+	var out: Array = []
+	var dir := signf(to - from)
+	var x := from
+	while absf(to - x) >= width - 0.01:
+		out.append(x + dir * width / 2.0)
+		x += dir * width
+	var rest := absf(to - x)
+	if rest > 0.01:
+		out.append(x + dir * (width / 2.0 - (width - ceilf(rest / STAKE_SPACING) * STAKE_SPACING)))
 	return out
 
 

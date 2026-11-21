@@ -48,7 +48,7 @@ PROPS = {"oak": "props2/oak.png", "fir": "props2/fir.png", "rock": "props2/rock.
          "hedge_end_right": "props6/hedge_end_right.png", "village": "props3/village.png", "roundhouse": "roundhouse/house_a.png",
          "wheat_field": "wheat_field/field_tile.png", "pine": "props3/pine.png", "frozen_stream": "frozen_stream/ice_tile.png",
          "dune": "props4/dune.png", "palm": "props4/palm.png", "ruined_wall": "props4/ruined_wall.png", "well": "props4/well.png",
-         "fort_wall": "castra/wall_h.png", "fort_side": "castra/wall_h.png", "watchtower": "castra/tower.png", "tent": "castra/tent.png",
+         "fort_wall": "castra/wall_tile.png", "fort_side": "castra/side_tile.png", "watchtower": "castra/tower.png", "tent": "castra/tent.png",
          "command_tent": "castra/command_tent.png",
          "heather": "props5/heather.png", "bog": "props5/bog.png", "stone_circle": "props5/stone_circle.png",
          "olive": "props7/olive.png", "stone_wall": "props7/stone_wall.png", "dry_grass": "props7/dry_grass.png",
@@ -59,14 +59,13 @@ SHEETS = {"flame": "props3/flame_sheet_b.png"}
 # Props toned down after drawing, as (how much the light parts darken, how much colour is taken out), so the
 # scattered stones and felled stumps do not shine like coins on the grass.
 TONE = {"stones": (0.4, 0.5), "stump": (0.4, 0.2)}
-# Props cut from a larger picture, as (left, top, right, bottom): the fort's side wall is a few logs of its front wall with
-# their bank, which stacked up the screen reads as a palisade running away from the viewer.
-CROP = {"fort_side": (22, 8, 46, 44)}
 # Props whose black outline is redrawn in a darker shade of the colour just inside it, so the rock sits in the ground.
 SOFT_EDGE = {"rock"}
 # Props whose leaves are brought to another prop's greens, as prop: (the prop whose greens set the change, the prop to match),
-# so the Gaulish hedges wear the same green as the oaks beside them; every hedge piece takes the change worked out from the hedge.
-MATCH_GREEN = {"hedge": ("hedge", "oak"), "hedge_end_left": ("hedge", "oak"), "hedge_end_right": ("hedge", "oak")}
+# so the Gaulish hedges wear the oaks' green and the fort's gate, towers and tents the grass of its wall bank.
+MATCH_GREEN = {"hedge": ("hedge", "oak"), "hedge_end_left": ("hedge", "oak"), "hedge_end_right": ("hedge", "oak"),
+               "fort_gate": ("fort_gate", "fort_wall"), "watchtower": ("watchtower", "fort_wall"), "tent": ("tent", "fort_wall"),
+               "command_tent": ("command_tent", "fort_wall")}
 # The bosses and the chariot are drawn from their larger remakes; the small originals stay on disk.
 FOLDERS = {"berserker": "berserker_big", "war_band_leader": "war_band_leader_big", "war_priest": "war_priest_big",
            "chieftain": "chieftain_big", "champion": "champion_big", "horn_blower": "horn_blower_big", "gaul_king": "gaul_king_big",
@@ -236,8 +235,6 @@ def main():
                 sets.append((("units", unit, "attack", d), images, anchor))
     for name, path in PROPS.items():
         im = Image.open(RAW / path).convert("RGBA")
-        if name in CROP:
-            im = im.crop(CROP[name])
         if name in TONE:
             im = tone(im, *TONE[name])
         if name in SOFT_EDGE:
