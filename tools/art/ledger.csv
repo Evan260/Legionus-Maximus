@@ -1428,3 +1428,6 @@ time,kind,name,cost_usd,cost_generations,usd_left
 2026-11-21T15:11:24,animate,tools/art/raw/rasparaganus_big/t_running_south-east,0.0101,0,3.4157
 2026-11-21T15:11:45,animate,tools/art/raw/war_wagon_big/t_running_south-east,0.0146,0,3.4011
 2026-11-21T15:15:52,animate,tools/art/raw/draco_rider_big/t_running_east,0.0125,0,3.3886
+2026-11-21T16:07:20,pixen,tools/art/raw/icon_try/stakes_11.png,0.0073,0,3.3813
+2026-11-21T16:07:35,pixen,tools/art/raw/icon_try/stakes_22.png,0.0063,0,3.3751
+2026-11-21T16:08:01,pixen,tools/art/raw/icon_try/stakes_33.png,0.0075,0,3.3676
