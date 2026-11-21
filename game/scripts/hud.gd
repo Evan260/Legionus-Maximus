@@ -869,21 +869,3 @@ func choice_at(p: Vector2) -> int:
 		if choice_rects[i].has_point(p):
 			return i
 	return -1
-
-
-## Where the arrow to a target `off` from the screen centre stands, on the edge of the room below `top`, or INF when it is on screen.
-static func edge_point(view: Vector2, off: Vector2, top: float) -> Vector2:
-	var room := Rect2(EDGE, top, view.x - 2.0 * EDGE, view.y - top - EDGE)
-	var centre := view / 2.0
-	if room.has_point(centre + off):
-		return Vector2.INF
-	var t := INF
-	if off.x > 0.0:
-		t = (room.end.x - centre.x) / off.x
-	elif off.x < 0.0:
-		t = (room.position.x - centre.x) / off.x
-	if off.y > 0.0:
-		t = minf(t, (room.end.y - centre.y) / off.y)
-	elif off.y < 0.0:
-		t = minf(t, (room.position.y - centre.y) / off.y)
-	return centre + off * t

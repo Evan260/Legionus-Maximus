@@ -158,7 +158,7 @@ func raise_fort(sim: Sim) -> void:
 	for edge in [-1.0, 1.0]:
 		pieces.append(["", foot + Vector2(edge * (tx + tr + sr * 0.5), 0.0), sr])
 	pieces.append_array(_fort_pictures(best, half, cfg))
-	fort = {"pos": foot, "gate": foot + Vector2(0, -12), "centre": best, "half": half, "gate_half": tx - tr, "hold": 0.0, "seen": false, "entered": false}
+	fort = {"pos": foot, "gate": foot + Vector2(0, -12), "centre": best, "half": half, "gate_half": tx - tr, "hold": 0.0, "entered": false}
 	sim.terrain.add_clearing(best, room, pieces)
 	notice = {"kind": "fort", "at": sim.time}
 
@@ -260,9 +260,6 @@ func update(dt: float, sim: Sim) -> void:
 
 func _fort(dt: float, sim: Sim) -> void:
 	var cfg: Dictionary = sim.b.fort
-	var off: Vector2 = fort.pos - sim.commander.pos
-	if not fort.seen and absf(off.x) < float(cfg.seen_within[0]) and absf(off.y) < float(cfg.seen_within[1]):
-		fort.seen = true
 	if in_fort(sim.commander.pos, sim):
 		if not fort.entered:
 			fort.entered = true
@@ -278,11 +275,6 @@ func _fort(dt: float, sim: Sim) -> void:
 			sim.win(fort.centre)
 	else:
 		fort.hold = maxf(0.0, fort.hold - dt)
-
-
-## Whether the run may end in victory: not before the fort has been on screen once it stands.
-func fort_seen() -> bool:
-	return fort.is_empty() or fort.seen
 
 
 func _camp(o: Dictionary, sim: Sim) -> void:

@@ -558,7 +558,6 @@ func test_the_chieftain_killed_by_the_triumph_does_not_win_again(b: Dictionary) 
 	var s := Sim.new(b, content, {"seed": 13})
 	s.time = float(b.chieftain_at) - 0.01
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
-	s.objectives.fort.seen = true
 	s.win(s.commander.pos)
 	s.events.clear()
 	s.triumph_left = 1.0
@@ -3377,16 +3376,6 @@ func test_the_fort_appears_with_the_chieftain_and_holding_it_wins(b: Dictionary)
 	check(e.endless_since == since and not e.over, "and staying in the fort keeps the endless clock")
 
 
-func test_the_hud_points_to_objectives_off_screen(b: Dictionary) -> void:
-	var view := Vector2(640, 360)
-	var top := 40.0
-	var at: Vector2 = Hud.edge_point(view, Vector2(2000, 0), top)
-	check(at.x < view.x and at.x > view.x - 40.0 and absf(at.y - view.y / 2.0) < 1.0, "a target far east is marked at the right edge (%s)" % at)
-	at = Hud.edge_point(view, Vector2(-300, -3000), top)
-	check(at.y >= top and at.y < top + 30.0, "a target far north is marked below the top bar (%s)" % at)
-	check(Hud.edge_point(view, Vector2(100, 50), top) == Vector2.INF, "a target on screen needs no arrow")
-
-
 ## Lays the given props on otherwise bare ground round the start and rebuilds the solid grid.
 func _field(s: Sim, props: Array) -> void:
 	s.terrain.empty = false
@@ -4017,20 +4006,15 @@ func test_a_win_marches_on_to_the_next_province(b: Dictionary) -> void:
 	Profile.data = saved
 
 
-func test_the_run_does_not_end_before_the_fort_is_seen(b: Dictionary) -> void:
+func test_killing_the_chieftain_does_not_end_the_run(b: Dictionary) -> void:
 	var s := _fort_sim(b, 403)
-	var fort: Dictionary = s.objectives.fort
-	check(not fort.seen, "the fort starts out of sight")
 	s.time = float(b.chieftain_at)
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
 	var ci := s.chieftain_index()
 	check(ci >= 0, "the chieftain is out")
 	s.hit(ci, 1e9)
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
-	check(not s.over, "killing the chieftain before the fort is in sight does not end the run")
-	s.commander.pos = fort.pos + Vector2(0, 60)
-	s.update(1.0 / 60.0, Vector2.ZERO, false)
-	check(fort.seen, "the fort counts as seen once it is on screen")
+	check(not s.over, "killing the chieftain does not end the run")
 
 
 func test_the_camp_burns_and_its_huts_go(b: Dictionary) -> void:
@@ -7739,13 +7723,12 @@ func test_a_chieftain_shoved_into_a_ravine_before_the_fort_leaves_the_fort_to_ho
 	s.legion.place_all(s.facing_angle)
 	var ci := s.horde.spawn_chieftain(Vector2(0, 60 - float(content.enemies.chieftain.radius) - 1.0))
 	s.objectives.raise_fort(s)
-	s.objectives.fort.seen = false
 	s.horde.e_stun[ci] = 1e9
 	s.horde.e_hp[ci] = 1e9
 	s.horde.e_max[ci] = 1e9
 	_step_dt(s, 4.0, Vector2.DOWN)
 	check(s.horde.chief_dead, "the chieftain shoved over the lip falls")
-	check(not s.victory and s.objectives.notice.get("kind", "") == "chieftain", "and with the fort unseen the run goes on until it is held")
+	check(not s.victory and s.objectives.notice.get("kind", "") == "chieftain", "and the run goes on until the fort is held")
 
 
 func test_a_boss_beside_a_ravine_is_not_shoved_in(b: Dictionary) -> void:
