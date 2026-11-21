@@ -251,6 +251,8 @@ var elite_ids: Array = []
 ## The elites that came on the boss timer, as opposed to an objective's defenders.
 var timed_ids: Array = []
 var chief_dead := false
+# How many rockfalls have come down, so each soldier is struck by one rock of a fall at most.
+var rock_volleys := 0
 # The ids of the barbarians who gave up the chase this update, taken away once the legion has fought.
 var _gave_up: Array = []
 ## The run's difficulty: "easy", "medium" or "hard".
@@ -1143,11 +1145,12 @@ func start_sweep(ci: int, sim: Sim) -> bool:
 func rockfall(ci: int, sim: Sim) -> void:
 	var cfg: Dictionary = content.enemies[kind_ids[e_kind[ci]]].attacks.rockfall
 	var n := int(cfg.fury_count) if chief_fury else int(cfg.count)
+	rock_volleys += 1
 	for k in n:
 		var at: Vector2 = commander.pos
 		if k > 0:
 			at += Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(float(cfg.radius), float(cfg.spread) + sim.legion_reach * 0.5)
-		foe_lobs.append({"from": at, "to": at, "t": 0.0, "dur": float(cfg.delay) + 0.12 * k, "radius": float(cfg.radius), "dmg": float(cfg.damage), "slam": true, "rock": true})
+		foe_lobs.append({"from": at, "to": at, "t": 0.0, "dur": float(cfg.delay) + 0.12 * k, "radius": float(cfg.radius), "dmg": float(cfg.damage), "slam": true, "rock": true, "volley_id": rock_volleys})
 	e_strike[ci] = time
 	sim.event("bellow", e_pos[ci])
 
@@ -2062,6 +2065,11 @@ func _foe_lobs(dt: float, sim: Sim) -> void:
 			continue
 		for u in sim.units:
 			if (u.pos - l.to).length() < l.radius + Sim.UNIT_RADIUS:
+				# The rocks of one fall overlap, so each soldier is struck by only one of them.
+				if l.has("volley_id"):
+					if u.get("rocked", -1) == l.volley_id:
+						continue
+					u.rocked = l.volley_id
 				u.hp -= l.dmg * shield
 				u.flash = 0.12
 		if l.get("sky", false):

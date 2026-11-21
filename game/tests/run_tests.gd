@@ -3514,6 +3514,37 @@ func test_a_wall_goes_behind_the_army_not_behind_a_straggler(b: Dictionary) -> v
 	check(deepest >= rear - float(cfg.behind) - 0.5, "the wall stands behind the main army's rear (%.0f px back, rear %.0f)" % [deepest, rear])
 
 
+func test_the_dacian_king_never_wipes_out_a_packed_legion_at_once(b: Dictionary) -> void:
+	for attack in ["rockfall", "leap"]:
+		var s := _fort_sim(b, 1670)
+		s.province = "dacia"
+		s.commander.hp = 1e9
+		s.commander.max_hp = 1e9
+		while s.soldiers.size() < 40:
+			s.legion.add(["legionary", "archer", "cavalry"][s.soldiers.size() % 3])
+		s.commander.pos = s.objectives.fort.centre
+		s.legion.place_all(s.facing_angle)
+		for k in 6 * 60:
+			s.objectives.fort.hold = 0.0
+			s.update(1.0 / 60.0, Vector2.ZERO, false)
+		var before := s.soldiers.size()
+		var h := s.horde
+		var i := h.spawn("dacian_king", s.commander.pos + Vector2(0, 60))
+		h.chieftain_id = h.e_id[i]
+		h.chief_fury = true
+		h.e_stun[i] = 1e9
+		match attack:
+			"rockfall":
+				h.rockfall(i, s)
+			"leap":
+				h.start_leap(i, s)
+		for k in 3 * 60:
+			s.objectives.fort.hold = 0.0
+			s.update(1.0 / 60.0, Vector2.ZERO, false)
+		var killed := before - s.soldiers.size()
+		check(killed <= before / 4, "his %s on a legion packed in the fort kills at most a quarter of it (%d of %d)" % [attack, killed, before])
+
+
 func test_a_charging_boss_is_stopped_by_a_wall(b: Dictionary) -> void:
 	for kind in ["gaul_king", "falx_band"]:
 		var s := _gaul_sim(b, 1660, "gaul" if kind == "gaul_king" else "dacia")
