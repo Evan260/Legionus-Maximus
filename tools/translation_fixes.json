@@ -3067,11 +3067,13 @@
     },
     "The sacred grove burns: fewer barbarians for a minute": {
       "it": "Il bosco sacro brucia: meno barbari per un minuto",
-      "pl": "Święty gaj płonie: mniej barbarzyńców przez minutę"
+      "pl": "Święty gaj płonie: mniej barbarzyńców przez minutę",
+      "ja": "聖なる森が燃える:1分間、蛮族が減る"
     },
     "Stand at the grove's altar to burn it: a free level-up and fewer barbarians for a minute": {
       "es": "Ponte en el altar del bosque para quemarlo: una subida de nivel gratis y menos bárbaros durante un minuto",
-      "tr": "Yakmak için koruluğun sunağında dur: ücretsiz seviye atlama ve bir dakika boyunca daha az barbar"
+      "tr": "Yakmak için koruluğun sunağında dur: ücretsiz seviye atlama ve bir dakika boyunca daha az barbar",
+      "ja": "森の祭壇に立って焼き払え:無料レベルアップと、1分間蛮族が減る"
     },
     "A supply cart: march into it for a free level-up, healing or every coin pulled in": {
       "fr": "Un chariot de ravitaillement : marchez dessus pour un niveau gratuit, des soins ou toutes les pièces attirées à vous",
@@ -3170,6 +3172,12 @@
       "ja": "自分の音楽",
       "ko": "내 음악",
       "zh_CN": "自定义音乐"
+    },
+    "The sacred well is ours: fewer barbarians for a minute": {
+      "ja": "聖なる井戸は我らのもの:1分間、蛮族が減る"
+    },
+    "Stand at the sacred well to seize it: a free level-up and fewer barbarians for a minute": {
+      "ja": "聖なる井戸に立って奪い取れ:無料レベルアップと、1分間蛮族が減る"
     }
   }
 }

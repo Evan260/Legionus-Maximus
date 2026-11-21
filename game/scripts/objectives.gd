@@ -69,6 +69,8 @@ func add(sim: Sim, kind: String, pos: Vector2) -> Dictionary:
 					"anim": k * 2.0, "facing": out, "moving": false, "flash": 0.0, "haste": 1.0, "struck_at": -1e9, "strike_dir": out})
 		"grove":
 			var c: Dictionary = cfg.grove
+			# The grove's heart is an altar that burns, or in the desert a sacred well that is seized.
+			o.centre = str(c.get("centre", {}).get(sim.province, "altar"))
 			var tree := str(c.trees.get(sim.province, "oak"))
 			var stones: Dictionary = c.stones.get(sim.province, {})
 			var ring := float(stones.get("ring", c.ring))
@@ -170,6 +172,14 @@ func chieftain_point(sim: Sim) -> Vector2:
 	var dir: Vector2 = (fort.gate - sim.commander.pos).normalized()
 	var p: Vector2 = sim.commander.pos + Vector2(dir.x * 1.15, dir.y * 0.75) * float(sim.b.spawn_radius)
 	return sim.terrain.push_out(p, 12.0)
+
+
+## Whether this run's grove is the desert's sacred well rather than an altar.
+func well() -> bool:
+	for o in list:
+		if o.kind == "grove":
+			return o.get("centre", "altar") == "well"
+	return false
 
 
 ## How much of the ordinary stream still comes: less for a while after the grove burns.
@@ -322,7 +332,8 @@ func _grove(o: Dictionary, dt: float, sim: Sim) -> void:
 			calm_until = sim.time + float(cfg.calm_seconds)
 			calm_mult = float(cfg.calm_mult)
 			o.burnt_at = sim.time
-			sim.effects.append({"kind": "boom", "pos": o.pos, "t": 0.0, "radius": float(cfg.ring)})
+			if o.get("centre", "altar") == "altar":
+				sim.effects.append({"kind": "boom", "pos": o.pos, "t": 0.0, "radius": float(cfg.ring)})
 			_finish(o, sim)
 	else:
 		o.hold = maxf(0.0, o.hold - dt)

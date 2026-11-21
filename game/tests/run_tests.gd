@@ -3168,6 +3168,24 @@ func test_the_grove_is_ringed_with_its_provinces_own_props(b: Dictionary) -> voi
 		check(kinds.has(want) and (want == "oak" or not kinds.has("oak")), "the grove in %s is ringed with %s (%s)" % [province, want, kinds.keys()])
 
 
+func test_the_desert_grove_is_a_well_that_does_not_burn(b: Dictionary) -> void:
+	var s := Sim.new(b, Content.with_all_art(), {"seed": 156, "province": "parthia"})
+	s.objectives.list.clear()
+	var well: Dictionary = s.objectives.add(s, "grove", Vector2(500, 0))
+	check(well.centre == "well", "in Parthia the grove's heart is a well (%s)" % well.centre)
+	var home := Sim.new(b, Content.with_all_art(), {"seed": 156})
+	check(home.objectives.add(home, "grove", Vector2(500, 0)).centre == "altar", "elsewhere it is the altar")
+	var hud_name := Hud.objective_name("grove", s)
+	check(hud_name == "Sacred well", "its badge calls it the sacred well (%s)" % hud_name)
+	s.commander.pos = well.pos
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	_step_dt(s, float(b.objectives.grove.hold) + 0.2)
+	check(well.done, "holding it takes it")
+	check(not s.effects.any(func(e: Dictionary) -> bool: return e.kind == "boom" and e.pos == well.pos), "with no burst of fire")
+	check(not Hud.notice_line("grove", s).contains("burn") and not Hud.notice_line("grove_tip", s).contains("burn"), "and nothing it says speaks of burning")
+
+
 func test_burning_the_grove_thins_the_stream(b: Dictionary) -> void:
 	var cfg: Dictionary = b.objectives.grove
 	var s := _objective_sim(b, 153)

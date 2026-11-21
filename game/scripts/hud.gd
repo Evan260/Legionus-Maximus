@@ -355,6 +355,11 @@ func _health(sim: Sim) -> void:
 ## [kind, position, name, unit], the last two set only for the chieftain.
 static func targets_of(sim: Sim) -> Array:
 	var out: Array = sim.objectives.targets()
+	# The desert's grove is a sacred well, named and pictured as one on its badge.
+	if sim.objectives.well():
+		for k in out.size():
+			if out[k][0] == "grove":
+				out[k] = ["grove", out[k][1], TranslationServer.translate(objective_name("grove", sim)).to_upper(), "", "well"]
 	var ci := sim.chieftain_index()
 	if ci >= 0:
 		out.append(["chieftain", sim.horde.e_pos[ci], chief_name(sim).to_upper(), sim.horde.kind_ids[sim.horde.e_kind[ci]]])
@@ -453,35 +458,44 @@ func _victory_banner(sim: Sim) -> void:
 
 
 func _notice_text(kind: String, sim: Sim) -> String:
+	return notice_line(kind, sim)
+
+
+## The words of a notice, translated; the desert's sacred well is seized where an altar is burnt.
+static func notice_line(kind: String, sim: Sim) -> String:
+	var well := sim.objectives.well()
 	match kind:
 		"camp":
-			return tr("The eagle is ours again")
+			return TranslationServer.translate("The eagle is ours again")
 		"column":
-			return tr("The column joins the legion")
+			return TranslationServer.translate("The column joins the legion")
 		"grove":
-			return tr("The sacred grove burns: fewer barbarians for a minute")
+			if well:
+				return TranslationServer.translate("The sacred well is ours: fewer barbarians for a minute")
+			return TranslationServer.translate("The sacred grove burns: fewer barbarians for a minute")
 		"cart_tip":
-			return tr("A supply cart: march into it for a free level-up, healing or every coin pulled in")
+			return TranslationServer.translate("A supply cart: march into it for a free level-up, healing or every coin pulled in")
 		"cart_free_choice":
-			return tr("Supply cart: a free level-up")
+			return TranslationServer.translate("Supply cart: a free level-up")
 		"cart_heal":
-			return tr("Supply cart: the legion is healed")
+			return TranslationServer.translate("Supply cart: the legion is healed")
 		"cart_magnet":
-			return tr("Supply cart: every coin is pulled in")
+			return TranslationServer.translate("Supply cart: every coin is pulled in")
 		"grove_tip":
-			return tr("Stand at the grove's altar to burn it: a free level-up and fewer barbarians for a minute")
+			if well:
+				return TranslationServer.translate("Stand at the sacred well to seize it: a free level-up and fewer barbarians for a minute")
+			return TranslationServer.translate("Stand at the grove's altar to burn it: a free level-up and fewer barbarians for a minute")
 		"chieftain":
-			return tr("The %s falls: now hold the fort") % chief_name(sim)
+			return TranslationServer.translate("The %s falls: now hold the fort") % chief_name(sim)
 		"roar":
-			return tr("The %s roars in fury") % chief_name(sim)
+			return TranslationServer.translate("The %s roars in fury") % chief_name(sim)
 		"ravine":
-			return tr("Fell trees for timber, then bridge the ravine at its edge")
+			return TranslationServer.translate("Fell trees for timber, then bridge the ravine at its edge")
 		"fort_barred":
-			return tr("The fort is yours once the %s falls") % chief_name(sim)
+			return TranslationServer.translate("The fort is yours once the %s falls") % chief_name(sim)
 	if sim.chieftain_index() >= 0:
-		return tr("A Roman fort is in sight: slay the %s to win") % chief_name(sim)
-	return tr("A Roman fort is in sight: hold it")
-
+		return TranslationServer.translate("A Roman fort is in sight: slay the %s to win") % chief_name(sim)
+	return TranslationServer.translate("A Roman fort is in sight: hold it")
 
 ## The sprite drawn inside each target's badge.
 const BADGE_ICON := {"camp": "eagle_standard", "grove": "altar", "column": "supply_cart", "fort": "fort_gate"}
@@ -528,7 +542,7 @@ static func arrow_layout(targets: Array, cpos: Vector2, view: Vector2, top: floa
 	# The badges go down first, so the labels written after them step round every badge.
 	for t in targets:
 		var off: Vector2 = t[1] - cpos
-		var extra := {"title": str(t[2]) if t.size() > 2 else "", "unit": str(t[3]) if t.size() > 3 else ""}
+		var extra := {"title": str(t[2]) if t.size() > 2 else "", "unit": str(t[3]) if t.size() > 3 else "", "icon": str(t[4]) if t.size() > 4 else ""}
 		if Rect2(Vector2.ZERO, view).grow(-EDGE).has_point(view / 2.0 + off):
 			# The chieftain on screen needs no label, since his health bar under the clock names him.
 			if t[0] != "chieftain":
@@ -644,6 +658,11 @@ static func _on_room_edge(room: Rect2, centre: Vector2, off: Vector2) -> Vector2
 
 
 ## The English name of an objective or the fort, translated where it is drawn.
+## The English name of an objective as the HUD shows it, the desert's grove being its sacred well.
+static func objective_name(kind: String, sim: Sim) -> String:
+	return "Sacred well" if kind == "grove" and sim.objectives.well() else _name_key(kind)
+
+
 static func _name_key(kind: String) -> String:
 	match kind:
 		"camp":
@@ -733,7 +752,7 @@ func _badge(l: Dictionary, atlas: Atlas, radius: float, reach: float, now: float
 		var usize := (uf.size * uk).round()
 		draw_texture_rect_region(atlas.texture, Rect2((c - usize / 2.0).round(), usize), uf)
 		return
-	var key: String = BADGE_ICON.get(l.kind, "")
+	var key: String = l.icon if l.get("icon", "") != "" else BADGE_ICON.get(l.kind, "")
 	if atlas != null and atlas.props.has(key):
 		var f: Rect2 = atlas.prop_frame(key)[0]
 		var inner := (radius - 4.0) * 2.0
