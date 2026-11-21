@@ -65,6 +65,8 @@ func activate(id: String) -> void:
 	if VOLUMES.has(id):
 		var next := float(Profile.setting(id)) + 0.1
 		_put(id, 0.0 if next > 1.0001 else snappedf(next, 0.1))
+	elif id == "music_folder":
+		Audio.open_music_folder()
 	elif id == "text_size":
 		_put("text_size", 2 if int(Profile.setting("text_size")) == 1 else 1)
 	elif id == "language":
@@ -134,6 +136,12 @@ func _draw_main(c: CanvasItem, ui: Ui) -> void:
 	var w := 440.0
 	var x := (Ui.W - w) / 2.0
 	var y := r.position.y + Ui.below_title() + 4.0
+	# Volumes, the music folder, the switches, text size, language, keys and back all fit inside the frame.
+	var rows := VOLUMES.size() + TOGGLES.size() + 5
+	var fit := floorf((r.end.y - 6.0 - y) / rows)
+	if fit < step:
+		h -= step - fit
+		step = fit
 	for key in VOLUMES:
 		var rect := Rect2(x, y, w, h)
 		var v := float(Profile.setting(key))
@@ -145,6 +153,8 @@ func _draw_main(c: CanvasItem, ui: Ui) -> void:
 		c.draw_rect(Rect2(bx, rect.position.y + h / 2 - 2, bar_w, 5), Ui.PARCH_DARK)
 		c.draw_rect(Rect2(bx, rect.position.y + h / 2 - 2, bar_w * v, 5), Ui.GOLD)
 		y += step
+	ui.button(c, Rect2(x, y, w, h), "music_folder", tr("Your own music"), tr("Open folder"))
+	y += step
 	for t in TOGGLES:
 		ui.button(c, Rect2(x, y, w, h), t[0], tr(t[1]), tr("On") if bool(Profile.setting(t[0])) else tr("Off"))
 		y += step

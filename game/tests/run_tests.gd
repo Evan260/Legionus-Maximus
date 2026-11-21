@@ -3715,6 +3715,41 @@ func test_a_victory_opens_with_a_reveal_that_counts_the_denarii(b: Dictionary) -
 	check(SummaryScreen.COUNT_TO < SummaryScreen.REVEAL, "before the reveal gives way to the summary")
 
 
+func test_your_own_music_joins_the_battle_music(_b: Dictionary) -> void:
+	check(Audio.PLAYER_MUSIC.begins_with("user://"), "your own music is kept beside the saves")
+	var folder := ProjectSettings.globalize_path("user://test_music")
+	DirAccess.make_dir_recursive_absolute(folder)
+	var tone := AudioStreamWAV.new()
+	tone.format = AudioStreamWAV.FORMAT_16_BITS
+	tone.mix_rate = 22050
+	tone.data = PackedByteArray()
+	tone.data.resize(4410)
+	tone.save_to_wav(folder.path_join("march.wav"))
+	var notes := FileAccess.open(folder.path_join("notes.txt"), FileAccess.WRITE)
+	notes.store_string("not music")
+	notes.close()
+	var found := Audio.player_tracks(folder)
+	check(found.size() == 1 and str(found[0]).ends_with("march.wav"), "a music file in the folder is found (%s)" % str(found))
+	check(Audio.load_external(str(found[0])) is AudioStreamWAV, "and it can be played")
+	check(Audio.load_external(folder.path_join("notes.txt")) == null, "a file that is not music is skipped")
+	check(Audio.player_tracks(folder.path_join("missing")).is_empty(), "and a folder not yet made has none")
+	for f in DirAccess.get_files_at(folder):
+		DirAccess.remove_absolute(folder.path_join(f))
+	DirAccess.remove_absolute(folder)
+	var game := Audio.battle_tracks()
+	check(game.size() == 3, "the game brings three battle tracks (%d)" % game.size())
+	var picked := {}
+	var last := ""
+	var repeats := 0
+	for k in 60:
+		var next := Audio.next_track(["a", "b", "c"], last)
+		repeats += 1 if next == last else 0
+		picked[next] = true
+		last = next
+	check(repeats == 0 and picked.size() == 3, "the battle music never plays the same track twice running, and plays them all")
+	check(Audio.next_track(["a"], "a") == "a" and Audio.next_track([], "a") == "", "a single track repeats, and none means silence")
+
+
 func test_the_triumph_waits_for_the_last_coin_and_barbarian(b: Dictionary) -> void:
 	var cfg: Dictionary = b.triumph
 	var s := _won_sim(b, 1652)

@@ -1,10 +1,14 @@
 extends Node
-## Every sound in the game: the effects the run reports through Sim.events, the interface sounds and the two music layers.
+## Every sound in the game: the effects the run reports through Sim.events, the interface sounds, the calm music of the title
+## and camp, and the battle music of a run, the game's own tracks and any the player puts in their own music folder.
 ## Each kind of sound has a limit per tenth of a second, a slight random pitch and a few recorded cuts, so a thousand hits never stack.
 ## It does nothing in tests, benches and headless runs, so they stay silent and cheap.
 
 const SFX_DIR := "res://assets/audio/sfx/"
 const MUSIC_DIR := "res://assets/audio/music/"
+## The player's own music, beside the saves; the settings open it.
+const PLAYER_MUSIC := "user://music/"
+const MUSIC_TYPES := ["ogg", "mp3", "wav"]
 var enabled := false
 var in_run := false
 var _sets := {}
@@ -19,10 +23,10 @@ var _rng := RandomNumberGenerator.new()
 var cfg: Dictionary
 var _kinds: Dictionary
 var _calm: AudioStreamPlayer
-var _drums: AudioStreamPlayer
-var _drums_target := -80.0
+var _battle: AudioStreamPlayer
+var _battle_track := ""
+var _retry_at := 0.0
 var _run_time := 0.0
-var _surge_left := 0.0
 
 
 func _ready() -> void:
@@ -70,7 +74,10 @@ func _ready() -> void:
 		add_child(p)
 		_players.append(p)
 	_calm = _music_player("calm", cfg.calm_db)
-	_drums = _music_player("drums", cfg.silent_db)
+	_battle = AudioStreamPlayer.new()
+	_battle.bus = "Music"
+	_battle.volume_db = float(cfg.silent_db)
+	add_child(_battle)
 
 
 func _music_player(track: String, db: float) -> AudioStreamPlayer:
@@ -159,12 +166,10 @@ func drain(sim: Sim) -> void:
 		var pan := clampf((e.pos.x - centre) / half_width, -1.0, 1.0)
 		# A crowd of hits is louder than one, up to a few decibels.
 		play(e.kind, pan, minf(float(cfg.crowd_db_max), float(cfg.crowd_db_per_doubling) * log(float(n)) / log(2.0)) if n > 1 else 0.0)
-		if e.kind == "surge" or e.kind == "chieftain":
-			_surge_left = float(cfg.surge_seconds)
 	sim.events.clear()
 
 
-## Chooses between the calm layer alone (title and camp) and the run, where the drums rise with the minutes.
+## Chooses between the calm music (title and camp) and the battle music of a run.
 func set_run(running: bool, run_time := 0.0) -> void:
 	in_run = running
 	_run_time = run_time
@@ -174,14 +179,67 @@ func _process(dt: float) -> void:
 	_clock += dt
 	if not _calm.playing and _calm.stream != null:
 		_calm.play()
-		_drums.play()
-	_surge_left = maxf(0.0, _surge_left - dt)
-	if in_run:
-		var rise := pow(clampf(_run_time / float(cfg.drums_full_seconds), 0.0, 1.0), float(cfg.drums_curve))
-		_drums_target = lerpf(float(cfg.drums_quiet_db), float(cfg.drums_loud_db), rise) + float(cfg.surge_boost_db) * clampf(_surge_left / float(cfg.surge_seconds) * float(cfg.surge_ramp), 0.0, 1.0)
-	else:
-		_drums_target = float(cfg.silent_db)
-	_drums.volume_db = move_toward(_drums.volume_db, _drums_target, float(cfg.fade_db_per_second) * dt)
-	# The layers share one length, and this keeps them from drifting apart.
-	if _calm.playing and _drums.playing and absf(_calm.get_playback_position() - _drums.get_playback_position()) > float(cfg.resync_seconds):
-		_drums.seek(_calm.get_playback_position())
+	var fade := float(cfg.fade_db_per_second) * dt
+	_calm.volume_db = move_toward(_calm.volume_db, float(cfg.silent_db) if in_run else float(cfg.calm_db), fade)
+	_battle.volume_db = move_toward(_battle.volume_db, float(cfg.battle_db) if in_run else float(cfg.silent_db), fade)
+	if in_run and not _battle.playing and _clock >= _retry_at:
+		_start_battle_track()
+	elif not in_run and _battle.playing and _battle.volume_db <= float(cfg.silent_db) + 1.0:
+		_battle.stop()
+
+
+## Plays the next battle track, from the game's own and the player's folder, which is looked at afresh each time.
+func _start_battle_track() -> void:
+	_battle_track = next_track(battle_tracks() + player_tracks(), _battle_track)
+	var stream: AudioStream = null
+	if _battle_track != "":
+		stream = load(_battle_track) if _battle_track.begins_with("res://") else load_external(_battle_track)
+	if stream == null:
+		# With nothing playable the folder is looked at again a little later, not every frame.
+		_retry_at = _clock + 5.0
+		return
+	_battle.stream = stream
+	_battle.play()
+
+
+## The game's own battle tracks, as paths.
+static func battle_tracks() -> Array:
+	var out: Array = []
+	for f in ResourceLoader.list_directory(MUSIC_DIR):
+		if f.begins_with("battle_") and f.ends_with(".ogg"):
+			out.append(MUSIC_DIR + f)
+	return out
+
+
+## A track picked at random, never `last` again while there is another to play; "" when there are none.
+static func next_track(choices: Array, last: String) -> String:
+	var pool := choices.filter(func(t: String) -> bool: return t != last)
+	if pool.is_empty():
+		return "" if choices.is_empty() else str(choices[0])
+	return str(pool[randi() % pool.size()])
+
+
+## The music files in the player's own folder, or in `folder`, as full paths.
+static func player_tracks(folder := ProjectSettings.globalize_path(PLAYER_MUSIC)) -> Array:
+	if not DirAccess.dir_exists_absolute(folder):
+		return []
+	return Array(DirAccess.get_files_at(folder)).filter(func(f: String) -> bool: return f.get_extension().to_lower() in MUSIC_TYPES).map(func(f: String) -> String: return folder.path_join(f))
+
+
+## Reads a music file from outside the game's own files; one it cannot read is skipped.
+static func load_external(path: String) -> AudioStream:
+	match path.get_extension().to_lower():
+		"ogg":
+			return AudioStreamOggVorbis.load_from_file(path)
+		"mp3":
+			return AudioStreamMP3.load_from_file(path)
+		"wav":
+			return AudioStreamWAV.load_from_file(path)
+	return null
+
+
+## Opens the player's music folder in the file explorer, making it first if need be.
+func open_music_folder() -> void:
+	var folder := ProjectSettings.globalize_path(PLAYER_MUSIC)
+	DirAccess.make_dir_recursive_absolute(folder)
+	OS.shell_open(folder)

@@ -3157,6 +3157,19 @@
     },
     "The legion marches on to %s": {
       "ja": "軍団は%sへ進軍する"
+    },
+    "Open folder": {
+      "fr": "Ouvrir le dossier",
+      "uk": "Відкрити теку",
+      "ja": "フォルダを開く"
+    },
+    "Your own music": {
+      "pl": "Własna muzyka",
+      "ru": "Своя музыка",
+      "uk": "Власна музика",
+      "ja": "自分の音楽",
+      "ko": "내 음악",
+      "zh_CN": "自定义音乐"
     }
   }
 }
