@@ -1370,7 +1370,7 @@
    "speed": 44,
    "dps": 1.4,
    "radius": 9,
-   "coins": 2,
+   "coins": 1,
    "art": [
     "unit:sarmatian_lancer"
    ],
@@ -1415,7 +1415,7 @@
    "speed": 56,
    "dps": 1.2,
    "radius": 8,
-   "coins": 2,
+   "coins": 1,
    "art": [
     "unit:lasso_rider"
    ],
@@ -1517,19 +1517,19 @@
      "retry": 0.25
     },
     "lancers": {
-     "every": 13.0,
+     "every": 11.0,
      "range": 420,
      "warn": 1.5,
      "length": 560,
      "width": 96,
      "riders": 5,
      "seconds": 1.4,
-     "damage": 20,
+     "damage": 45,
      "throw": 20,
      "kind": "sarmatian_lancer"
     },
     "steppe_fire": {
-     "every": 19.0,
+     "every": 16.0,
      "range": 420,
      "warn": 1.6,
      "back": 160,
@@ -1537,7 +1537,7 @@
      "length": 340,
      "seconds": 4.5,
      "burn": 3.0,
-     "dps": 9
+     "dps": 26
     }
    },
    "fury": {
