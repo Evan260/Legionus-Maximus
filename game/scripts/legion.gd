@@ -33,6 +33,8 @@ const GATE_DEPTH := 30.0
 # The commander and soldiers below full health this update, in roll order, gathered for the medici; only they can be the worst hurt.
 var _hurt: Array = []
 var _hurt_ready := false
+## The bridge whose deck the commander last stood on, so the men behind him keep filing over it after he steps off; -1 for none.
+var _crossing := -1
 
 
 func _init(balance: Dictionary, game_content: Content, random: RandomNumberGenerator, ranks: Dictionary) -> void:
@@ -242,8 +244,17 @@ func _column(places: Array, sim: Sim) -> Array:
 		var side: Vector2 = lane.dir.orthogonal()
 		var ahead: bool = absf(along) <= lane.half_len + lead if lane.both_ways else along >= -lead and along <= lane.half_len
 		if not ahead or absf(off.dot(side)) > lane.side:
+			if lane.has("bridge") and _crossing == lane.bridge:
+				_crossing = -1
 			continue
 		var way := 1.0 if facing.dot(lane.dir) >= 0.0 else -1.0
+		if lane.has("bridge"):
+			var short: float = absf(along) - lane.half_len
+			var toward := facing.dot(-signf(along) * lane.dir) >= float(_l.bridge_aim)
+			if short <= 0.0:
+				_crossing = lane.bridge
+			elif _crossing != lane.bridge and not (toward and short <= maxf(front, 0.0) + float(_l.bridge_approach)):
+				continue
 		if not lane.both_ways and way < 0.0:
 			continue
 		var order := _row_major(places)
@@ -268,9 +279,10 @@ func _column(places: Array, sim: Sim) -> Array:
 ## The bridges' decks and the fort's gate as lanes the legion files through: centre, direction, half length and half width, how far to the side the commander may be, and the extra lead.
 func _lanes(sim: Sim) -> Array:
 	var out: Array = []
-	for br in sim.terrain.bridges:
+	for i in sim.terrain.bridges.size():
+		var br: Dictionary = sim.terrain.bridges[i]
 		out.append({"pos": br.pos, "dir": br.dir, "half_len": br.half_len, "half_w": br.half_w, "side": br.half_w + float(_l.bridge_side),
-			"lead": float(_l.bridge_lead), "both_ways": true})
+			"lead": float(_l.bridge_lead), "both_ways": true, "bridge": i})
 	var fort: Dictionary = sim.objectives.fort
 	if not fort.is_empty() and not sim.objectives.fort_reached:
 		out.append({"pos": fort.pos, "dir": Vector2.UP, "half_len": float(fort.half), "half_w": float(fort.gate_half), "side": float(fort.half),

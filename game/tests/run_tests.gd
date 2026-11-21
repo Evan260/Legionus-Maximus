@@ -4866,6 +4866,39 @@ func test_a_big_legion_files_over_a_bridge_without_being_shoved(b: Dictionary) -
 	check(past == s.soldiers.size(), "every man is across (%d of %d)" % [past, s.soldiers.size()])
 
 
+func test_the_legion_files_for_a_bridge_only_when_heading_onto_it(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 1506)
+	while s.soldiers.size() < 30:
+		s.legion.add(["legionary", "archer"][s.soldiers.size() % 2])
+	_gorge(s, -600, 600, 100, 60)
+	s.commander.pos = Vector2(0, 0)
+	s.facing_angle = PI / 2.0
+	s.legion.place_all(s.facing_angle)
+	s.timber = int(b.bridge.cost)
+	check(s.build_bridge(), "the bridge is laid")
+	var br: Dictionary = s.terrain.bridges[0]
+	var near_end: Vector2 = br.pos - br.dir * float(br.half_len)
+	var places: Array = s.legion.formation()
+	var front := 0.0
+	for p in places:
+		front = maxf(front, p.x)
+	var cases := [
+		["walking past the end of the deck", near_end - br.dir * 60.0, 0.0, false],
+		["walking along the ravine just short of the deck", near_end - br.dir * 20.0, PI, false],
+		["heading for the deck from far off", near_end - br.dir * (front + 300.0), PI / 2.0, false],
+		["heading away from the deck on the near side", near_end - br.dir * 60.0, -PI / 2.0, false],
+		["heading for the deck close by", near_end - br.dir * (front + 20.0), PI / 2.0, true],
+		["on the deck", br.pos, PI / 2.0, true]]
+	for c in cases:
+		s.commander.pos = c[1]
+		s.facing_angle = c[2]
+		var filed := not s.legion._column(places, s).is_empty()
+		check(filed == c[3], "%s: %s" % [c[0], "files into a column" if filed else "keeps its formation"])
+	s.commander.pos = br.pos + br.dir * (float(br.half_len) + 100.0)
+	s.facing_angle = PI / 2.0
+	check(not s.legion._column(places, s).is_empty(), "just across, the men still on the deck keep filing over")
+
+
 func test_barbarians_cross_a_bridge(b: Dictionary) -> void:
 	var s := _quiet_sim(b, 1504)
 	_gorge(s, -1400, 1400, 100, 50)
