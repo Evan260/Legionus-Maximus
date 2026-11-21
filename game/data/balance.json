@@ -52,7 +52,7 @@
   "commander_regen": 0.3,
   "solid_range": 610,
   "detour": {"seconds": 0.6, "slide": 0.2, "route_range": 330, "stuck_after": 1.2, "stuck_slip": 1.0},
-  "press": {"per_enemy": 0.1, "slowest": 0.2},
+  "press": {"per_enemy": 0.1, "slowest": 0.45},
   "promotion_picks": 5,
   "legion": {
     "front_start": 22,

@@ -356,6 +356,27 @@ func test_a_crowd_in_melee_holds_the_legion_back(b: Dictionary) -> void:
 	check(is_equal_approx(s.speed(), free * float(b.press.slowest)), "but never stop it dead")
 
 
+func test_only_barbarians_in_the_way_hold_the_legion_back(b: Dictionary) -> void:
+	check(float(b.press.slowest) >= 0.45, "a crowd never takes the march below nearly half (%.2f)" % float(b.press.slowest))
+	for ahead in [false, true]:
+		var s := _quiet_sim(b, 133)
+		s.commander.hp = 1e9
+		s.commander.max_hp = 1e9
+		s.facing_angle = 0.0
+		var side := 1.0 if ahead else -1.0
+		for k in 6:
+			var i := s.horde.spawn("barbarian_club", s.commander.pos + Vector2(side * 14.0, -15.0 + k * 6.0))
+			s.horde.e_stun[i] = 0.0
+			s.horde.e_hp[i] = 1e9
+			s.horde.e_max[i] = 1e9
+		for k in 20:
+			s.update(1.0 / 60.0, Vector2.RIGHT, false)
+		if ahead:
+			check(s.pressing >= 1, "barbarians locked in melee across the legion's way hold it back (%d)" % s.pressing)
+		else:
+			check(s.pressing == 0, "barbarians fighting its rear do not hold back a legion marching away (%d)" % s.pressing)
+
+
 func test_barbarians_find_a_way_round_a_wall(b: Dictionary) -> void:
 	var s := _quiet_sim(b, 131)
 	s.terrain.empty = false
@@ -5350,7 +5371,7 @@ func test_nothing_slows_the_march_below_the_floor(b: Dictionary) -> void:
 	s.horde.curse_left = 5.0
 	s.horde.curse_slow = 0.4
 	s.testudo_left = 2.0
-	check(s.speed() >= free * float(b.press.slowest) - 0.01, "a crowd, a curse and the testudo together keep a fifth of the march (%.1f of %.1f)" % [s.speed(), free])
+	check(s.speed() >= free * float(b.press.slowest) - 0.01, "a crowd, a curse and the testudo together keep the slowest share of the march (%.1f of %.1f)" % [s.speed(), free])
 
 
 func test_an_endless_run_keeps_the_moment_it_was_won(b: Dictionary) -> void:

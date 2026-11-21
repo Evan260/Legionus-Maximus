@@ -2093,6 +2093,7 @@ func _move(dt: float, sim: Sim) -> void:
 	var slow_recover: float = b.slow_recover
 	var rush_fade: float = (float(b.war_band.get("rush", 1.0)) - 1.0) / float(b.war_band.get("rush_seconds", 1.0))
 	var wall := 1.0 - float(b.drills.shield_wall) * sim.rank("shield_wall")
+	var heading := Vector2.from_angle(sim.facing_angle)
 	var throw_every: float = b.ranged.every
 	var strike_secs := Atlas.ATTACK_FRAMES / Atlas.ATTACK_FPS
 	var bare := sim.frenzy_guard()
@@ -2374,7 +2375,9 @@ func _move(dt: float, sim: Sim) -> void:
 				var foe: Vector2 = units[target_unit].pos - p
 				if foe.length_squared() > 0.000001:
 					e_face[i] = foe.normalized()
-				held += 1
+				# Only a man fighting ahead of the commander stands in the legion's way; one at its back or side cannot hold it as it marches on.
+				if (p - cpos).dot(heading) > 0.0:
+					held += 1
 				# The crowd behind cannot shove a man locked in melee in among the Romans, so it spreads round the legion instead of filling it.
 				var inward := push.dot(to)
 				if inward > 0.0 and d > 0.001:
