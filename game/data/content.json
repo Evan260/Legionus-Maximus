@@ -1043,6 +1043,7 @@
    "text": "It charges in a straight line and cannot turn. A hedge or stake in its path stuns it.",
    "history": "The boar was a Gaulish sacred animal, and its image topped many a helmet and war standard.",
    "behaviour": "beast",
+   "share": 0.5,
    "hp": 16,
    "speed": 64,
    "dps": 2.5,
