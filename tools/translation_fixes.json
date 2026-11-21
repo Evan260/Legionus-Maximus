@@ -3172,6 +3172,255 @@
       "uk": "Виживіть %d хвилин, убийте вождя, потім утримайте фортецю.",
       "ko": "%d분을 버틴 뒤 족장을 죽이고 요새를 지키세요.",
       "zh_CN": "撑 %d 分钟，杀掉酋长，然后守住堡垒。"
+    },
+    "A feint: his warriors turn and rush back": {
+      "en": "A feint: his warriors turn and rush back",
+      "fr": "Une feinte : ses guerriers font demi-tour et reviennent à la course",
+      "de": "Eine Finte: Seine Krieger machen kehrt und stürmen zurück",
+      "es": "Una finta: sus guerreros dan media vuelta y vuelven a la carga",
+      "it": "Una finta: i suoi guerrieri si voltano e tornano all'assalto",
+      "pt_BR": "Uma finta: seus guerreiros dão meia-volta e voltam correndo",
+      "pl": "Podstęp: jego wojownicy zawracają i rzucają się z powrotem",
+      "tr": "Bir oyun: savaşçıları dönüp geri hücum ediyor",
+      "ru": "Уловка: его воины разворачиваются и бросаются назад",
+      "uk": "Хитрість: його воїни розвертаються і кидаються назад",
+      "ja": "偽りの退却:彼の戦士たちが向き直り、突進してくる",
+      "ko": "거짓 후퇴: 그의 전사들이 돌아서서 달려든다",
+      "zh_CN": "佯退：他的战士们转身杀回来了",
+      "zh_TW": "佯退：他的戰士們轉身殺回來了"
+    },
+    "Ambush: war bands close in on both flanks": {
+      "en": "Ambush: war bands close in on both flanks",
+      "de": "Hinterhalt: Kriegsbanden greifen beide Flanken an",
+      "es": "Emboscada: bandas de guerra caen sobre ambos flancos",
+      "it": "Imboscata: bande di guerra piombano su entrambi i fianchi",
+      "pl": "Zasadzka: bandy wojowników nadciągają z obu skrzydeł",
+      "ru": "Засада: боевые отряды заходят с обоих флангов",
+      "ja": "待ち伏せ:両側面から戦士の一団が迫る",
+      "ko": "매복: 전사 무리가 양쪽 측면에서 다가온다"
+    },
+    "The %s turns and runs: beware a trick": {
+      "en": "The %s turns and runs: beware a trick",
+      "fr": "%s fait demi-tour et s'enfuit : méfiez-vous d'une ruse",
+      "de": "%s macht kehrt und flieht: Vorsicht, eine List",
+      "es": "%s da media vuelta y huye: cuidado con la trampa",
+      "it": "%s si volta e fugge: attenti all'inganno",
+      "pt_BR": "%s dá meia-volta e foge: cuidado com a armadilha",
+      "pl": "%s zawraca i ucieka: uważaj na podstęp",
+      "tr": "%s dönüp kaçıyor: bir oyuna dikkat et",
+      "ru": "%s разворачивается и бежит: берегитесь уловки",
+      "uk": "%s розвертається і тікає: стережіться хитрощів",
+      "ja": "%sが背を向けて逃げる:罠に注意",
+      "ko": "%s 등을 돌려 달아난다: 속임수를 조심하라",
+      "zh_CN": "%s转身逃跑：小心有诈",
+      "zh_TW": "%s轉身逃跑：小心有詐"
+    },
+    "content.achievements.win_hispania.name": {
+      "en": "Victory in Hispania",
+      "de": "Sieg in Hispanien",
+      "pl": "Zwycięstwo w Hispanii",
+      "tr": "Hispanya'da zafer",
+      "ru": "Победа в Испании",
+      "uk": "Перемога в Іспанії",
+      "zh_CN": "希斯帕尼亚的胜利",
+      "zh_TW": "希斯帕尼亞的勝利"
+    },
+    "content.achievements.win_hispania.text": {
+      "en": "Win a run in Hispania.",
+      "fr": "Remportez une expédition en Hispanie.",
+      "de": "Gewinne einen Feldzug in Hispanien.",
+      "es": "Gana una campaña en Hispania.",
+      "it": "Vinci una campagna in Hispania.",
+      "pt_BR": "Vença uma campanha na Hispânia.",
+      "pl": "Wygraj wyprawę w Hispanii.",
+      "tr": "Hispanya'da bir sefer kazan.",
+      "ru": "Выиграйте поход в Испании.",
+      "uk": "Виграйте похід в Іспанії.",
+      "ja": "ヒスパニアで遠征に勝利する。",
+      "ko": "히스파니아에서 원정에 승리하세요.",
+      "zh_CN": "在希斯帕尼亚赢得一次远征。",
+      "zh_TW": "在希斯帕尼亞贏得一次遠征。"
+    },
+    "content.provinces.hispania.name": {
+      "en": "Hispania",
+      "de": "Hispanien",
+      "tr": "Hispanya",
+      "zh_CN": "希斯帕尼亚",
+      "zh_TW": "希斯帕尼亞",
+      "fr": "Hispanie"
+    },
+    "content.provinces.hispania.text": {
+      "en": "Sunbaked hills, olive groves and dry-stone walls.",
+      "de": "Sonnenverbrannte Hügel, Olivenhaine und Trockenmauern.",
+      "pt_BR": "Colinas castigadas pelo sol, olivais e muros de pedra seca.",
+      "pl": "Spalone słońcem wzgórza, gaje oliwne i murki z suchego kamienia.",
+      "ru": "Выжженные солнцем холмы, оливковые рощи и стены сухой кладки.",
+      "uk": "Випалені сонцем пагорби, оливкові гаї та мури сухої кладки.",
+      "ja": "日に焼けた丘、オリーブ林、石積みの壁。",
+      "zh_CN": "烈日炙烤的山丘、橄榄林和干砌石墙。",
+      "zh_TW": "烈日炙烤的山丘、橄欖林和乾砌石牆。"
+    },
+    "content.enemies.balearic_slinger.name": {
+      "en": "Balearic slinger",
+      "fr": "Frondeur baléare",
+      "de": "Balearischer Schleuderer",
+      "es": "Hondero balear",
+      "it": "Frombolière balearico",
+      "pt_BR": "Fundibulário balear",
+      "ja": "バレアレスの投石兵",
+      "ko": "발레아레스 투석병",
+      "zh_CN": "巴利阿里投石兵",
+      "zh_TW": "巴利阿里投石兵"
+    },
+    "content.enemies.balearic_slinger.text": {
+      "en": "The finest slingers of the age. He looses a volley of stones, and a soldier struck by one reels and cannot fight for a moment.",
+      "fr": "Les meilleurs frondeurs de l'époque. Il lance une volée de pierres, et un soldat touché par l'une d'elles chancelle et ne peut plus se battre un instant.",
+      "de": "Die besten Schleuderer ihrer Zeit. Er schleudert eine Salve Steine, und ein getroffener Soldat taumelt und kann einen Moment lang nicht kämpfen.",
+      "es": "Los mejores honderos de su tiempo. Lanza una andanada de piedras, y el soldado alcanzado por una se tambalea y no puede luchar durante un momento.",
+      "it": "I migliori frombolieri dell'epoca. Scaglia una raffica di pietre, e il soldato colpito barcolla e per un attimo non può combattere.",
+      "pt_BR": "Os melhores fundibulários da época. Ele dispara uma saraivada de pedras, e o soldado atingido cambaleia e não consegue lutar por um momento.",
+      "tr": "Çağın en iyi sapancıları. Bir taş yağmuru savurur; taşın çarptığı asker sendeler ve bir an savaşamaz.",
+      "ru": "Лучшие пращники своего времени. Он выпускает залп камней, и поражённый солдат шатается и на миг не может сражаться.",
+      "uk": "Найкращі пращники свого часу. Він випускає залп каміння, і влучений солдат хитається й на мить не може битися.",
+      "ja": "当代随一の投石兵。石を一斉に放ち、当たった兵士はよろめいて少しの間戦えなくなる。",
+      "zh_CN": "当时最出色的投石兵。他会掷出一轮石弹，被击中的士兵会踉跄片刻，无法作战。",
+      "zh_TW": "當時最出色的投石兵。他會擲出一輪石彈，被擊中的士兵會踉蹌片刻，無法作戰。",
+      "ko": "그 시대 최고의 투석병. 돌을 한꺼번에 날리며, 돌에 맞은 병사는 비틀거리며 잠시 싸우지 못한다."
+    },
+    "content.enemies.balearic_slinger.history": {
+      "en": "Balearic boys were said to get no bread until they knocked it down with a sling stone.",
+      "fr": "On disait que les garçons des Baléares n'avaient pas de pain tant qu'ils ne l'avaient pas abattu d'une pierre de fronde.",
+      "es": "Se decía que los niños baleares no comían pan hasta derribarlo con una piedra de honda.",
+      "pt_BR": "Dizia-se que os meninos baleares só ganhavam pão quando o derrubavam com uma pedra de funda.",
+      "tr": "Balear çocuklarının ekmeği ancak bir sapan taşıyla düşürürlerse aldıkları söylenirdi.",
+      "ru": "Говорили, что балеарские мальчики не получали хлеба, пока не сбивали его камнем из пращи.",
+      "uk": "Казали, що балеарські хлопці не отримували хліба, доки не збивали його каменем із пращі.",
+      "ja": "バレアレスの少年は、投石でパンを打ち落とすまでパンをもらえなかったという。",
+      "zh_CN": "据说巴利阿里的男孩要用投石击落面包，才能吃到它。",
+      "zh_TW": "據說巴利阿里的男孩要用投石擊落麵包，才能吃到它。"
+    },
+    "content.enemies.caetratus.name": {
+      "en": "Caetratus",
+      "uk": "Кетрат",
+      "ru": "Кетрат",
+      "zh_CN": "轻盾兵",
+      "zh_TW": "輕盾兵"
+    },
+    "content.enemies.caetratus.text": {
+      "en": "A light raider with a small round shield. He throws javelins from a distance and backs away from soldiers who close in.",
+      "fr": "Un pillard léger au petit bouclier rond. Il lance des javelots de loin et recule devant les soldats qui s'approchent.",
+      "es": "Un guerrero ligero con un pequeño escudo redondo. Lanza jabalinas desde lejos y retrocede ante los soldados que se acercan.",
+      "it": "Un predone leggero con un piccolo scudo rotondo. Lancia giavellotti da lontano e indietreggia davanti ai soldati che si avvicinano.",
+      "pt_BR": "Um guerreiro leve com um pequeno escudo redondo. Ele lança dardos de longe e recua diante dos soldados que se aproximam.",
+      "pl": "Lekki wojownik z małą okrągłą tarczą. Rzuca oszczepami z daleka i cofa się przed żołnierzami, którzy podchodzą.",
+      "ru": "Лёгкий воин с маленьким круглым щитом. Он мечет дротики издалека и отходит от солдат, которые подступают.",
+      "uk": "Легкий воїн із маленьким круглим щитом. Він метає дротики здалеку й відходить від солдатів, які підступають.",
+      "ja": "小さな丸盾を持つ軽装の襲撃兵。離れた所から投げ槍を投げ、兵士が迫ると後ずさる。",
+      "ko": "작은 둥근 방패를 든 경보병. 멀리서 투창을 던지고, 병사들이 다가오면 뒤로 물러난다.",
+      "zh_CN": "手持小圆盾的轻装袭击者。他从远处投掷标枪，士兵逼近时便向后退。",
+      "zh_TW": "手持小圓盾的輕裝襲擊者。他從遠處投擲標槍，士兵逼近時便向後退。"
+    },
+    "content.enemies.caetratus.history": {
+      "en": "The caetra was the small round shield of the Iberian light troops, who fought in quick raids.",
+      "zh_CN": "轻圆盾是伊比利亚轻装部队的小型圆盾，他们以快速突袭作战。",
+      "zh_TW": "輕圓盾是伊比利亞輕裝部隊的小型圓盾，他們以快速突襲作戰。"
+    },
+    "content.enemies.celtiberian_chief.text": {
+      "en": "He raises his falcata and shouts, and the warriors round him get their second wind and run at the legion.",
+      "ru": "Он поднимает фалькату и кричит, и воины вокруг него обретают второе дыхание и бросаются на легион.",
+      "zh_CN": "他举起弯刀高呼，身边的战士们重振精神，冲向军团。",
+      "zh_TW": "他舉起彎刀高呼，身邊的戰士們重振精神，衝向軍團。"
+    },
+    "content.enemies.celtiberian_chief.name": {
+      "en": "Celtiberian chief",
+      "ja": "ケルティベリアの首長"
+    },
+    "content.enemies.celtiberian_warrior.text": {
+      "en": "His curved falcata bites deep: every few seconds he lands a heavy slash on the soldier in front of him.",
+      "fr": "Sa falcata recourbée frappe profond : toutes les quelques secondes, il assène une lourde entaille au soldat qui lui fait face.",
+      "es": "Su falcata curva muerde hondo: cada pocos segundos asesta un tajo pesado al soldado que tiene delante.",
+      "pl": "Jego zakrzywiona falkata tnie głęboko: co kilka sekund zadaje ciężkie cięcie żołnierzowi przed sobą.",
+      "tr": "Kavisli falkatası derin keser: birkaç saniyede bir önündeki askere ağır bir darbe indirir.",
+      "ru": "Его изогнутая фальката рубит глубоко: каждые несколько секунд он наносит тяжёлый удар солдату перед собой.",
+      "uk": "Його вигнута фальката рубає глибоко: щокілька секунд він завдає важкого удару солдатові перед собою.",
+      "zh_CN": "他的弯刀砍得极深：每隔几秒，他就会重重劈向面前的士兵。",
+      "zh_TW": "他的彎刀砍得極深：每隔幾秒，他就會重重劈向面前的士兵。"
+    },
+    "content.enemies.celtiberian_warrior.history": {
+      "en": "Rome took its short sword, the gladius hispaniensis, from the warriors of Hispania.",
+      "pl": "Rzym przejął swój krótki miecz, gladius hispaniensis, od wojowników Hispanii.",
+      "ru": "Свой короткий меч, gladius hispaniensis, Рим перенял у воинов Испании.",
+      "uk": "Свій короткий меч, gladius hispaniensis, Рим перейняв у воїнів Іспанії.",
+      "ja": "ローマの短剣グラディウス・ヒスパニエンシスは、ヒスパニアの戦士から取り入れたものだ。",
+      "zh_CN": "罗马的短剑“西班牙短剑”正是从希斯帕尼亚的战士那里学来的。",
+      "zh_TW": "羅馬的短劍「西班牙短劍」正是從希斯帕尼亞的戰士那裡學來的。"
+    },
+    "content.enemies.lusitanian_raider.name": {
+      "en": "Lusitanian raider",
+      "fr": "Pillard lusitanien",
+      "es": "Saqueador lusitano",
+      "it": "Predone lusitano",
+      "pt_BR": "Saqueador lusitano",
+      "pl": "Luzytański najeźdźca",
+      "ru": "Лузитанский налётчик",
+      "uk": "Лузитанський нападник",
+      "ko": "루시타니아 약탈자"
+    },
+    "content.enemies.lusitanian_raider.text": {
+      "en": "He marks a lane and leads a short ambush charge down it, and the warriors round him charge with him, cutting down the soldiers in their path.",
+      "fr": "Il trace une voie et mène une brève charge d'embuscade le long de celle-ci, et les guerriers autour de lui chargent avec lui, abattant les soldats sur leur passage.",
+      "de": "Er markiert eine Bahn und führt einen kurzen Überfall entlang dieser an, und die Krieger um ihn herum stürmen mit ihm und schlagen die Soldaten auf ihrem Weg nieder.",
+      "es": "Marca un carril y encabeza por él una breve carga de emboscada, y los guerreros a su alrededor cargan con él, abatiendo a los soldados a su paso.",
+      "it": "Segna una corsia e guida lungo di essa una breve carica d'imboscata, e i guerrieri intorno a lui caricano con lui, abbattendo i soldati sul loro cammino.",
+      "pt_BR": "Ele marca uma faixa e lidera por ela uma breve investida de emboscada, e os guerreiros ao seu redor investem com ele, derrubando os soldados em seu caminho.",
+      "pl": "Wyznacza ścieżkę i prowadzi nią krótką szarżę z zasadzki, a wojownicy wokół niego szarżują razem z nim, ścinając żołnierzy na swojej drodze.",
+      "tr": "Bir yol işaretler ve o yol boyunca kısa bir pusu hücumu yapar; etrafındaki savaşçılar da onunla birlikte hücum edip yollarındaki askerleri biçer.",
+      "ru": "Он отмечает полосу и ведёт по ней короткий бросок из засады, а воины вокруг него бросаются вместе с ним, рубя солдат на своём пути.",
+      "uk": "Він позначає смугу і веде нею короткий кидок із засідки, а воїни навколо нього кидаються разом із ним, рубаючи солдатів на своєму шляху.",
+      "ja": "進路を示し、その上を短い奇襲突撃で駆け抜ける。周りの戦士たちも共に突撃し、行く手の兵士を切り倒す。",
+      "ko": "그는 진로를 표시하고 그 길을 따라 짧은 기습 돌격을 이끌며, 주위의 전사들도 함께 돌격해 길 위의 병사들을 베어 넘긴다.",
+      "zh_CN": "他划出一条路线，带头沿路发起短促的伏击冲锋，身边的战士随他一同冲锋，砍倒沿途的士兵。",
+      "zh_TW": "他劃出一條路線，帶頭沿路發起短促的伏擊衝鋒，身邊的戰士隨他一同衝鋒，砍倒沿途的士兵。"
+    },
+    "content.enemies.lusitanian_raider.history": {
+      "en": "Lusitanian raiders struck fast and were gone into the hills before a legion could form up.",
+      "pl": "Luzytańscy najeźdźcy uderzali szybko i znikali na wzgórzach, zanim legion zdążył się ustawić.",
+      "ja": "ルシタニアの襲撃者は素早く襲い、軍団が隊列を組む前に丘へ消えた。",
+      "zh_CN": "卢西塔尼亚袭击者出手迅速，军团还未列阵，他们已遁入山中。",
+      "zh_TW": "盧西塔尼亞襲擊者出手迅速，軍團還未列陣，他們已遁入山中。"
+    },
+    "content.enemies.viriathus.name": {
+      "en": "Shepherd general",
+      "fr": "Général berger",
+      "de": "Hirtengeneral",
+      "es": "General pastor",
+      "it": "Generale pastore",
+      "pt_BR": "General pastor",
+      "pl": "Generał pasterz",
+      "tr": "Çoban general",
+      "ru": "Генерал-пастух",
+      "uk": "Генерал-пастух",
+      "ja": "羊飼いの将軍",
+      "ko": "목동 장군",
+      "zh_CN": "牧羊人将军",
+      "zh_TW": "牧羊人將軍"
+    },
+    "content.enemies.viriathus.text": {
+      "en": "Viriathus, the shepherd who beat legions in the hills. He springs ambushes that send war bands at both flanks of the legion at once, and he turns and runs, so that his guard and the warriors round him can rush back at any who follow. When hurt he fights faster.",
+      "pt_BR": "Viriato, o pastor que derrotou legiões nas colinas. Ele arma emboscadas que lançam bandos de guerreiros contra os dois flancos da legião de uma vez, e dá meia-volta e foge, para que sua guarda e os guerreiros ao seu redor voltem correndo contra quem o seguir. Quando ferido, luta mais rápido.",
+      "es": "Viriato, el pastor que derrotó a legiones en las colinas. Tiende emboscadas que lanzan bandas de guerreros contra ambos flancos de la legión a la vez, y da media vuelta y huye para que su guardia y los guerreros a su alrededor vuelvan a la carga contra quien lo siga. Herido, lucha más rápido.",
+      "it": "Viriato, il pastore che sconfisse le legioni sulle colline. Tende imboscate che lanciano bande di guerrieri su entrambi i fianchi della legione insieme, e si volta e fugge, perché la sua guardia e i guerrieri intorno a lui tornino all'assalto contro chi lo insegue. Quando è ferito combatte più in fretta.",
+      "pl": "Viriathus, pasterz, który pokonywał legiony na wzgórzach. Zastawia zasadzki, w których bandy wojowników uderzają naraz na oba skrzydła legionu, a sam zawraca i ucieka, by jego straż i wojownicy wokół niego mogli rzucić się na każdego, kto za nim pójdzie. Ranny walczy szybciej.",
+      "ja": "丘で軍団を打ち破った羊飼い、ウィリアトゥス。待ち伏せを仕掛けて軍団の両側面へ同時に戦士の一団を送り込み、また背を向けて逃げ、追ってきた者に護衛と周りの戦士たちを突撃させる。傷つくと、より速く戦う。",
+      "zh_TW": "維里亞圖斯，那位在山丘上擊敗軍團的牧羊人。他設下伏擊，讓戰團同時攻向軍團兩翼；他也會轉身逃跑，好讓護衛和身邊的戰士殺回來對付追上來的人。受傷時，他戰鬥得更快。"
+    },
+    "content.enemies.war_hound.name": {
+      "en": "War hound",
+      "fr": "Chien de guerre",
+      "pl": "Pies bojowy",
+      "ja": "軍用犬",
+      "ko": "전투견",
+      "zh_CN": "战犬"
     }
   }
 }
