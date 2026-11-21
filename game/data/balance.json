@@ -174,10 +174,7 @@
       0.4,
       0.8
     ],
-    "calm_db": -7.0,
-    "silent_db": -80.0,
     "battle_db": -10.0,
-    "fade_db_per_second": 24.0,
     "crowd_db_per_doubling": 2.0,
     "crowd_db_max": 5.0,
     "limiter_ceiling_db": -1.5,

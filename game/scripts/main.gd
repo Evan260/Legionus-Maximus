@@ -529,7 +529,6 @@ func _process(dt: float) -> void:
 	clock += dt
 	Steamworks.blocked = state in Steamworks.HIDING_STATES
 	_steam_update(dt)
-	Audio.set_run(Game.in_run(state, settings_from), sim.time if sim != null else 0.0)
 	if shot_at >= 0.0 and clock >= shot_at:
 		shot_at = -1.0
 		await RenderingServer.frame_post_draw

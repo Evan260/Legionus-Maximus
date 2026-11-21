@@ -1,6 +1,6 @@
 extends Node
-## Every sound in the game: the effects the run reports through Sim.events, the interface sounds, the calm music of the title
-## and camp, and the battle music of a run, the game's own tracks and any the player puts in their own music folder.
+## Every sound in the game: the effects the run reports through Sim.events, the interface sounds, and the music, the game's
+## own battle tracks and any the player puts in their own music folder, played one after another from the moment the game opens.
 ## Each kind of sound has a limit per tenth of a second, a slight random pitch and a few recorded cuts, so a thousand hits never stack.
 ## It does nothing in tests, benches and headless runs, so they stay silent and cheap.
 
@@ -10,7 +10,6 @@ const MUSIC_DIR := "res://assets/audio/music/"
 const PLAYER_MUSIC := "user://music/"
 const MUSIC_TYPES := ["ogg", "mp3", "wav"]
 var enabled := false
-var in_run := false
 var _sets := {}
 var _players: Array[AudioStreamPlayer] = []
 var _pan_buses: Array[StringName] = []
@@ -22,11 +21,9 @@ var _last_played := {}
 var _rng := RandomNumberGenerator.new()
 var cfg: Dictionary
 var _kinds: Dictionary
-var _calm: AudioStreamPlayer
 var _battle: AudioStreamPlayer
 var _battle_track := ""
 var _retry_at := 0.0
-var _run_time := 0.0
 
 
 func _ready() -> void:
@@ -73,23 +70,10 @@ func _ready() -> void:
 		var p := AudioStreamPlayer.new()
 		add_child(p)
 		_players.append(p)
-	_calm = _music_player("calm", cfg.calm_db)
 	_battle = AudioStreamPlayer.new()
 	_battle.bus = "Music"
-	_battle.volume_db = float(cfg.silent_db)
+	_battle.volume_db = float(cfg.battle_db)
 	add_child(_battle)
-
-
-func _music_player(track: String, db: float) -> AudioStreamPlayer:
-	var p := AudioStreamPlayer.new()
-	p.bus = "Music"
-	p.volume_db = db
-	var stream := load(MUSIC_DIR + track + ".ogg") as AudioStreamOggVorbis
-	if stream != null:
-		stream.loop = true
-		p.stream = stream
-	add_child(p)
-	return p
 
 
 func _load_set(set_name: String) -> Array:
@@ -160,7 +144,6 @@ func drain(sim: Sim) -> void:
 		return
 	var centre: float = sim.commander.pos.x
 	var half_width := get_viewport().get_visible_rect().size.x / 2.0
-	_run_time = sim.time
 	for e in sim.events:
 		var n: int = e.get("n", 1)
 		var pan := clampf((e.pos.x - centre) / half_width, -1.0, 1.0)
@@ -169,23 +152,12 @@ func drain(sim: Sim) -> void:
 	sim.events.clear()
 
 
-## Chooses between the calm music (title and camp) and the battle music of a run.
-func set_run(running: bool, run_time := 0.0) -> void:
-	in_run = running
-	_run_time = run_time
-
-
+## The music plays from the moment the game opens, one track after another through the menus and the runs alike, so
+## marching out never cuts one track off for another.
 func _process(dt: float) -> void:
 	_clock += dt
-	if not _calm.playing and _calm.stream != null:
-		_calm.play()
-	var fade := float(cfg.fade_db_per_second) * dt
-	_calm.volume_db = move_toward(_calm.volume_db, float(cfg.silent_db) if in_run else float(cfg.calm_db), fade)
-	_battle.volume_db = move_toward(_battle.volume_db, float(cfg.battle_db) if in_run else float(cfg.silent_db), fade)
-	if in_run and not _battle.playing and _clock >= _retry_at:
+	if not _battle.playing and _clock >= _retry_at:
 		_start_battle_track()
-	elif not in_run and _battle.playing and _battle.volume_db <= float(cfg.silent_db) + 1.0:
-		_battle.stop()
 
 
 ## Plays the next battle track, from the game's own and the player's folder, which is looked at afresh each time.
