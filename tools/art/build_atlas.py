@@ -62,6 +62,8 @@ TONE = {"stones": (0.4, 0.5), "stump": (0.4, 0.2)}
 # Props cut from a larger picture, as (left, top, right, bottom): the fort's side wall is a few logs of its front wall with
 # their bank, which stacked up the screen reads as a palisade running away from the viewer.
 CROP = {"fort_side": (22, 8, 46, 44)}
+# Props whose black outline is redrawn in a darker shade of the colour just inside it, so the rock sits in the ground.
+SOFT_EDGE = {"rock"}
 # Props whose leaves are brought to another prop's greens, as prop: (the prop whose greens set the change, the prop to match),
 # so the Gaulish hedges wear the same green as the oaks beside them; every hedge piece takes the change worked out from the hedge.
 MATCH_GREEN = {"hedge": ("hedge", "oak"), "hedge_end_left": ("hedge", "oak"), "hedge_end_right": ("hedge", "oak")}
@@ -102,6 +104,29 @@ def tone(im, darken, grey):
     rgb = a[..., :3] * (1 - darken * (a[..., :3] @ [0.299, 0.587, 0.114]) / 255)[..., None]
     rgb = rgb * (1 - grey) + (rgb @ [0.299, 0.587, 0.114])[..., None] * grey
     a[..., :3] = rgb
+    return Image.fromarray(a.clip(0, 255).astype(np.uint8))
+
+
+def soft_edge(im, shade=0.6):
+    a = np.asarray(im).astype(float)
+    solid = a[..., 3] > 0
+    rim = solid & ~cv2.erode(solid.astype(np.uint8), np.ones((5, 5), np.uint8), borderValue=0).astype(bool)
+    dark = rim & (a[..., :3].sum(-1) < 140)
+    h, w = solid.shape
+    # Each pass shades the dark pixels touching ones already coloured, so a thick outline fills from the inside out.
+    edge = dark.copy()
+    while dark.any():
+        out, done = a.copy(), dark.copy()
+        for y, x in zip(*np.nonzero(dark)):
+            near = [a[y + dy, x + dx, :3] for dy in (-1, 0, 1) for dx in (-1, 0, 1)
+                    if 0 <= y + dy < h and 0 <= x + dx < w and solid[y + dy, x + dx] and not dark[y + dy, x + dx]]
+            if near:
+                out[y, x, :3] = np.mean(near, 0)
+                done[y, x] = False
+        if (done == dark).all():
+            break
+        a, dark = out, done
+    a[edge & ~dark, :3] *= shade
     return Image.fromarray(a.clip(0, 255).astype(np.uint8))
 
 
@@ -215,6 +240,8 @@ def main():
             im = im.crop(CROP[name])
         if name in TONE:
             im = tone(im, *TONE[name])
+        if name in SOFT_EDGE:
+            im = soft_edge(im)
         if name in MATCH_GREEN:
             source, target = MATCH_GREEN[name]
             im = recolour(im, green_match(Image.open(RAW / PROPS[source]).convert("RGBA"), Image.open(RAW / PROPS[target]).convert("RGBA")))
