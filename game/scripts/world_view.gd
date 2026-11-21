@@ -47,8 +47,9 @@ var _prop_frames := {}
 var ravine_edge: Texture2D
 # The ice laid along every frozen stream, repeated across the world.
 var ice: Texture2D
-# The water of every canal, repeated across the world like the ice.
+# The water of every canal, repeated across the world like the ice and drifting along the canals through water.gdshader on its own layer.
 var water: Texture2D
+var _water := Node2D.new()
 # Soldiers reeling from a sling stone, and the camels bringing the shah's riders fresh arrows, marked over their heads this frame.
 var _dazed := PackedVector2Array()
 var _train_marks := PackedVector2Array()
@@ -74,10 +75,15 @@ func _ready() -> void:
 	water = load("res://assets/water.png")
 	# The ravine lip repeats along each gorge; every other picture is drawn inside its own rectangle, so repeating changes nothing for it.
 	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
-	for layer in [_floor, _wheat]:
+	for layer in [_floor, _wheat, _water]:
 		layer.show_behind_parent = true
 		add_child(layer)
 	_floor.draw.connect(_draw_floor)
+	_water.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	var flow := ShaderMaterial.new()
+	flow.shader = load("res://scripts/water.gdshader")
+	_water.material = flow
+	_water.draw.connect(_draw_water)
 	var fray := ShaderMaterial.new()
 	fray.shader = load("res://scripts/wheat_field.gdshader")
 	_wheat.material = fray
@@ -110,6 +116,7 @@ func _process(dt: float) -> void:
 		queue_redraw()
 		_floor.queue_redraw()
 		_wheat.queue_redraw()
+		_water.queue_redraw()
 
 
 ## A sprite's place in the drawing order, from its depth measured from the camera so the key stays positive however far the legion marches.
@@ -1298,12 +1305,10 @@ func _draw_ravines(view: Rect2) -> void:
 	for rv in sim.terrain.ravines_in(view):
 		for piece in rv.pieces:
 			if rv.get("canal", false):
-				if not piece.has("mesh"):
-					piece.mesh = _water_mesh(piece)
-				var w: Array = piece.mesh
-				RenderingServer.canvas_item_add_triangle_array(item, w[0], w[1], w[2], w[3], PackedInt32Array(), PackedFloat32Array(), water.get_rid())
-				draw_polyline(w[4], Color(0.2, 0.15, 0.09, 0.9), 3.0)
-				draw_polyline(w[4], Color(0.42, 0.52, 0.22, 0.8), 1.0)
+				if not piece.has("mud"):
+					piece.mud = _mud_mesh(piece)
+				var m: Array = piece.mud
+				RenderingServer.canvas_item_add_triangle_array(item, m[0], m[1], m[2])
 				continue
 			# Each piece keeps its triangles once worked out, since a ravine never changes.
 			if not piece.has("mesh"):
@@ -1316,21 +1321,75 @@ func _draw_ravines(view: Rect2) -> void:
 			_draw_bridge(br)
 
 
-## The triangles of one canal piece, the water laid in world space like the ice, and its bank as a closed line.
+## The water of every canal in view, on its own layer so the shader can drift it along the canals.
+func _draw_water() -> void:
+	if not sim or sim.terrain.canal.is_empty():
+		return
+	var view := view_for(sim.commander.pos - get_viewport_rect().size / 2.0)
+	var item := _water.get_canvas_item()
+	var flow := Vector2.ZERO
+	for rv in sim.terrain.ravines_in(view):
+		if not rv.get("canal", false):
+			continue
+		for piece in rv.pieces:
+			if not piece.has("mesh"):
+				piece.mesh = _water_mesh(piece)
+			var w: Array = piece.mesh
+			flow = w[4]
+			RenderingServer.canvas_item_add_triangle_array(item, w[0], w[1], w[2], w[3], PackedInt32Array(), PackedFloat32Array(), water.get_rid())
+	if flow != Vector2.ZERO:
+		var tex := Vector2(water.get_width(), water.get_height())
+		_water.material.set_shader_parameter("drift", flow * float(sim.terrain.canal.drift) / tex)
+
+
+## One straight canal piece as two water triangles, laid in world space so neighbouring pieces line up, with the way it flows.
 func _water_mesh(piece: Dictionary) -> Array:
-	return _ice_mesh(piece, water)
+	var pts: PackedVector2Array = piece.pts
+	var a := pts[0]
+	var z := pts[pts.size() - 1]
+	var along := (z - a).normalized()
+	var out := along.orthogonal() * float(piece.half[0])
+	var tex := Vector2(water.get_width(), water.get_height())
+	var corners := PackedVector2Array([a - out, a + out, z + out, z - out])
+	var uvs := PackedVector2Array()
+	for q in corners:
+		uvs.append(q / tex)
+	return [PackedInt32Array([0, 1, 2, 0, 2, 3]), corners, PackedColorArray([Color.WHITE, Color.WHITE, Color.WHITE, Color.WHITE]), uvs, along]
+
+
+## The wet mud along both banks of a straight canal piece: dark at the water's edge, fading into the silt.
+func _mud_mesh(piece: Dictionary) -> Array:
+	var pts: PackedVector2Array = piece.pts
+	var a := pts[0]
+	var z := pts[pts.size() - 1]
+	var n := (z - a).normalized().orthogonal()
+	var half := float(piece.half[0])
+	var steps := [[-3.0, Color(0.12, 0.09, 0.06, 1.0)], [4.0, Color(0.18, 0.13, 0.08, 1.0)], [12.0, Color(0.23, 0.17, 0.1, 0.8)], [22.0, Color(0.26, 0.19, 0.12, 0.0)]]
+	var verts := PackedVector2Array()
+	var cols := PackedColorArray()
+	var idx := PackedInt32Array()
+	for side in [-1.0, 1.0]:
+		var base := verts.size()
+		for st in steps:
+			var off: Vector2 = n * side * (half + float(st[0]))
+			verts.append(a + off)
+			verts.append(z + off)
+			cols.append(st[1])
+			cols.append(st[1])
+		for k in steps.size() - 1:
+			var i := base + k * 2
+			idx.append_array([i, i + 1, i + 3, i, i + 3, i + 2])
+	return [idx, verts, cols]
 
 
 ## The triangles of one frozen stream piece, the ice laid in world space so it lines up across pieces, and its bank as a closed line.
-func _ice_mesh(piece: Dictionary, surface: Texture2D = null) -> Array:
+func _ice_mesh(piece: Dictionary) -> Array:
 	var o := _outline(piece)
 	var centres: PackedVector2Array = o[0]
 	var outs: PackedVector2Array = o[1]
 	var widths: PackedFloat32Array = o[2]
 	var m := centres.size()
-	if surface == null:
-		surface = ice
-	var tex := Vector2(surface.get_width(), surface.get_height())
+	var tex := Vector2(ice.get_width(), ice.get_height())
 	var pts := PackedVector2Array()
 	var cols := PackedColorArray()
 	var uvs := PackedVector2Array()

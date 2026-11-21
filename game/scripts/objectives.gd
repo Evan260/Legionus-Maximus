@@ -44,6 +44,9 @@ func place_start(sim: Sim, near := false) -> void:
 			if minf(sim.terrain.ravine_edge(at), sim.terrain.stream_edge(at, 600.0)) >= float(cfg.clearing) + 40.0:
 				break
 			at = Vector2.from_angle(a + r.randf_range(-spread, spread)) * r.randf_range(float(span[0]), float(span[1]))
+		# Canals run on across the whole field, so a spot still by one is moved to the middle of its strip of land.
+		if sim.terrain.ravine_edge(at) < float(cfg.clearing) + 40.0 and sim.terrain.strip_middle(at).length() >= float(span[0]) * 0.5:
+			at = sim.terrain.strip_middle(at)
 		add(sim, kinds[i], at)
 
 
@@ -126,6 +129,8 @@ func raise_fort(sim: Sim) -> void:
 	var arc := float(cfg.arc)
 	for k in int(cfg.tries):
 		var p := from + Vector2.from_angle(-PI / 2.0 + r.randf_range(-arc, arc)) * r.randf_range(float(cfg.near), float(cfg.far))
+		if sim.terrain.ravine_edge(p) < room + 40.0:
+			p = sim.terrain.strip_middle(p)
 		var n := 0.0
 		for pr in sim.terrain.props_in(Rect2(p - Vector2.ONE * room, Vector2.ONE * room * 2.0)):
 			if pr[2] > 0.0 and pr[1].distance_to(p) < room:

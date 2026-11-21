@@ -8512,30 +8512,212 @@ func test_aegyptus_is_the_nile_valley_with_palms_reeds_ruins_and_canals(b: Dicti
 	check(canals.size() >= 3 and canals.all(func(rv: Dictionary) -> bool: return rv.get("canal", false)), "the field is cut by irrigation canals and no gorges (%d)" % canals.size())
 
 
-func test_every_canal_is_straight_with_a_bridge_across_it(b: Dictionary) -> void:
+func test_every_canal_is_straight_with_bridges_laid_across_it(b: Dictionary) -> void:
 	var cfg: Dictionary = b.canals.aegyptus
 	var t := _nile_terrain(b, 1992)
 	var canals := t.ravines_in(Rect2(-6000, -6000, 12000, 12000))
 	var straight := true
 	var even := true
-	var crossed := true
 	var decks := true
 	for rv in canals:
-		var pts: PackedVector2Array = rv.pieces[0].pts
-		var a := pts[0]
-		var dir := (pts[pts.size() - 1] - a).normalized()
-		for q in pts:
-			straight = straight and absf((q - a).dot(dir.orthogonal())) < 0.5
-		for h in rv.pieces[0].half:
-			even = even and h >= float(cfg.width[0]) / 2.0 - 0.01 and h <= float(cfg.width[1]) / 2.0 + 0.01
-		crossed = crossed and rv.crossings.size() >= int(cfg.crossings[0])
+		for piece in rv.pieces:
+			var pts: PackedVector2Array = piece.pts
+			var a := pts[0]
+			var dir := (pts[pts.size() - 1] - a).normalized()
+			for q in pts:
+				straight = straight and absf((q - a).dot(dir.orthogonal())) < 0.5
+			for h in piece.half:
+				even = even and h >= float(cfg.width[0]) / 2.0 - 0.01 and h <= float(cfg.width[1]) / 2.0 + 0.01 and is_equal_approx(h, piece.half[0])
 		for br in rv.crossings:
-			decks = decks and t.bridges.has(br) and absf(br.dir.dot(dir)) < 0.01 and Terrain.edge_of(rv, br.pos) < 0.0
-			decks = decks and Terrain.edge_of(rv, br.pos + br.dir * br.half_len) >= 0.0 and Terrain.edge_of(rv, br.pos - br.dir * br.half_len) >= 0.0
+			decks = decks and t.bridges.has(br) and t.ravine_edge(br.pos) < 0.0
+			decks = decks and t.ravine_edge(br.pos + br.dir * br.half_len) >= 0.0 and t.ravine_edge(br.pos - br.dir * br.half_len) >= 0.0
 	check(canals.size() > 5, "canals are laid across the field (%d)" % canals.size())
 	check(straight and even, "each canal runs straight and keeps its width")
-	check(crossed, "each canal has a crossing")
 	check(decks, "and every crossing is a deck laid across the water from bank to bank")
+
+
+## Every canal piece of the regions reaching into the area.
+func _canal_pieces(t: Terrain, area: Rect2) -> Array:
+	var out: Array = []
+	for rv in t.ravines_in(area):
+		for piece in rv.pieces:
+			out.append(piece)
+	return out
+
+
+func test_canals_run_on_unbroken_from_region_to_region(b: Dictionary) -> void:
+	var area := Rect2(-6000, -6000, 12000, 12000)
+	var inner := area.grow(-2 * float(b.canals.aegyptus.region))
+	for seed_value in [2101, 2102, 2103]:
+		var t := _nile_terrain(b, seed_value)
+		var pieces := _canal_pieces(t, area)
+		var ends: Array = []
+		for piece in pieces:
+			ends.append(piece.pts[0])
+			ends.append(piece.pts[piece.pts.size() - 1])
+		var loose := 0
+		for e in ends:
+			if not inner.has_point(e):
+				continue
+			var met := 0
+			for f in ends:
+				if f.distance_to(e) < 0.5:
+					met += 1
+			if met < 2:
+				loose += 1
+		check(pieces.size() > 10, "seed %d lays canals across the field (%d pieces)" % [seed_value, pieces.size()])
+		check(loose == 0, "and every piece runs on into the next region's, so no canal ends inside the world (%d loose ends)" % loose)
+
+
+func test_canals_run_parallel_and_well_apart(b: Dictionary) -> void:
+	var cfg: Dictionary = b.canals.aegyptus
+	for seed_value in [2111, 2112, 2113, 2114]:
+		var t := _nile_terrain(b, seed_value)
+		var pieces := _canal_pieces(t, Rect2(-6000, -6000, 12000, 12000))
+		var dir: Vector2 = (pieces[0].pts[1] - pieces[0].pts[0]).normalized()
+		var parallel := true
+		var across := {}
+		for piece in pieces:
+			var d: Vector2 = (piece.pts[1] - piece.pts[0]).normalized()
+			parallel = parallel and absf(d.cross(dir)) < 0.001
+			across[roundi(piece.pts[0].dot(dir.orthogonal()))] = true
+		var lines: Array = across.keys()
+		lines.sort()
+		var spaced := true
+		# Pieces of one canal can round to the next whole pixel across, so lines within a few pixels are one canal.
+		lines = lines.filter(func(u: int) -> bool: return not across.has(u - 1) and not across.has(u - 2))
+		for i in lines.size() - 1:
+			var gap: float = lines[i + 1] - lines[i]
+			spaced = spaced and gap >= float(cfg.apart[0]) - 3.0 and gap <= float(cfg.apart[1]) + 3.0
+		check(parallel, "seed %d: every canal runs the same way" % seed_value)
+		check(lines.size() >= 6 and spaced, "seed %d: and each lies %s px from the next (%s)" % [seed_value, str(cfg.apart), str(lines)])
+
+
+func test_the_start_lies_clear_between_two_canals(b: Dictionary) -> void:
+	var cfg: Dictionary = b.canals.aegyptus
+	var clear := true
+	var between := true
+	for seed_value in range(2120, 2160):
+		var t := _nile_terrain(b, seed_value)
+		clear = clear and t.ravine_edge(Vector2.ZERO, 2000.0) >= float(cfg.start_clear)
+		var pieces := _canal_pieces(t, Rect2(-1500, -1500, 3000, 3000))
+		var side: Vector2 = (pieces[0].pts[1] - pieces[0].pts[0]).normalized().orthogonal()
+		var sides := {}
+		for piece in pieces:
+			sides[signf(piece.pts[0].dot(side))] = true
+		between = between and sides.size() == 2
+	check(clear, "the start is always at least %s px from the nearest canal" % str(cfg.start_clear))
+	check(between, "with a canal on either side of it")
+
+
+func test_a_bridge_crosses_every_canal_often(b: Dictionary) -> void:
+	var cfg: Dictionary = b.canals.aegyptus
+	var t := _nile_terrain(b, 2131)
+	var area := Rect2(-5000, -5000, 10000, 10000)
+	var pieces := _canal_pieces(t, area)
+	var bridges: Array = t.bridges.filter(func(br: Dictionary) -> bool: return area.has_point(br.pos))
+	var farthest := 0.0
+	var on_canal := true
+	for br in bridges:
+		on_canal = on_canal and t.ravine_edge(br.pos) < 0.0
+	for piece in pieces:
+		var pts: PackedVector2Array = piece.pts
+		var along: Vector2 = (pts[1] - pts[0]).normalized()
+		for q in pts:
+			if not area.grow(-800).has_point(q):
+				continue
+			var near := INF
+			for br in bridges:
+				if absf((br.pos - q).dot(along.orthogonal())) < 1.0:
+					near = minf(near, absf((br.pos - q).dot(along)))
+			farthest = maxf(farthest, near)
+	check(bridges.size() > 20 and on_canal, "bridges are laid over the canals (%d)" % bridges.size())
+	check(farthest <= float(cfg.bridge_every[1]) / 2.0 + 1.0, "and no point along a canal is more than half of %s px from a bridge (%.0f)" % [str(cfg.bridge_every[1]), farthest])
+
+
+func test_canal_bridges_agree_whichever_region_is_built_first(b: Dictionary) -> void:
+	var one := _nile_terrain(b, 2141)
+	var two := _nile_terrain(b, 2141)
+	var size := float(b.canals.aegyptus.region)
+	var cells: Array = []
+	for rx in range(-3, 3):
+		for ry in range(-3, 3):
+			cells.append(Vector2i(rx, ry))
+	for c in cells:
+		one.ravines_in(Rect2(Vector2(c) * size + Vector2.ONE * size * 0.4, Vector2.ONE * size * 0.2))
+	cells.reverse()
+	for c in cells:
+		two.ravines_in(Rect2(Vector2(c) * size + Vector2.ONE * size * 0.4, Vector2.ONE * size * 0.2))
+	var area := Rect2(-2 * size, -2 * size, 3 * size, 3 * size)
+	var a: Array = one.bridges.filter(func(br: Dictionary) -> bool: return area.has_point(br.pos)).map(func(br: Dictionary) -> Vector2: return br.pos.snapped(Vector2.ONE * 0.01))
+	var z: Array = two.bridges.filter(func(br: Dictionary) -> bool: return area.has_point(br.pos)).map(func(br: Dictionary) -> Vector2: return br.pos.snapped(Vector2.ONE * 0.01))
+	a.sort()
+	z.sort()
+	var once := true
+	for i in a.size() - 1:
+		once = once and a[i] != a[i + 1]
+	check(a.size() > 5 and a == z, "the same bridges stand whichever region was built first (%d and %d)" % [a.size(), z.size()])
+	check(once, "and a bridge near a region's edge is laid only once")
+
+
+func test_nothing_solid_stands_in_a_canal_bridge_mouth(b: Dictionary) -> void:
+	var cfg: Dictionary = b.canals.aegyptus
+	var t := _nile_terrain(b, 2151)
+	var area := Rect2(-4000, -4000, 8000, 8000)
+	var props := t.props_in(area)
+	var blocked := 0
+	var n := 0
+	for br in t.bridges:
+		if not area.grow(-200).has_point(br.pos):
+			continue
+		n += 1
+		for end in [-1.0, 1.0]:
+			var mouth: Vector2 = br.pos + br.dir * end * (br.half_len + float(cfg.bridge_clear) / 2.0)
+			for pr in props:
+				if pr[2] > 0.0 and pr[1].distance_to(mouth) < float(cfg.bridge_clear) / 2.0 + pr[2]:
+					blocked += 1
+	check(n > 10 and blocked == 0, "no palm, stone or ruin stands at either end of a bridge (%d of %d)" % [blocked, n])
+
+
+func test_crop_fields_line_the_canal_banks(b: Dictionary) -> void:
+	var cfg: Dictionary = b.valleys.aegyptus
+	var t := _nile_terrain(b, 2161)
+	var area := Rect2(-5000, -5000, 10000, 10000)
+	var crops: Array = t.props_in(area).filter(func(pr: Array) -> bool: return pr[0] == "crops").map(func(pr: Array) -> Vector2: return pr[1])
+	var by_water := true
+	for p in crops:
+		var e := t.ravine_edge(p, 600.0)
+		by_water = by_water and e >= float(b.canals.aegyptus.band) and e <= float(cfg.crop_reach)
+	# Crops with gaps of under two plants' spacing between them make one field.
+	var link := 2.0 * float(cfg.crop_step)
+	var seen := {}
+	var lengths: Array = []
+	for i in crops.size():
+		if seen.has(i):
+			continue
+		var group: Array = [i]
+		seen[i] = true
+		var k := 0
+		while k < group.size():
+			for j in crops.size():
+				if not seen.has(j) and crops[group[k]].distance_to(crops[j]) < link:
+					seen[j] = true
+					group.append(j)
+			k += 1
+		var span := 0.0
+		for g in group:
+			for h in group:
+				span = maxf(span, crops[g].distance_to(crops[h]))
+		lengths.append(span)
+	var big := lengths.filter(func(l: float) -> bool: return l >= float(cfg.crop_length[0]) * 0.6).size()
+	var clear := true
+	for br in t.bridges:
+		for p in crops:
+			clear = clear and (p.distance_to(br.pos) > 300.0 or absf((p - br.pos).dot(br.dir.orthogonal())) > br.half_w + 8.0)
+	check(lengths.size() >= 8, "crop fields are laid along the canals (%d)" % lengths.size())
+	check(by_water, "every crop grows just outside the bank's band and within %s px of the water" % str(cfg.crop_reach))
+	check(big >= lengths.size() * 0.75, "and most fields are long strips, not small patches (%d of %d)" % [big, lengths.size()])
+	check(clear, "and no crop grows across a bridge's approach")
 
 
 func test_a_canal_holds_men_back_but_its_bridge_carries_them(b: Dictionary) -> void:

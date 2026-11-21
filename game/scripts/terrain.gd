@@ -62,6 +62,13 @@ var hills: Dictionary
 var valley: Dictionary
 ## Its irrigation canals from balance.json `canals`, laid out in place of ravines.
 var canal: Dictionary
+# The way every canal runs, and how far the whole set of canals is shifted across from the start.
+var _canal_along := Vector2.RIGHT
+var _canal_shift := 0.0
+# Each canal's middle across the run, half width and bridge phase, by its number, once worked out.
+var _canal_lines := {}
+# The canal bridges laid so far, by canal and bridge number, so a bridge near a region's edge is laid only once.
+var _canal_bridges := {}
 # The middle and reach of the stone circle of each moorland region that has one, kept free of the trees of ridges nearby.
 var _henges := {}
 # The frozen stream of each stream region once worked out, {} for a region without one, and streams laid by hand.
@@ -394,7 +401,8 @@ func _region(rx: int, ry: int) -> Array:
 	var kept: Array = []
 	for p in out:
 		# Reeds grow on the canal banks, inside the open band kept round the water.
-		if p[1].length() > clear_radius and not _in_clearing(p[1]) and (p[0] == "papyrus" or not _by_ravine(p[1])):
+		var open := not _by_bridge(p[1]) if p[0] == "papyrus" else not _by_ravine(p[1])
+		if p[1].length() > clear_radius and not _in_clearing(p[1]) and open:
 			kept.append(p)
 	_regions[key] = kept
 	return kept
@@ -564,10 +572,149 @@ func _hill_feature(r: RandomNumberGenerator, roll: float, centre: Vector2) -> Ar
 
 ## Lays this province's irrigation canals where other provinces have ravines; an empty config lays neither.
 func set_canals(cfg: Dictionary) -> void:
+	for br in _canal_bridges.values():
+		bridges.erase(br)
+	_bridges_dirty = true
+	_canal_bridges.clear()
+	_canal_lines.clear()
 	canal = cfg
 	ravine_cfg = cfg
 	_ravines.clear()
 	_anchor = Vector2i(1 << 30, 0)
+	if cfg.is_empty():
+		return
+	var r := RandomNumberGenerator.new()
+	r.seed = hash([seed_value, "canals"])
+	var tilt := float(cfg.tilt)
+	_canal_along = Vector2.from_angle(r.randf_range(-tilt, tilt) + (PI / 2.0 if r.randf() < 0.5 else 0.0))
+	# The start lies between canals -1 and 0, and the shift never brings either nearer to it than `start_clear`.
+	var room := _canal_apart() / 2.0 - _canal_wobble() - float(cfg.start_clear) - float(cfg.width[1]) / 2.0
+	_canal_shift = r.randf_range(-room, room) if room > 0.0 else 0.0
+
+
+## The mean distance between neighbouring canals.
+func _canal_apart() -> float:
+	return (float(canal.apart[0]) + float(canal.apart[1])) / 2.0
+
+
+## How far a canal may lie off its even spacing, so neighbours stay within `apart` of each other.
+func _canal_wobble() -> float:
+	return (float(canal.apart[1]) - float(canal.apart[0])) / 4.0
+
+
+## Canal k as (its middle across the run, its half width, the phase of its bridges).
+func _canal_line(k: int) -> Vector3:
+	if _canal_lines.has(k):
+		return _canal_lines[k]
+	var r := RandomNumberGenerator.new()
+	r.seed = hash([seed_value, "canal", k])
+	var u := (k + 0.5) * _canal_apart() + _canal_shift + r.randf_range(-1.0, 1.0) * _canal_wobble()
+	var line := Vector3(u, r.randf_range(float(canal.width[0]), float(canal.width[1])) / 2.0, r.randf())
+	_canal_lines[k] = line
+	return line
+
+
+## How far along canal k its bridge j stands.
+func _bridge_along(k: int, j: int, phase: float) -> float:
+	var lo := float(canal.bridge_every[0])
+	var hi := float(canal.bridge_every[1])
+	var r := RandomNumberGenerator.new()
+	r.seed = hash([seed_value, "bridge", k, j])
+	return (j + phase) * (lo + hi) / 2.0 + r.randf_range(-1.0, 1.0) * (hi - lo) / 4.0
+
+
+## The part of every canal that crosses a canal region, with the bridges over it; the parts of one canal in neighbouring regions meet end to end.
+func _canal_region(rx: int, ry: int) -> Dictionary:
+	var size := float(canal.region)
+	var rect := Rect2(Vector2(rx, ry) * size, Vector2.ONE * size)
+	var along := _canal_along
+	var side := along.orthogonal()
+	var corners := [rect.position, Vector2(rect.end.x, rect.position.y), Vector2(rect.position.x, rect.end.y), rect.end]
+	var u0 := INF
+	var u1 := -INF
+	var s0 := INF
+	var s1 := -INF
+	for c in corners:
+		u0 = minf(u0, c.dot(side))
+		u1 = maxf(u1, c.dot(side))
+		s0 = minf(s0, c.dot(along))
+		s1 = maxf(s1, c.dot(along))
+	var ds := float(canal.step)
+	var bridge_mean := (float(canal.bridge_every[0]) + float(canal.bridge_every[1])) / 2.0
+	var deck_half := float(canal.crossing_width) / 2.0
+	var pieces: Array = []
+	var crossings: Array = []
+	for k in range(floori((u0 - _canal_shift) / _canal_apart()) - 2, ceili((u1 - _canal_shift) / _canal_apart()) + 2):
+		var line := _canal_line(k)
+		if line.x < u0 or line.x >= u1:
+			continue
+		# Each step of the line belongs to the region its middle lies in, so neighbouring regions share their end points and never overlap.
+		var first := 1 << 30
+		var last := -(1 << 30)
+		for i in range(floori(s0 / ds) - 1, ceili(s1 / ds) + 1):
+			var mid := side * line.x + along * (i + 0.5) * ds
+			if floori(mid.x / size) == rx and floori(mid.y / size) == ry:
+				first = mini(first, i)
+				last = maxi(last, i)
+		if first > last:
+			continue
+		var pts := PackedVector2Array()
+		var half := PackedFloat32Array()
+		for i in range(first, last + 2):
+			pts.append(side * line.x + along * i * ds)
+			half.append(line.y)
+		pieces.append({"pts": pts, "half": half, "k": k})
+		var lo := first * ds - deck_half
+		var hi := (last + 1) * ds + deck_half
+		for j in range(floori(lo / bridge_mean - line.z) - 1, ceili(hi / bridge_mean - line.z) + 2):
+			var t := _bridge_along(k, j, line.z)
+			if t < lo or t > hi:
+				continue
+			var key := Vector2i(k, j)
+			if not _canal_bridges.has(key):
+				var br := {"pos": side * line.x + along * t, "dir": side, "half_len": line.y + float(canal.overhang), "half_w": deck_half}
+				_canal_bridges[key] = br
+				bridges.append(br)
+				_bridges_dirty = true
+			crossings.append(_canal_bridges[key])
+	if pieces.is_empty():
+		return {}
+	return _with_box({"pieces": pieces, "canal": true, "crossings": crossings})
+
+
+## Whether p lies at either end of a canal bridge, where the way onto the deck is kept open.
+func _by_bridge(p: Vector2) -> bool:
+	if canal.is_empty():
+		return false
+	var side := _canal_along.orthogonal()
+	var u := p.dot(side)
+	var s := p.dot(_canal_along)
+	var reach := float(canal.bridge_clear)
+	var bridge_mean := (float(canal.bridge_every[0]) + float(canal.bridge_every[1])) / 2.0
+	var k := floori((u - _canal_shift) / _canal_apart())
+	for kk in range(k - 1, k + 2):
+		var line := _canal_line(kk)
+		if absf(u - line.x) > line.y + float(canal.overhang) + reach + 16.0:
+			continue
+		var j := roundi(s / bridge_mean - line.z)
+		for jj in range(j - 1, j + 2):
+			if absf(s - _bridge_along(kk, jj, line.z)) < float(canal.crossing_width) / 2.0 + reach / 2.0 + 16.0:
+				return true
+	return false
+
+
+## p moved straight across the canals to the middle of the strip of land it stands on; p itself where there are no canals.
+func strip_middle(p: Vector2) -> Vector2:
+	if canal.is_empty():
+		return p
+	var side := _canal_along.orthogonal()
+	var u := p.dot(side)
+	var k := floori((u - _canal_shift) / _canal_apart() - 0.5)
+	while _canal_line(k).x > u:
+		k -= 1
+	while _canal_line(k + 1).x <= u:
+		k += 1
+	return p + side * ((_canal_line(k).x + _canal_line(k + 1).x) / 2.0 - u)
 
 
 ## A valley region holds a grove of date palms, a reed bed on a canal bank, a ruined temple, a patch of crops or open ground.
@@ -602,8 +749,44 @@ func _valley_feature(r: RandomNumberGenerator, roll: float, centre: Vector2) -> 
 	elif roll < ruin:
 		out = _ruin(r, centre)
 	elif roll < ruin + float(cfg.crop_chance):
-		for k in r.randi_range(int(cfg.crops_count[0]), int(cfg.crops_count[1])):
-			out.append(["crops", centre + Vector2(r.randf_range(-1.0, 1.0), r.randf_range(-0.7, 0.7)) * float(cfg.crop_spread), 0.0])
+		out = _crop_field(r, centre)
+	return out
+
+
+## A field of crops in rows along the nearest canal bank, on one side of the water or both, or nothing where no canal is near.
+func _crop_field(r: RandomNumberGenerator, centre: Vector2) -> Array:
+	var cfg := valley
+	var bank := _bank_near(centre, float(cfg.crop_bank))
+	if bank.is_empty():
+		return []
+	var along: Vector2 = bank[1]
+	var length := r.randf_range(float(cfg.crop_length[0]), float(cfg.crop_length[1]))
+	var rows := r.randi_range(int(cfg.crop_rows[0]), int(cfg.crop_rows[1]))
+	var sides: Array = [bank[2]]
+	if r.randf() < float(cfg.crop_both):
+		sides.append(-bank[2])
+	var step := float(cfg.crop_step)
+	var lip: float = bank[3] + float(ravine_cfg.band) + 14.0
+	# The field slides along the bank to the place that leaves the most of it clear of the bridges' approaches.
+	var shift := 0.0
+	var fewest := 1 << 30
+	for k in 13:
+		var at: float = (k - 6) * 40.0
+		var cut := 0
+		var t := -length / 2.0
+		while t <= length / 2.0:
+			cut += 1 if _by_bridge(bank[0] + along * (at + t) + bank[2] * lip) else 0
+			t += step / 2.0
+		if cut < fewest or (cut == fewest and absf(at) < absf(shift)):
+			fewest = cut
+			shift = at
+	var out: Array = []
+	for side in sides:
+		for row in rows:
+			var t := -length / 2.0 + (step / 2.0 if row % 2 == 1 else 0.0)
+			while t <= length / 2.0:
+				out.append(["crops", bank[0] + along * (shift + t + r.randf_range(-4.0, 4.0)) + side * (lip + row * float(cfg.crop_row_gap) + r.randf_range(-3.0, 3.0)), 0.0])
+				t += step
 	return out
 
 
@@ -962,7 +1145,7 @@ func _cleared(f: Rect2) -> bool:
 func add_clearing(centre: Vector2, radius: float, pieces: Array) -> void:
 	clearings.append([centre, radius])
 	for key in _ravines:
-		if not _ravines[key].is_empty() and edge_of(_ravines[key], centre) < radius:
+		if canal.is_empty() and not _ravines[key].is_empty() and edge_of(_ravines[key], centre) < radius:
 			for br in _ravines[key].get("crossings", []):
 				bridges.erase(br)
 				_bridges_dirty = true
@@ -1420,61 +1603,21 @@ func ravine(rx: int, ry: int) -> Dictionary:
 	if _ravines.has(key):
 		return _ravines[key]
 	var out := {}
-	if not ravine_cfg.is_empty() and not empty:
+	if not canal.is_empty() and not empty:
+		out = _canal_region(rx, ry)
+	elif not ravine_cfg.is_empty() and not empty:
 		var r := RandomNumberGenerator.new()
 		r.seed = hash([seed_value, "ravine", key])
 		if r.randf() < float(ravine_cfg.chance):
 			var size := float(ravine_cfg.region)
 			var inner := Rect2(Vector2(rx, ry) * size, Vector2.ONE * size).grow(-float(ravine_cfg.inset) - float(ravine_cfg.width[1]) / 2.0)
 			for k in int(ravine_cfg.tries):
-				var made := _canal_line(r, inner, ravine_cfg) if not canal.is_empty() else _gorge_line(r, inner, ravine_cfg)
+				var made := _gorge_line(r, inner, ravine_cfg)
 				if _fits(made, inner, ravine_cfg):
 					out = made
 					break
-			if not canal.is_empty() and not out.is_empty():
-				_cross(out, r, canal)
 	_ravines[key] = out
 	return out
-
-
-## A straight irrigation canal of even width centred somewhere in `inner`.
-func _canal_line(r: RandomNumberGenerator, inner: Rect2, cfg: Dictionary) -> Dictionary:
-	var length := r.randf_range(float(cfg.length[0]), float(cfg.length[1]))
-	var dir := Vector2.from_angle(r.randf() * PI)
-	var centre := Vector2(r.randf_range(inner.position.x, inner.end.x), r.randf_range(inner.position.y, inner.end.y))
-	var half := r.randf_range(float(cfg.width[0]), float(cfg.width[1])) / 2.0
-	var ds := float(cfg.step)
-	var n := int(length / ds)
-	var pts := PackedVector2Array()
-	var widths := PackedFloat32Array()
-	for i in n + 1:
-		pts.append(centre + dir * (i - n / 2.0) * ds)
-		widths.append(half)
-	return _with_box({"pieces": [{"pts": pts, "half": widths}], "canal": true})
-
-
-## Lays the crossings of a canal as bridge decks from bank to bank, kept away from its ends and from each other.
-func _cross(rv: Dictionary, r: RandomNumberGenerator, cfg: Dictionary) -> void:
-	var pts: PackedVector2Array = rv.pieces[0].pts
-	var a := pts[0]
-	var length := a.distance_to(pts[pts.size() - 1])
-	var dir := (pts[pts.size() - 1] - a) / length
-	var end := minf(float(cfg.crossing_end), length / 2.0)
-	var at: Array = []
-	var want := r.randi_range(int(cfg.crossings[0]), int(cfg.crossings[1]))
-	for k in want * 6:
-		if at.size() >= want:
-			break
-		var t := r.randf_range(end, length - end)
-		if at.all(func(o: float) -> bool: return absf(o - t) >= float(cfg.crossing_apart)):
-			at.append(t)
-	var crossings: Array = []
-	for t in at:
-		var br := {"pos": a + dir * t, "dir": dir.orthogonal(), "half_len": float(rv.pieces[0].half[0]) + float(cfg.overhang), "half_w": float(cfg.crossing_width) / 2.0}
-		bridges.append(br)
-		_bridges_dirty = true
-		crossings.append(br)
-	rv.crossings = crossings
 
 
 ## A winding gorge centred somewhere in `inner`, narrowing at its ends, sometimes broken by a natural land bridge.
@@ -1618,11 +1761,14 @@ static func edge_of(rv: Dictionary, p: Vector2) -> float:
 	for piece in rv.pieces:
 		var pts: PackedVector2Array = piece.pts
 		var half: PackedFloat32Array = piece.half
-		for i in pts.size() - 1:
+		# A canal piece is straight and even, so it is read as one segment.
+		var last := pts.size() - 1
+		var stride := last if piece.has("k") else 1
+		for i in range(0, last, stride):
 			var a := pts[i]
-			var ab := pts[i + 1] - a
+			var ab := pts[i + stride] - a
 			var t := clampf((p - a).dot(ab) / maxf(ab.length_squared(), 0.0001), 0.0, 1.0)
-			best = minf(best, p.distance_to(a + ab * t) - lerpf(half[i], half[i + 1], t))
+			best = minf(best, p.distance_to(a + ab * t) - lerpf(half[i], half[i + stride], t))
 	return best
 
 
@@ -1633,7 +1779,7 @@ func _by_ravine(p: Vector2) -> bool:
 	if ravine_cfg.is_empty():
 		return false
 	var band := float(ravine_cfg.band)
-	return ravine_edge(p, band + float(ravine_cfg.width[1])) < band
+	return ravine_edge(p, band + float(ravine_cfg.width[1])) < band or _by_bridge(p)
 
 
 ## The frozen stream of a stream region, laid out like a gorge but kept clear of the ravines: {pieces: [{pts, half}], box}, or {} for none.
