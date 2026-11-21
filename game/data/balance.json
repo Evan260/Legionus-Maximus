@@ -78,6 +78,7 @@
     "bridge_side": 30,
     "bridge_approach": 40,
     "bridge_aim": 0.7,
+    "straggle": 60,
     "file_gap_min": 12,
     "gate_lead": 40,
     "fallen_kept": 100,

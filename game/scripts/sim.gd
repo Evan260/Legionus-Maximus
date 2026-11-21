@@ -493,13 +493,27 @@ func units_in_formation() -> Array:
 	return out
 
 
+## How far the legion reaches behind (x, negative) and ahead (y) of the commander along `dir`; a man far from his place counts at his place, so a straggler does not move the stakes to him.
+func formation_reach(dir: Vector2) -> Vector2:
+	var reach := Vector2.ZERO
+	var places := legion.formation()
+	var straggle := float(b.legion.straggle)
+	for i in soldiers.size():
+		var so: Dictionary = soldiers[i]
+		if so.sortie != 0:
+			continue
+		var place: Vector2 = commander.pos + places[i].rotated(facing_angle)
+		var at: Vector2 = so.pos if so.pos.distance_to(place) <= straggle else place
+		var d := (at - commander.pos).dot(dir)
+		reach = Vector2(minf(reach.x, d), maxf(reach.y, d))
+	return reach
+
+
 ## Where the palisade's stakes go: a shallow arc across the legion's facing, `ahead` px beyond its front rank, its ends bowed back.
 func palisade_points() -> Array:
 	var cfg: Dictionary = b.palisade
 	var dir := Vector2.from_angle(facing_angle)
-	var front := 0.0
-	for u in units_in_formation():
-		front = maxf(front, (u.pos - commander.pos).dot(dir))
+	var front := formation_reach(dir).y
 	var n := int(cfg.stakes)
 	var out: Array = []
 	for k in n:
@@ -512,9 +526,7 @@ func palisade_points() -> Array:
 func wall_points() -> Array:
 	var cfg: Dictionary = b.wall
 	var dir := Vector2.from_angle(facing_angle)
-	var rear := 0.0
-	for u in units_in_formation():
-		rear = minf(rear, (u.pos - commander.pos).dot(dir))
+	var rear := formation_reach(dir).x
 	var n := int(cfg.stakes)
 	var out: Array = []
 	for k in n:

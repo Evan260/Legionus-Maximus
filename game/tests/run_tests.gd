@@ -3448,6 +3448,24 @@ func test_a_wall_costs_timber_and_closes_the_way_behind_the_rear(b: Dictionary) 
 	check(_solid_at(s, across[0]), "the wall is solid")
 
 
+func test_a_wall_goes_behind_the_army_not_behind_a_straggler(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 309)
+	_field(s, [])
+	for i in 10:
+		s.add_soldier("legionary")
+	s.legion.place_all(s.facing_angle)
+	var dir := Vector2.from_angle(s.facing_angle)
+	var rear := 0.0
+	for u in s.units_in_formation():
+		rear = minf(rear, (u.pos - s.commander.pos).dot(dir))
+	s.soldiers[0].pos = s.commander.pos - dir * 400.0
+	var cfg: Dictionary = b.wall
+	var deepest := INF
+	for p in s.wall_points():
+		deepest = minf(deepest, (p - s.commander.pos).dot(dir))
+	check(deepest >= rear - float(cfg.behind) - 0.5, "the wall stands behind the main army's rear (%.0f px back, rear %.0f)" % [deepest, rear])
+
+
 func test_barbarians_slowly_break_through_a_wall(b: Dictionary) -> void:
 	var s := _quiet_sim(b, 308)
 	_field(s, [])
