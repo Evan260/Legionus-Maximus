@@ -38,6 +38,9 @@ var main: Node
 ## The province the panel describes: the last node focused, kept while focus is on the panel's buttons.
 var selected := ""
 var _picture: Texture2D
+# The road's marks for the provinces they were laid along.
+var _marks_for: Array = []
+var _marks: Array = []
 
 
 func _init(owner_node: Node) -> void:
@@ -188,9 +191,9 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	for id in order:
 		_node(c, ui, id, now)
 	_fog(c, ids, now)
-	var labels := _labels(c, ui, ids)
+	_labels(c, ui, ids)
 	_panel(c, ui, selected)
-	_header(c, ui, labels)
+	_header(c, ui)
 	_links(ui, ids)
 
 
@@ -327,7 +330,7 @@ func _banner(c: CanvasItem, p: Vector2) -> void:
 
 
 ## Each province's name and state on a dark plate by its node, clear of the rest; with large text only the selected one's state is written.
-func _labels(c: CanvasItem, ui: Ui, ids: Array) -> Array:
+func _labels(c: CanvasItem, ui: Ui, ids: Array) -> void:
 	var placed: Array = [panel_rect().grow(4.0), Rect2(spot("roma") - Vector2(12, 46), Vector2(24, 58))]
 	for id in ids:
 		var p := spot(id)
@@ -335,7 +338,6 @@ func _labels(c: CanvasItem, ui: Ui, ids: Array) -> Array:
 		if main.run_setup.province == id:
 			placed.append(Rect2(p + Vector2(NODE_R, -46), Vector2(22, 46)))
 	var marks := _road_marks(ids)
-	var plates: Array = []
 	var room := 200.0 if Ui.scale == 1 else 260.0
 	for id in ids:
 		var name: String = main.content.provinces[id].name.to_upper()
@@ -359,13 +361,13 @@ func _labels(c: CanvasItem, ui: Ui, ids: Array) -> Array:
 			if clash:
 				continue
 			var covered := 0
+			var wide: Rect2 = t.grow(3.0)
 			for m in marks:
-				covered += 1 if t.grow(3.0).has_point(m) else 0
+				covered += 1 if wide.has_point(m) else 0
 			if covered < least:
 				least = covered
 				at = t
 		placed.append(at.grow(2.0))
-		plates.append(at)
 		var state := state_of(id)
 		c.draw_rect(at.grow(3.0), SHADE)
 		var name_col := Ui.GOLD_LIGHT if state == "won" or state == "open" else Color(0.78, 0.74, 0.68)
@@ -373,11 +375,13 @@ func _labels(c: CanvasItem, ui: Ui, ids: Array) -> Array:
 		if two:
 			var col := Ui.CREAM if state == "open" else (Color(0.6, 0.85, 0.5) if state == "won" else Color(0.72, 0.66, 0.6))
 			ui.fit_text(c, line, room, Vector2(at.position.x, at.position.y + Ui.px + Ui.leading()), col, HORIZONTAL_ALIGNMENT_CENTER, at.size.x)
-	return plates
 
 
 ## Points every few pixels along the road from Rome through the provinces, which the plates try not to cover.
 func _road_marks(ids: Array) -> Array:
+	# The road only changes with the provinces on it, so its marks are kept between frames.
+	if ids == _marks_for:
+		return _marks
 	var out: Array = []
 	var from := "roma"
 	for i in ids.size():
@@ -387,11 +391,13 @@ func _road_marks(ids: Array) -> Array:
 			for j in steps:
 				out.append(pts[k].lerp(pts[k + 1], float(j) / steps))
 		from = ids[i]
+	_marks_for = ids.duplicate()
+	_marks = out
 	return out
 
 
 ## The key hints on a dark strip, so they read over the painted map.
-func _header(c: CanvasItem, ui: Ui, _plates: Array) -> void:
+func _header(c: CanvasItem, ui: Ui) -> void:
 	var hint := Controls.hint("pick")
 	var size := Ui.fit_size(hint, Ui.W - 16.0)
 	c.draw_rect(Rect2(0, Ui.H - Ui.lead_for(size) - 6.0, Ui.W, Ui.lead_for(size) + 6.0), SHADE)

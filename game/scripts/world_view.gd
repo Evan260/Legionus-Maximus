@@ -16,6 +16,8 @@ var shake_on := true
 var digits: Texture2D
 var _cam := Vector2.ZERO
 var _shake_rng := RandomNumberGenerator.new()
+# Each bolt's jags are drawn again from its own seed every frame.
+var _bolt_rng := RandomNumberGenerator.new()
 
 var _keys := PackedInt64Array()
 var _rects: Array[Rect2] = []
@@ -1112,7 +1114,11 @@ func _draw_effects() -> void:
 			var green := Color(0.5, 1.0, 0.55, 1.0 - k)
 			draw_rect(Rect2(h + Vector2(1, 0), Vector2(1, 3)), green)
 			draw_rect(Rect2(h + Vector2(0, 1), Vector2(3, 1)), green)
+	var screen := get_viewport_rect().size
+	var seen := Rect2(sim.commander.pos - screen / 2.0, screen).grow(40.0)
 	for i in sim.horde.e_pos.size():
+		if not seen.has_point(sim.horde.e_pos[i]):
+			continue
 		if sim.horde.e_burn[i] > 0.0:
 			var p: Vector2 = sim.horde.e_pos[i] + Vector2(-2 + (int(sim.time * 20.0 + i) % 4), -22)
 			draw_rect(Rect2(p.round(), Vector2(1, 2)), Color(1, 0.6, 0.15, 0.9))
@@ -1245,7 +1251,7 @@ func _draw_gods(top_left: Vector2, screen: Vector2) -> void:
 	var bolt_life := float(g.jupiter.bolt_seconds)
 	for bolt in gods.bolts:
 		var a := 1.0 - float(bolt.t) / bolt_life
-		var rng := RandomNumberGenerator.new()
+		var rng := _bolt_rng
 		rng.seed = int(bolt.seed)
 		var to: Vector2 = bolt.to
 		var start := Vector2(to.x + rng.randf_range(-60.0, 60.0), top_left.y - 8.0)

@@ -282,8 +282,13 @@ func _column(places: Array, sim: Sim) -> Array:
 ## The bridges' decks and the fort's gate as lanes the legion files through: centre, direction, half length and half width, how far to the side the commander may be, and the extra lead.
 func _lanes(sim: Sim) -> Array:
 	var out: Array = []
-	for i in sim.terrain.bridges.size():
-		var br: Dictionary = sim.terrain.bridges[i]
+	# A bridge further off than the longest column could reach is no lane yet; each is named by its place, since the fort can take crossings out of the list.
+	var most := (sim.soldiers.size() + 1) * float(_l.row_gap) + float(_l.bridge_lead) + float(_l.bridge_side)
+	for br in sim.terrain.bridges:
+		if sim.commander.pos.distance_to(br.pos) > float(br.half_len) + float(br.half_w) + most:
+			if _crossing == br.pos:
+				_crossing = Vector2.INF
+			continue
 		out.append({"pos": br.pos, "dir": br.dir, "half_len": br.half_len, "half_w": br.half_w, "side": br.half_w + float(_l.bridge_side),
 			"lead": float(_l.bridge_lead), "both_ways": true, "bridge": br.pos})
 	var fort: Dictionary = sim.objectives.fort

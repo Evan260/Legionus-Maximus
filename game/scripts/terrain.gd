@@ -96,6 +96,10 @@ var _ready_to_fall: Array = []
 var ravine_cfg: Dictionary
 ## Bridges laid by the legion, as {pos: middle, dir: along the deck, half_len, half_w}; they last the whole run.
 var bridges: Array = []
+# Each bridge's middle and the square of the furthest a point on its deck can be from it, in the order of `bridges`, so most are passed over at a glance.
+var _bridge_at := PackedVector2Array()
+var _bridge_r2 := PackedFloat32Array()
+var _bridges_dirty := true
 ## How many times a prop, a field, a ravine or a bridge's side has moved the commander or a soldier, for the tests.
 var legion_shoves := 0
 # The ravine of each ravine region once worked out, {} for a region without one.
@@ -132,6 +136,7 @@ func clear() -> void:
 	_laid.clear()
 	_laid_streams.clear()
 	bridges.clear()
+	_bridges_dirty = true
 	_anchor = Vector2i(1 << 30, 0)
 
 
@@ -960,6 +965,7 @@ func add_clearing(centre: Vector2, radius: float, pieces: Array) -> void:
 		if not _ravines[key].is_empty() and edge_of(_ravines[key], centre) < radius:
 			for br in _ravines[key].get("crossings", []):
 				bridges.erase(br)
+				_bridges_dirty = true
 			_ravines[key] = {}
 	extras.append_array(pieces)
 	for pr in pieces:
@@ -1466,6 +1472,7 @@ func _cross(rv: Dictionary, r: RandomNumberGenerator, cfg: Dictionary) -> void:
 	for t in at:
 		var br := {"pos": a + dir * t, "dir": dir.orthogonal(), "half_len": float(rv.pieces[0].half[0]) + float(cfg.overhang), "half_w": float(cfg.crossing_width) / 2.0}
 		bridges.append(br)
+		_bridges_dirty = true
 		crossings.append(br)
 	rv.crossings = crossings
 
@@ -1769,7 +1776,16 @@ func ravine_push(p: Vector2, r: float, wide := false) -> Vector2:
 
 ## The bridge whose deck p stands on, or -1.
 func on_bridge(p: Vector2) -> int:
-	for i in bridges.size():
+	if _bridges_dirty or _bridge_at.size() != bridges.size():
+		_bridges_dirty = false
+		_bridge_at.resize(bridges.size())
+		_bridge_r2.resize(bridges.size())
+		for i in bridges.size():
+			_bridge_at[i] = bridges[i].pos
+			_bridge_r2[i] = float(bridges[i].half_len) ** 2 + float(bridges[i].half_w) ** 2 + 1.0
+	for i in _bridge_at.size():
+		if p.distance_squared_to(_bridge_at[i]) > _bridge_r2[i]:
+			continue
 		var br: Dictionary = bridges[i]
 		var off: Vector2 = p - br.pos
 		if absf(off.dot(br.dir)) <= br.half_len and absf(off.dot(br.dir.orthogonal())) <= br.half_w:
@@ -1839,4 +1855,5 @@ func span_ahead(from: Vector2, dir: Vector2, reach: float, longest: float) -> Ar
 ## Lays a bridge with its deck from a to b, `half_w` either side of the line between them.
 func add_bridge(a: Vector2, b: Vector2, half_w: float) -> void:
 	bridges.append({"pos": (a + b) / 2.0, "dir": (b - a).normalized(), "half_len": a.distance_to(b) / 2.0, "half_w": half_w})
+	_bridges_dirty = true
 	_anchor = Vector2i(1 << 30, 0)

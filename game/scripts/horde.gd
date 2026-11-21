@@ -2535,20 +2535,21 @@ func _move(dt: float, sim: Sim) -> void:
 				var ky := c / GW
 				# A boss wider than a grid square looks further for the barbarians he would overlap.
 				var ring := 1 if (r + r) * spacing <= CELL else 2
+				var x0 := maxi(0, kx - ring)
+				var x1 := mini(GW, kx + ring + 1)
 				for cy in range(maxi(0, ky - ring), mini(GW, ky + ring + 1)):
-					for cx in range(maxi(0, kx - ring), mini(GW, kx + ring + 1)):
-						var cell := cx + cy * GW
-						# The enemy himself is in the list too, but at no distance he fails the test below.
-						for t in range(gs[cell], gs[cell + 1]):
-							var away := p - e_pos[gi[t]]
-							var dd := away.length_squared()
-							var min_d := (r + gr[t]) * spacing
-							if dd < min_d * min_d and dd > 0.0001:
-								var dl := sqrt(dd)
-								push += away / dl * (min_d - dl)
-								var ahead := -away.dot(to)
-								if ahead > 0.0:
-									block += (min_d - dl) * ahead / (dl * d)
+					# The grid keeps a row's cells next to each other, so one span covers the row's neighbours.
+					# The enemy himself is in the list too, but at no distance he fails the test below.
+					for t in range(gs[x0 + cy * GW], gs[x1 + cy * GW]):
+						var away := p - e_pos[gi[t]]
+						var dd := away.length_squared()
+						var min_d := (r + gr[t]) * spacing
+						if dd < min_d * min_d and dd > 0.0001:
+							var dl := sqrt(dd)
+							push += away / dl * (min_d - dl)
+							var ahead := -away.dot(to)
+							if ahead > 0.0:
+								block += (min_d - dl) * ahead / (dl * d)
 			e_push[i] = push
 			e_block[i] = block
 		elif i % 3 == phase:
