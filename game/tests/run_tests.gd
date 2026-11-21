@@ -690,7 +690,7 @@ func test_every_content_entry_has_a_name_and_text(b: Dictionary) -> void:
 			check(str(entries[id].get("name", "")) != "", "%s %s has a name" % [kind, id])
 			check(str(entries[id].get("text", "")) != "", "%s %s has a text" % [kind, id])
 	check(content.recruits.size() == 7 and content.arms.size() == 12 and content.forged.size() == 6 and content.drills.size() == 15, "the full set of recruits, arms, forged forms and drills")
-	check(content.provinces.size() == 7 and content.commanders.size() == 6, "seven provinces and six commanders")
+	check(content.provinces.size() == 8 and content.commanders.size() == 6, "eight provinces and six commanders")
 	for p in content.provinces:
 		var pr: Dictionary = content.provinces[p]
 		check(pr.ordinary.size() == 4 and pr.elites.size() >= 2 and content.enemies.has(pr.chieftain), "%s has its enemies" % p)
@@ -2528,7 +2528,7 @@ func test_the_engineer_and_legate_unlocks(b: Dictionary) -> void:
 	_won(b, p, "gaul")
 	check(p.commander_unlocked("engineer"), "winning in Gaul unlocks the engineer")
 	check(not p.commander_unlocked("legate"), "two provinces are not enough for the legate")
-	for id in ["britannia", "dacia", "parthia", "hispania", "aegyptus"]:
+	for id in ["britannia", "dacia", "parthia", "hispania", "aegyptus", "sarmatia"]:
 		_won(b, p, id)
 	check(p.commander_unlocked("legate"), "a win in every province unlocks the legate")
 	p.free()
@@ -3445,7 +3445,7 @@ func test_the_camp_pours_out_defenders_and_gives_back_the_eagle(b: Dictionary) -
 
 func test_the_camp_brings_its_own_provinces_leader(b: Dictionary) -> void:
 	var cfg: Dictionary = b.objectives.camp
-	for province in ["gaul", "dacia", "parthia", "britannia", "hispania", "aegyptus"]:
+	for province in ["gaul", "dacia", "parthia", "britannia", "hispania", "aegyptus", "sarmatia"]:
 		var s := Sim.new(b, Content.with_all_art(), {"seed": 151, "province": province})
 		s.terrain.clear()
 		s.objectives.list.clear()
@@ -3498,7 +3498,7 @@ func test_the_stranded_column_holds_and_joins_the_legion(b: Dictionary) -> void:
 
 
 func test_the_grove_is_ringed_with_its_provinces_own_props(b: Dictionary) -> void:
-	for province in ["germania", "dacia", "parthia", "britannia", "hispania", "aegyptus"]:
+	for province in ["germania", "dacia", "parthia", "britannia", "hispania", "aegyptus", "sarmatia"]:
 		var s := Sim.new(b, Content.with_all_art(), {"seed": 152, "province": province})
 		s.objectives.list.clear()
 		var at := Vector2(900, 0)
@@ -3507,7 +3507,7 @@ func test_the_grove_is_ringed_with_its_provinces_own_props(b: Dictionary) -> voi
 		for pr in s.terrain.extras:
 			if pr[1].distance_to(at) < float(b.objectives.clearing):
 				kinds[pr[0]] = true
-		var want: String = {"germania": "oak", "dacia": "pine", "parthia": "palm", "britannia": "stone_circle", "hispania": "olive", "aegyptus": "date_palm"}[province]
+		var want: String = {"germania": "oak", "dacia": "pine", "parthia": "palm", "britannia": "stone_circle", "hispania": "olive", "aegyptus": "date_palm", "sarmatia": "birch"}[province]
 		check(kinds.has(want) and (want == "oak" or not kinds.has("oak")), "the grove in %s is ringed with %s (%s)" % [province, want, kinds.keys()])
 
 
@@ -6514,7 +6514,7 @@ func _dacia_sim(b: Dictionary, seed_value: int) -> Sim:
 
 func test_winning_parthia_opens_dacia(b: Dictionary) -> void:
 	check(content.ready("provinces", "dacia"), "Dacia is drawn")
-	check(content.province_before("dacia") == "parthia" and content.provinces.keys().back() == "dacia", "Dacia ends the road, after Parthia")
+	check(content.province_before("dacia") == "parthia" and content.provinces.keys().find("dacia") == content.provinces.keys().find("parthia") + 1, "Dacia comes after Parthia on the road")
 	var p := _fresh_profile()
 	var s := Sim.new(b, content, {"seed": 940, "province": "parthia"})
 	s.time = 900.0
@@ -7252,7 +7252,7 @@ func test_winning_gaul_opens_britannia(b: Dictionary) -> void:
 	p.free()
 
 
-func test_the_map_shows_all_seven_provinces_in_order(b: Dictionary) -> void:
+func test_the_map_shows_all_eight_provinces_in_order(b: Dictionary) -> void:
 	var host_script := GDScript.new()
 	host_script.source_code = "extends Node\nvar content\nvar balance\nvar run_setup := {}\n"
 	host_script.reload()
@@ -7262,7 +7262,7 @@ func test_the_map_shows_all_seven_provinces_in_order(b: Dictionary) -> void:
 	host.balance = b
 	host.run_setup = {"province": "germania", "difficulty": "medium", "endless": false, "decimatio": false}
 	var map := MapScreen.new(host)
-	check(map.road() == ["germania", "gaul", "britannia", "hispania", "aegyptus", "parthia", "dacia"], "the road runs Germania, Gaul, Britannia, Hispania, Aegyptus, Parthia, Dacia (%s)" % str(map.road()))
+	check(map.road() == ["germania", "gaul", "britannia", "hispania", "aegyptus", "parthia", "dacia", "sarmatia"], "the road runs Germania, Gaul, Britannia, Hispania, Aegyptus, Parthia, Dacia, Sarmatia (%s)" % str(map.road()))
 	var saved: Dictionary = Profile.data
 	Profile.data = Profile.defaults()
 	check(map.state_of("germania") == "open" and map.state_of("gaul") == "locked" and map.state_of("britannia") == "locked", "a new profile has only Germania open and no province in fog")
@@ -7285,6 +7285,13 @@ func test_the_map_shows_all_seven_provinces_in_order(b: Dictionary) -> void:
 	check(map.state_of("aegyptus") == "open", "with Hispania won Aegyptus is open")
 	var to_egypt := MapScreen.route("hispania", "aegyptus", 0.0)
 	check(to_egypt[0] == MapScreen.spot("hispania") and to_egypt[to_egypt.size() - 1] == MapScreen.spot("aegyptus"), "and the road sails on from Hispania to it")
+	check(map.locked_text("sarmatia") == "Win in Dacia to open" and map.state_of("sarmatia") == "locked", "Sarmatia waits for a win in Dacia")
+	for id in ["aegyptus", "parthia", "dacia"]:
+		Profile.data.records[id] = {"best_time": 900.0, "longest": 900.0, "won": true, "hard_won": false}
+	Profile.open_won_provinces(content)
+	check(map.state_of("sarmatia") == "open", "with Dacia won Sarmatia is open")
+	var to_steppe := MapScreen.route("dacia", "sarmatia", 0.0)
+	check(to_steppe[0] == MapScreen.spot("dacia") and to_steppe[to_steppe.size() - 1] == MapScreen.spot("sarmatia"), "and the road runs east from Dacia to it")
 	Profile.data = saved
 	host.free()
 
@@ -7878,6 +7885,7 @@ func test_the_map_puts_each_province_where_it_lies(_b: Dictionary) -> void:
 	check(MapScreen.spot("britannia").x < MapScreen.spot("gaul").x and MapScreen.spot("britannia").y < MapScreen.spot("gaul").y, "Britannia lies north-west of Gaul")
 	check(MapScreen.spot("hispania").x < MapScreen.spot("gaul").x and MapScreen.spot("hispania").y > MapScreen.spot("gaul").y, "Hispania lies south-west of Gaul")
 	check(MapScreen.spot("aegyptus").x > MapScreen.spot("dacia").x and MapScreen.spot("aegyptus").y > MapScreen.spot("dacia").y and Rect2(0, 0, Ui.W, Ui.H - 24).has_point(MapScreen.spot("aegyptus")), "Aegyptus lies south-east across the sea, above the key hints")
+	check(MapScreen.spot("sarmatia").x > MapScreen.spot("dacia").x and MapScreen.spot("sarmatia").y < MapScreen.spot("dacia").y and not MapScreen.panel_rect().has_point(MapScreen.spot("sarmatia")), "Sarmatia lies north-east of Dacia, clear of the panel")
 	var road := MapScreen.route("roma", "germania", 0.0)
 	var alps := MapScreen.project(Vector2(11.5, 47.0))
 	var near := INF
@@ -9471,3 +9479,373 @@ func test_a_boss_shoved_into_a_canal_falls_into_the_water(b: Dictionary) -> void
 	s._fall(i, Vector2(100, 0), Vector2(90, 0))
 	var into: Vector2 = s.effects[-1].into
 	check(into.length() <= float(b.canals.aegyptus.width[0]) * 0.5, "he sinks within the canal, not on its far bank (%.0f px)" % into.length())
+
+
+func _sarmatia_sim(b: Dictionary, seed_value: int) -> Sim:
+	var s := _gaul_sim(b, seed_value, "sarmatia")
+	for t in ["lancers_cd", "fire_cd"]:
+		s.horde.set(t, 1e9)
+	s.commander.pos = Vector2.ZERO
+	s.legion.place_all(s.facing_angle)
+	s._rebuild_grids()
+	return s
+
+
+func _steppe_terrain(b: Dictionary, seed_value: int) -> Terrain:
+	var t := Terrain.new(seed_value, b.forest, b.ravines)
+	t.steppe = b.steppes.sarmatia
+	return t
+
+
+func _men_hp(s: Sim) -> float:
+	var hp := 0.0
+	for so in s.soldiers:
+		hp += so.hp
+	return hp
+
+
+func test_winning_dacia_opens_sarmatia(b: Dictionary) -> void:
+	check(content.ready("provinces", "sarmatia"), "Sarmatia is drawn")
+	check(content.provinces.keys().back() == "sarmatia", "Sarmatia is the last province on the road")
+	check(content.province_before("sarmatia") == "dacia", "it follows Dacia")
+	var p := _fresh_profile()
+	var before: Dictionary = p.data.duplicate(true)
+	var s := Sim.new(b, content, {"seed": 2100, "province": "dacia"})
+	s.time = 900.0
+	s.over = true
+	s.victory = true
+	p.record_run(s)
+	check(p.province_unlocked("sarmatia"), "winning in Dacia opens Sarmatia")
+	var said := false
+	for u in SummaryScreen.unlocks(before, p.data, content, "dacia"):
+		said = said or (u.kind == "province" and u.id == "sarmatia" and str(u.text) == "Sarmatia is open")
+	check(said, "and the summary says Sarmatia is open")
+	check(content.achievements.has("win_sarmatia") and content.achievements.win_sarmatia.target == "sarmatia", "a win in Sarmatia has its own achievement")
+	_cleanup_profile_files()
+	p.free()
+
+
+func test_sarmatia_is_open_steppe_with_feather_grass_kurgans_wagons_and_birches(b: Dictionary) -> void:
+	var area := Rect2(-4000, -4000, 8000, 8000)
+	var t := _steppe_terrain(b, 2110)
+	var kinds := {}
+	for pr in t.props_in(area):
+		kinds[pr[0]] = kinds.get(pr[0], 0) + 1
+	for want in ["feather_grass", "kurgan", "wagon", "birch", "stones"]:
+		check(kinds.has(want), "the steppe holds %s (%s)" % [want, str(kinds.keys())])
+	for not_here in ["oak", "fir", "pine", "olive", "dry_grass", "heather", "rock", "log"]:
+		check(not kinds.has(not_here), "and no %s" % not_here)
+	check(Terrain.TREES.has("birch") and Terrain.SOLID.has("birch"), "birches are solid trees that can be felled")
+	check(not Terrain.SOLID.has("feather_grass") and not Terrain.SOLID.has("kurgan") and not Terrain.SOLID.has("wagon"), "grass blocks nothing, and mounds and wagons are held by blockers of their own")
+	check(int(kinds.get("birch", 0)) * 4 < int(kinds.get("feather_grass", 0)), "birches grow in a few copses, not forests (%d)" % int(kinds.get("birch", 0)))
+
+
+func test_feather_grass_slows_the_march_but_blocks_nothing(b: Dictionary) -> void:
+	var s := _sarmatia_sim(b, 2111)
+	s.terrain.add_clearing(Vector2(0, 300), 1.0, [["feather_grass", Vector2(0, 300), 0.0]])
+	s.terrain.refresh(s.commander.pos)
+	check(s.terrain.push_out(Vector2(0, 302), Sim.UNIT_RADIUS) == Vector2(0, 302), "a man walks into the grass")
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	var open := s.speed()
+	s.commander.pos = Vector2(0, 300)
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.in_grass and is_equal_approx(s.speed(), open * (1.0 - float(b.steppes.sarmatia.grass_slow))), "and the legion marches a little slower while the commander is in it (%.1f against %.1f)" % [s.speed(), open])
+
+
+func test_feather_grass_grows_in_patches(b: Dictionary) -> void:
+	var cfg: Dictionary = b.steppes.sarmatia
+	var t := _steppe_terrain(b, 2112)
+	var small := true
+	for k in 30:
+		var r := RandomNumberGenerator.new()
+		r.seed = 900 + k
+		var patch: Array = t._steppe_feature(r, 0.01, Vector2(900, 900))
+		small = small and patch.size() >= int(cfg.grasses[0]) and patch.size() <= int(cfg.grasses[1]) and patch.all(func(pr: Array) -> bool: return pr[0] == "feather_grass")
+		var box := Rect2(patch[0][1], Vector2.ZERO) if not patch.is_empty() else Rect2()
+		for pr in patch:
+			box = box.expand(pr[1])
+		small = small and box.size.x <= 2.0 * float(cfg.grass_spread[0]) + 1.0 and box.size.y <= 2.0 * float(cfg.grass_spread[1]) + 1.0
+	check(small, "feather grass grows in small patches, never a maze")
+
+
+func test_kurgans_are_solid_mounds_with_room_between_them(b: Dictionary) -> void:
+	var cfg: Dictionary = b.steppes.sarmatia
+	var t := _steppe_terrain(b, 2113)
+	var roll := float(cfg.grass_chance) + 0.01
+	var whole := true
+	var apart := true
+	for k in 30:
+		var r := RandomNumberGenerator.new()
+		r.seed = 950 + k
+		var found: Array = t._steppe_feature(r, roll, Vector2(900, 900))
+		var mounds := found.filter(func(pr: Array) -> bool: return pr[0] == "kurgan")
+		whole = whole and mounds.size() >= int(cfg.kurgans[0]) and mounds.size() <= int(cfg.kurgans[1])
+		whole = whole and found.size() - mounds.size() == mounds.size() * cfg.kurgan_blockers.size()
+		for i in mounds.size():
+			for j in range(i + 1, mounds.size()):
+				apart = apart and mounds[i][1].distance_to(mounds[j][1]) >= float(cfg.kurgan_gap)
+	check(whole, "a kurgan feature is one or two mounds, each held by its blockers")
+	check(apart, "and the mounds stand far enough apart to march between")
+	var s := _sarmatia_sim(b, 2114)
+	var pieces: Array = [["kurgan", Vector2(0, 300), 0.0]]
+	for off in cfg.kurgan_blockers:
+		pieces.append(["", Vector2(0, 300) + Vector2(float(off[0]), float(off[1])), float(cfg.kurgan_radius)])
+	s.terrain.add_clearing(Vector2(0, 300), 1.0, pieces)
+	s.terrain.refresh(s.commander.pos)
+	check(s.terrain.push_out(Vector2(0, 282), Sim.UNIT_RADIUS) != Vector2(0, 282), "a man is pushed out of the mound")
+
+
+func test_a_wagon_circle_is_a_ring_of_solid_wagons_with_two_openings(b: Dictionary) -> void:
+	var cfg: Dictionary = b.steppes.sarmatia
+	var t := _steppe_terrain(b, 2115)
+	var roll := float(cfg.grass_chance) + float(cfg.kurgan_chance) + 0.01
+	var good := true
+	var openings := true
+	for k in 20:
+		var r := RandomNumberGenerator.new()
+		r.seed = 980 + k
+		var centre := Vector2(900, 900)
+		var ring: Array = t._steppe_feature(r, roll, centre)
+		var wagons := ring.filter(func(pr: Array) -> bool: return pr[0] == "wagon")
+		good = good and wagons.size() == int(cfg.circle_count) - 2 and ring.size() - wagons.size() == wagons.size() * cfg.wagon_blockers.size()
+		var angles: Array = wagons.map(func(pr: Array) -> float: return (pr[1] - centre).angle())
+		angles.sort()
+		var wide := 0
+		for i in angles.size():
+			var gap: float = fposmod(float(angles[(i + 1) % angles.size()]) - float(angles[i]), TAU)
+			if gap > TAU / float(cfg.circle_count) * 1.5:
+				wide += 1
+		openings = openings and wide == 2
+	check(good, "a wagon circle is a ring of wagons, each held by its blockers")
+	check(openings, "with two openings to march through")
+
+
+func test_sarmatian_warriors_charge_shoot_lasso_and_hunt(_b: Dictionary) -> void:
+	var e: Dictionary = content.enemies
+	check(e.sarmatian_lancer.behaviour == "charger" and e.sarmatian_lancer.has("lance") and float(e.sarmatian_lancer.armour.arrows) > 0.0, "the lancer charges with his lance, and arrows glance off his armour")
+	check(e.steppe_archer.has("volley") and float(e.steppe_archer.range) > float(e.gaul_archer.range), "the steppe archer looses volleys from far off")
+	check(e.lasso_rider.has("lasso") and e.lasso_rider.get("mounted", false), "the lasso rider rides with a lasso")
+	check(e.steppe_wolf.behaviour == "beast" and is_equal_approx(float(e.steppe_wolf.share), 0.5) and float(e.steppe_wolf.arrives) >= 120.0, "the wolf is a beast that comes after a couple of minutes, half as often")
+	check(int(e.steppe_wolf.most) <= 4, "and hunts in small packs")
+
+
+func _lasso_setup(b: Dictionary, seed_value: int) -> Array:
+	var s := _sarmatia_sim(b, seed_value)
+	var h := s.horde
+	var u: Dictionary = s.soldiers[0]
+	var out: Vector2 = (u.pos - s.commander.pos).normalized()
+	var i := h.spawn("lasso_rider", u.pos + out * 50.0)
+	h.e_cd[i] = 0.0
+	h.rebuild_grid()
+	for so in s.soldiers:
+		if so.pos.distance_to(h.e_pos[i]) < u.pos.distance_to(h.e_pos[i]):
+			u = so
+	return [s, h, u, i]
+
+
+func test_a_lasso_drags_a_soldier_out_of_the_ranks_after_a_wind_up(b: Dictionary) -> void:
+	var cfg: Dictionary = content.enemies.lasso_rider.lasso
+	var set_up := _lasso_setup(b, 2120)
+	var s: Sim = set_up[0]
+	var h: Horde = set_up[1]
+	var u: Dictionary = set_up[2]
+	var i: int = set_up[3]
+	h._move(1.0 / 60.0, s)
+	check(h.lassos.size() == 1 and is_same(h.lassos[0].unit, u), "a rider near the legion swings his lasso at the nearest soldier")
+	var from: Vector2 = u.pos
+	var hp: float = u.hp
+	var t := 0.0
+	while t < float(cfg.windup) - 0.1:
+		h._lassos(1.0 / 60.0, s)
+		t += 1.0 / 60.0
+	check(u.pos == from and u.hp == hp, "nothing happens while he winds up")
+	for k in 12:
+		h._lassos(1.0 / 60.0, s)
+	var rider := h.e_pos[i]
+	var want := minf(float(cfg.pull), from.distance_to(rider) - float(content.enemies.lasso_rider.radius) - Sim.UNIT_RADIUS)
+	check(want > 15.0 and u.pos.distance_to(rider) <= from.distance_to(rider) - want + 0.5, "then the soldier is dragged out of the ranks towards him (%.0f px)" % (from.distance_to(rider) - u.pos.distance_to(rider)))
+	check(u.hp < hp and h.lassos.is_empty(), "and hurt")
+	var far := _sarmatia_sim(b, 2121)
+	var j := far.horde.spawn("lasso_rider", Vector2(far.legion_reach + float(cfg.reach) + 80.0, 0))
+	far.horde.e_cd[j] = 0.0
+	far.horde.rebuild_grid()
+	far.horde._move(1.0 / 60.0, far)
+	check(far.horde.lassos.is_empty(), "a rider far from the legion does not throw")
+
+
+func test_the_testudo_holds_a_lassoed_soldier_in_place(b: Dictionary) -> void:
+	var set_up := _lasso_setup(b, 2122)
+	var s: Sim = set_up[0]
+	var h: Horde = set_up[1]
+	var u: Dictionary = set_up[2]
+	h._move(1.0 / 60.0, s)
+	var from: Vector2 = u.pos
+	s.testudo_left = 1e9
+	for k in 90:
+		h._lassos(1.0 / 60.0, s)
+	check(h.lassos.is_empty() and u.pos == from, "the testudo holds the soldier, and the lasso falls away")
+
+
+func test_the_draco_bearer_hastens_the_riders_round_him(b: Dictionary) -> void:
+	var s := _sarmatia_sim(b, 2123)
+	var h := s.horde
+	var i := h.spawn("draco_rider", Vector2(300, 0), true)
+	var rider := h.spawn("lasso_rider", Vector2(340, 0))
+	var lancer := h.spawn("sarmatian_lancer", Vector2(300, 40))
+	var archer := h.spawn("steppe_archer", Vector2(260, 0))
+	h.rebuild_grid()
+	h._howl(i, s)
+	check(h.e_haste[rider] > 0.0 and h.e_haste[lancer] > 0.0, "his standard hastens the riders round him")
+	check(h.e_haste[archer] <= 0.0, "but not the men on foot")
+	check(content.enemies.draco_rider.keys().filter(func(k: String) -> bool: return k == "howl" or h.ABILITY_TIMERS.has(k)).size() == 1, "it is his one ability")
+
+
+func test_the_war_wagon_rolls_through_the_crowd_and_its_archers_shoot(b: Dictionary) -> void:
+	var s := _sarmatia_sim(b, 2124)
+	var h := s.horde
+	var i := h.spawn("war_wagon", Vector2(400, 0), true)
+	var id := h.e_id[i]
+	var st: Dictionary = h.boss_state(i)
+	st.tower_cd = 1e9
+	for k in 48:
+		var j := h.spawn("steppe_archer", Vector2(360 - (k / 6) * 11, -28 + (k % 6) * 11))
+		h.e_stun[j] = 1e9
+	var start := h.e_pos[i]
+	var t := 2.0
+	for k in int(t * 60):
+		h.rebuild_grid()
+		h._move(1.0 / 60.0, s)
+	var gone := start.x - h.e_pos[h.e_id.find(id)].x
+	var free := float(content.enemies.war_wagon.speed) * float(b.get("enemy_speed_mult", 1.0)) * t
+	check(gone >= free * 0.85, "the wagon rolls on through the warriors in its way (%.0f of %.0f px)" % [gone, free])
+	check(float(content.enemies.war_wagon.armour.arrows) > 0.0 and content.enemies.war_wagon.speed < content.enemies.sarmatian_lancer.speed, "and it is slow and armoured")
+	var shots := h.sp_pos.size()
+	st.tower_cd = 0.0
+	h.e_pos[h.e_id.find(id)] = Vector2(s.legion_reach + 100.0, 0)
+	h._bosses(1.0 / 60.0, s)
+	check(h.sp_pos.size() > shots, "its archers shoot")
+	check(b.objectives.camp.leader.sarmatia == "war_wagon", "and it leads the barbarian camp")
+
+
+func _king_wave(b: Dictionary, seed_value: int, shield: bool) -> Array:
+	var s := _sarmatia_sim(b, seed_value)
+	var h := s.horde
+	h.spawn_chieftain(Vector2(300, 0))
+	h.cleave_cd = 1e9
+	h.lancers_cd = 0.0
+	h._chieftain(1.0 / 60.0, s)
+	if shield:
+		s.testudo_left = 1e9
+	return [s, h]
+
+
+func test_the_roxolani_king_sends_lancers_down_a_marked_lane(b: Dictionary) -> void:
+	var cfg: Dictionary = content.enemies.rasparaganus.attacks.lancers
+	var lost := {}
+	for shield in [false, true]:
+		var set_up := _king_wave(b, 2130, shield)
+		var s: Sim = set_up[0]
+		var h: Horde = set_up[1]
+		var hp0: float = s.commander.hp
+		var men0 := _men_hp(s)
+		if not shield:
+			check(not h.wave.is_empty() and s.objectives.notice.get("kind", "") == "lancers", "he marks a lane and a notice warns of the lancers")
+			var riders: Array = h.wave.riders.filter(func(w: Array) -> bool: return h.e_id.has(w[0]) and h.kind_ids[h.e_kind[h.e_id.find(w[0])]] == "sarmatian_lancer")
+			check(riders.size() == int(cfg.riders), "%d lancers line up at its end" % int(cfg.riders))
+			var off: Vector2 = s.commander.pos - h.wave.from
+			var king: Vector2 = h.e_pos[h.chieftain_index()]
+			check(absf(off.dot(h.wave.dir.orthogonal())) < 1.0 and absf(h.wave.dir.dot((s.commander.pos - king).normalized())) < 0.1, "the lane runs across the legion, not from the king")
+		var t := 0.0
+		while t < float(cfg.warn) - 0.1:
+			h._chieftain(1.0 / 60.0, s)
+			t += 1.0 / 60.0
+		if not shield:
+			check(s.commander.hp == hp0 and _men_hp(s) == men0, "nothing strikes while the lane is marked")
+		for k in 6 * 60:
+			if h.wave.is_empty():
+				break
+			h._chieftain(1.0 / 60.0, s)
+		lost[shield] = [hp0 - s.commander.hp, men0 - _men_hp(s)]
+		check(h.wave.is_empty(), "the sweep ends")
+	check(is_equal_approx(lost[false][0], float(cfg.damage)) and lost[false][1] > 0.0, "the lancers strike the commander and the soldiers in the lane (%.1f, %.1f)" % lost[false])
+	check(is_equal_approx(lost[true][0], float(cfg.damage) * 0.5), "the testudo halves their blow (%.1f)" % lost[true][0])
+
+
+func test_a_wall_stops_the_kings_lancers(b: Dictionary) -> void:
+	var set_up := _king_wave(b, 2131, false)
+	var s: Sim = set_up[0]
+	var h: Horde = set_up[1]
+	var dir: Vector2 = h.wave.dir
+	var at: Vector2 = s.commander.pos - dir * (s.legion_reach + 40.0)
+	var cfg: Dictionary = b.wall
+	for k in 21:
+		s.terrain.add_post(at + dir.orthogonal() * (-110.0 + k * float(cfg.gap)), float(cfg.radius), 1e9, "wall")
+	s.terrain.refresh(s.commander.pos)
+	var hp0: float = s.commander.hp
+	var through := false
+	for k in 6 * 60:
+		if h.wave.is_empty():
+			break
+		h._chieftain(1.0 / 60.0, s)
+		for w in h.wave.get("riders", []):
+			var j := h.e_id.find(w[0])
+			if j >= 0:
+				through = through or (h.e_pos[j] - at).dot(dir) > 4.0
+	check(not through and s.commander.hp == hp0, "a wall across the lane stops the lancers where they meet it")
+
+
+func test_the_roxolani_king_sets_the_steppe_on_fire(b: Dictionary) -> void:
+	var cfg: Dictionary = content.enemies.rasparaganus.attacks.steppe_fire
+	for stay in [true, false]:
+		var s := _sarmatia_sim(b, 2132)
+		var h := s.horde
+		h.spawn_chieftain(Vector2(300, 0))
+		h.cleave_cd = 1e9
+		h.fire_cd = 0.0
+		h._chieftain(1.0 / 60.0, s)
+		var hp0: float = s.commander.hp
+		if stay:
+			check(not h.steppe_fire.is_empty() and s.objectives.notice.get("kind", "") == "steppe_fire", "he sets the grass alight and a notice warns of it")
+			check(h.in_fire_band(s.commander.pos), "the marked ground takes in the legion")
+			var behind: Vector2 = s.commander.pos - h.steppe_fire.dir * (float(cfg.back) - 10.0)
+			check(h.in_fire_band(behind) and not h.in_fire_band(s.commander.pos - h.steppe_fire.dir * (float(cfg.back) + 30.0)), "and starts on one side of it")
+		else:
+			s.commander.pos += h.steppe_fire.dir.orthogonal() * (float(cfg.length) / 2.0 + 60.0)
+		var t := 0.0
+		while t < float(cfg.warn) - 0.1:
+			h._fire_on(1.0 / 60.0, s)
+			t += 1.0 / 60.0
+		if stay:
+			check(s.commander.hp == hp0, "nothing burns while the ground is marked")
+		var burnt_at := -1.0
+		for k in int((float(cfg.seconds) + float(cfg.burn) + 1.0) * 60):
+			h._fire_on(1.0 / 60.0, s)
+			t += 1.0 / 60.0
+			if burnt_at < 0.0 and s.commander.hp < hp0:
+				burnt_at = t
+		if stay:
+			check(burnt_at > float(cfg.warn) + 0.5, "the fire takes a while to spread to a commander in the middle (%.1f s)" % burnt_at)
+			check(s.commander.hp < hp0, "then burns him if he stays")
+		else:
+			check(s.commander.hp == hp0, "a commander who left the marked ground is not burnt")
+		check(h.steppe_fire.is_empty(), "and the fire burns out")
+
+
+func test_the_roxolani_kings_stun_or_death_calls_off_what_he_marked(b: Dictionary) -> void:
+	for fate in ["stun", "death"]:
+		var s := _sarmatia_sim(b, 2133)
+		var h := s.horde
+		h.spawn_chieftain(Vector2(300, 0))
+		h.cleave_cd = 1e9
+		h.fire_cd = 0.0
+		h.lancers_cd = 0.0
+		h._chieftain(1.0 / 60.0, s)
+		var ci := h.chieftain_index()
+		if fate == "stun":
+			h.e_stun[ci] = 3.0
+			h._chieftain(1.0 / 60.0, s)
+		else:
+			s.hit(ci, 1e9)
+			s._remove_dead()
+			h._fire_on(1.0 / 60.0, s)
+		check(h.steppe_fire.is_empty() and h.wave.is_empty(), "a %s calls off the fire and the lancers he marked" % fate)

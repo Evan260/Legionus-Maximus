@@ -1361,6 +1361,192 @@
    },
    "guard": "egyptian_spearman"
   },
+  "sarmatian_lancer": {
+   "name": "Sarmatian lancer",
+   "text": "A rider in scale armour with a long lance held in both hands. He lowers it and charges straight in, and arrows glance off his armour.",
+   "history": "Sarmatian lancers carried the kontos, a lance so long that it took both hands to hold.",
+   "behaviour": "charger",
+   "hp": 26,
+   "speed": 44,
+   "dps": 1.4,
+   "radius": 9,
+   "coins": 2,
+   "art": [
+    "unit:sarmatian_lancer"
+   ],
+   "lance": {
+    "every": 6.0,
+    "speed_mult": 3.4,
+    "seconds": 1.0,
+    "burst_mult": 3.0
+   },
+   "armour": {
+    "arrows": 0.4
+   }
+  },
+  "steppe_archer": {
+   "name": "Steppe archer",
+   "text": "An archer on foot with a short composite bow. His volleys fall on a ring among the soldiers from far off.",
+   "history": "Steppe bows were made of wood, horn and sinew, short enough to shoot from the saddle.",
+   "behaviour": "ranged",
+   "hp": 16,
+   "speed": 38,
+   "dps": 1.4,
+   "radius": 6,
+   "coins": 2,
+   "art": [
+    "unit:steppe_archer"
+   ],
+   "range": 175,
+   "volley": {
+    "radius": 16,
+    "delay": 1.1,
+    "damage_mult": 0.35
+   },
+   "arrives": 60
+  },
+  "lasso_rider": {
+   "name": "Lasso rider",
+   "text": "A light rider who swings a lasso over his head, then throws it and drags a soldier out of the ranks towards him. The testudo holds the men in place.",
+   "history": "Pausanias wrote that the Sarmatians caught their enemies with lassos and dragged them down.",
+   "behaviour": "melee",
+   "mounted": true,
+   "hp": 18,
+   "speed": 56,
+   "dps": 1.2,
+   "radius": 8,
+   "coins": 2,
+   "art": [
+    "unit:lasso_rider"
+   ],
+   "lasso": {
+    "every": 7.0,
+    "reach": 70,
+    "windup": 0.8,
+    "pull": 36,
+    "damage": 4
+   },
+   "arrives": 120
+  },
+  "steppe_wolf": {
+   "name": "Steppe wolf",
+   "text": "A grey wolf of the open steppe. A few hunt together and run in at the edges of the legion.",
+   "history": "Wolves followed the great herds of horses that grazed the steppe.",
+   "behaviour": "beast",
+   "share": 0.5,
+   "most": 4,
+   "hp": 16,
+   "speed": 58,
+   "dps": 2.2,
+   "radius": 6,
+   "coins": 1,
+   "art": [
+    "unit:steppe_wolf"
+   ],
+   "arrives": 150
+  },
+  "draco_rider": {
+   "name": "Draco bearer",
+   "text": "His dragon standard howls in the wind, and the riders round him ride faster while it sounds.",
+   "history": "Rome took the draco, a dragon-headed windsock, from the Sarmatians, and its cavalry carried it for centuries.",
+   "behaviour": "melee",
+   "mounted": true,
+   "hp": 5200,
+   "speed": 48,
+   "dps": 24,
+   "radius": 15,
+   "coins": 0,
+   "art": [
+    "unit:draco_rider"
+   ],
+   "elite": true,
+   "howl": {
+    "every": 8.0,
+    "radius": 220,
+    "seconds": 4.0,
+    "speed_mult": 1.5,
+    "riders": true
+   }
+  },
+  "war_wagon": {
+   "name": "War wagon",
+   "text": "A heavy wagon drawn by oxen, with archers shooting from behind its wicker sides. It is slow and well armoured, arrows glance off it, and it rolls on through any warriors in its way.",
+   "history": "The Sarmatians lived in wagons covered with felt and moved their homes with the grass.",
+   "behaviour": "melee",
+   "hp": 9000,
+   "speed": 24,
+   "dps": 20,
+   "radius": 30,
+   "coins": 0,
+   "art": [
+    "unit:war_wagon"
+   ],
+   "elite": true,
+   "heavy": true,
+   "armour": {
+    "arrows": 0.5
+   },
+   "tower": {
+    "every": 1.4,
+    "range": 220,
+    "arrows": 2,
+    "spread": 0.12,
+    "damage": 2.5
+   }
+  },
+  "rasparaganus": {
+   "name": "Roxolani king",
+   "text": "Rasparaganus, king of the Roxolani. He marks a lane across the legion, and a line of his armoured lancers sweeps down it, striking soldiers and commander alike; the testudo halves the blow. He sets the steppe alight on one side, and the fire spreads over the marked ground towards the legion, so get out of it. When hurt he fights faster.",
+   "history": "The Roxolani rose against Rome in 117 AD, and Hadrian made peace with their king Rasparaganus.",
+   "behaviour": "melee",
+   "hp": 30000,
+   "speed": 30,
+   "dps": 32,
+   "radius": 26,
+   "coins": 0,
+   "art": [
+    "unit:rasparaganus"
+   ],
+   "chieftain": true,
+   "attacks": {
+    "cleave": {
+     "every": 4.0,
+     "reach": 34,
+     "arc": 2.0,
+     "damage_mult": 2.0,
+     "retry": 0.25
+    },
+    "lancers": {
+     "every": 13.0,
+     "range": 420,
+     "warn": 1.5,
+     "length": 560,
+     "width": 96,
+     "riders": 5,
+     "seconds": 1.4,
+     "damage": 20,
+     "throw": 20,
+     "kind": "sarmatian_lancer"
+    },
+    "steppe_fire": {
+     "every": 19.0,
+     "range": 420,
+     "warn": 1.6,
+     "back": 160,
+     "depth": 320,
+     "length": 340,
+     "seconds": 4.5,
+     "burn": 3.0,
+     "dps": 9
+    }
+   },
+   "fury": {
+    "below": 0.5,
+    "rate_mult": 1.3,
+    "release": true
+   },
+   "guard": "sarmatian_lancer"
+  },
   "gaul_swordsman": {
    "name": "Swordsman",
    "text": "A Gaulish warrior whose long sword cuts down two men at once.",
@@ -2151,6 +2337,35 @@
     "prop:pine",
     "ground:dacia"
    ]
+  },
+  "sarmatia": {
+   "name": "Sarmatia",
+   "text": "The open steppe north of the Black Sea: feather grass, burial mounds and wagon camps.",
+   "ground": "steppe",
+   "props": [
+    "feather_grass",
+    "kurgan",
+    "wagon",
+    "birch"
+   ],
+   "ordinary": [
+    "sarmatian_lancer",
+    "steppe_archer",
+    "lasso_rider",
+    "steppe_wolf"
+   ],
+   "elites": [
+    "draco_rider",
+    "war_wagon"
+   ],
+   "chieftain": "rasparaganus",
+   "art": [
+    "prop:feather_grass",
+    "prop:kurgan",
+    "prop:wagon",
+    "prop:birch",
+    "ground:sarmatia"
+   ]
   }
  },
  "commanders": {
@@ -2572,6 +2787,12 @@
    "text": "Win a run in Aegyptus.",
    "kind": "province",
    "target": "aegyptus"
+  },
+  "win_sarmatia": {
+   "name": "Victory in Sarmatia",
+   "text": "Win a run in Sarmatia.",
+   "kind": "province",
+   "target": "sarmatia"
   },
   "win_as_archer_captain": {
    "name": "Victory as the Archer captain",

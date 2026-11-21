@@ -44,6 +44,7 @@ ART = {
     "win_parthia": ("province", "parthia", "shah"),
     "win_hispania": ("province", "hispania", "viriathus"),
     "win_aegyptus": ("province", "aegyptus", "achillas"),
+    "win_sarmatia": ("province", "sarmatia", "rasparaganus"),
     "win_as_archer_captain": ("duo", ["commander", "archer"], "laurel"),
     "win_as_engineer": ("duo_icon", "commander", "scorpio", "laurel"),
     "commander_cavalry_prefect": ("duo_icon", "commander", "cavalry", "red"),

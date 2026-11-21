@@ -7,6 +7,7 @@
 | `win_parthia` | Victory in Parthia | Win a run in Parthia. | no |
 | `win_hispania` | Victory in Hispania | Win a run in Hispania. | no |
 | `win_aegyptus` | Victory in Aegyptus | Win a run in Aegyptus. | no |
+| `win_sarmatia` | Victory in Sarmatia | Win a run in Sarmatia. | no |
 | `win_as_archer_captain` | Victory as the Archer captain | Win a run as the Archer captain. | no |
 | `commander_cavalry_prefect` | Cavalry prefect unlocked | Unlock the Cavalry prefect. | no |
 | `win_as_engineer` | Victory as the Engineer | Win a run as the Engineer. | no |

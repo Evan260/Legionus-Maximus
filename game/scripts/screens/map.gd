@@ -13,7 +13,8 @@ const PX_PER_DEG := 13.8
 const LON_SCALE := 0.7431448
 ## Where each province lies, as longitude and latitude; Parthia sits north of Ctesiphon (33°N) and Aegyptus out at sea north of the Nile delta (31°N), to stay above the key hints at the map's foot.
 const PLACES := {"roma": Vector2(12.5, 41.9), "germania": Vector2(9.0, 51.5), "britannia": Vector2(-1.0, 52.0), "gaul": Vector2(2.5, 47.0),
-	"dacia": Vector2(24.5, 46.0), "parthia": Vector2(44.5, 35.2), "hispania": Vector2(-4.5, 40.2), "aegyptus": Vector2(30.5, 35.0)}
+	"dacia": Vector2(24.5, 46.0), "parthia": Vector2(44.5, 35.2), "hispania": Vector2(-4.5, 40.2), "aegyptus": Vector2(30.5, 35.0),
+	"sarmatia": Vector2(32.5, 47.8)}
 ## The towns, passes and sea lanes each march goes by, as longitude and latitude, so the road keeps to the land except where it sails.
 const ROUTES := {
 	"roma>germania": [Vector2(11.0, 45.4), Vector2(11.5, 47.0), Vector2(10.9, 48.4), Vector2(8.3, 50.0)],
@@ -26,6 +27,7 @@ const ROUTES := {
 	"aegyptus>parthia": [Vector2(33.0, 34.6), Vector2(35.8, 34.5), Vector2(38.3, 34.6), Vector2(40.5, 34.6), Vector2(42.8, 35.0)],
 	"parthia>dacia": [Vector2(43.2, 36.4), Vector2(41.2, 37.1), Vector2(38.8, 37.3), Vector2(36.0, 37.7), Vector2(34.6, 37.9), Vector2(32.9, 39.9),
 		Vector2(29.0, 41.0), Vector2(24.5, 43.7)],
+	"dacia>sarmatia": [Vector2(26.8, 46.5), Vector2(28.6, 46.9), Vector2(30.4, 47.4)],
 }
 const PICTURE := Vector2(640, 360)
 const NODE_R := 9.0

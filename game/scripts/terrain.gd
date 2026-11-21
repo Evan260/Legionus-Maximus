@@ -7,8 +7,8 @@ extends RefCounted
 const CHUNK := 160.0
 const REGION := 480.0
 const SCATTER := ["oak", "fir", "rock", "log", "stones", "stones", "fir", "rock"]
-const SOLID := {"oak": 9.0, "fir": 8.0, "pine": 8.0, "palm": 8.0, "olive": 9.0, "date_palm": 8.0, "rock": 10.0, "log": 9.0, "ruined_wall": 14.0, "stone_wall": 12.0, "obelisk": 10.0}
-const TREES := {"oak": true, "fir": true, "pine": true, "palm": true, "olive": true, "date_palm": true}
+const SOLID := {"oak": 9.0, "fir": 8.0, "pine": 8.0, "palm": 8.0, "olive": 9.0, "date_palm": 8.0, "birch": 8.0, "rock": 10.0, "log": 9.0, "ruined_wall": 14.0, "stone_wall": 12.0, "obelisk": 10.0}
+const TREES := {"oak": true, "fir": true, "pine": true, "palm": true, "olive": true, "date_palm": true, "birch": true}
 
 const CELL := 64.0
 const GN := 28
@@ -60,6 +60,8 @@ var moor: Dictionary
 var hills: Dictionary
 ## A river valley province's scatter, date palm groves, reed beds, temple ruins and crops from balance.json `valleys`.
 var valley: Dictionary
+## A steppe province's scatter, feather grass, kurgans, wagon circles and birch copses from balance.json `steppes`.
+var steppe: Dictionary
 ## Its irrigation canals from balance.json `canals`, laid out in place of ravines.
 var canal: Dictionary
 # The way every canal runs, and how far the whole set of canals is shifted across from the start.
@@ -315,7 +317,7 @@ func chunk(cx: int, cy: int) -> Array:
 		return out
 	var r := RandomNumberGenerator.new()
 	r.seed = hash([seed_value, key])
-	var scatter: Array = field.get("scatter", mountain.get("scatter", desert.get("scatter", moor.get("scatter", hills.get("scatter", valley.get("scatter", SCATTER))))))
+	var scatter: Array = field.get("scatter", mountain.get("scatter", desert.get("scatter", moor.get("scatter", hills.get("scatter", valley.get("scatter", steppe.get("scatter", SCATTER)))))))
 	for i in r.randi_range(0, 2):
 		var p := Vector2((cx + r.randf()) * CHUNK, (cy + r.randf()) * CHUNK)
 		if p.length() > 90.0:
@@ -385,6 +387,8 @@ func _region(rx: int, ry: int) -> Array:
 		out = _ridge(r, centre) if roll < ridges else _hill_feature(r, roll - ridges, centre)
 	elif not valley.is_empty():
 		out = _valley_feature(r, roll, centre)
+	elif not steppe.is_empty():
+		out = _steppe_feature(r, roll, centre)
 	elif roll < ridges:
 		out = _ridge(r, centre)
 	elif roll < ridges + float(mountain.get("line_chance", forest.line_chance)):
@@ -523,6 +527,91 @@ func in_reeds(p: Vector2) -> bool:
 	var reach := float(valley.reed_radius)
 	for pr in props_in(Rect2(p - Vector2.ONE * reach, Vector2.ONE * reach * 2.0)):
 		if pr[0] == "papyrus" and pr[1].distance_to(p) < reach:
+			return true
+	return false
+
+
+## A steppe region holds a patch of feather grass, one or two kurgans, an abandoned wagon circle, a birch copse or open grassland.
+func _steppe_feature(r: RandomNumberGenerator, roll: float, centre: Vector2) -> Array:
+	var cfg := steppe
+	var out: Array = []
+	var grass := float(cfg.grass_chance)
+	var kurgans := grass + float(cfg.kurgan_chance)
+	var circle := kurgans + float(cfg.circle_chance)
+	if roll < grass:
+		var spread := Vector2(float(cfg.grass_spread[0]), float(cfg.grass_spread[1]))
+		var n := r.randi_range(int(cfg.grasses[0]), int(cfg.grasses[1]))
+		var gap := float(cfg.grass_gap)
+		for k in n * 6:
+			if out.size() >= n:
+				break
+			var p := centre + Vector2(r.randf_range(-spread.x, spread.x), r.randf_range(-spread.y, spread.y))
+			if out.all(func(q: Array) -> bool: return q[1].distance_to(p) >= gap):
+				out.append(["feather_grass", p, 0.0])
+	elif roll < kurgans:
+		var mounds: Array = []
+		var want := r.randi_range(int(cfg.kurgans[0]), int(cfg.kurgans[1]))
+		for k in 20:
+			if mounds.size() >= want:
+				break
+			var at := centre if mounds.is_empty() else centre + Vector2.from_angle(r.randf() * TAU) * r.randf_range(float(cfg.kurgan_gap), float(cfg.kurgan_spread))
+			if mounds.all(func(m: Vector2) -> bool: return m.distance_to(at) >= float(cfg.kurgan_gap)):
+				mounds.append(at)
+		for at in mounds:
+			out.append_array(_held("kurgan", at, cfg.kurgan_blockers, float(cfg.kurgan_radius)))
+	elif roll < circle:
+		var n := int(cfg.circle_count)
+		var turn := r.randf() * TAU
+		# Two wagons are left out on opposite sides, so the circle has a way in and a way out.
+		for k in n:
+			if k == 0 or k == n / 2:
+				continue
+			var at := centre + Vector2.from_angle(turn + TAU * k / n) * float(cfg.circle_radius)
+			out.append_array(_held("wagon", at, cfg.wagon_blockers, float(cfg.wagon_radius)))
+	elif roll < circle + float(cfg.copse_chance):
+		var n := r.randi_range(int(cfg.copse[0]), int(cfg.copse[1]))
+		var gap := float(cfg.birch_gap)
+		for k in n * 4:
+			if out.size() >= n:
+				break
+			var p := centre + Vector2.from_angle(r.randf() * TAU) * sqrt(r.randf()) * float(cfg.copse_radius)
+			if out.all(func(q: Array) -> bool: return q[1].distance_to(p) >= gap):
+				out.append(["birch", p, SOLID.birch])
+	# A mound or wagon is kept or left out whole, so no blocker lies there without its picture.
+	var whole: Array = []
+	var group: Array = []
+	for pr in out:
+		if pr[0] != "" and not group.is_empty():
+			if _group_clear(group):
+				whole.append_array(group)
+			group = []
+		group.append(pr)
+	if not group.is_empty() and _group_clear(group):
+		whole.append_array(group)
+	return whole
+
+
+## A picture with no solid of its own and the unseen blockers that hold the ground it covers.
+func _held(kind: String, at: Vector2, blockers: Array, radius: float) -> Array:
+	var group: Array = [[kind, at, 0.0]]
+	for off in blockers:
+		group.append(["", at + Vector2(float(off[0]), float(off[1])), radius])
+	return group
+
+
+func _group_clear(group: Array) -> bool:
+	if group.size() == 1:
+		return true
+	return group.all(func(g: Array) -> bool: return g[1].length() > clear_radius and not _in_clearing(g[1]) and not _by_ravine(g[1]))
+
+
+## Whether p stands in feather grass, which slows the legion's march a little.
+func in_grass(p: Vector2) -> bool:
+	if steppe.is_empty():
+		return false
+	var reach := float(steppe.grass_radius)
+	for pr in props_in(Rect2(p - Vector2.ONE * reach, Vector2.ONE * reach * 2.0)):
+		if pr[0] == "feather_grass" and pr[1].distance_to(p) < reach:
 			return true
 	return false
 

@@ -296,6 +296,20 @@ var e_tended := PackedFloat32Array()
 ## Until when each warrior is hardened by a priest of Sobek's blessing, and the share of each blow it turns.
 var e_ward := PackedFloat32Array()
 var ward_cut := 0.0
+## The Roxolani king's timers for his lancer sweep and for setting the steppe alight.
+var lancers_cd := 0.0
+var fire_cd := 0.0
+## His lancers' sweep while it is marked or running, {from, dir, length, width, t, warn, seconds, riders: [[id, place across the lane]], n, damage, throw}, or empty.
+var wave := {}
+var wave_n := 0
+## The band of grass he sets alight, {pos: the edge it starts from, dir: the way it spreads, half_len, depth, t, warn, seconds, burn, dps, lit}, or empty.
+var steppe_fire := {}
+## The lassos being swung, as {id: the rider, unit: the soldier he aims at, t, dur}.
+var lassos: Array = []
+# Seconds between a lasso rider's throws and how far he throws, 0 for the rest; 1 for a kind the crowd cannot shove aside.
+var k_lasso := PackedFloat32Array()
+var k_lasso_reach := PackedFloat32Array()
+var k_heavy := PackedByteArray()
 # Each elite's own ability timers and state, by enemy id, since there are only ever a few of them.
 var boss := {}
 ## How hard the horde hunts a legion that keeps marching without fighting, or never moves: 1 brings hunters from all round, and it climbs on to `cap`.
@@ -428,6 +442,9 @@ func _init(balance: Dictionary, game_content: Content, random: RandomNumberGener
 		k_share.append(float(info.get("share", 1.0)))
 		k_most.append(int(info.get("most", 0)))
 		k_alive.append(0)
+		k_lasso.append(float(info.get("lasso", {}).get("every", 0.0)))
+		k_lasso_reach.append(float(info.get("lasso", {}).get("reach", 0.0)))
+		k_heavy.append(1 if info.get("heavy", false) else 0)
 	ordinary = content.province_enemies(province)
 	for id in ordinary:
 		if content.enemies[id].has("salvo"):
@@ -464,6 +481,8 @@ func _init(balance: Dictionary, game_content: Content, random: RandomNumberGener
 	javelins_cd = float(attacks.get("javelins", {}).get("every", 13.0)) * 0.5
 	volleys_cd = float(attacks.get("volleys", {}).get("every", 11.0)) * 0.5
 	sluice_cd = float(attacks.get("sluice", {}).get("every", 20.0)) * 0.5
+	lancers_cd = float(attacks.get("lancers", {}).get("every", 13.0)) * 0.5
+	fire_cd = float(attacks.get("steppe_fire", {}).get("every", 19.0)) * 0.5
 	king_wall = content.enemies[chief].get("wall", {})
 	var sworn: Dictionary = content.enemies[chief].get("sworn", {})
 	sworn_min = int(sworn.get("min", 0))
@@ -726,6 +745,8 @@ func update(dt: float, sim: Sim) -> void:
 	_storms(dt, sim)
 	_arrow_storm(dt, sim)
 	_sluice_on(dt, sim)
+	_fire_on(dt, sim)
+	_lassos(dt, sim)
 	_spears(dt, sim)
 	_carts(dt, sim)
 	_chests(sim)
@@ -1006,6 +1027,8 @@ func _chieftain(dt: float, sim: Sim) -> void:
 		e_flee[ci] = 0.0
 		ambush_wait = 0.0
 		_drop_unopened_flood()
+		_end_wave()
+		_drop_unlit_fire()
 		return
 	var rate := float(fury.rate_mult) if chief_fury else 1.0
 	cleave_cd -= dt * rate
@@ -1031,6 +1054,10 @@ func _chieftain(dt: float, sim: Sim) -> void:
 	javelins_cd -= dt * rate
 	if flood.is_empty():
 		sluice_cd -= dt * rate
+	if wave.is_empty():
+		lancers_cd -= dt * rate
+	if steppe_fire.is_empty():
+		fire_cd -= dt * rate
 	chief_hold = maxf(0.0, chief_hold - dt)
 	_feint_on(ci, dt, sim)
 	if ambush_wait > 0.0:
@@ -1055,6 +1082,13 @@ func _chieftain(dt: float, sim: Sim) -> void:
 		sluice_cd = float(atk.sluice.every) if gap < float(atk.sluice.range) else 1.0
 		if gap < float(atk.sluice.range):
 			open_sluices(ci, sim)
+	_lancers_on(dt, sim)
+	if lancers_cd <= 0.0 and atk.has("lancers") and wave.is_empty():
+		lancers_cd = float(atk.lancers.every) if start_lancers(ci, sim) else 1.0
+	if fire_cd <= 0.0 and atk.has("steppe_fire") and steppe_fire.is_empty():
+		fire_cd = float(atk.steppe_fire.every) if gap < float(atk.steppe_fire.range) else 1.0
+		if gap < float(atk.steppe_fire.range):
+			set_fire(ci, sim)
 	_sweep_and_leap(ci, dt, sim)
 	_drive_on(ci, dt, sim)
 	if drive_cd <= 0.0 and atk.has("drive") and drive.is_empty() and chief_hold <= 0.0:
@@ -1478,6 +1512,200 @@ func _sluice_on(dt: float, sim: Sim) -> void:
 		sim.event("whirl", flood.pos)
 	if in_flood(commander.pos):
 		flood_slow = flood.slow
+
+
+## The Roxolani king marks a lane across the legion and lines his lancers up at its end; false when the legion is out of his range.
+func start_lancers(ci: int, sim: Sim) -> bool:
+	var cfg: Dictionary = content.enemies[kind_ids[e_kind[ci]]].attacks.lancers
+	var kind := str(cfg.kind)
+	var p := e_pos[ci]
+	var c: Vector2 = commander.pos
+	if c.distance_to(p) > float(cfg.range) or not content.ready("enemies", kind):
+		return false
+	# The lane crosses the line from the king to the legion, so the riders come from the side he is not on.
+	var dir: Vector2 = (c - p).normalized().orthogonal() if c != p else Vector2.DOWN
+	if rng.randf() < 0.5:
+		dir = -dir
+	wave_n += 1
+	var width := float(cfg.width)
+	wave = {"from": c - dir * float(cfg.length) / 2.0, "dir": dir, "length": float(cfg.length), "width": width, "t": 0.0, "warn": float(cfg.warn),
+		"seconds": float(cfg.seconds), "riders": [], "n": wave_n, "damage": float(cfg.damage), "throw": float(cfg.throw)}
+	var n := int(cfg.riders)
+	for k in n:
+		if full():
+			break
+		var across := (k - (n - 1) / 2.0) * width * 0.8 / maxf(1.0, n - 1.0)
+		var j := spawn(kind, wave.from + dir.orthogonal() * across)
+		e_cd[j] = INF
+		e_face[j] = dir
+		wave.riders.append([e_id[j], across])
+	e_strike[ci] = time
+	sim.objectives.notice = {"kind": "lancers", "at": time}
+	sim.event("carnyx", p)
+	return true
+
+
+## Holds the lancers at the end of their lane while it is marked, then sweeps them down it, riding down every Roman they reach.
+func _lancers_on(dt: float, sim: Sim) -> void:
+	if wave.is_empty():
+		return
+	wave.t += dt
+	var run: float = (wave.t - wave.warn) / wave.seconds
+	var k := clampf(run, 0.0, 1.0)
+	var dir: Vector2 = wave.dir
+	var side := dir.orthogonal()
+	var kept: Array = []
+	var hit_any := false
+	var dmg: float = wave.damage * (0.5 if sim.testudo_left > 0.0 else 1.0) * sim.frenzy_guard()
+	for w in wave.riders:
+		var j := e_id.find(w[0])
+		if j < 0:
+			continue
+		var r := k_radius[e_kind[j]]
+		var lane: Vector2 = wave.from + dir * wave.length * k + side * float(w[1])
+		if run > 0.0:
+			var at := sim.terrain.push_out_wide(lane, r) if r > Terrain.MAX_UNIT else sim.terrain.push_out(lane, r)
+			# A wall, tree or rock in a rider's way ends his charge where he meets it.
+			if at.distance_squared_to(lane) > 0.25:
+				e_pos[j] = sim.terrain.push_out_wide(e_pos[j], r) if r > Terrain.MAX_UNIT else sim.terrain.push_out(e_pos[j], r)
+				_free_rider(j)
+				continue
+			lane = at
+			hit_any = _ride_down(lane, r, dir, -2000 - int(wave.n), dmg, wave.throw, sim) or hit_any
+		e_pos[j] = lane
+		e_face[j] = dir
+		kept.append(w)
+	wave.riders = kept
+	if hit_any:
+		sim.shake = maxf(sim.shake, float(sim.b.shake.chieftain))
+		sim.legion.remove_fallen(sim)
+	if run >= 1.0 or kept.is_empty():
+		_end_wave()
+
+
+## The lancers of a spent or called off sweep ride on as ordinary lancers.
+func _end_wave() -> void:
+	for w in wave.get("riders", []):
+		var j := e_id.find(w[0])
+		if j >= 0:
+			_free_rider(j)
+	wave = {}
+
+
+func _free_rider(j: int) -> void:
+	e_cd[j] = k_dash_every[e_kind[j]] * rng.randf()
+
+
+## The king sets the grass alight on one side of the legion: a band is marked across it, and once the warning is over the fire spreads over it towards the legion.
+func set_fire(ci: int, sim: Sim) -> void:
+	var cfg: Dictionary = content.enemies[kind_ids[e_kind[ci]]].attacks.steppe_fire
+	var dir := Vector2.from_angle(rng.randf() * TAU)
+	steppe_fire = {"pos": commander.pos - dir * float(cfg.back), "dir": dir, "half_len": float(cfg.length) / 2.0, "depth": float(cfg.depth), "t": 0.0,
+		"warn": float(cfg.warn), "seconds": float(cfg.seconds), "burn": float(cfg.burn), "dps": float(cfg.dps), "lit": false}
+	e_strike[ci] = time
+	sim.objectives.notice = {"kind": "steppe_fire", "at": time}
+	sim.event("bellow", e_pos[ci])
+
+
+## Whether p lies in the band the king marked for burning.
+func in_fire_band(p: Vector2) -> bool:
+	if steppe_fire.is_empty():
+		return false
+	var off: Vector2 = p - steppe_fire.pos
+	var along: float = off.dot(steppe_fire.dir)
+	return along >= 0.0 and along <= steppe_fire.depth and absf(off.dot(steppe_fire.dir.orthogonal())) <= steppe_fire.half_len
+
+
+## How far across the band the fire has spread, and how far behind it the grass has burnt out, in px from its starting edge.
+func fire_span() -> Vector2:
+	if steppe_fire.is_empty():
+		return Vector2.ZERO
+	var lit: float = steppe_fire.t - steppe_fire.warn
+	var front: float = steppe_fire.depth * clampf(lit / steppe_fire.seconds, 0.0, 1.0)
+	var back: float = steppe_fire.depth * clampf((lit - steppe_fire.burn) / steppe_fire.seconds, 0.0, 1.0)
+	return Vector2(back, front)
+
+
+## Spreads the fire over its band once the warning is over, burning every Roman in the strip alight, until the last of the grass burns out.
+func _fire_on(dt: float, sim: Sim) -> void:
+	if steppe_fire.is_empty():
+		return
+	steppe_fire.t += dt
+	if steppe_fire.t < steppe_fire.warn:
+		return
+	if not steppe_fire.lit:
+		steppe_fire.lit = true
+		sim.event("fire", steppe_fire.pos)
+	if steppe_fire.t >= steppe_fire.warn + steppe_fire.seconds + steppe_fire.burn:
+		steppe_fire = {}
+		return
+	var span := fire_span()
+	var guard := sim.frenzy_guard()
+	var side: Vector2 = steppe_fire.dir.orthogonal()
+	for u in sim.units:
+		var off: Vector2 = u.pos - steppe_fire.pos
+		var along: float = off.dot(steppe_fire.dir)
+		if along >= span.x and along <= span.y and absf(off.dot(side)) <= steppe_fire.half_len:
+			u.hp -= steppe_fire.dps * dt * guard
+	sim.legion.remove_fallen(sim)
+
+
+## Grass only marked is called off with the king who marked it; a fire already burning burns out in its own time.
+func _drop_unlit_fire() -> void:
+	if not steppe_fire.is_empty() and not steppe_fire.lit:
+		steppe_fire = {}
+
+
+## A lasso rider swings his rope at the soldier nearest him; false when none is in reach.
+func _swing_lasso(i: int, sim: Sim) -> bool:
+	var cfg: Dictionary = content.enemies[kind_ids[e_kind[i]]].lasso
+	var p := e_pos[i]
+	var best: Dictionary = {}
+	var near_d := float(cfg.reach) + Sim.UNIT_RADIUS
+	for u in sim.soldiers:
+		var d: float = u.pos.distance_to(p)
+		if d < near_d:
+			near_d = d
+			best = u
+	if best.is_empty() or lassos.any(func(l: Dictionary) -> bool: return is_same(l.unit, best)):
+		return false
+	lassos.append({"id": e_id[i], "unit": best, "t": 0.0, "dur": float(cfg.windup)})
+	e_strike[i] = time
+	e_face[i] = (best.pos - p).normalized() if best.pos != p else e_face[i]
+	sim.event("ride", p)
+	return true
+
+
+## Once a lasso's wind-up is over it drags its soldier out of the ranks towards the rider, unless the testudo holds him in place.
+func _lassos(dt: float, sim: Sim) -> void:
+	if lassos.is_empty():
+		return
+	var left: Array = []
+	var pulled := false
+	for l in lassos:
+		l.t += dt
+		var i := e_id.find(l.id)
+		if i < 0 or not sim.soldiers.any(func(so: Dictionary) -> bool: return is_same(so, l.unit)):
+			continue
+		if l.t < l.dur:
+			left.append(l)
+			continue
+		var u: Dictionary = l.unit
+		if sim.testudo_left > 0.0:
+			sim.event("shield", u.pos)
+			continue
+		var cfg: Dictionary = content.enemies[kind_ids[e_kind[i]]].lasso
+		var to: Vector2 = e_pos[i] - u.pos
+		var gap := to.length() - k_radius[e_kind[i]] - Sim.UNIT_RADIUS
+		if gap > 0.0:
+			u.pos += to.normalized() * minf(float(cfg.pull), gap)
+		u.hp -= float(cfg.damage) * e_power[i] * sim.frenzy_guard()
+		u.flash = 0.12
+		pulled = true
+	lassos = left
+	if pulled:
+		sim.units_moved()
+		sim.legion.remove_fallen(sim)
 
 
 ## In her second phase the queen burns the land: rings are marked round the legion, one on the commander, and each catches fire and burns a while.
@@ -2436,6 +2664,10 @@ func _move(dt: float, sim: Sim) -> void:
 			spd = minf(spd, foot_cap)
 		var v := to / maxf(d, 0.001) * spd
 		var beh := k_beh[kind]
+		if k_lasso[kind] > 0.0:
+			e_cd[i] -= dt
+			if e_cd[i] <= 0.0 and d < legion_reach + k_lasso_reach[kind]:
+				e_cd[i] = k_lasso[kind] if _swing_lasso(i, sim) else 0.5
 		if k_howl[kind] == 1:
 			e_cd[i] -= dt
 			if e_cd[i] <= 0.0:
@@ -2664,7 +2896,7 @@ func _move(dt: float, sim: Sim) -> void:
 						w -= n * into
 						w = Vector2(-n.y, n.x) * e_side[i] if w.length_squared() < 0.09 else w.normalized()
 				v = w * spd
-		if e_block[i] > 0.0 and v != Vector2.ZERO and not dashing:
+		if e_block[i] > 0.0 and v != Vector2.ZERO and not dashing and k_heavy[kind] == 0:
 			# A barbarian already pressed into the man ahead stops walking into him and only slides past, so the press does not pile up through the rows.
 			var into := v.dot(to)
 			if into > 0.0:
@@ -2677,7 +2909,8 @@ func _move(dt: float, sim: Sim) -> void:
 		if push != Vector2.ZERO and not (dashing and k_fearless[kind] == 1):
 			# However many neighbours he overlaps, the crowd never carries a boss faster than his charge, nor a barbarian past `crowd_pace` times his.
 			# The chieftain walks on through his own bodyguard instead of being held back by the ring round him.
-			var step := v * dt + ((push - shoved) * 0.6 if e_tag[i] != CHIEF else Vector2.ZERO)
+			# A war wagon rolls on through the crowd instead of being held back by it.
+			var step := v * dt + ((push - shoved) * 0.6 if e_tag[i] != CHIEF and k_heavy[kind] == 0 else Vector2.ZERO)
 			var most := maxf(v.length(), k_top[kind] * (crowd_pace if e_tag[i] == ORDINARY else 1.0)) * dt
 			if step.length_squared() > most * most:
 				step *= most / step.length()
@@ -2909,8 +3142,9 @@ func _volley(i: int, at: Vector2, dmg: float) -> void:
 func _howl(i: int, sim: Sim) -> void:
 	var cfg: Dictionary = content.enemies[kind_ids[e_kind[i]]].howl
 	var p := e_pos[i]
+	var riders: bool = cfg.get("riders", false)
 	for j in near(p, float(cfg.radius)):
-		if e_tag[j] == ORDINARY:
+		if e_tag[j] == ORDINARY and (not riders or k_rides[e_kind[j]] == 1):
 			hasten(j, float(cfg.seconds), float(cfg.speed_mult))
 	e_strike[i] = time
 	sim.effects.append({"kind": "cry", "pos": p, "t": 0.0, "radius": float(cfg.radius)})
@@ -3235,6 +3469,8 @@ func remove_at(i: int) -> void:
 		feint = {}
 		ambush_wait = 0.0
 		_drop_unopened_flood()
+		_end_wave()
+		_drop_unlit_fire()
 	elif e_guard[i] != Vector2.ZERO:
 		guards_alive -= 1
 	if e_tag[i] == ELITE:

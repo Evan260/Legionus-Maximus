@@ -52,6 +52,8 @@ var on_sand := false
 var in_bog := false
 ## Whether the commander stands in a reed bed, which slows the march a little.
 var in_reeds := false
+## Whether the commander stands in feather grass, which slows the march a little.
+var in_grass := false
 # How many barbarians were locked in melee with the legion on the last update.
 var pressing := 0
 
@@ -194,6 +196,7 @@ func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
 	terrain.moor = b.get("moors", {}).get(province, {})
 	terrain.hills = b.get("hills", {}).get(province, {})
 	terrain.valley = b.get("valleys", {}).get(province, {})
+	terrain.steppe = b.get("steppes", {}).get(province, {})
 	if b.get("canals", {}).has(province):
 		terrain.set_canals(b.canals[province])
 	terrain.clear_radius = float(b.terrain_clear_radius)
@@ -272,8 +275,9 @@ func speed() -> float:
 	var sand := 1.0 - float(terrain.desert.get("dune_slow", 0.0)) if on_sand else 1.0
 	var bog := 1.0 - float(terrain.moor.get("bog_slow", 0.0)) if in_bog else 1.0
 	var reeds := 1.0 - float(terrain.valley.get("reed_slow", 0.0)) if in_reeds else 1.0
+	var grass := 1.0 - float(terrain.steppe.get("grass_slow", 0.0)) if in_grass else 1.0
 	var flooded := 1.0 - horde.flood_slow
-	return v * maxf(float(b.press.slowest), held * cursed * frozen * sand * bog * reeds * flooded * (b.testudo_speed if testudo_left > 0.0 else 1.0))
+	return v * maxf(float(b.press.slowest), held * cursed * frozen * sand * bog * reeds * grass * flooded * (b.testudo_speed if testudo_left > 0.0 else 1.0))
 
 
 func range_mult() -> float:
@@ -418,6 +422,7 @@ func _move_legion(dt: float, move: Vector2) -> void:
 	on_sand = terrain.on_dune(commander.pos)
 	in_bog = terrain.in_bog(commander.pos)
 	in_reeds = terrain.in_reeds(commander.pos)
+	in_grass = terrain.in_grass(commander.pos)
 	var want := Vector2.ZERO
 	if moving:
 		var dir := move.normalized() if move.length() > 1.0 else move

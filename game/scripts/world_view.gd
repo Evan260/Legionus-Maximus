@@ -133,6 +133,15 @@ func _add(y: float, rect: Rect2, dest: Vector2, mod: Color, moving := false, siz
 	_sizes.append(rect.size if size == Vector2.ZERO else size)
 
 
+## Feather grass bends in the wind: its upper half is drawn a pixel or two aside, in a slow wave that runs across the field.
+func _add_swaying(at: Vector2, f: Array, mod: Color) -> void:
+	var rect: Rect2 = f[0]
+	var top := floorf(rect.size.y / 2.0)
+	var lean := roundf(sin(sim.time * 1.8 + at.x * 0.02 + at.y * 0.01) * 1.5)
+	_add(at.y, Rect2(rect.position, Vector2(rect.size.x, top)), at - f[1] + Vector2(lean, 0), mod)
+	_add(at.y, Rect2(rect.position + Vector2(0, top), Vector2(rect.size.x, rect.size.y - top)), at - f[1] + Vector2(0, top), mod)
+
+
 ## Rounds a moving unit to the pixel relative to the camera, so men marching beside the commander keep a steady gap on a diagonal.
 func _snap(p: Vector2) -> Vector2:
 	return (p - _cam).round() + _cam.round()
@@ -189,11 +198,14 @@ func _draw() -> void:
 				# A tree standing in front of the commander is seen through, so he is not lost once the legion cuts into a ridge.
 				# Only the middle of the picture counts, since the empty margins round a canopy hide nothing.
 				# A log lies low on the ground and hides nobody, so it stays solid.
-				if (pr[2] > 0.0 or Terrain.SOLID.has(pr[0]) or pr[0] == "papyrus") and pr[0] != "log" and at.y > cam.y and _solid_part(Rect2(at - f[1], f[0].size)).intersects(him):
+				if (pr[2] > 0.0 or Terrain.SOLID.has(pr[0]) or pr[0] == "papyrus" or pr[0] == "feather_grass") and pr[0] != "log" and at.y > cam.y and _solid_part(Rect2(at - f[1], f[0].size)).intersects(him):
 					mod = see_through
 				# The gate fades only half way, so the fort still reads while the commander walks under it.
 				elif pr[0] == "fort_gate" and at.y > cam.y and Rect2(at - f[1], f[0].size).intersects(him):
 					mod = Color(1, 1, 1, 0.55)
+				if pr[0] == "feather_grass":
+					_add_swaying(pr[1], f, mod)
+					continue
 				_add(pr[1].y, f[0], at - f[1], mod)
 	if not sim.terrain.posts.is_empty():
 		var sf := atlas.prop_frame("stake")
@@ -612,6 +624,14 @@ func _draw_warnings() -> void:
 		_draw_storm(st)
 	if not h.flood.is_empty():
 		_draw_flood(h.flood)
+	if not h.wave.is_empty() and h.wave.t < h.wave.warn:
+		_draw_lane(h.wave.from, h.wave.dir, h.wave.length, h.wave.width, clampf(h.wave.t / h.wave.warn, 0.0, 1.0))
+	if not h.steppe_fire.is_empty():
+		_draw_steppe_fire(h.steppe_fire)
+	for l in h.lassos:
+		var i := h.e_id.find(l.id)
+		if i >= 0:
+			_draw_lasso(h.e_pos[i], l.unit.pos, clampf(l.t / l.dur, 0.0, 1.0))
 	for l in sim.horde.foe_lobs:
 		var k: float = clampf(l.t / l.dur, 0.0, 1.0)
 		if l.get("sky", false):
@@ -676,6 +696,56 @@ func _draw_flood(fl: Dictionary) -> void:
 		draw_line(at - d * 6.0, at + d * 6.0, Color(0.7, 0.8, 0.78, 0.5 * a), 1.0)
 	corners.append(corners[0])
 	draw_polyline(corners, Color(0.24, 0.2, 0.14, 0.8 * a), 2.0)
+
+
+## The Roxolani king's burning band: marked in orange and filling from its starting edge while it is marked, then flames over the strip
+## alight with charred grass behind them.
+func _draw_steppe_fire(fire: Dictionary) -> void:
+	var c: Vector2 = fire.pos
+	var d: Vector2 = fire.dir
+	var side := d.orthogonal()
+	var hl: float = fire.half_len
+	var depth: float = fire.depth
+	var band := func(a: float, b: float) -> PackedVector2Array:
+		return PackedVector2Array([c + d * a - side * hl, c + d * b - side * hl, c + d * b + side * hl, c + d * a + side * hl])
+	var outline: PackedVector2Array = band.call(0.0, depth)
+	outline.append(outline[0])
+	if fire.t < fire.warn:
+		var k: float = clampf(fire.t / fire.warn, 0.0, 1.0)
+		draw_colored_polygon(band.call(0.0, depth), Color(0.85, 0.35, 0.05, 0.08 + 0.12 * k))
+		draw_colored_polygon(band.call(0.0, depth * 0.25 * k), Color(1.0, 0.5, 0.15, 0.3))
+		draw_polyline(outline, Color(1.0, 0.55, 0.15, 0.9), 1.0)
+		return
+	var span: Vector2 = sim.horde.fire_span()
+	var left: float = fire.warn + fire.seconds + fire.burn - fire.t
+	var fade := clampf(left / 0.8, 0.0, 1.0)
+	if span.y < depth:
+		draw_colored_polygon(band.call(span.y, depth), Color(0.85, 0.35, 0.05, 0.1))
+	draw_colored_polygon(band.call(0.0, span.x), Color(0.12, 0.1, 0.08, 0.35 * fade))
+	if span.y > span.x:
+		draw_colored_polygon(band.call(span.x, span.y), Color(0.2, 0.07, 0.03, 0.5 * fade))
+		var beat := int(sim.time * 10.0)
+		var n := int((span.y - span.x) * hl * 2.0 / 90.0) + 4
+		for i in n:
+			var a := float(i) * 0.618034
+			var along: float = lerpf(span.x, span.y, fmod(a, 1.0))
+			var across: float = (fmod(float(i) * 0.7548777, 1.0) * 2.0 - 1.0) * hl
+			var base: Vector2 = c + d * along + side * across
+			var h := 2 + (beat + i * 3) % 4
+			draw_rect(Rect2(base.round() + Vector2(0, -h), Vector2(2, h)), Color(1.0, 0.5, 0.12, 0.9 * fade))
+			draw_rect(Rect2(base.round() + Vector2(0, -h + 1), Vector2(1, maxi(1, h - 2))), Color(1.0, 0.86, 0.35, 0.9 * fade))
+	draw_polyline(outline, Color(1.0, 0.55, 0.15, 0.6 * fade), 1.0)
+
+
+## A lasso swung at a soldier: a loop circling over the rider's head that shrinks round the soldier as the throw comes.
+func _draw_lasso(rider: Vector2, man: Vector2, k: float) -> void:
+	var rope := Color(0.62, 0.45, 0.25, 0.95)
+	var hand := rider + Vector2(0, -16)
+	var spin := sim.time * 14.0
+	draw_arc(hand + Vector2(cos(spin), sin(spin) * 0.4) * 3.0, 7.0, 0.0, TAU, 14, rope, 1.0)
+	draw_arc(man + Vector2(0, -6), 14.0 - 8.0 * k, 0.0, TAU, 20, Color(0.95, 0.25, 0.15, 0.4 + 0.5 * k), 1.0)
+	if k > 0.6:
+		draw_line(hand, man + Vector2(0, -6), rope, 1.0)
 
 
 ## The lane of a coming charge, filling from where it starts as it nears.
