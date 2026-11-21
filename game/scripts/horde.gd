@@ -251,6 +251,8 @@ var elite_ids: Array = []
 ## The elites that came on the boss timer, as opposed to an objective's defenders.
 var timed_ids: Array = []
 var chief_dead := false
+# The ids of the barbarians who gave up the chase this update, taken away once the legion has fought.
+var _gave_up: Array = []
 ## The run's difficulty: "easy", "medium" or "hard".
 var run_difficulty := "medium"
 var sim_ref: WeakRef
@@ -2270,7 +2272,7 @@ func _move(dt: float, sim: Sim) -> void:
 						if beh == BEAST:
 							_bite(p, sim)
 						elif k_flank_off[kind] > 0.0 or k_lance[kind] == 1:
-							sim.event("charge", p)
+							sim.event("ride", p)
 					if k_flank_off[kind] > 0.0:
 						# A flank rider aims beside the legion, each on his own side, so his charge runs along its ranks.
 						var across := Vector2(-to.y, to.x) / maxf(d, 0.001)
@@ -2513,8 +2515,8 @@ func _move(dt: float, sim: Sim) -> void:
 			e_face[i] = e_dir[i] if dashing else (v.normalized() if circling or fleeing else to / maxf(d, 0.001))
 		if e_flash[i] > 0.0:
 			e_flash[i] -= dt
-	for k in range(gone.size() - 1, -1, -1):
-		remove_at(gone[k])
+	for k in gone:
+		_gave_up.append(e_id[k])
 	sim.pressing = held
 	sim.legion.remove_fallen(sim)
 
@@ -2950,6 +2952,19 @@ func near(p: Vector2, r: float) -> Array:
 
 
 ## Takes enemy i out by moving the last one into its place, array by array.
+## Takes away the barbarians who gave up the chase this update. They wait until the legion has fought, since the soldiers
+## find their targets through the grid built at the start of the update and removing anyone earlier would shift its places.
+func drop_gave_up() -> void:
+	if _gave_up.is_empty():
+		return
+	var i := e_id.size() - 1
+	while i >= 0:
+		if _gave_up.has(e_id[i]):
+			remove_at(i)
+		i -= 1
+	_gave_up.clear()
+
+
 func remove_at(i: int) -> void:
 	if e_id[i] == chieftain_id:
 		chief_dead = true

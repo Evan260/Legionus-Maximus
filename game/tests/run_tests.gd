@@ -577,6 +577,26 @@ func test_far_barbarians_give_up_the_chase(b: Dictionary) -> void:
 	check(riders.horde.e_id.has(id), "a chariot swinging wide on its pass keeps coming")
 
 
+func test_a_barbarian_giving_up_stays_until_the_legion_has_fought(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 19)
+	s.commander.hp = 1e9
+	for k in 6:
+		s.add_soldier("archer")
+	s.legion.place_all(s.facing_angle)
+	s.horde.spawn("barbarian_club", Vector2(float(b.give_up_radius) + 40.0, 0))
+	var near := s.horde.spawn("barbarian_club", Vector2(90, 0))
+	s.horde.e_stun[near] = 1e9
+	s._rebuild_grids()
+	s.horde.update(1.0 / 60.0, s)
+	var stale := 0
+	for t in s.horde.g_items:
+		if t >= s.horde.e_pos.size():
+			stale += 1
+	check(stale == 0 and s.horde.e_pos.size() == 2, "the horde's move leaves every enemy the grid lists in place (%d stale)" % stale)
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.horde.e_pos.size() == 1, "and the one left behind is gone once the update is over")
+
+
 func test_a_crowd_never_throws_a_boss_faster_than_his_charge(b: Dictionary) -> void:
 	for kind in ["berserker", "war_band_leader", "barbarian_club"]:
 		var s := Sim.new(b, content, {"seed": 17})

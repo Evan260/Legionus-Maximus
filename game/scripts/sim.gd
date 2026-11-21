@@ -328,6 +328,7 @@ func update(dt: float, move: Vector2, testudo_pressed: bool) -> void:
 	_move_shots(dt)
 	_burns(dt)
 	_remove_dead()
+	horde.drop_gave_up()
 	_coins(dt)
 	_effects(dt)
 	_regen(dt)

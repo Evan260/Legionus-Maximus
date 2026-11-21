@@ -1052,8 +1052,8 @@
     "unit:boar"
    ],
    "rush": {
-    "every": 5.0,
-    "speed_mult": 2.6,
+    "every": 7.0,
+    "speed_mult": 2.0,
     "seconds": 1.1,
     "burst_mult": 1.5,
     "stun": 1.2
