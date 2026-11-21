@@ -2014,59 +2014,6 @@
     "ground:gaul"
    ]
   },
-  "dacia": {
-   "name": "Dacia",
-   "text": "Snowy mountains and frozen streams.",
-   "ground": "snowy mountains",
-   "props": [
-    "pine",
-    "rock",
-    "frozen_stream"
-   ],
-   "ordinary": [
-    "falx_warrior",
-    "dacian_archer",
-    "wolf_standard_bearer",
-    "mountain_bear"
-   ],
-   "elites": [
-    "falx_band",
-    "priest"
-   ],
-   "chieftain": "dacian_king",
-   "art": [
-    "prop:frozen_stream",
-    "prop:pine",
-    "ground:dacia"
-   ]
-  },
-  "parthia": {
-   "name": "Parthia",
-   "text": "Desert dunes and ruined walls.",
-   "ground": "desert",
-   "props": [
-    "dune",
-    "palm",
-    "ruined_wall"
-   ],
-   "ordinary": [
-    "horse_archer",
-    "cataphract",
-    "camel_rider",
-    "parthian_slinger"
-   ],
-   "elites": [
-    "cataphract_charge",
-    "war_elephant"
-   ],
-   "chieftain": "shah",
-   "art": [
-    "prop:dune",
-    "prop:palm",
-    "prop:ruined_wall",
-    "ground:parthia"
-   ]
-  },
   "britannia": {
    "name": "Britannia",
    "text": "Wet moorland at the edge of the known world.",
@@ -2150,6 +2097,59 @@
     "prop:obelisk",
     "prop:crops",
     "ground:aegyptus"
+   ]
+  },
+  "parthia": {
+   "name": "Parthia",
+   "text": "Desert dunes and ruined walls.",
+   "ground": "desert",
+   "props": [
+    "dune",
+    "palm",
+    "ruined_wall"
+   ],
+   "ordinary": [
+    "horse_archer",
+    "cataphract",
+    "camel_rider",
+    "parthian_slinger"
+   ],
+   "elites": [
+    "cataphract_charge",
+    "war_elephant"
+   ],
+   "chieftain": "shah",
+   "art": [
+    "prop:dune",
+    "prop:palm",
+    "prop:ruined_wall",
+    "ground:parthia"
+   ]
+  },
+  "dacia": {
+   "name": "Dacia",
+   "text": "Snowy mountains and frozen streams.",
+   "ground": "snowy mountains",
+   "props": [
+    "pine",
+    "rock",
+    "frozen_stream"
+   ],
+   "ordinary": [
+    "falx_warrior",
+    "dacian_archer",
+    "wolf_standard_bearer",
+    "mountain_bear"
+   ],
+   "elites": [
+    "falx_band",
+    "priest"
+   ],
+   "chieftain": "dacian_king",
+   "art": [
+    "prop:frozen_stream",
+    "prop:pine",
+    "ground:dacia"
    ]
   }
  },

@@ -18,16 +18,14 @@ const PLACES := {"roma": Vector2(12.5, 41.9), "germania": Vector2(9.0, 51.5), "b
 const ROUTES := {
 	"roma>germania": [Vector2(11.0, 45.4), Vector2(11.5, 47.0), Vector2(10.9, 48.4), Vector2(8.3, 50.0)],
 	"germania>gaul": [Vector2(6.95, 50.9), Vector2(6.6, 49.75), Vector2(4.0, 49.25)],
-	"gaul>dacia": [Vector2(6.0, 47.2), Vector2(8.2, 47.5), Vector2(12.1, 48.9), Vector2(16.9, 48.1), Vector2(19.0, 47.5), Vector2(20.5, 44.8),
-		Vector2(22.6, 44.6)],
-	"dacia>parthia": [Vector2(24.5, 43.7), Vector2(29.0, 41.0), Vector2(32.9, 39.9), Vector2(34.6, 37.8), Vector2(36.2, 36.2), Vector2(37.9, 37.05),
-		Vector2(40.4, 35.7), Vector2(42.6, 35.3)],
-	"parthia>britannia": [Vector2(36.0, 36.1), Vector2(32.5, 34.3), Vector2(24.5, 34.4), Vector2(15.0, 36.0), Vector2(11.0, 38.3), Vector2(8.0, 38.6),
-		Vector2(6.5, 40.6), Vector2(5.0, 43.2), Vector2(4.8, 45.8), Vector2(3.0, 48.5), Vector2(1.6, 50.7), Vector2(0.6, 51.2)],
-	"britannia>hispania": [Vector2(-0.8, 50.8), Vector2(-3.0, 49.9), Vector2(-6.0, 48.3), Vector2(-7.4, 45.6), Vector2(-6.0, 43.9), Vector2(-5.8, 43.3),
+	"gaul>britannia": [Vector2(0.7, 47.4), Vector2(1.1, 49.4), Vector2(0.4, 50.5)],
+	"britannia>hispania": [Vector2(-2.8, 50.7), Vector2(-5.5, 49.4), Vector2(-7.0, 47.0), Vector2(-7.4, 45.6), Vector2(-6.0, 43.9), Vector2(-5.8, 43.3),
 		Vector2(-5.6, 41.6)],
 	"hispania>aegyptus": [Vector2(-1.0, 37.6), Vector2(3.0, 37.4), Vector2(8.5, 37.6), Vector2(11.8, 37.4), Vector2(15.0, 36.3), Vector2(20.0, 35.2),
 		Vector2(25.0, 34.6), Vector2(28.5, 34.7)],
+	"aegyptus>parthia": [Vector2(33.0, 34.6), Vector2(35.8, 34.5), Vector2(38.3, 34.6), Vector2(40.5, 34.6), Vector2(42.8, 35.0)],
+	"parthia>dacia": [Vector2(43.2, 36.4), Vector2(41.2, 37.1), Vector2(38.8, 37.3), Vector2(36.0, 37.7), Vector2(34.6, 37.9), Vector2(32.9, 39.9),
+		Vector2(29.0, 41.0), Vector2(24.5, 43.7)],
 }
 const PICTURE := Vector2(640, 360)
 const NODE_R := 9.0
@@ -206,11 +204,11 @@ func _road(c: CanvasItem, ids: Array, now: float) -> void:
 		var won: bool = state_of(ids[i]) == "won"
 		var next: bool = walked and not won
 		if walked and won:
-			c.draw_polyline(pts, Color(0.1, 0.05, 0.03), 6.0)
-			c.draw_polyline(pts, ROAD, 3.0)
+			c.draw_polyline(pts, Color(0.1, 0.05, 0.03), 4.0)
+			c.draw_polyline(pts, ROAD, 2.0)
 		else:
-			_dashes(c, pts, Color(0.1, 0.05, 0.03), 5.0, now * 14.0 if next else 0.0)
-			_dashes(c, pts, ROAD if next else Color(0.42, 0.3, 0.22), 3.0, now * 14.0 if next else 0.0)
+			_dashes(c, pts, Color(0.1, 0.05, 0.03), 4.0, now * 14.0 if next else 0.0)
+			_dashes(c, pts, ROAD if next else Color(0.42, 0.3, 0.22), 2.0, now * 14.0 if next else 0.0)
 		# A province not drawn yet is passed through, so the march still leads on to the next one that is.
 		walked = walked and (won or state_of(ids[i]) == "fog")
 		from = ids[i]
