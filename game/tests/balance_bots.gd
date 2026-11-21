@@ -13,6 +13,7 @@ func run(balance: Dictionary, content: Content, seed: int, mode: String, provinc
 	var dt := 1.0 / 30.0
 	var hp_at := {}
 	var low_late := 9999.0
+	var low_chief := 9999.0
 	while not sim.over and sim.time < until:
 		var move := Vector2.ZERO
 		if mode == "face" or mode == "smart":
@@ -48,10 +49,12 @@ func run(balance: Dictionary, content: Content, seed: int, mode: String, provinc
 			Upgrades.apply(sim, pick)
 		if sim.time > 300.0:
 			low_late = minf(low_late, sim.commander.hp / sim.commander.max_hp)
+		if sim.horde.chieftain_id != -1:
+			low_chief = minf(low_chief, sim.commander.hp / sim.commander.max_hp)
 		var m := int(sim.time / 60.0)
 		if not hp_at.has(m):
 			hp_at[m] = "%d:%d/%d/%d/p%.2f/k%.1f/v%d" % [m, sim.commander.hp, sim.soldiers.size(), sim.horde.e_pos.size(), sim.horde.pursuit, sim.horde.kill_rate, sim.horde.march_speed]
-	return ("low_late=%.2f " % low_late) + "%-6s seed %d %s t=%4d lvl=%2d kills=%5d gods=%d  %s" % [mode, seed, "WIN " if sim.victory else "dead", sim.time, sim.level, sim.kills, sim.gods.calls, " ".join(hp_at.values().slice(0, 12))]
+	return ("low_late=%.2f low_chief=%.2f " % [low_late, low_chief]) + "%-6s seed %d %s t=%4d lvl=%2d kills=%5d gods=%d  %s" % [mode, seed, "WIN " if sim.victory else "dead", sim.time, sim.level, sim.kills, sim.gods.calls, " ".join(hp_at.values().slice(0, 12))]
 
 
 func _init() -> void:

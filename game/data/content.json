@@ -1106,7 +1106,7 @@
   },
   "viriathus": {
    "name": "Shepherd general",
-   "text": "Viriathus, the shepherd who beat legions in the hills. He springs ambushes that send war bands at both flanks of the legion at once, and he turns and runs, so that his guard and the warriors round him can rush back at any who follow. When hurt he fights faster.",
+   "text": "Viriathus, the shepherd who beat legions in the hills. He springs ambushes that send war bands at both flanks of the legion at once, his hidden men hurl javelins on marked rings over the legion, striking soldiers and commander alike, and he turns and runs, so that his guard and the warriors round him can rush back at any who follow. When hurt he fights faster.",
    "history": "Viriathus led the Lusitanians against Rome for eight years, until he was murdered in his sleep in 139 BC.",
    "behaviour": "melee",
    "hp": 29000,
@@ -1141,6 +1141,17 @@
      "radius": 200,
      "rush_seconds": 3.0,
      "rush_mult": 1.6
+    },
+    "javelins": {
+     "every": 7.0,
+     "range": 420,
+     "rings": 4,
+     "fury_rings": 6,
+     "radius": 26,
+     "spread": 110,
+     "delay": 1.5,
+     "damage": 44,
+     "hidden": 230
     }
    },
    "fury": {

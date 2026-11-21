@@ -548,6 +548,14 @@ func _draw_lobs(tex: Texture2D) -> void:
 			continue
 		var k: float = l.t / l.dur
 		var ground: Vector2 = l.from.lerp(l.to, k)
+		if l.get("javelin", false):
+			# A hidden man's javelin flies high from the flank, its point leading along its arc.
+			var at: Vector2 = ground + Vector2(0, -sin(k * PI) * 70.0)
+			var ahead: Vector2 = ((l.to - l.from).normalized() + Vector2(0, -cos(k * PI) * 2.0)).normalized()
+			draw_line(at - ahead * 7.0, at + ahead * 5.0, Color(0.2, 0.13, 0.08), 2.0)
+			draw_line(at - ahead * 6.0, at + ahead * 4.0, Color(0.55, 0.36, 0.2), 1.0)
+			draw_line(at + ahead * 4.0, at + ahead * 8.0, Color(0.78, 0.78, 0.74), 1.0)
+			continue
 		if l.get("volley", false):
 			# A volley is three arrows flying high, each pointing along its arc.
 			var dark := Color(0.2, 0.13, 0.08)

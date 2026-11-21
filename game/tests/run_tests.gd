@@ -8254,7 +8254,7 @@ func test_a_roundhouse_towers_over_a_soldier_and_stands_in_a_cluster(b: Dictiona
 
 func _hispania_sim(b: Dictionary, seed_value: int) -> Sim:
 	var s := _gaul_sim(b, seed_value, "hispania")
-	for t in ["ambush_cd", "feint_cd"]:
+	for t in ["ambush_cd", "feint_cd", "javelins_cd"]:
 		s.horde.set(t, 1e9)
 	s.commander.pos = Vector2.ZERO
 	s.legion.place_all(s.facing_angle)
@@ -8731,6 +8731,70 @@ func test_achillas_opens_the_sluices_across_the_legions_path(b: Dictionary) -> v
 		h._sluice_on(1.0 / 60.0, s)
 		t += 1.0 / 60.0
 	check(h.flood.is_empty(), "and the water drains after %.0f seconds" % float(cfg.seconds))
+
+
+func test_the_shepherd_general_marks_rings_where_hidden_men_hurl_javelins(b: Dictionary) -> void:
+	var atk: Dictionary = content.enemies.viriathus.attacks
+	check(atk.has("javelins"), "the shepherd general has a javelin attack")
+	if not atk.has("javelins"):
+		return
+	var cfg: Dictionary = atk.javelins
+	for stay in [true, false]:
+		var s := _hispania_sim(b, 1990)
+		var h := s.horde
+		var ci := h.spawn_chieftain(Vector2(250, 0))
+		h.cleave_cd = 1e9
+		var hp0: float = s.commander.hp
+		var men0 := 0.0
+		for so in s.soldiers:
+			men0 += so.hp
+		h.set("javelins_cd", 0.0)
+		h._chieftain(1.0 / 60.0, s)
+		var rings := h.foe_lobs.filter(func(l: Dictionary) -> bool: return l.get("volley", false))
+		if stay:
+			check(s.objectives.notice.get("kind", "") == "javelins", "a notice warns of the javelins")
+			check(rings.size() == int(cfg.rings), "%d rings are marked over the legion" % int(cfg.rings))
+			check(rings.any(func(l: Dictionary) -> bool: return l.to.distance_to(s.commander.pos) < 1.0), "one of them on the commander")
+			check(rings.all(func(l: Dictionary) -> bool: return float(l.dur) >= 1.4), "each marked long enough to step out of it")
+			check(rings.all(func(l: Dictionary) -> bool: return l.from.distance_to(l.to) >= float(cfg.hidden) * 0.8 and l.from.distance_to(h.e_pos[ci]) > 60.0), "thrown by hidden men off the legion's flanks, not by him")
+		else:
+			s.commander.pos += Vector2(0, float(cfg.radius) * 2.0 + float(cfg.spread) * 2.0 + s.legion_reach)
+		var t := 0.0
+		while t < float(cfg.delay) - 0.1:
+			h._foe_lobs(1.0 / 60.0, s)
+			t += 1.0 / 60.0
+		if stay:
+			check(s.commander.hp == hp0, "nothing falls while the rings are marked")
+		for k in 12:
+			h._foe_lobs(1.0 / 60.0, s)
+		var men := 0.0
+		for so in s.soldiers:
+			men += so.hp
+		if stay:
+			check(s.commander.hp <= hp0 - float(cfg.damage) * 0.5, "then the javelins strike a commander who stayed in his ring")
+			check(men < men0, "and the soldiers under the rings")
+		else:
+			check(s.commander.hp == hp0, "but a commander who stepped out is not hurt")
+	var s2 := _hispania_sim(b, 1991)
+	s2.horde.spawn_chieftain(Vector2(250, 0))
+	s2.horde.chief_fury = true
+	s2.horde.call("volleys", s2.horde.chieftain_index(), s2, "javelins")
+	check(s2.horde.foe_lobs.size() == int(cfg.fury_rings), "in his fury more rings are marked")
+
+
+func test_overlapping_rings_of_one_volley_strike_each_man_once(b: Dictionary) -> void:
+	var s := _aegyptus_sim(b, 2004)
+	var h := s.horde
+	h.spawn_chieftain(Vector2(250, 0))
+	h.cleave_cd = 1e9
+	h.volleys(h.chieftain_index(), s)
+	var dmg: float = h.foe_lobs[0].dmg
+	for l in h.foe_lobs:
+		l.to = s.commander.pos
+	var hp0: float = s.commander.hp
+	for k in 150:
+		h._foe_lobs(1.0 / 60.0, s)
+	check(is_equal_approx(hp0 - s.commander.hp, dmg), "a commander under several rings of one volley is struck once (%.0f of %.0f)" % [hp0 - s.commander.hp, dmg])
 
 
 func test_a_stunned_or_fallen_general_calls_off_what_he_was_warning_of(b: Dictionary) -> void:

@@ -3406,13 +3406,20 @@
       "zh_TW": "牧羊人將軍"
     },
     "content.enemies.viriathus.text": {
-      "en": "Viriathus, the shepherd who beat legions in the hills. He springs ambushes that send war bands at both flanks of the legion at once, and he turns and runs, so that his guard and the warriors round him can rush back at any who follow. When hurt he fights faster.",
-      "pt_BR": "Viriato, o pastor que derrotou legiões nas colinas. Ele arma emboscadas que lançam bandos de guerreiros contra os dois flancos da legião de uma vez, e dá meia-volta e foge, para que sua guarda e os guerreiros ao seu redor voltem correndo contra quem o seguir. Quando ferido, luta mais rápido.",
-      "es": "Viriato, el pastor que derrotó a legiones en las colinas. Tiende emboscadas que lanzan bandas de guerreros contra ambos flancos de la legión a la vez, y da media vuelta y huye para que su guardia y los guerreros a su alrededor vuelvan a la carga contra quien lo siga. Herido, lucha más rápido.",
-      "it": "Viriato, il pastore che sconfisse le legioni sulle colline. Tende imboscate che lanciano bande di guerrieri su entrambi i fianchi della legione insieme, e si volta e fugge, perché la sua guardia e i guerrieri intorno a lui tornino all'assalto contro chi lo insegue. Quando è ferito combatte più in fretta.",
-      "pl": "Viriathus, pasterz, który pokonywał legiony na wzgórzach. Zastawia zasadzki, w których bandy wojowników uderzają naraz na oba skrzydła legionu, a sam zawraca i ucieka, by jego straż i wojownicy wokół niego mogli rzucić się na każdego, kto za nim pójdzie. Ranny walczy szybciej.",
-      "ja": "丘で軍団を打ち破った羊飼い、ウィリアトゥス。待ち伏せを仕掛けて軍団の両側面へ同時に戦士の一団を送り込み、また背を向けて逃げ、追ってきた者に護衛と周りの戦士たちを突撃させる。傷つくと、より速く戦う。",
-      "zh_TW": "維里亞圖斯，那位在山丘上擊敗軍團的牧羊人。他設下伏擊，讓戰團同時攻向軍團兩翼；他也會轉身逃跑，好讓護衛和身邊的戰士殺回來對付追上來的人。受傷時，他戰鬥得更快。"
+      "en": "Viriathus, the shepherd who beat legions in the hills. He springs ambushes that send war bands at both flanks of the legion at once, his hidden men hurl javelins on marked rings over the legion, striking soldiers and commander alike, and he turns and runs, so that his guard and the warriors round him can rush back at any who follow. When hurt he fights faster.",
+      "fr": "Viriathus, le berger qui a battu les légions dans les collines. Il tend des embuscades qui envoient des bandes de guerriers sur les deux flancs de la légion à la fois, ses hommes cachés lancent des javelots sur des cercles marqués au-dessus de la légion, frappant soldats et commandant, et il se retourne et s’enfuit, afin que sa garde et les guerriers autour de lui se ruent sur quiconque le suit. Lorsqu’il est blessé, il combat plus vite.",
+      "de": "Viriathus, der Hirte, der Legionen in den Hügeln besiegte. Er legt Hinterhalte, die Kriegsbanden gleichzeitig auf beide Flanken der Legion schicken, seine versteckten Männer werfen Speere auf markierte Kreise über der Legion, die Soldaten und Befehlshaber gleichermaßen treffen, und er dreht sich um und flieht, damit seine Wache und die Krieger um ihn herum auf jeden zurückstürmen, der ihm folgt. Wenn er verletzt ist, kämpft er schneller.",
+      "es": "Viriato, el pastor que derrotó a legiones en las colinas. Tiende emboscadas que lanzan bandas de guerreros contra ambos flancos de la legión a la vez, sus hombres ocultos arrojan jabalinas sobre círculos marcados en la legión, que hieren por igual a soldados y comandante, y da media vuelta y huye para que su guardia y los guerreros a su alrededor vuelvan a la carga contra quien lo siga. Herido, lucha más rápido.",
+      "it": "Viriato, il pastore che sconfisse le legioni sulle colline. Tende imboscate che lanciano bande di guerrieri su entrambi i fianchi della legione insieme, i suoi uomini nascosti scagliano giavellotti su cerchi segnati sopra la legione, colpendo soldati e comandante allo stesso modo, e si volta e fugge, perché la sua guardia e i guerrieri intorno a lui tornino all'assalto contro chi lo insegue. Quando è ferito combatte più in fretta.",
+      "pt_BR": "Viriato, o pastor que derrotou legiões nas colinas. Ele arma emboscadas que lançam bandos de guerreiros contra os dois flancos da legião de uma vez, seus homens escondidos lançam dardos em círculos marcados sobre a legião, ferindo soldados e comandante por igual, e dá meia-volta e foge, para que sua guarda e os guerreiros ao seu redor voltem correndo contra quem o seguir. Quando ferido, luta mais rápido.",
+      "pl": "Viriathus, pasterz, który pokonywał legiony na wzgórzach. Zastawia zasadzki, w których bandy wojowników uderzają naraz na oba skrzydła legionu, jego ukryci ludzie rzucają oszczepy w oznaczone kręgi nad legionem, raniąc zarówno żołnierzy, jak i dowódcę, a sam zawraca i ucieka, by jego straż i wojownicy wokół niego mogli rzucić się na każdego, kto za nim pójdzie. Ranny walczy szybciej.",
+      "tr": "Lejyonları tepelerde yenen çoban Viriathus. Lejyonun iki kanadına aynı anda savaşçı grupları gönderen pusular kurar, gizli adamları lejyonun üzerindeki işaretli halkalara cirit atarak askerleri de komutanı da vurur, ve dönüp kaçar, böylece muhafızları ve etrafındaki savaşçılar peşinden gelenlere geri saldırabilir. Yaralandığında daha hızlı savaşır.",
+      "ru": "Вириат, пастух, который разбивал легионы в холмах. Он устраивает засады, бросая боевые отряды одновременно на оба фланга легиона, его скрытые воины мечут дротики в отмеченные круги над легионом, поражая и солдат, и командира, а ещё он разворачивается и убегает, чтобы его охрана и воины вокруг могли броситься обратно на всех, кто за ним последует. Раненый, он сражается быстрее.",
+      "uk": "Віріат, пастух, який розбивав легіони в горах. Він влаштовує засідки, що спрямовують бойові загони одночасно на обидва фланги легіону, його приховані воїни метають дротики в позначені кола над легіоном, вражаючи і солдатів, і командира, а ще він розвертається і тікає, щоб його охорона та воїни навколо могли кинутися назад на будь-кого, хто йде за ним. Поранений, він б'ється швидше.",
+      "ja": "丘で軍団を打ち破った羊飼い、ウィリアトゥス。待ち伏せを仕掛けて軍団の両側面へ同時に戦士の一団を送り込み、伏兵に軍団の上の印の輪へ投げ槍を放たせて兵士も指揮官も等しく傷つけ、また背を向けて逃げ、追ってきた者に護衛と周りの戦士たちを突撃させる。傷つくと、より速く戦う。",
+      "ko": "언덕에서 군단을 물리친 목자 비리아투스. 매복을 일으켜 군단의 양쪽 측면에 동시에 전사 무리를 보내고, 숨은 부하들이 군단 위의 표시된 원에 투창을 던져 병사와 지휘관을 가리지 않고 맞히며, 돌아서서 달아나 경비병과 주변 전사들이 뒤쫓는 자에게 되돌아 돌격하게 한다. 다치면 더 빨리 싸운다.",
+      "zh_CN": "维里亚图斯，那位在山丘上击败军团的牧羊人。他设下伏击，使战团同时从军团两翼袭来；他的伏兵把标枪投向军团上方标记的圆圈，士兵和指挥官都会被击中；他还会转身逃跑，好让他的护卫和周围的战士杀回来对付追上来的人。受伤时，他战斗得更快。",
+      "zh_TW": "維里亞圖斯，那位在山丘上擊敗軍團的牧羊人。他設下伏擊，讓戰團同時攻向軍團兩翼；他的伏兵把標槍投向軍團上方標記的圓圈，士兵和指揮官都會被擊中；他也會轉身逃跑，好讓護衛和身邊的戰士殺回來對付追上來的人。受傷時，他戰鬥得更快。"
     },
     "content.enemies.war_hound.name": {
       "en": "War hound",
@@ -3726,6 +3733,22 @@
       "uk": "Вважалося, що Собек, бог-крокодил Нілу, дає силу й оберігає від небезпек річки.",
       "zh_CN": "据说尼罗河的鳄鱼神索贝克能赐予力量，并护佑人们免遭河中的危险。",
       "zh_TW": "據說尼羅河的鱷魚神索貝克能賜予力量，並護佑人們免遭河中的危險。"
+    },
+    "Hidden men hurl javelins: step out of the marked rings": {
+      "en": "Hidden men hurl javelins: step out of the marked rings",
+      "fr": "Des hommes cachés lancent des javelots : sortez des cercles marqués",
+      "de": "Versteckte Männer werfen Speere: Tritt aus den markierten Kreisen",
+      "es": "Hombres ocultos lanzan jabalinas: sal de los círculos marcados",
+      "it": "Uomini nascosti scagliano giavellotti: esci dai cerchi segnati",
+      "pt_BR": "Homens escondidos lançam dardos: saia dos círculos marcados",
+      "pl": "Ukryci ludzie rzucają oszczepy: wyjdź z oznaczonych kręgów",
+      "tr": "Gizli adamlar cirit atıyor: işaretli halkalardan çık",
+      "ru": "Скрытые воины мечут дротики: выйдите из отмеченных кругов",
+      "uk": "Приховані воїни метають дротики: вийдіть з позначених кіл",
+      "ja": "伏兵が投げ槍を放つ:印の輪から出よ",
+      "ko": "매복병이 투창을 던진다: 표시된 원에서 벗어나라",
+      "zh_CN": "伏兵投出标枪：快离开标记的圆圈",
+      "zh_TW": "伏兵投出標槍：快離開標記的圓圈"
     }
   }
 }

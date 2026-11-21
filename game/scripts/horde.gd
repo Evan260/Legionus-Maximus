@@ -252,6 +252,8 @@ var ambush_wait := 0.0
 ## His feigned flight while he runs, as {left, from: where the commander stood, dir: the way he runs}, and when the next may start.
 var feint := {}
 var feint_cd := 0.0
+## When his hidden men next hurl javelins on marked rings.
+var javelins_cd := 0.0
 ## The Egyptian general's timers for his marked arrow volleys and for opening the sluices.
 var volleys_cd := 0.0
 var sluice_cd := 0.0
@@ -459,6 +461,7 @@ func _init(balance: Dictionary, game_content: Content, random: RandomNumberGener
 	burn_cd = float(attacks.get("burn", {}).get("every", 8.0)) * 0.5
 	ambush_cd = float(attacks.get("ambush", {}).get("every", 28.0)) * 0.5
 	feint_cd = float(attacks.get("feint", {}).get("every", 18.0)) * 0.5
+	javelins_cd = float(attacks.get("javelins", {}).get("every", 13.0)) * 0.5
 	volleys_cd = float(attacks.get("volleys", {}).get("every", 11.0)) * 0.5
 	sluice_cd = float(attacks.get("sluice", {}).get("every", 20.0)) * 0.5
 	king_wall = content.enemies[chief].get("wall", {})
@@ -1025,6 +1028,7 @@ func _chieftain(dt: float, sim: Sim) -> void:
 	if feint.is_empty():
 		feint_cd -= dt * rate
 	volleys_cd -= dt * rate
+	javelins_cd -= dt * rate
 	if flood.is_empty():
 		sluice_cd -= dt * rate
 	chief_hold = maxf(0.0, chief_hold - dt)
@@ -1043,6 +1047,10 @@ func _chieftain(dt: float, sim: Sim) -> void:
 		volleys_cd = float(atk.volleys.every) if gap < float(atk.volleys.range) else 1.0
 		if gap < float(atk.volleys.range):
 			volleys(ci, sim)
+	if javelins_cd <= 0.0 and atk.has("javelins"):
+		javelins_cd = float(atk.javelins.every) if gap < float(atk.javelins.range) else 1.0
+		if gap < float(atk.javelins.range):
+			volleys(ci, sim, "javelins")
 	if sluice_cd <= 0.0 and atk.has("sluice") and flood.is_empty():
 		sluice_cd = float(atk.sluice.every) if gap < float(atk.sluice.range) else 1.0
 		if gap < float(atk.sluice.range):
@@ -1402,20 +1410,26 @@ func _feint_on(ci: int, dt: float, sim: Sim) -> void:
 	sim.effects.append({"kind": "cry", "pos": p, "t": 0.0, "radius": float(cfg.radius)})
 
 
-## The Egyptian general raises his hand: rings are marked over the legion, one on the commander, and the Nubian volleys fall in them
-## once the warning is over, striking soldiers and commander alike.
-func volleys(ci: int, sim: Sim) -> void:
-	var cfg: Dictionary = content.enemies[kind_ids[e_kind[ci]]].attacks.volleys
+## A general's marked volley: rings over the legion, one on the commander, where missiles thrown from behind him (or from `hidden` px off the flanks) fall once the warning is over.
+func volleys(ci: int, sim: Sim, key := "volleys") -> void:
+	var cfg: Dictionary = content.enemies[kind_ids[e_kind[ci]]].attacks[key]
 	var n := int(cfg.fury_rings) if chief_fury else int(cfg.rings)
 	var from := e_pos[ci]
+	var hidden := float(cfg.get("hidden", 0.0))
+	var side := Vector2.from_angle(sim.facing_angle).orthogonal()
+	volley_ids += 1
 	for k in n:
 		var at: Vector2 = commander.pos
 		if k > 0:
 			at += Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(float(cfg.radius), float(cfg.spread) + sim.legion_reach * 0.5)
-		foe_lobs.append({"from": from + Vector2(rng.randf_range(-40.0, 40.0), rng.randf_range(-30.0, 30.0)), "to": at, "t": 0.0, "dur": float(cfg.delay), "radius": float(cfg.radius), "dmg": float(cfg.damage), "volley": true})
+		var thrower := from
+		if hidden > 0.0:
+			thrower = at + side * (hidden if k % 2 == 0 else -hidden)
+		foe_lobs.append({"from": thrower + Vector2(rng.randf_range(-40.0, 40.0), rng.randf_range(-30.0, 30.0)), "to": at, "t": 0.0, "dur": float(cfg.delay),
+			"radius": float(cfg.radius), "dmg": float(cfg.damage), "volley": true, "volley_id": volley_ids, "javelin": hidden > 0.0})
 	e_strike[ci] = time
 	e_face[ci] = (commander.pos - from).normalized() if commander.pos != from else e_face[ci]
-	sim.objectives.notice = {"kind": "volleys", "at": time}
+	sim.objectives.notice = {"kind": key, "at": time}
 	sim.event("summon", from)
 
 

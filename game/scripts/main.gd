@@ -33,7 +33,7 @@ extends Node
 ##                      duel|rally|blast|flee for the Gaulish elites and siege|summon for the Gaulish king, onrush|blizzard for the Dacian elites and
 ##                      sweep|rockfall|leap for the Dacian king, wedge|trample for the Parthian elites and storm|elephants for the shah,
 ##                      scythe|skyfire|rouse for the British elites and drive|tribes|burn for the warrior queen, rouse|onrush for the Hispanic elites
-##                      and ambush|feint for the shepherd general, harden|wedge for the Egyptian elites and volleys|sluice for the Egyptian general,
+##                      and ambush|feint|javelins for the shepherd general, harden|wedge for the Egyptian elites and volleys|sluice for the Egyptian general,
 ##                      makes him use that ability at once
 ##                      and holds his others back; an ordinary enemy comes as a small group, and slash|rear|volley|rush (Gaul),
 ##                      chop|salvo|howl|maul (Dacia), kite|lance|thrust|sling (Parthia), cry|stones|tend|pass (Britannia), slash|sling|kite (Hispania) or thrust|volley|sprint|rush (Aegyptus) has them use theirs
@@ -191,9 +191,10 @@ func _bring_boss(kind: String, act: String) -> void:
 			# She burns the land only in her second phase, so she is brought in just below half health.
 			if act == "burn":
 				h.e_hp[ci] = h.e_max[ci] * 0.5 - 1.0
-		elif act == "ambush" or act == "feint":
+		elif act == "ambush" or act == "feint" or act == "javelins":
 			h.ambush_cd = 0.0 if act == "ambush" else 1e9
 			h.feint_cd = 0.0 if act == "feint" else 1e9
+			h.javelins_cd = 0.0 if act == "javelins" else 1e9
 		elif act == "volleys" or act == "sluice":
 			h.volleys_cd = 0.0 if act == "volleys" else 1e9
 			h.sluice_cd = 0.0 if act == "sluice" else 1e9
