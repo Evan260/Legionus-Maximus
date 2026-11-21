@@ -12,6 +12,7 @@ extends Node
 ##                      ravine-end stands it just past one end of the nearest ravine
 ##                      fort-gate stands it south of a freshly raised fort and marches it in through the gate
 ##                      crowd gives it 80 men on cleared ground ringed by a full late horde
+##                      village or hedge stands it beside the nearest village or hedge, in a province that has them
 ##   --hold-choice      with --autoplay, give a level at once and leave its choices open
 ##   --easy, --hard     start the run at that difficulty
 ##   --endless, --decimatio   start the run in that mode
@@ -257,10 +258,11 @@ func _go_to(kind: String) -> void:
 		sim.legion.place_all(sim.facing_angle)
 		look_march = Vector2(0, 0.6)
 		return
-	if kind == "village":
+	if kind == "village" or kind == "hedge":
 		var best := Vector2.INF
+		var names := ["hedge"] if kind == "hedge" else ["village", "roundhouse"]
 		for pr in sim.terrain.props_in(Rect2(-3000, -3000, 6000, 6000)):
-			if pr[0] in ["village", "roundhouse"] and pr[1].length() < best.length():
+			if pr[0] in names and pr[1].length() < best.length():
 				best = pr[1]
 		if best == Vector2.INF:
 			return

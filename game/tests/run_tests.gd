@@ -7850,42 +7850,34 @@ func _stand_at(s: Sim, p: Vector2) -> void:
 	s.terrain.update_flow(p)
 
 
-func test_the_legion_cannot_walk_into_a_wheat_field(b: Dictionary) -> void:
+func test_the_legion_marches_through_a_wheat_field(b: Dictionary) -> void:
 	var got := _wheat_sim(b, 1801)
 	var s: Sim = got[0]
 	var f: Rect2 = got[1]
 	check(f.size != Vector2.ZERO, "a wheat field lies near the start")
-	var inset := float(b.fields.gaul.field_inset)
-	var body := f.grow(-inset)
+	var body := f.grow(-float(b.fields.gaul.field_inset))
 	for k in 8:
 		s.add_soldier("legionary")
 	_stand_at(s, Vector2(f.position.x - 90.0, f.get_center().y))
 	var commander_in := false
 	var soldiers_in := false
-	var nearest := INF
-	for k in 10 * 60:
+	var y0: float = s.commander.pos.y
+	while s.commander.pos.x < f.end.x + 60.0 and s.time < 30.0:
 		s.update(1.0 / 60.0, Vector2.RIGHT, false)
 		commander_in = commander_in or body.has_point(s.commander.pos)
-		nearest = minf(nearest, Terrain._rect_gap(body, Rect2(s.commander.pos, Vector2.ZERO)))
 		for so in s.soldiers:
 			soldiers_in = soldiers_in or body.has_point(so.pos)
-	check(not commander_in, "the commander marching at a field never enters it")
-	check(not soldiers_in, "nor do his soldiers")
-	check(nearest < Sim.UNIT_RADIUS + 2.0, "he comes right up to the wheat's ragged edge (%.0f px from its solid ground)" % nearest)
-	check(s.commander.pos.x > body.position.x, "and turns along its side rather than standing pressed against it")
-	_stand_at(s, Vector2(f.get_center().x, f.end.y + 30.0))
-	for k in 4 * 60:
-		s.update(1.0 / 60.0, Vector2(1.0, -0.4), false)
-	check(s.commander.pos.x > f.get_center().x + 60.0 and not body.has_point(s.commander.pos), "marching slantwise into it, he slides along its side")
+	check(commander_in and soldiers_in, "the commander and his soldiers march into the wheat")
+	check(s.commander.pos.x >= f.end.x + 60.0 and absf(s.commander.pos.y - y0) < 4.0, "and straight out the far side (%.0f, %.0f)" % [s.commander.pos.x - f.end.x, s.commander.pos.y - y0])
 
 
-func test_a_barbarian_walks_round_a_wheat_field(b: Dictionary) -> void:
+func test_a_barbarian_walks_through_a_wheat_field(b: Dictionary) -> void:
 	var got := _wheat_sim(b, 1802)
 	var s: Sim = got[0]
 	var f: Rect2 = got[1]
 	var body := f.grow(-float(b.fields.gaul.field_inset))
 	_stand_at(s, Vector2(f.get_center().x, f.end.y + 80.0))
-	check(not s.terrain.is_open(f.get_center()) and s.terrain.is_open(Vector2(f.get_center().x, f.end.y + 60.0)), "the route map closes the wheat and leaves the ground beside it open")
+	check(s.terrain.is_open(f.get_center()), "the route map leaves the wheat open")
 	var i := s.horde.spawn(s.horde.ordinary[0], Vector2(f.get_center().x, f.position.y - 50.0))
 	var entered := false
 	var reached := false
@@ -7897,9 +7889,7 @@ func test_a_barbarian_walks_round_a_wheat_field(b: Dictionary) -> void:
 		reached = reached or s.horde.e_pos[i].distance_to(s.commander.pos) < s.legion_reach + 30.0
 		if reached:
 			break
-	check(not entered, "a barbarian across a field never walks into the wheat")
-	check(reached, "he finds his way round it to the legion")
-
+	check(entered and reached, "a barbarian across a field comes straight through the wheat to the legion")
 
 func test_nothing_comes_onto_the_field_inside_the_wheat(b: Dictionary) -> void:
 	var got := _wheat_sim(b, 1803)
@@ -7911,20 +7901,7 @@ func test_nothing_comes_onto_the_field_inside_the_wheat(b: Dictionary) -> void:
 	var h := s.horde
 	var i := h.spawn(h.ordinary[0], mid)
 	check(not body.has_point(h.e_pos[i]), "a barbarian sent to the middle of a field arrives at its edge")
-	check(not body.has_point(h.open_point(mid)), "a newcomer's place is never in the wheat")
-	var ring_in := 0
-	for k in 300:
-		if body.has_point(h.ring_point()):
-			ring_in += 1
-	check(ring_in == 0, "none of the stream comes in inside the field (%d of 300)" % ring_in)
-	var start := Sim.new(b, Content.with_all_art(), {"seed": 1804, "province": "gaul"})
-	var stuck := 0
-	for k in 600:
-		start.update(1.0 / 30.0, Vector2(1.0, 0.3), false)
-	for p in start.horde.e_pos:
-		if start.terrain.in_field(p):
-			stuck += 1
-	check(stuck == 0, "after twenty seconds of a run no barbarian stands in a field (%d)" % stuck)
+
 
 
 func test_a_legion_marching_in_a_loop_meets_a_band_across_it(b: Dictionary) -> void:

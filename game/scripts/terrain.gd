@@ -852,9 +852,10 @@ func field_solids(fields: Array) -> PackedVector4Array:
 	return out
 
 
-## Lists the wheat fields' solid ground near the commander in every grid cell it could touch a unit or a boss from.
+## Lists the wheat fields' solid ground near the commander in every grid cell it could touch a unit or a boss from; with
+## the province's `solid` off, as it is, everyone walks through the wheat and the list stays empty.
 func _grid_fields(area: Rect2) -> void:
-	fd_rect = PackedVector4Array() if field.is_empty() or empty else field_solids(fields_in(area))
+	fd_rect = PackedVector4Array() if field.is_empty() or empty or not bool(field.get("solid", false)) else field_solids(fields_in(area))
 	fd_start.resize(GN * GN + 1)
 	fd_start.fill(0)
 	fd_items.clear()

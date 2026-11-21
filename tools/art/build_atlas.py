@@ -50,6 +50,9 @@ SHEETS = {"flame": "props3/flame_sheet_b.png"}
 # Props toned down after drawing, as (how much the light parts darken, how much colour is taken out), so the
 # scattered stones and felled stumps do not shine like coins on the grass.
 TONE = {"stones": (0.4, 0.5), "stump": (0.4, 0.2)}
+# Props whose leaves are brought to another prop's greens, as prop: (the prop whose greens set the change, the prop to match),
+# so the Gaulish hedges wear the same green as the oaks beside them; every hedge piece takes the change worked out from the hedge.
+MATCH_GREEN = {"hedge": ("hedge", "oak"), "hedge_end_left": ("hedge", "oak"), "hedge_end_right": ("hedge", "oak")}
 # The bosses and the chariot are drawn from their larger remakes; the small originals stay on disk.
 FOLDERS = {"berserker": "berserker_big", "war_band_leader": "war_band_leader_big", "war_priest": "war_priest_big",
            "chieftain": "chieftain_big", "champion": "champion_big", "horn_blower": "horn_blower_big", "gaul_king": "gaul_king_big",
@@ -79,6 +82,40 @@ def tone(im, darken, grey):
     rgb = rgb * (1 - grey) + (rgb @ [0.299, 0.587, 0.114])[..., None] * grey
     a[..., :3] = rgb
     return Image.fromarray(a.clip(0, 255).astype(np.uint8))
+
+
+def _greens(im):
+    """The leaf pixels of a drawing, as a mask, and its colours in HSV with hue from 0 to 180."""
+    a = np.asarray(im.convert("RGBA"))
+    hsv = cv2.cvtColor(np.ascontiguousarray(a[..., :3]), cv2.COLOR_RGB2HSV).astype(float)
+    mask = (a[..., 3] > 0) & (hsv[..., 0] > 20) & (hsv[..., 0] < 90) & (hsv[..., 1] > 40)
+    return mask, hsv
+
+
+def green_match(source, target):
+    """How to move the leaves of `source` onto those of `target`: a hue shift, a saturation scale, and the 10th and 90th
+    brightness percentiles of each, so the light and shade spread the same way."""
+    sm, sh = _greens(source)
+    tm, th = _greens(target)
+    return {"hue": float(th[..., 0][tm].mean() - sh[..., 0][sm].mean()),
+            "sat": float(th[..., 1][tm].mean() / sh[..., 1][sm].mean()),
+            "from": [float(np.percentile(sh[..., 2][sm], p)) for p in (10, 90)],
+            "to": [float(np.percentile(th[..., 2][tm], p)) for p in (10, 90)]}
+
+
+def recolour(im, m):
+    """A drawing with its leaves moved by a green_match, its outline and anything not green left as drawn."""
+    a = np.asarray(im.convert("RGBA")).copy()
+    mask, hsv = _greens(im)
+    f1 = m["from"][1]
+    t1 = m["to"][1]
+    hsv[..., 0] = np.where(mask, np.clip(hsv[..., 0] + m["hue"], 0, 179), hsv[..., 0])
+    hsv[..., 1] = np.where(mask, np.clip(hsv[..., 1] * m["sat"], 0, 255), hsv[..., 1])
+    # Only the light end is matched; the deep shade between the leaves stays as dark as drawn.
+    hsv[..., 2] = np.where(mask, np.clip(hsv[..., 2] * t1 / max(1.0, f1), 0, 255), hsv[..., 2])
+    rgb = cv2.cvtColor(hsv.round().astype(np.uint8), cv2.COLOR_HSV2RGB)
+    a[..., :3] = np.where(mask[..., None], rgb, a[..., :3])
+    return Image.fromarray(a)
 
 
 def sheet_frames(sheet):
@@ -146,6 +183,9 @@ def main():
         im = Image.open(RAW / path).convert("RGBA")
         if name in TONE:
             im = tone(im, *TONE[name])
+        if name in MATCH_GREEN:
+            source, target = MATCH_GREEN[name]
+            im = recolour(im, green_match(Image.open(RAW / PROPS[source]).convert("RGBA"), Image.open(RAW / PROPS[target]).convert("RGBA")))
         images, anchor = crop_set([im], (im.width / 2, feet([im])))
         sets.append((("props", name), images, anchor))
     for name, path in SHEETS.items():
