@@ -7,8 +7,8 @@ extends RefCounted
 const CHUNK := 160.0
 const REGION := 480.0
 const SCATTER := ["oak", "fir", "rock", "log", "stones", "stones", "fir", "rock"]
-const SOLID := {"oak": 9.0, "fir": 8.0, "pine": 8.0, "palm": 8.0, "rock": 10.0, "log": 9.0, "ruined_wall": 14.0}
-const TREES := {"oak": true, "fir": true, "pine": true, "palm": true}
+const SOLID := {"oak": 9.0, "fir": 8.0, "pine": 8.0, "palm": 8.0, "olive": 9.0, "rock": 10.0, "log": 9.0, "ruined_wall": 14.0, "stone_wall": 12.0}
+const TREES := {"oak": true, "fir": true, "pine": true, "palm": true, "olive": true}
 
 const CELL := 64.0
 const GN := 28
@@ -56,6 +56,8 @@ var stream_cfg: Dictionary
 var desert: Dictionary
 ## A moorland province's scatter, stone circles, bog pools and heather from balance.json `moors`, with a few forest ridges.
 var moor: Dictionary
+## A hill province's scatter, olive groves, dry-stone terrace walls and dry grass from balance.json `hills`, with a few ridges of olives.
+var hills: Dictionary
 # The middle and reach of the stone circle of each moorland region that has one, kept free of the trees of ridges nearby.
 var _henges := {}
 # The frozen stream of each stream region once worked out, {} for a region without one, and streams laid by hand.
@@ -297,7 +299,7 @@ func chunk(cx: int, cy: int) -> Array:
 		return out
 	var r := RandomNumberGenerator.new()
 	r.seed = hash([seed_value, key])
-	var scatter: Array = field.get("scatter", mountain.get("scatter", desert.get("scatter", moor.get("scatter", SCATTER))))
+	var scatter: Array = field.get("scatter", mountain.get("scatter", desert.get("scatter", moor.get("scatter", hills.get("scatter", SCATTER)))))
 	for i in r.randi_range(0, 2):
 		var p := Vector2((cx + r.randf()) * CHUNK, (cy + r.randf()) * CHUNK)
 		if p.length() > 90.0:
@@ -358,11 +360,13 @@ func _region(rx: int, ry: int) -> Array:
 	var out: Array = []
 	var roll := r.randf()
 	var centre := (Vector2(rx, ry) + Vector2(r.randf_range(0.25, 0.75), r.randf_range(0.25, 0.75))) * REGION
-	var ridges := float(mountain.get("ridge_chance", moor.get("ridge_chance", forest.ridge_chance)))
+	var ridges := float(mountain.get("ridge_chance", moor.get("ridge_chance", hills.get("ridge_chance", forest.ridge_chance))))
 	if not desert.is_empty():
 		out = _desert_feature(r, roll, centre)
 	elif not moor.is_empty():
 		out = _ridge(r, centre) if roll < ridges else _moor_feature(r, roll - ridges, centre)
+	elif not hills.is_empty():
+		out = _ridge(r, centre) if roll < ridges else _hill_feature(r, roll - ridges, centre)
 	elif roll < ridges:
 		out = _ridge(r, centre)
 	elif roll < ridges + float(mountain.get("line_chance", forest.line_chance)):
@@ -492,6 +496,49 @@ func in_bog(p: Vector2) -> bool:
 	return false
 
 
+## A hill region holds an olive grove in rows, one or two dry-stone terrace walls with gaps to march through, a patch of dry grass or open hillside.
+func _hill_feature(r: RandomNumberGenerator, roll: float, centre: Vector2) -> Array:
+	var cfg := hills
+	var out: Array = []
+	var grove := float(cfg.grove_chance)
+	var walls := grove + float(cfg.wall_chance)
+	if roll < grove:
+		var rows := r.randi_range(int(cfg.grove_rows[0]), int(cfg.grove_rows[1]))
+		var cols := r.randi_range(int(cfg.grove_cols[0]), int(cfg.grove_cols[1]))
+		var step := Vector2(float(cfg.grove_step[0]), float(cfg.grove_step[1]))
+		var jitter := float(cfg.grove_jitter)
+		for y in rows:
+			for x in cols:
+				var at := centre + (Vector2(x, y) - Vector2(cols - 1, rows - 1) / 2.0) * step
+				out.append(["olive", at + Vector2(r.randf_range(-jitter, jitter), r.randf_range(-jitter, jitter)), SOLID.olive])
+	elif roll < walls:
+		# Terraces follow the hillside, so the walls run roughly east and west, one above the other.
+		var dir := Vector2.from_angle(r.randf_range(-1.0, 1.0) * float(cfg.wall_tilt))
+		var n := r.randi_range(int(cfg.walls[0]), int(cfg.walls[1]))
+		var step := float(cfg.wall_step)
+		var half_gap := float(cfg.wall_gap) / 2.0
+		for w in n:
+			var length := r.randf_range(float(cfg.wall_length[0]), float(cfg.wall_length[1]))
+			var base := centre + dir.orthogonal() * (w - (n - 1) / 2.0) * float(cfg.wall_apart)
+			# Each gap keeps a stretch of wall on both sides, so it is a way through and never just a shorter wall.
+			var inner := maxf(0.0, length / 2.0 - half_gap - 2.0 * step)
+			var gaps: Array = []
+			for k in r.randi_range(int(cfg.wall_gaps[0]), int(cfg.wall_gaps[1])):
+				gaps.append(r.randf_range(-inner, inner))
+			var t := -length / 2.0
+			while t <= length / 2.0:
+				var open := false
+				for g in gaps:
+					open = open or absf(t - float(g)) < half_gap
+				if not open:
+					out.append(["stone_wall", base + dir * t + dir.orthogonal() * sin(t / 60.0) * float(cfg.wall_bend), SOLID.stone_wall])
+				t += step
+	elif roll < walls + float(cfg.grass_chance):
+		for k in r.randi_range(int(cfg.grasses[0]), int(cfg.grasses[1])):
+			out.append(["dry_grass", centre + Vector2(r.randf_range(-1.0, 1.0), r.randf_range(-0.7, 0.7)) * float(cfg.grass_spread), 0.0])
+	return out
+
+
 ## A ridge: a centre line that bends as it goes, swept with a changing width over a lattice of trees shared by the whole field.
 func _ridge(r: RandomNumberGenerator, centre: Vector2) -> Array:
 	var length := r.randf_range(float(forest.length[0]), float(forest.length[1]))
@@ -542,7 +589,7 @@ func _ridge(r: RandomNumberGenerator, centre: Vector2) -> Array:
 		var h := hash([seed_value, cell])
 		var odd := step / 2.0 if posmod(cell.y, 2) == 1 else 0.0
 		var at := Vector2(cell.x * step + odd + ((h & 255) / 255.0 * 2.0 - 1.0) * jitter, cell.y * row + (((h >> 8) & 255) / 255.0 * 2.0 - 1.0) * jitter)
-		var kind: String = mountain.get("tree", "fir" if ((h >> 16) & 255) / 255.0 < firs else "oak")
+		var kind: String = mountain.get("tree", hills.get("tree", "fir" if ((h >> 16) & 255) / 255.0 < firs else "oak"))
 		out.append([kind, at, SOLID[kind]])
 	return out
 

@@ -246,6 +246,12 @@ var drive_cd := 0.0
 var drive_n := 0
 var tribes_cd := 0.0
 var burn_cd := 0.0
+## The shepherd general's ambush: when the next is called, and the seconds left before the bands it warned of break cover.
+var ambush_cd := 0.0
+var ambush_wait := 0.0
+## His feigned flight while he runs, as {left, from: where the commander stood, dir: the way he runs}, and when the next may start.
+var feint := {}
+var feint_cd := 0.0
 var chests: Array = []
 var elite_ids: Array = []
 ## The elites that came on the boss timer, as opposed to an objective's defenders.
@@ -367,7 +373,7 @@ func _init(balance: Dictionary, game_content: Content, random: RandomNumberGener
 		k_volley_mult.append(float(volley.get("damage_mult", 0.0)))
 		k_rush_stun.append(float(info.get("rush", {}).get("stun", 0.0)))
 		k_lob.append(1 if info.has("lob") else 0)
-		k_flee_mult.append(float(info.get("flee", {}).get("speed_mult", 1.0)))
+		k_flee_mult.append(float(info.get("flee", info.get("attacks", {}).get("feint", {})).get("speed_mult", 1.0)))
 		var falx: Dictionary = info.get("falx", {})
 		var maul: Dictionary = info.get("maul", {})
 		var howl: Dictionary = info.get("howl", {})
@@ -441,6 +447,8 @@ func _init(balance: Dictionary, game_content: Content, random: RandomNumberGener
 	drive_cd = float(attacks.get("drive", {}).get("every", 12.0)) * 0.5
 	tribes_cd = float(attacks.get("tribes", {}).get("every", 30.0)) * 0.5
 	burn_cd = float(attacks.get("burn", {}).get("every", 8.0)) * 0.5
+	ambush_cd = float(attacks.get("ambush", {}).get("every", 28.0)) * 0.5
+	feint_cd = float(attacks.get("feint", {}).get("every", 18.0)) * 0.5
 	king_wall = content.enemies[chief].get("wall", {})
 	var sworn: Dictionary = content.enemies[chief].get("sworn", {})
 	sworn_min = int(sworn.get("min", 0))
@@ -977,6 +985,8 @@ func _chieftain(dt: float, sim: Sim) -> void:
 		sweep = {}
 		leap = {}
 		drive = {}
+		feint = {}
+		e_flee[ci] = 0.0
 		return
 	var rate := float(fury.rate_mult) if chief_fury else 1.0
 	cleave_cd -= dt * rate
@@ -995,7 +1005,20 @@ func _chieftain(dt: float, sim: Sim) -> void:
 		drive_cd -= dt * rate
 	tribes_cd -= dt * rate
 	burn_cd -= dt * rate
+	ambush_cd -= dt * rate
+	if feint.is_empty():
+		feint_cd -= dt * rate
 	chief_hold = maxf(0.0, chief_hold - dt)
+	_feint_on(ci, dt, sim)
+	if ambush_wait > 0.0:
+		ambush_wait -= dt
+		if ambush_wait <= 0.0:
+			spring_ambush(ci, sim)
+	if ambush_cd <= 0.0 and atk.has("ambush") and ambush_wait <= 0.0:
+		ambush_cd = float(atk.ambush.every)
+		warn_ambush(ci, sim)
+	if feint_cd <= 0.0 and atk.has("feint") and feint.is_empty() and chief_hold <= 0.0 and not charging:
+		feint_cd = float(atk.feint.every) if start_feint(ci, sim) else 1.0
 	_sweep_and_leap(ci, dt, sim)
 	_drive_on(ci, dt, sim)
 	if drive_cd <= 0.0 and atk.has("drive") and drive.is_empty() and chief_hold <= 0.0:
@@ -1292,6 +1315,63 @@ func call_tribes(ci: int, sim: Sim) -> void:
 	e_strike[ci] = time
 	sim.event("carnyx", e_pos[ci])
 	sim.effects.append({"kind": "cry", "pos": e_pos[ci], "t": 0.0, "radius": 120.0})
+
+
+## The shepherd general sounds his horn and a notice warns that an ambush is coming; the bands break cover once the warning is over.
+func warn_ambush(ci: int, sim: Sim) -> void:
+	ambush_wait = float(content.enemies[kind_ids[e_kind[ci]]].attacks.ambush.warn)
+	e_strike[ci] = time
+	sim.objectives.notice = {"kind": "ambush", "at": time}
+	sim.event("carnyx", e_pos[ci])
+
+
+## War bands burst out on both flanks of the legion's march at once and run at it, larger in his second phase.
+func spring_ambush(ci: int, sim: Sim) -> void:
+	var cfg: Dictionary = content.enemies[kind_ids[e_kind[ci]]].attacks.ambush
+	var side := Vector2.from_angle(sim.facing_angle).orthogonal()
+	var first := e_pos.size()
+	for s in [-1.0, 1.0]:
+		war_band_at(sim, open_point(commander.pos + side * s * Vector2(1.15, 0.75) * float(b.spawn_radius)), float(cfg.fury_mult) if chief_fury else float(cfg.mult))
+	for i in range(first, e_pos.size()):
+		e_slow[i] = float(b.war_band.get("rush", 1.0))
+
+
+## The shepherd general turns and runs from the legion; false when it is out of his range.
+func start_feint(ci: int, sim: Sim) -> bool:
+	var cfg: Dictionary = content.enemies[kind_ids[e_kind[ci]]].attacks.feint
+	var p := e_pos[ci]
+	if commander.pos.distance_to(p) > float(cfg.range):
+		return false
+	feint = {"left": float(cfg.seconds), "from": commander.pos, "dir": (p - commander.pos).normalized() if p != commander.pos else Vector2.RIGHT}
+	e_flee[ci] = float(cfg.seconds)
+	sim.objectives.notice = {"kind": "feint", "at": time}
+	sim.event("rage", p)
+	return true
+
+
+## At the end of his flight he turns: if the legion followed him, he, his guard and the warriors round him rush back in.
+func _feint_on(ci: int, dt: float, sim: Sim) -> void:
+	if feint.is_empty():
+		return
+	feint.left -= dt
+	if feint.left > 0.0:
+		return
+	var cfg: Dictionary = content.enemies[kind_ids[e_kind[ci]]].attacks.feint
+	var followed: bool = (commander.pos - feint.from).dot(feint.dir) >= float(cfg.follow)
+	feint = {}
+	e_flee[ci] = 0.0
+	if not followed:
+		return
+	var p := e_pos[ci]
+	hasten(ci, float(cfg.rush_seconds), float(cfg.rush_mult))
+	for j in near(p, float(cfg.radius)):
+		if e_tag[j] == ORDINARY:
+			hasten(j, float(cfg.rush_seconds), float(cfg.rush_mult))
+	e_face[ci] = (commander.pos - p).normalized() if commander.pos != p else e_face[ci]
+	e_strike[ci] = time
+	sim.objectives.notice = {"kind": "feint_turn", "at": time}
+	sim.event("bellow", p)
+	sim.effects.append({"kind": "cry", "pos": p, "t": 0.0, "radius": float(cfg.radius)})
 
 
 ## In her second phase the queen burns the land: rings are marked round the legion, one on the commander, and each catches fire and burns a while.
@@ -2300,7 +2380,7 @@ func _move(dt: float, sim: Sim) -> void:
 						for a in n:
 							_throw(p, aim.normalized().rotated((a - (n - 1) / 2.0) * k_sling_spread[kind]), k_dps[kind] * throw_every / n * power, 2)
 					else:
-						_throw(p, aim.normalized(), k_dps[kind] * throw_every * power, 1 if kite > 0.0 else 0)
+						_throw(p, aim.normalized(), k_dps[kind] * throw_every * power, 1 if kite > 0.0 and k_rides[kind] == 1 else 0)
 					e_ammo[i] -= 1
 					e_strike[i] = time
 					e_face[i] = aim.normalized()

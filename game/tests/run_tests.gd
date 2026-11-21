@@ -691,7 +691,7 @@ func test_every_content_entry_has_a_name_and_text(b: Dictionary) -> void:
 			check(str(entries[id].get("name", "")) != "", "%s %s has a name" % [kind, id])
 			check(str(entries[id].get("text", "")) != "", "%s %s has a text" % [kind, id])
 	check(content.recruits.size() == 7 and content.arms.size() == 12 and content.forged.size() == 6 and content.drills.size() == 15, "the full set of recruits, arms, forged forms and drills")
-	check(content.provinces.size() == 5 and content.commanders.size() == 6, "five provinces and six commanders")
+	check(content.provinces.size() == 6 and content.commanders.size() == 6, "six provinces and six commanders")
 	for p in content.provinces:
 		var pr: Dictionary = content.provinces[p]
 		check(pr.ordinary.size() == 4 and pr.elites.size() >= 2 and content.enemies.has(pr.chieftain), "%s has its enemies" % p)
@@ -2195,7 +2195,7 @@ func test_the_engineer_and_legate_unlocks(b: Dictionary) -> void:
 	_won(b, p, "gaul")
 	check(p.commander_unlocked("engineer"), "winning in Gaul unlocks the engineer")
 	check(not p.commander_unlocked("legate"), "two provinces are not enough for the legate")
-	for id in ["britannia", "dacia", "parthia"]:
+	for id in ["britannia", "dacia", "parthia", "hispania"]:
 		_won(b, p, id)
 	check(p.commander_unlocked("legate"), "a win in every province unlocks the legate")
 	p.free()
@@ -3112,7 +3112,7 @@ func test_the_camp_pours_out_defenders_and_gives_back_the_eagle(b: Dictionary) -
 
 func test_the_camp_brings_its_own_provinces_leader(b: Dictionary) -> void:
 	var cfg: Dictionary = b.objectives.camp
-	for province in ["gaul", "dacia", "parthia", "britannia"]:
+	for province in ["gaul", "dacia", "parthia", "britannia", "hispania"]:
 		var s := Sim.new(b, Content.with_all_art(), {"seed": 151, "province": province})
 		s.terrain.clear()
 		s.objectives.list.clear()
@@ -3165,7 +3165,7 @@ func test_the_stranded_column_holds_and_joins_the_legion(b: Dictionary) -> void:
 
 
 func test_the_grove_is_ringed_with_its_provinces_own_props(b: Dictionary) -> void:
-	for province in ["germania", "dacia", "parthia", "britannia"]:
+	for province in ["germania", "dacia", "parthia", "britannia", "hispania"]:
 		var s := Sim.new(b, Content.with_all_art(), {"seed": 152, "province": province})
 		s.objectives.list.clear()
 		var at := Vector2(900, 0)
@@ -3174,7 +3174,7 @@ func test_the_grove_is_ringed_with_its_provinces_own_props(b: Dictionary) -> voi
 		for pr in s.terrain.extras:
 			if pr[1].distance_to(at) < float(b.objectives.clearing):
 				kinds[pr[0]] = true
-		var want: String = {"germania": "oak", "dacia": "pine", "parthia": "palm", "britannia": "stone_circle"}[province]
+		var want: String = {"germania": "oak", "dacia": "pine", "parthia": "palm", "britannia": "stone_circle", "hispania": "olive"}[province]
 		check(kinds.has(want) and (want == "oak" or not kinds.has("oak")), "the grove in %s is ringed with %s (%s)" % [province, want, kinds.keys()])
 
 
@@ -3629,8 +3629,8 @@ func test_the_dacian_king_never_wipes_out_a_packed_legion_at_once(b: Dictionary)
 
 
 func test_a_charging_boss_is_stopped_by_a_wall(b: Dictionary) -> void:
-	for kind in ["gaul_king", "falx_band"]:
-		var s := _gaul_sim(b, 1660, "gaul" if kind == "gaul_king" else "dacia")
+	for kind in ["gaul_king", "falx_band", "lusitanian_raider"]:
+		var s := _gaul_sim(b, 1660, {"gaul_king": "gaul", "falx_band": "dacia", "lusitanian_raider": "hispania"}[kind])
 		s.horde.cleave_cd = 1e9
 		s.horde.summon_cd = 1e9
 		s.horde.siege_cd = 1e9
@@ -3668,8 +3668,8 @@ func test_a_charging_boss_is_stopped_by_a_wall(b: Dictionary) -> void:
 
 
 func test_the_testudo_stops_a_boss_charge(b: Dictionary) -> void:
-	for kind in ["gaul_king", "falx_band"]:
-		var s := _gaul_sim(b, 1661, "gaul" if kind == "gaul_king" else "dacia")
+	for kind in ["gaul_king", "falx_band", "lusitanian_raider"]:
+		var s := _gaul_sim(b, 1661, {"gaul_king": "gaul", "falx_band": "dacia", "lusitanian_raider": "hispania"}[kind])
 		s.horde.cleave_cd = 1e9
 		s.horde.summon_cd = 1e9
 		s.horde.siege_cd = 1e9
@@ -6878,7 +6878,7 @@ func _britannia_sim(b: Dictionary, seed_value: int) -> Sim:
 
 func test_winning_parthia_opens_britannia(b: Dictionary) -> void:
 	check(content.ready("provinces", "britannia"), "Britannia is drawn")
-	check(content.provinces.keys().back() == "britannia", "Britannia is the last province on the road")
+	check(content.provinces.keys().find("britannia") == content.provinces.keys().find("parthia") + 1, "Britannia comes after Parthia on the road")
 	check(content.province_before("britannia") == "parthia" and content.province_before("gaul") == "germania", "it follows Parthia, and Gaul follows Germania")
 	var p := _fresh_profile()
 	var before: Dictionary = p.data.duplicate(true)
@@ -6903,7 +6903,7 @@ func test_winning_parthia_opens_britannia(b: Dictionary) -> void:
 	p.free()
 
 
-func test_the_map_shows_all_five_provinces_in_order(b: Dictionary) -> void:
+func test_the_map_shows_all_six_provinces_in_order(b: Dictionary) -> void:
 	var host_script := GDScript.new()
 	host_script.source_code = "extends Node\nvar content\nvar balance\nvar run_setup := {}\n"
 	host_script.reload()
@@ -6913,16 +6913,23 @@ func test_the_map_shows_all_five_provinces_in_order(b: Dictionary) -> void:
 	host.balance = b
 	host.run_setup = {"province": "germania", "difficulty": "medium", "endless": false, "decimatio": false}
 	var map := MapScreen.new(host)
-	check(map.road() == ["germania", "gaul", "dacia", "parthia", "britannia"], "the road runs Germania, Gaul, Dacia, Parthia, Britannia (%s)" % str(map.road()))
+	check(map.road() == ["germania", "gaul", "dacia", "parthia", "britannia", "hispania"], "the road runs Germania, Gaul, Dacia, Parthia, Britannia, Hispania (%s)" % str(map.road()))
 	var saved: Dictionary = Profile.data
 	Profile.data = Profile.defaults()
 	check(map.state_of("germania") == "open" and map.state_of("gaul") == "locked" and map.state_of("britannia") == "locked", "a new profile has only Germania open and no province in fog")
 	check(map.locked_text("britannia") == "Win in Parthia to open", "Britannia waits for a win in Parthia")
+	check(map.locked_text("hispania") == "Win in Britannia to open", "Hispania waits for a win in Britannia")
 	for id in ["germania", "gaul", "dacia", "parthia"]:
 		Profile.data.records[id] = {"best_time": 900.0, "longest": 900.0, "won": true, "hard_won": false}
 	Profile.open_won_provinces(content)
 	check(map.state_of("parthia") == "won" and map.state_of("britannia") == "open", "with Parthia won Britannia is open")
 	check(MapScreen.route("parthia", "britannia", 0.0)[0] == MapScreen.spot("parthia"), "and the road runs on from Parthia to it")
+	check(map.state_of("hispania") == "locked", "Hispania stays locked until Britannia is won")
+	Profile.data.records["britannia"] = {"best_time": 900.0, "longest": 900.0, "won": true, "hard_won": false}
+	Profile.open_won_provinces(content)
+	check(map.state_of("hispania") == "open", "with Britannia won Hispania is open")
+	var to_hispania := MapScreen.route("britannia", "hispania", 0.0)
+	check(to_hispania[0] == MapScreen.spot("britannia") and to_hispania[to_hispania.size() - 1] == MapScreen.spot("hispania"), "and the road runs on from Britannia to it")
 	Profile.data = saved
 	host.free()
 
@@ -7492,6 +7499,7 @@ func test_the_map_puts_each_province_where_it_lies(_b: Dictionary) -> void:
 	check(MapScreen.spot("dacia") == MapScreen.project(Vector2(24.5, 46.0)).round(), "a province sits at its longitude and latitude")
 	check(Rect2(0, 0, Ui.W, Ui.H - 24).has_point(MapScreen.spot("parthia")), "Parthia lies on the map above the key hints")
 	check(MapScreen.spot("britannia").x < MapScreen.spot("gaul").x and MapScreen.spot("britannia").y < MapScreen.spot("gaul").y, "Britannia lies north-west of Gaul")
+	check(MapScreen.spot("hispania").x < MapScreen.spot("gaul").x and MapScreen.spot("hispania").y > MapScreen.spot("gaul").y, "Hispania lies south-west of Gaul")
 	var road := MapScreen.route("roma", "germania", 0.0)
 	var alps := MapScreen.project(Vector2(11.5, 47.0))
 	var near := INF
@@ -8252,3 +8260,178 @@ func test_a_roundhouse_towers_over_a_soldier_and_stands_in_a_cluster(b: Dictiona
 			if houses[i][1].distance_to(houses[j][1]) < gap:
 				stacked += 1
 	check(stacked == 0, "no roundhouse is drawn into another (%d pairs)" % stacked)
+
+
+func _hispania_sim(b: Dictionary, seed_value: int) -> Sim:
+	var s := _gaul_sim(b, seed_value, "hispania")
+	for t in ["ambush_cd", "feint_cd"]:
+		s.horde.set(t, 1e9)
+	s.commander.pos = Vector2.ZERO
+	s.legion.place_all(s.facing_angle)
+	s._rebuild_grids()
+	return s
+
+
+func test_winning_britannia_opens_hispania(b: Dictionary) -> void:
+	check(content.ready("provinces", "hispania"), "Hispania is drawn")
+	check(content.provinces.keys().back() == "hispania", "Hispania is the last province on the road")
+	check(content.province_before("hispania") == "britannia", "it follows Britannia")
+	var p := _fresh_profile()
+	var before: Dictionary = p.data.duplicate(true)
+	var s := Sim.new(b, content, {"seed": 1980, "province": "britannia"})
+	s.time = 900.0
+	s.over = true
+	s.victory = true
+	p.record_run(s)
+	check(p.province_unlocked("hispania"), "winning in Britannia opens Hispania")
+	var said := false
+	for u in SummaryScreen.unlocks(before, p.data, content, "britannia"):
+		said = said or (u.kind == "province" and u.id == "hispania" and str(u.text) == "Hispania is open")
+	check(said, "and the summary says Hispania is open")
+	check(content.achievements.has("win_hispania") and content.achievements.win_hispania.target == "hispania", "a win in Hispania has its own achievement")
+	_cleanup_profile_files()
+	p.free()
+
+
+func test_hispania_is_hill_country_with_olive_groves_walls_and_dry_grass(b: Dictionary) -> void:
+	var area := Rect2(-4000, -4000, 8000, 8000)
+	var t := Terrain.new(1981, b.forest, b.ravines)
+	t.hills = b.hills.hispania
+	var g := Terrain.new(1981, b.forest, b.ravines)
+	var kinds := {}
+	var trees := 0
+	var forest_trees := 0
+	for pr in t.props_in(area):
+		kinds[pr[0]] = kinds.get(pr[0], 0) + 1
+		trees += 1 if Terrain.TREES.has(pr[0]) else 0
+	for pr in g.props_in(area):
+		forest_trees += 1 if Terrain.TREES.has(pr[0]) else 0
+	check(kinds.has("olive") and kinds.has("stone_wall") and kinds.has("dry_grass") and kinds.has("rock"), "the hills hold olives, dry-stone walls, dry grass and rocks (%s)" % str(kinds.keys()))
+	check(not kinds.has("oak") and not kinds.has("fir"), "every tree is an olive")
+	check(trees > 0 and trees * 2 < forest_trees, "with far fewer trees than Germania (%d against %d)" % [trees, forest_trees])
+	check(Terrain.TREES.has("olive") and Terrain.SOLID.has("olive") and Terrain.SOLID.has("stone_wall"), "olives and walls are solid, and olives can be felled")
+	check(not Terrain.SOLID.has("dry_grass"), "dry grass blocks nothing")
+
+
+func test_every_terrace_wall_has_a_gap_the_legion_can_pass(b: Dictionary) -> void:
+	var cfg: Dictionary = b.hills.hispania.duplicate()
+	cfg.walls = [1, 1]
+	var t := Terrain.new(1982, b.forest, b.ravines)
+	t.hills = cfg
+	var widest := INF
+	var tilt := 0.0
+	var walls := true
+	for k in 40:
+		var r := RandomNumberGenerator.new()
+		r.seed = 500 + k
+		var wall: Array = t._hill_feature(r, float(cfg.grove_chance) + 0.01, Vector2.ZERO)
+		walls = walls and wall.size() > 3 and wall.all(func(pr: Array) -> bool: return pr[0] == "stone_wall")
+		var a: Vector2 = wall[0][1]
+		var z: Vector2 = wall[wall.size() - 1][1]
+		var dir: Vector2 = (z - a).normalized()
+		tilt = maxf(tilt, absf(dir.angle()))
+		var biggest := 0.0
+		for n in range(1, wall.size()):
+			biggest = maxf(biggest, (wall[n][1] - wall[n - 1][1]).dot(dir))
+		widest = minf(widest, biggest - 2.0 * float(Terrain.SOLID.stone_wall))
+	check(walls, "a wall region holds a dry-stone wall")
+	check(widest > 4.0 * Sim.UNIT_RADIUS, "every wall has a gap several men wide (narrowest %.0f px)" % widest)
+	check(tilt <= float(cfg.wall_tilt) + 0.15, "and the walls run along the hillside, roughly east and west")
+
+
+func test_a_terrace_wall_holds_men_back_but_dry_grass_does_not(b: Dictionary) -> void:
+	var s := _hispania_sim(b, 1983)
+	s.terrain.add_clearing(Vector2(0, 300), 1.0, [["stone_wall", Vector2(0, 300), Terrain.SOLID.stone_wall], ["dry_grass", Vector2(200, 300), 0.0]])
+	s.terrain.refresh(s.commander.pos)
+	check(s.terrain.push_out(Vector2(0, 302), Sim.UNIT_RADIUS).distance_to(Vector2(0, 300)) >= Terrain.SOLID.stone_wall, "a man is pushed out of the wall")
+	check(s.terrain.push_out(Vector2(200, 302), Sim.UNIT_RADIUS) == Vector2(200, 302), "but walks through dry grass")
+
+
+func test_hispanias_warriors_slash_sling_throw_and_hunt(b: Dictionary) -> void:
+	var e: Dictionary = content.enemies
+	check(e.celtiberian_warrior.behaviour == "melee" and e.celtiberian_warrior.slash.damage_mult > e.gaul_swordsman.slash.damage_mult, "the falcata's slash hits harder than a Gaulish sword")
+	check(e.balearic_slinger.has("sling") and e.balearic_slinger.sling.stun > 0.0, "the Balearic slinger's stones daze")
+	check(e.war_hound.behaviour == "beast" and is_equal_approx(float(e.war_hound.share), 0.5) and float(e.war_hound.arrives) >= 90.0, "the war hound is a beast that comes later and only half as often")
+	var s := _hispania_sim(b, 1984)
+	var h := s.horde
+	var cfg: Dictionary = e.caetratus
+	var c := h.spawn("caetratus", Vector2(s.legion_reach + float(cfg.kite.near) * 0.5, 0))
+	h.e_cd[c] = 0.0
+	var gap0 := h.e_pos[c].length()
+	h._move(1.0 / 60.0, s)
+	check(h.e_pos[c].length() > gap0, "the caetratus backs away from soldiers who close in")
+	check(h.sp_pos.size() >= 1 and h.sp_kind[0] == 0, "throwing a javelin, not an arrow")
+
+
+func test_the_celtiberian_chief_rouses_the_warriors_round_him(b: Dictionary) -> void:
+	var s := _hispania_sim(b, 1985)
+	var h := s.horde
+	var info: Dictionary = content.enemies.celtiberian_chief
+	var i := h.spawn("celtiberian_chief", Vector2(200, 0), true)
+	var st: Dictionary = h.boss_state(i)
+	var w := h.spawn("celtiberian_warrior", h.e_pos[i] + Vector2(40, 0))
+	h.e_hp[w] = h.e_max[w] * 0.4
+	h.rebuild_grid()
+	st.rouse_cd = 0.0
+	h._bosses(1.0 / 60.0, s)
+	check(h.e_hp[w] > h.e_max[w] * 0.4 and h.e_slow[w] > 1.0, "his shout gives the warriors round him their second wind and sends them running in")
+	check(info.keys().filter(func(k: String) -> bool: return h.ABILITY_TIMERS.has(k)).size() == 1, "it is his one ability")
+
+
+func test_the_shepherd_general_springs_an_ambush_on_both_flanks(b: Dictionary) -> void:
+	var s := _hispania_sim(b, 1986)
+	var h := s.horde
+	var cfg: Dictionary = content.enemies.viriathus.attacks.ambush
+	h.spawn_chieftain(Vector2(300, 0))
+	var n0 := h.e_pos.size()
+	h.ambush_cd = 0.0
+	h._chieftain(1.0 / 60.0, s)
+	check(s.objectives.notice.get("kind", "") == "ambush", "a notice warns of the ambush")
+	check(h.e_pos.size() == n0, "and nobody comes yet")
+	var t := 0.0
+	while t < float(cfg.warn) - 0.1:
+		h._chieftain(1.0 / 60.0, s)
+		t += 1.0 / 60.0
+	check(h.e_pos.size() == n0, "nobody comes while the warning lasts")
+	for k in 12:
+		h._chieftain(1.0 / 60.0, s)
+	var side := Vector2.from_angle(s.facing_angle).orthogonal()
+	var left := 0
+	var right := 0
+	var rushing := true
+	for j in range(n0, h.e_pos.size()):
+		var across: float = (h.e_pos[j] - s.commander.pos).dot(side)
+		left += 1 if across < -100.0 else 0
+		right += 1 if across > 100.0 else 0
+		rushing = rushing and h.e_slow[j] > 1.0
+	check(left > 0 and right > 0, "then war bands burst out on both flanks of the legion at once (%d and %d)" % [left, right])
+	check(rushing, "running at it")
+
+
+func test_the_shepherd_general_feigns_flight_and_turns_on_a_legion_that_follows(b: Dictionary) -> void:
+	var cfg: Dictionary = content.enemies.viriathus.attacks.feint
+	for follow in [true, false]:
+		var s := _hispania_sim(b, 1987)
+		var h := s.horde
+		h.cleave_cd = 1e9
+		var ci := h.spawn_chieftain(Vector2(200, 0))
+		var id: int = h.e_id[ci]
+		var w := h.spawn("celtiberian_warrior", Vector2(200, 120))
+		var wid: int = h.e_id[w]
+		h.feint_cd = 0.0
+		h._chieftain(1.0 / 60.0, s)
+		check(s.objectives.notice.get("kind", "") == "feint", "a notice says he turns and runs")
+		var t := 0.0
+		var far := 0.0
+		while t < float(cfg.seconds) + 0.2:
+			s.update(1.0 / 60.0, Vector2.RIGHT if follow else Vector2.ZERO, false)
+			far = maxf(far, h.e_pos[h.e_id.find(id)].x)
+			t += 1.0 / 60.0
+		check(far > 230.0, "he runs a short way from the legion (to %.0f px)" % far)
+		var c := h.e_id.find(id)
+		var k := h.e_id.find(wid)
+		if follow:
+			check(s.objectives.notice.get("kind", "") == "feint_turn", "when the legion follows, a notice says it was a feint")
+			check(h.e_haste[c] > 0.0 and k >= 0 and h.e_haste[k] > 0.0, "and he and the warriors round him rush back in")
+		else:
+			check(s.objectives.notice.get("kind", "") == "feint" and h.e_haste[c] <= 0.0 and (k < 0 or h.e_haste[k] <= 0.0), "a legion that holds its ground is not caught")

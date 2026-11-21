@@ -160,8 +160,8 @@ func _draw() -> void:
 					f = atlas.prop_frame(pr[0])
 					_prop_frames[pr[0]] = f
 				var at: Vector2 = pr[1]
-				if pr[0] == "dune" or pr[0] == "bog" or pr[0] == "heather":
-					# Dunes, bog pools and heather are walked over, so they are drawn on the ground under everything that stands on them.
+				if pr[0] == "dune" or pr[0] == "bog" or pr[0] == "heather" or pr[0] == "dry_grass":
+					# Dunes, bog pools, heather and dry grass are walked over, so they are drawn on the ground under everything that stands on them.
 					_add(at.y - 60000.0, f[0], at - f[1], white)
 					continue
 				if not chops.is_empty() and chops.has(at) and sim.time - float(chops[at][1]) < shaking:

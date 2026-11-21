@@ -190,6 +190,7 @@ func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
 	terrain.stream_cfg = b.get("streams", {}).get(province, {})
 	terrain.desert = b.get("deserts", {}).get(province, {})
 	terrain.moor = b.get("moors", {}).get(province, {})
+	terrain.hills = b.get("hills", {}).get(province, {})
 	terrain.clear_radius = float(b.terrain_clear_radius)
 	terrain.fell_seconds = float(b.felling.seconds)
 	objectives.place_start(self, options.get("objectives_near", false))

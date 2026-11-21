@@ -42,6 +42,7 @@ ART = {
     "win_gaul": ("province", "gaul", "gaul_king"),
     "win_dacia": ("province", "dacia", "dacian_king"),
     "win_parthia": ("province", "parthia", "shah"),
+    "win_hispania": ("province", "hispania", "viriathus"),
     "win_as_archer_captain": ("duo", ["commander", "archer"], "laurel"),
     "win_as_engineer": ("duo_icon", "commander", "scorpio", "laurel"),
     "commander_cavalry_prefect": ("duo_icon", "commander", "cavalry", "red"),

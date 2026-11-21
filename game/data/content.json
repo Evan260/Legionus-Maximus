@@ -979,6 +979,177 @@
    },
    "guard": "painted_warrior"
   },
+  "celtiberian_warrior": {
+   "name": "Celtiberian warrior",
+   "text": "His curved falcata bites deep: every few seconds he lands a heavy slash on the soldier in front of him.",
+   "history": "Rome took its short sword, the gladius hispaniensis, from the warriors of Hispania.",
+   "behaviour": "melee",
+   "hp": 20,
+   "speed": 44,
+   "dps": 2.0,
+   "radius": 6,
+   "coins": 1,
+   "art": [
+    "unit:celtiberian_warrior"
+   ],
+   "slash": {
+    "every": 4.0,
+    "damage_mult": 1.6,
+    "arc": 1.0,
+    "reach": 12
+   }
+  },
+  "balearic_slinger": {
+   "name": "Balearic slinger",
+   "text": "The finest slingers of the age. He looses a volley of stones, and a soldier struck by one reels and cannot fight for a moment.",
+   "history": "Balearic boys were said to get no bread until they knocked it down with a sling stone.",
+   "behaviour": "ranged",
+   "hp": 16,
+   "speed": 38,
+   "dps": 1.2,
+   "radius": 6,
+   "coins": 2,
+   "art": [
+    "unit:balearic_slinger"
+   ],
+   "range": 150,
+   "sling": {
+    "stones": 3,
+    "spread": 0.2,
+    "stun": 0.8
+   },
+   "arrives": 120
+  },
+  "caetratus": {
+   "name": "Caetratus",
+   "text": "A light raider with a small round shield. He throws javelins from a distance and backs away from soldiers who close in.",
+   "history": "The caetra was the small round shield of the Iberian light troops, who fought in quick raids.",
+   "behaviour": "ranged",
+   "hp": 14,
+   "speed": 46,
+   "dps": 1.1,
+   "radius": 6,
+   "coins": 2,
+   "art": [
+    "unit:caetratus"
+   ],
+   "range": 130,
+   "kite": {
+    "near": 60,
+    "speed_mult": 1.15
+   },
+   "arrives": 60
+  },
+  "war_hound": {
+   "name": "War hound",
+   "text": "A big Iberian hound that runs down the legion's flanks and bites hard.",
+   "history": "Hounds from Hispania were prized across the ancient world, for the hunt and for war.",
+   "behaviour": "beast",
+   "share": 0.5,
+   "hp": 14,
+   "speed": 70,
+   "dps": 2.4,
+   "radius": 6,
+   "coins": 1,
+   "art": [
+    "unit:war_hound"
+   ],
+   "arrives": 120
+  },
+  "celtiberian_chief": {
+   "name": "Celtiberian chief",
+   "text": "He raises his falcata and shouts, and the warriors round him get their second wind and run at the legion.",
+   "history": "The Celtiberians of Numantia held out against Rome for twenty years, until the town fell in 133 BC.",
+   "behaviour": "melee",
+   "hp": 5600,
+   "speed": 42,
+   "dps": 24,
+   "radius": 15,
+   "coins": 0,
+   "art": [
+    "unit:celtiberian_chief"
+   ],
+   "elite": true,
+   "rouse": {
+    "every": 9.0,
+    "radius": 170,
+    "share": 0.1,
+    "rush": 1.8
+   }
+  },
+  "lusitanian_raider": {
+   "name": "Lusitanian raider",
+   "text": "He marks a lane and leads a short ambush charge down it, and the warriors round him charge with him, cutting down the soldiers in their path.",
+   "history": "Lusitanian raiders struck fast and were gone into the hills before a legion could form up.",
+   "behaviour": "melee",
+   "hp": 5600,
+   "speed": 48,
+   "dps": 24,
+   "radius": 15,
+   "coins": 0,
+   "art": [
+    "unit:lusitanian_raider"
+   ],
+   "elite": true,
+   "onrush": {
+    "every": 12.0,
+    "range": 200,
+    "warn": 1.2,
+    "width": 44,
+    "length": 220,
+    "seconds": 0.5,
+    "damage_mult": 0.7,
+    "throw": 20,
+    "band_radius": 130,
+    "band_rush": 2.2
+   }
+  },
+  "viriathus": {
+   "name": "Shepherd general",
+   "text": "Viriathus, the shepherd who beat legions in the hills. He springs ambushes that send war bands at both flanks of the legion at once, and he turns and runs, so that his guard and the warriors round him can rush back at any who follow. When hurt he fights faster.",
+   "history": "Viriathus led the Lusitanians against Rome for eight years, until he was murdered in his sleep in 139 BC.",
+   "behaviour": "melee",
+   "hp": 29000,
+   "speed": 30,
+   "dps": 32,
+   "radius": 26,
+   "coins": 0,
+   "art": [
+    "unit:viriathus"
+   ],
+   "chieftain": true,
+   "attacks": {
+    "cleave": {
+     "every": 4.0,
+     "reach": 34,
+     "arc": 2.0,
+     "damage_mult": 2.0,
+     "retry": 0.25
+    },
+    "ambush": {
+     "every": 18.0,
+     "warn": 2.5,
+     "mult": 1.2,
+     "fury_mult": 1.6
+    },
+    "feint": {
+     "every": 24.0,
+     "range": 360,
+     "seconds": 2.2,
+     "speed_mult": 1.7,
+     "follow": 40,
+     "radius": 200,
+     "rush_seconds": 3.0,
+     "rush_mult": 1.6
+    }
+   },
+   "fury": {
+    "below": 0.5,
+    "rate_mult": 1.3,
+    "release": true
+   },
+   "guard": "celtiberian_warrior"
+  },
   "gaul_swordsman": {
    "name": "Swordsman",
    "text": "A Gaulish warrior whose long sword cuts down two men at once.",
@@ -1711,6 +1882,33 @@
     "prop:stone_circle",
     "ground:britannia"
    ]
+  },
+  "hispania": {
+   "name": "Hispania",
+   "text": "Sunbaked hills, olive groves and dry-stone walls.",
+   "ground": "dry hills",
+   "props": [
+    "olive",
+    "stone_wall",
+    "dry_grass"
+   ],
+   "ordinary": [
+    "celtiberian_warrior",
+    "balearic_slinger",
+    "caetratus",
+    "war_hound"
+   ],
+   "elites": [
+    "celtiberian_chief",
+    "lusitanian_raider"
+   ],
+   "chieftain": "viriathus",
+   "art": [
+    "prop:olive",
+    "prop:stone_wall",
+    "prop:dry_grass",
+    "ground:hispania"
+   ]
   }
  },
  "commanders": {
@@ -2120,6 +2318,12 @@
    "text": "Win a run in Parthia.",
    "kind": "province",
    "target": "parthia"
+  },
+  "win_hispania": {
+   "name": "Victory in Hispania",
+   "text": "Win a run in Hispania.",
+   "kind": "province",
+   "target": "hispania"
   },
   "win_as_archer_captain": {
    "name": "Victory as the Archer captain",

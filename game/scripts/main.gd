@@ -31,9 +31,10 @@ extends Node
 ##                      fall (with --go-to=ravine) stands him at the lip for the legion to shove in,
 ##                      duel|rally|blast|flee for the Gaulish elites and siege|summon for the Gaulish king, onrush|blizzard for the Dacian elites and
 ##                      sweep|rockfall|leap for the Dacian king, wedge|trample for the Parthian elites and storm|elephants for the shah,
-##                      scythe|skyfire|rouse for the British elites and drive|tribes|burn for the warrior queen, makes him use that ability at once
+##                      scythe|skyfire|rouse for the British elites and drive|tribes|burn for the warrior queen, rouse|onrush for the Hispanic elites
+##                      and ambush|feint for the shepherd general, makes him use that ability at once
 ##                      and holds his others back; an ordinary enemy comes as a small group, and slash|rear|volley|rush (Gaul),
-##                      chop|salvo|howl|maul (Dacia), kite|lance|thrust|sling (Parthia) or cry|stones|tend|pass (Britannia) has them use theirs
+##                      chop|salvo|howl|maul (Dacia), kite|lance|thrust|sling (Parthia), cry|stones|tend|pass (Britannia) or slash|sling|kite (Hispania) has them use theirs
 ##   --province=ID      start the run in that province, for looking at it
 ##   --god=ID           with --autoplay, call that god at --god-at seconds (default 2) of the look; --god=choose fills the favour and holds the choice open
 ##   --seed=N           lay out the field and run from a fixed seed, so a look comes out the same every time
@@ -188,6 +189,9 @@ func _bring_boss(kind: String, act: String) -> void:
 			# She burns the land only in her second phase, so she is brought in just below half health.
 			if act == "burn":
 				h.e_hp[ci] = h.e_max[ci] * 0.5 - 1.0
+		elif act == "ambush" or act == "feint":
+			h.ambush_cd = 0.0 if act == "ambush" else 1e9
+			h.feint_cd = 0.0 if act == "feint" else 1e9
 		return
 	if not content.enemies[kind].get("elite", false):
 		_bring_group(kind, act)
@@ -287,14 +291,15 @@ func _go_to(kind: String) -> void:
 		sim.legion.place_all(sim.facing_angle)
 		look_march = Vector2.ZERO
 		return
-	if kind == "circle" or kind == "bog":
+	if kind == "circle" or kind == "bog" or kind == "terrace" or kind == "olives":
+		var want: String = {"circle": "stone_circle", "bog": "bog", "terrace": "stone_wall", "olives": "olive"}[kind]
 		var best := Vector2.INF
 		for pr in sim.terrain.props_in(Rect2(-3000, -3000, 6000, 6000)):
-			if pr[0] == ("stone_circle" if kind == "circle" else "bog") and pr[1].length() < best.length():
+			if pr[0] == want and pr[1].length() < best.length():
 				best = pr[1]
 		if best == Vector2.INF:
 			return
-		sim.commander.pos = best + Vector2(0, 150 if kind == "circle" else 70)
+		sim.commander.pos = best + Vector2(0, {"circle": 150, "bog": 70, "terrace": 80, "olives": 90}[kind])
 		sim.legion.place_all(sim.facing_angle)
 		look_march = Vector2.ZERO
 		return
