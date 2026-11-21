@@ -9844,3 +9844,18 @@ func test_the_roxolani_kings_stun_or_death_calls_off_what_he_marked(b: Dictionar
 			s._remove_dead()
 			h._fire_on(1.0 / 60.0, s)
 		check(h.steppe_fire.is_empty() and h.wave.is_empty(), "a %s calls off the fire and the lancers he marked" % fate)
+
+
+func test_the_game_view_widens_or_deepens_to_fill_the_window_as_godots_expand_does(_b: Dictionary) -> void:
+	for c in [[Vector2i(1280, 720), Vector2i(640, 360)], [Vector2i(2400, 1350), Vector2i(640, 360)], [Vector2i(1920, 1200), Vector2i(640, 400)],
+			[Vector2i(2560, 1080), Vector2i(853, 360)], [Vector2i(1500, 844), Vector2i(640, 360)], [Vector2i(800, 600), Vector2i(640, 480)]]:
+		check(Display.base_size(c[0]) == c[1], "a %s window shows a %s view, not %s" % [c[0], c[1], Display.base_size(c[0])])
+
+
+func test_a_fractional_window_scale_is_drawn_from_the_next_whole_scale(_b: Dictionary) -> void:
+	check(Display.prescale(Vector2(3.75, 3.75)) == Vector2(4, 4), "3.75 times is smoothed down from 4 times")
+	check(Display.prescale(Vector2(2.34, 2.3444)) == Vector2(3, 3), "2.34 times is smoothed down from 3 times")
+	check(Display.prescale(Vector2(3.0016, 3.0)) == Vector2(3, 3), "a scale a hair off 3 counts as 3")
+	check(Display.prescale(Vector2(0.5, 0.5)) == Vector2(1, 1), "a window smaller than the view still draws from whole pixels")
+	check(Display.is_whole(Vector2(3, 3)) and Display.is_whole(Vector2(4.0, 4.0)), "3 and 4 times are whole")
+	check(not Display.is_whole(Vector2(3.75, 3.75)) and not Display.is_whole(Vector2(4, 3.5)), "3.75 times is not whole")

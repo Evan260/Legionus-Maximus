@@ -143,7 +143,7 @@ func drain(sim: Sim) -> void:
 		sim.events.clear()
 		return
 	var centre: float = sim.commander.pos.x
-	var half_width := get_viewport().get_visible_rect().size.x / 2.0
+	var half_width := Horde.view.x / 2.0
 	for e in sim.events:
 		var n: int = e.get("n", 1)
 		var pan := clampf((e.pos.x - centre) / half_width, -1.0, 1.0)
