@@ -37,7 +37,9 @@ UNITS = {"commander": "walking", "legionary": "walking", "archer": "walking",
          "celtiberian_warrior": "running", "balearic_slinger": "running", "caetratus": "running", "war_hound": "running",
          "celtiberian_chief": "running", "lusitanian_raider": "running", "viriathus": "running",
          "egyptian_spearman": "running", "nubian_archer": "running", "khopesh_raider": "running", "crocodile": "running",
-         "sobek_priest": "running", "camel_captain": "running", "achillas": "running"}
+         "sobek_priest": "running", "camel_captain": "running", "achillas": "running",
+         "sarmatian_lancer": "running", "steppe_archer": "running", "lasso_rider": "running", "steppe_wolf": "running",
+         "draco_rider": "running", "war_wagon": "running", "rasparaganus": "running"}
 PROPS = {"oak": "props2/oak.png", "fir": "props2/fir.png", "rock": "props2/rock.png", "log": "props2/log.png",
          "stones": "props/stones.png", "coin": "props/coin.png", "pilum": "props2/pilum.png",
          "stake": "props3/stake.png", "caltrops": "props3/caltrops.png", "fire_pot": "props3/fire_pot.png",
@@ -53,7 +55,8 @@ PROPS = {"oak": "props2/oak.png", "fir": "props2/fir.png", "rock": "props2/rock.
          "heather": "props5/heather.png", "bog": "props5/bog.png", "stone_circle": "props5/stone_circle.png",
          "olive": "props7/olive.png", "stone_wall": "props7/stone_wall.png", "dry_grass": "props7/dry_grass.png",
          "date_palm": "props8/date_palm.png", "papyrus": "props8/papyrus.png", "fallen_column": "props8/fallen_column.png",
-         "obelisk": "props8/obelisk.png", "crops": "props8/crops.png"}
+         "obelisk": "props8/obelisk.png", "crops": "props8/crops.png",
+         "feather_grass": "props9/feather_grass.png", "kurgan": "props9/kurgan_b.png", "wagon": "props9/wagon.png", "birch": "props9/birch.png"}
 # Props drawn as several frames side by side on one sheet, played in turn.
 SHEETS = {"flame": "props3/flame_sheet_b.png"}
 # Props toned down after drawing, as (how much the light parts darken, how much colour is taken out), so the
@@ -73,11 +76,13 @@ FOLDERS = {"berserker": "berserker_big", "war_band_leader": "war_band_leader_big
            "cataphract_charge": "cataphract_charge_big", "war_elephant": "war_elephant_136", "shah": "shah_big",
            "druid": "druid_big", "chariot_charge": "chariot_charge_96", "chariot": "chariot_72", "warrior_queen": "warrior_queen_big",
            "celtiberian_chief": "celtiberian_chief_big", "lusitanian_raider": "lusitanian_raider_big", "viriathus": "viriathus_big",
-           "crocodile": "crocodile_64", "sobek_priest": "sobek_priest_big", "camel_captain": "camel_captain_big", "achillas": "achillas_big"}
+           "crocodile": "crocodile_64", "sobek_priest": "sobek_priest_big", "camel_captain": "camel_captain_big", "achillas": "achillas_big",
+           "draco_rider": "draco_rider_big", "war_wagon": "war_wagon_big", "rasparaganus": "rasparaganus_big"}
 # Animations drawn from their mirror image, as unit: {folder: the folder it mirrors}, where PixelLab drew a unit so far off centre that the canvas edge cuts it.
 MIRROR = {"mountain_bear": {"t_running_east": "t_running_west", "t_running_south-east": "t_running_south-west",
                             "attack_east": "attack_west", "attack_south-east": "attack_south-west"},
           "war_hound": {"t_running_east": "t_running_west", "attack_east": "attack_west"},
+          "steppe_wolf": {"t_running_east": "t_running_west", "attack_east": "attack_west"},
           "caetratus": {"attack_east": "attack_west", "attack_north-east": "attack_north-west"},
           "balearic_slinger": {"attack_south-east": "attack_south-west"},
           "nubian_archer": {"attack_east": "attack_west", "attack_south-west": "attack_south-east", "attack_north-west": "attack_north-east"}}
@@ -286,8 +291,8 @@ def main():
     shutil.copy(RAW / "ground" / "britannia_tile_b.png", OUT / "grounds" / "britannia.png")
     shutil.copy(RAW / "ground" / "hispania_tile.png", OUT / "grounds" / "hispania.png")
     shutil.copy(RAW / "ground" / "aegyptus_tile.png", OUT / "grounds" / "aegyptus.png")
+    shutil.copy(RAW / "ground" / "sarmatia_tile.png", OUT / "grounds" / "sarmatia.png")
     shutil.copy(RAW / "frozen_stream" / "ice_tile.png", OUT / "ice.png")
-    shutil.copy(RAW / "ground" / "canal_water_tile.png", OUT / "water.png")
     print(f"atlas {atlas.size[0]}x{atlas.size[1]}, {len(flat)} sprites")
 
 
