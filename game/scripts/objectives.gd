@@ -90,8 +90,12 @@ func add(sim: Sim, kind: String, pos: Vector2) -> Dictionary:
 					pieces.append([tree, at, 0.0])
 					o.oaks.append(at)
 				else:
-					# Standing stones are far apart and tall, so they are solid: the men walk between them rather than through them.
-					pieces.append(["stone_circle", at + Vector2(float(stones.lift[0]), float(stones.lift[1])), float(stones.get("radius", 0.0))])
+					# Each picture is a cluster of standing stones; every stone in it is solid, as on the open moor, so the men walk round a cluster and never stand among its stones.
+					var foot := at + Vector2(float(stones.lift[0]), float(stones.lift[1]))
+					pieces.append(["stone_circle", foot, 0.0])
+					var moor: Dictionary = sim.b.get("moors", {}).get(sim.province, {})
+					for off in moor.get("circle_stones", []):
+						pieces.append(["", foot + Vector2(float(off[0]), float(off[1])), float(moor.stone_radius)])
 	sim.terrain.add_clearing(pos, float(cfg.clearing), pieces)
 	list.append(o)
 	return o
