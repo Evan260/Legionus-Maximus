@@ -203,6 +203,13 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 ## The victory reveal over the darkened field: gold rays turning behind a great VICTORY between laurels, coins raining,
 ## the denarii won counting up, and the province the legion marches to next.
 func _reveal(c: CanvasItem, ui: Ui, sim: Sim, age: float) -> void:
+	# The reveal fills the whole window, which reaches past the centred box when the window is wider or taller.
+	c.draw_set_transform(Vector2.ZERO)
+	_reveal_in_window(c, ui, sim, age)
+	c.draw_set_transform(Ui.offset)
+
+
+func _reveal_in_window(c: CanvasItem, ui: Ui, sim: Sim, age: float) -> void:
 	var view: Vector2 = Ui.view
 	var centre := Vector2(view.x / 2.0, view.y * 0.36)
 	c.draw_rect(Rect2(Vector2.ZERO, view), Color(0.05, 0.03, 0.02, 0.8 * clampf(age * 2.0, 0.0, 1.0)))
