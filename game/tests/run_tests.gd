@@ -5270,6 +5270,37 @@ func test_a_big_legion_files_over_a_bridge_without_being_shoved(b: Dictionary) -
 	check(past == s.soldiers.size(), "every man is across (%d of %d)" % [past, s.soldiers.size()])
 
 
+func test_the_column_ends_once_the_last_man_is_off_the_bridge(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 1508)
+	while s.soldiers.size() < 40:
+		s.legion.add(["legionary", "archer", "cavalry"][s.soldiers.size() % 3])
+	_gorge(s, -600, 600, 100, 60)
+	s.commander.pos = Vector2(0, 0)
+	s.facing_angle = PI / 2.0
+	s.legion.place_all(s.facing_angle)
+	s.timber = int(b.bridge.cost)
+	check(s.build_bridge(), "the bridge is laid")
+	var br: Dictionary = s.terrain.bridges[0]
+	var far_end: float = br.pos.y + absf(br.dir.y) * float(br.half_len)
+	s.commander.pos = Vector2(0, -400)
+	s.legion.place_all(s.facing_angle)
+	s.terrain.refresh(s.commander.pos)
+	var dt := 1.0 / 30.0
+	var cleared := -1.0
+	var filing_after := 0.0
+	for k in 30 * 30:
+		s.update(dt, Vector2.DOWN, false)
+		var all_off := true
+		for so in s.soldiers:
+			all_off = all_off and so.pos.y > far_end + Sim.UNIT_RADIUS
+		if all_off and cleared < 0.0:
+			cleared = k * dt
+		if cleared >= 0.0 and not s.legion._column(s.legion.formation(), s).is_empty():
+			filing_after = k * dt - cleared
+	check(cleared >= 0.0, "every man gets off the deck")
+	check(filing_after <= 0.5, "and the column breaks up as soon as the last man is off it (still filing %.1f s later)" % filing_after)
+
+
 func test_the_legion_files_for_a_bridge_only_when_heading_onto_it(b: Dictionary) -> void:
 	var s := _quiet_sim(b, 1506)
 	while s.soldiers.size() < 30:

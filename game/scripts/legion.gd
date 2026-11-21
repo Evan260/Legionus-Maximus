@@ -253,6 +253,9 @@ func _column(places: Array, sim: Sim) -> Array:
 			var toward := facing.dot(-signf(along) * lane.dir) >= float(_l.bridge_aim)
 			if short <= 0.0:
 				_crossing = lane.bridge
+			elif _crossing == lane.bridge and not toward and _all_past(lane, signf(along)):
+				_crossing = Vector2.INF
+				continue
 			elif _crossing != lane.bridge and not (toward and short <= maxf(front, 0.0) + float(_l.bridge_approach)):
 				continue
 		if not lane.both_ways and way < 0.0:
@@ -277,6 +280,14 @@ func _column(places: Array, sim: Sim) -> Array:
 				k += 1
 		return out
 	return []
+
+
+## Whether every soldier has stepped off the far end of the lane's deck, on the `side` of it the commander has gone to.
+func _all_past(lane: Dictionary, side: float) -> bool:
+	for so in soldiers:
+		if so.sortie == 0 and (so.pos - lane.pos).dot(lane.dir) * side <= lane.half_len + Sim.UNIT_RADIUS:
+			return false
+	return true
 
 
 ## The bridges' decks and the fort's gate as lanes the legion files through: centre, direction, half length and half width, how far to the side the commander may be, and the extra lead.
