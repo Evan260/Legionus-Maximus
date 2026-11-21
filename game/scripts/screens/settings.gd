@@ -37,7 +37,7 @@ static func apply_audio(cfg: Dictionary) -> void:
 
 
 func _put(key: String, value: Variant) -> void:
-	Profile.data.settings[key] = value
+	Profile.settings[key] = value
 	main.apply_settings()
 
 
@@ -82,7 +82,7 @@ func activate(id: String) -> void:
 		if not back():
 			main.close_settings()
 	elif id == "reset":
-		Profile.data.settings.bindings = {}
+		Profile.settings.bindings = {}
 		Controls.install({})
 	elif id.begins_with("bind:"):
 		var parts := id.split(":")
@@ -114,9 +114,9 @@ func capture(event: InputEvent) -> bool:
 
 
 func _bind(code: int) -> void:
-	var saved: Dictionary = Profile.data.settings.get("bindings", {})
+	var saved: Dictionary = Profile.settings.get("bindings", {})
 	Controls.rebind(saved, waiting.action, waiting.kind, waiting.slot, code)
-	Profile.data.settings.bindings = saved
+	Profile.settings.bindings = saved
 	waiting = {}
 
 
@@ -189,7 +189,7 @@ static func controls_metrics(frame_w: float) -> Dictionary:
 func _draw_controls(c: CanvasItem, ui: Ui) -> void:
 	var hint := Controls.hint("press" if not waiting.is_empty() else "keys")
 	var r := ui.frame(c, tr("Keys and buttons").to_upper(), hint)
-	var saved: Dictionary = Profile.data.settings.get("bindings", {})
+	var saved: Dictionary = Profile.settings.get("bindings", {})
 	var metrics := controls_metrics(r.size.x)
 	var name_w: float = metrics.name_w
 	var bw: float = metrics.bw

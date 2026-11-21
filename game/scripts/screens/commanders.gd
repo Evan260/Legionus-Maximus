@@ -13,7 +13,7 @@ func _init(owner_node: Node) -> void:
 func activate(id: String) -> void:
 	if id.begins_with("pick:"):
 		main.run_setup.commander = id.trim_prefix("pick:")
-		Profile.data.settings.commander = main.run_setup.commander
+		Profile.data.choices.commander = main.run_setup.commander
 		Profile.save()
 	elif id.begins_with("see:") and Profile.buy_commander(id.trim_prefix("see:"), main.content):
 		main.ui.focus = "pick:" + id.trim_prefix("see:")

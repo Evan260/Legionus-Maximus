@@ -1,8 +1,18 @@
 extends Node
-## The saved profile: denarii, quartermaster ranks, unlocks, records, the codex and totals, kept as JSON in the user folder.
-## It is an autoload named Profile. Tests and screenshots never touch the real file, since `disabled` is set before anything loads.
+## The saved games and the settings. Each of the three save slots is a game of its own: denarii, quartermaster ranks, unlocks,
+## records, the codex, totals, achievements and the camp's choices. The player's settings are shared by every slot in a file of their own.
+## It is an autoload named Profile. Tests and screenshots never touch the real files, since `disabled` is set before anything loads.
 
-const DEFAULT_PATH := "user://profile.json"
+const SLOTS := 3
+const BACKUPS := 3
+## Seconds the newest backup must have aged before the backups move along, so each really is an older copy.
+const BACKUP_EVERY := 300.0
+const VERSION := 1
+const SETTINGS_FILE := "settings.json"
+## The single profile kept before there were save slots; the first start moves it into slot 1 and the settings file.
+const OLD_FILE := "profile.json"
+## The camp's choices, kept with each game so it opens where it was left.
+const CHOICES := ["province", "commander", "difficulty"]
 const NO_SAVE_FLAGS := ["run-tests", "bench", "autoplay", "skip", "shot", "at", "screen", "page", "text-size", "lang", "card", "easy", "hard", "endless", "decimatio",
 	"commander", "chieftain-at", "as-demo", "objectives-near", "boss", "boss-act", "god", "god-at", "give", "go-to", "hold-choice", "win-at", "timber", "max-state",
 	"province", "seed", "men", "mortal", "trailer-shot", "no-save"]
@@ -11,23 +21,43 @@ const SETTING_DEFAULTS := {"master": 0.8, "music": 0.8, "effects": 0.8, "fullscr
 	"text_size": 1, "bindings": {}, "language": ""}
 
 var disabled := false
-var path := DEFAULT_PATH
+## The folder the slots and the settings are kept in: the user folder, or user://NAME with --save-dir=NAME.
+var dir := "user://"
+## The slot being played, or 0 before a game is chosen.
+var slot := 0
 var data := {}
+## The player's settings as saved; `setting()` gives the default of any not saved.
+var settings := {}
 
 
 func _init() -> void:
-	disabled = blocks_saving(OS.get_cmdline_user_args())
+	var args := OS.get_cmdline_user_args()
+	disabled = blocks_saving(args)
+	dir = save_dir_of(args)
 	data = defaults()
-	if not disabled:
-		load_file()
+	if reads():
+		start_up()
 
 
-## Whether these command-line arguments are for looking or testing, so the profile must not be read or written.
+## Whether the saves are read: always when saving, and for a look only from a folder of its own, so a look never reads the player's games.
+func reads() -> bool:
+	return not disabled or dir != "user://"
+
+
+## Whether these command-line arguments are for looking or testing, so the saves must not be read or written.
 static func blocks_saving(user_args: PackedStringArray) -> bool:
 	for a in user_args:
 		if a.trim_prefix("--").split("=", true, 1)[0] in NO_SAVE_FLAGS:
 			return true
 	return false
+
+
+## The folder the saves are kept in for these command-line arguments.
+static func save_dir_of(user_args: PackedStringArray) -> String:
+	for a in user_args:
+		if a.begins_with("--save-dir="):
+			return "user://".path_join(a.trim_prefix("--save-dir="))
+	return "user://"
 
 
 static func defaults() -> Dictionary:
@@ -38,7 +68,7 @@ static func defaults() -> Dictionary:
 		"records": {},
 		"seen": {},
 		"totals": {"kills": 0, "runs": 0, "wins": 0, "ravine_tips": 0},
-		"settings": {},
+		"choices": {},
 		"achievements": [],
 	}
 
@@ -47,14 +77,148 @@ static func default_record() -> Dictionary:
 	return {"best_time": 0.0, "longest": 0.0, "won": false, "hard_won": false, "endless_best": 0.0}
 
 
-## Reads the file at `path`; a missing, old or damaged file leaves the defaults, and every readable key is kept.
-func load_file() -> void:
+## Moves an old profile into the slots, reads the settings and opens the game saved last.
+func start_up() -> void:
+	migrate_old_profile()
+	load_settings()
+	var n := latest_slot()
+	if n > 0:
+		load_slot(n)
+
+
+func path_for(n: int) -> String:
+	return dir.path_join("save_%d.json" % n)
+
+
+func settings_path() -> String:
+	return dir.path_join(SETTINGS_FILE)
+
+
+## Saves the game being played in its slot: written to a temporary file and read back before it replaces the save, with the
+## older saves kept as rolling backups. Does nothing when disabled or before a game is chosen.
+func save() -> bool:
+	if disabled or slot < 1 or slot > SLOTS:
+		return false
+	var path := path_for(slot)
+	var out := data.duplicate(true)
+	out.version = VERSION
+	out.saved_at = Time.get_unix_time_from_system()
+	var tmp := path + ".tmp"
+	if not _write(tmp, JSON.stringify(out, "\t")) or not _set_aside_unreadable(slot):
+		return false
+	_rotate_backups(path)
+	return _move(tmp, path)
+
+
+## Loads a slot from its save, or from the newest backup that can be read when it cannot. False when none can.
+func load_slot(n: int) -> bool:
+	if n < 1 or n > SLOTS:
+		return false
+	for path in _load_order(n):
+		var d := _read(path)
+		if not d.is_empty():
+			data = merge_saved(d)
+			slot = n
+			return true
+	return false
+
+
+## Starts a new game in the first free slot and saves it there. Returns the slot, or 0 when all three are taken and nothing changes.
+func new_game() -> int:
+	var n := free_slot()
+	if n == 0:
+		return 0
 	data = defaults()
-	if not FileAccess.file_exists(path):
+	slot = n
+	save()
+	return n
+
+
+## The first slot with no file of a game in it, or 0 when all three are taken.
+func free_slot() -> int:
+	for n in range(1, SLOTS + 1):
+		if not slot_taken(n):
+			return n
+	return 0
+
+
+## Whether any file of a game is in the slot, readable or not, so a new game never goes over one that could still be rescued.
+func slot_taken(n: int) -> bool:
+	return reads() and (_candidates(n) + [path_for(n) + ".tmp"]).any(func(path: String) -> bool: return FileAccess.file_exists(path))
+
+
+## Deletes a slot's save and its backups; deleting the game being played leaves none open.
+func delete_slot(n: int) -> void:
+	if disabled:
 		return
-	var json := JSON.new()
-	if json.parse(FileAccess.get_file_as_string(path)) == OK and json.data is Dictionary:
-		data = merge_saved(json.data)
+	for path in _candidates(n) + [path_for(n) + ".tmp"]:
+		if FileAccess.file_exists(path):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	if slot == n:
+		slot = 0
+		data = defaults()
+
+
+## What the load list shows of a slot: the provinces won, the denarii, the runs and when it was saved, or empty when nothing of it can be read.
+func slot_info(n: int) -> Dictionary:
+	for path in _load_order(n):
+		var d := _read(path)
+		if d.is_empty():
+			continue
+		var game := merge_saved(d)
+		var won: Array = game.records.keys().filter(func(p: String) -> bool: return bool(game.records[p].won))
+		var at: Variant = d.get("saved_at", 0.0)
+		return {"won": won, "denarii": int(game.denarii), "runs": int(game.totals.runs), "saved_at": float(at) if _is_number(at) else 0.0}
+	return {}
+
+
+## The slot saved most recently, or 0 when there are no games.
+func latest_slot() -> int:
+	var best := 0
+	var when := -1.0
+	for n in range(1, SLOTS + 1):
+		var info := slot_info(n)
+		if not info.is_empty() and float(info.saved_at) >= when:
+			when = float(info.saved_at)
+			best = n
+	return best
+
+
+func load_settings() -> void:
+	settings = merge_settings(_read_json(settings_path()))
+
+
+## Writes the settings through a temporary file. Does nothing when disabled.
+func save_settings() -> bool:
+	if disabled:
+		return false
+	var path := settings_path()
+	return _write(path + ".tmp", JSON.stringify(settings, "\t")) and _move(path + ".tmp", path)
+
+
+## Moves the old single profile into slot 1 and the settings file, keeping it whole beside them as profile.json.migrated.
+## It runs only while every slot is free, so a profile already moved is never copied twice.
+func migrate_old_profile() -> bool:
+	var old := dir.path_join(OLD_FILE)
+	if disabled or not FileAccess.file_exists(old):
+		return false
+	for n in range(1, SLOTS + 1):
+		if slot_taken(n):
+			return false
+	var saved := _read_json(old)
+	if saved.is_empty():
+		return false
+	if saved.get("settings") is Dictionary and not FileAccess.file_exists(settings_path()):
+		settings = merge_settings(saved.settings)
+		if not save_settings():
+			return false
+	data = merge_saved(saved)
+	slot = 1
+	if not save():
+		data = defaults()
+		slot = 0
+		return false
+	return _move(old, old + ".migrated")
 
 
 static func _is_number(v: Variant) -> bool:
@@ -92,18 +256,24 @@ static func merge_saved(saved: Dictionary) -> Dictionary:
 		for id in saved.achievements:
 			if id is String and not out.achievements.has(id):
 				out.achievements.append(id)
-	if saved.get("settings") is Dictionary:
-		for key in saved.settings:
-			var v: Variant = saved.settings[key]
-			if key in ["province", "commander"] and not v is String:
-				continue
-			if key == "difficulty" and not v in Sim.DIFFICULTIES:
-				continue
-			if SETTING_DEFAULTS.has(key):
-				v = _checked_setting(str(key), v)
-				if v == null:
-					continue
-			out.settings[str(key)] = v
+	# The old single profile keeps the camp's choices among its settings.
+	var choices: Variant = saved.get("choices", saved.get("settings"))
+	if choices is Dictionary:
+		for key in CHOICES:
+			var v: Variant = choices.get(key)
+			if v is String and (key != "difficulty" or v in Sim.DIFFICULTIES):
+				out.choices[key] = v
+	return out
+
+
+## The player's settings from `saved`, keeping only known ones of the right kind.
+static func merge_settings(saved: Dictionary) -> Dictionary:
+	var out := {}
+	for key in saved:
+		if SETTING_DEFAULTS.has(key):
+			var v: Variant = _checked_setting(str(key), saved[key])
+			if v != null:
+				out[str(key)] = v
 	return out
 
 
@@ -138,16 +308,16 @@ static func _checked_setting(key: String, v: Variant) -> Variant:
 
 
 ## Every setting, the saved value or its default.
-static func settings_of(from: Dictionary) -> Dictionary:
+static func settings_of(saved: Dictionary) -> Dictionary:
 	var out: Dictionary = SETTING_DEFAULTS.duplicate(true)
-	for key in from.get("settings", {}):
+	for key in saved:
 		if SETTING_DEFAULTS.has(key):
-			out[key] = from.settings[key]
+			out[key] = saved[key]
 	return out
 
 
 func setting(key: String) -> Variant:
-	return data.settings.get(key, SETTING_DEFAULTS[key])
+	return settings.get(key, SETTING_DEFAULTS[key])
 
 
 static func _merge_record(saved: Dictionary) -> Dictionary:
@@ -161,23 +331,93 @@ static func _merge_record(saved: Dictionary) -> Dictionary:
 	return rec
 
 
-## Writes the profile through a temporary file so a stopped game never leaves half a save. Does nothing when disabled.
-func save() -> void:
-	if disabled:
-		return
-	var tmp := path + ".tmp"
-	var f := FileAccess.open(tmp, FileAccess.WRITE)
+func _read_json(path: String) -> Dictionary:
+	if not reads() or not FileAccess.file_exists(path):
+		return {}
+	var json := JSON.new()
+	if json.parse(FileAccess.get_file_as_string(path)) != OK or not json.data is Dictionary:
+		return {}
+	return json.data
+
+
+## A save's contents, or empty when the file is missing, damaged or not a save.
+func _read(path: String) -> Dictionary:
+	var d := _read_json(path)
+	return d if d.has("version") else {}
+
+
+## Writes a file and reads it back, so a full disk or a failed write is caught before it can replace anything.
+func _write(path: String, text: String) -> bool:
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(path.get_base_dir()))
+	var f := FileAccess.open(path, FileAccess.WRITE)
 	if f == null:
-		push_warning("Could not save the profile")
-		return
-	var wrote := f.store_string(JSON.stringify(data, "\t"))
+		push_warning("Could not write %s: %s" % [path, error_string(FileAccess.get_open_error())])
+		return false
+	var stored := f.store_string(text)
 	f.close()
-	var moved := ERR_FILE_CANT_WRITE
-	if wrote:
-		moved = DirAccess.rename_absolute(ProjectSettings.globalize_path(tmp), ProjectSettings.globalize_path(path))
-	if moved != OK:
-		push_warning("Could not save the profile")
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(tmp))
+	if not stored or FileAccess.get_file_as_string(path) != text:
+		push_warning("Could not write %s" % path)
+		return false
+	return true
+
+
+func _move(from: String, to: String) -> bool:
+	var err := DirAccess.rename_absolute(ProjectSettings.globalize_path(from), ProjectSettings.globalize_path(to))
+	if err != OK:
+		push_warning("Could not move %s to %s: %s" % [from, to, error_string(err)])
+	return err == OK
+
+
+## A slot's save and its backups, newest first.
+func _candidates(n: int) -> Array:
+	var list := [path_for(n)]
+	for i in range(1, BACKUPS + 1):
+		list.append("%s.bak%d" % [path_for(n), i])
+	return list
+
+
+## The files a slot is read from, best first: a save cut off before its .tmp replaced the save leaves the newest there.
+func _load_order(n: int) -> Array:
+	var list := _candidates(n)
+	var tmp := path_for(n) + ".tmp"
+	if _saved_at(tmp) > _saved_at(path_for(n)):
+		list.push_front(tmp)
+	return list
+
+
+## When a save was made, or -1 for a file that is missing or not whole, so a half-written .tmp never wins.
+func _saved_at(path: String) -> float:
+	var d := _read(path)
+	var at: Variant = d.get("saved_at", 0.0)
+	return (float(at) if _is_number(at) else 0.0) if not d.is_empty() else -1.0
+
+
+## A game none of whose files can be read is moved aside under a plain name rather than saved over, so it can be rescued.
+func _set_aside_unreadable(n: int) -> bool:
+	var found := _candidates(n).filter(func(path: String) -> bool: return FileAccess.file_exists(path))
+	if found.is_empty() or found.any(func(path: String) -> bool: return not _read(path).is_empty()):
+		return true
+	var stamp := int(Time.get_unix_time_from_system())
+	for path in found:
+		if not _move(path, "%s.unreadable-%d" % [path, stamp]):
+			return false
+	push_warning("Save %d could not be read, so its files are kept beside it as .unreadable copies" % n)
+	return true
+
+
+## Moves each backup one along, the save itself becoming the newest, once the newest backup has aged.
+func _rotate_backups(path: String) -> void:
+	var newest := path + ".bak1"
+	if FileAccess.file_exists(newest) and Time.get_unix_time_from_system() - FileAccess.get_modified_time(newest) < BACKUP_EVERY:
+		return
+	if _read(path).is_empty():
+		return
+	# Renaming rather than copying leaves each older copy's contents untouched on the disk.
+	for i in range(BACKUPS - 1, 0, -1):
+		var older := "%s.bak%d" % [path, i]
+		if FileAccess.file_exists(older) and not _move(older, "%s.bak%d" % [path, i + 1]):
+			return
+	_move(path, newest)
 
 
 ## The quartermaster ranks as the run options expect them.
@@ -259,6 +499,8 @@ func buy_commander(id: String, content: Content) -> bool:
 ## Opens every drawn province with its modes and every commander, maxes every upgrade and fills the codex, for --max-state; it is never saved.
 func max_out(content: Content) -> void:
 	data.denarii = 1000000
+	# Continue opens this game, which is never saved.
+	slot = maxi(slot, 1)
 	for p in content.provinces:
 		if not content.ready("provinces", p):
 			continue

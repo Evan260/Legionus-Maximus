@@ -17,9 +17,10 @@ extends Node
 ##   --hold-choice      with --autoplay, give a level at once and leave its choices open
 ##   --easy, --hard     start the run at that difficulty
 ##   --endless, --decimatio   start the run in that mode
-##   --screen=NAME      open a screen (camp, quartermaster, tablinum, map, commanders, settings) with a sample profile, for screenshots;
+##   --screen=NAME      open a screen (camp, quartermaster, tablinum, map, commanders, settings, title, saves) with a sample profile, for screenshots;
 ##                      summary runs a skipped autoplay to its end and shows the run summary
-##   --page=controls    with --screen=settings, open the key and button page
+##   --page=controls    with --screen=settings, open the key and button page; --page=delete with --screen=saves asks about deleting a game
+##   --save-dir=NAME    keep the save slots and settings in user://NAME, for looking at or playing with saves that are not the player's
 ##   --lang=CODE        show the game in that language (fr, de, es, it, pt_BR, pl, tr, ru, uk, ja, ko, zh_CN, zh_TW) without saving it
 ##   --text-size=N      use text size 1 or 2 without saving it
 ##   --commander=ID     start with that commander (the tribune when his art is not drawn)
@@ -69,7 +70,8 @@ var profile_at_start := {}
 ## With --win-at, the second at which an autoplay wins, for a look at the triumph.
 var win_at := -1.0
 var god_at := -1.0
-var run_setup := {"province": "germania", "commander": "tribune", "difficulty": "medium", "endless": false, "decimatio": false}
+const RUN_SETUP := {"province": "germania", "commander": "tribune", "difficulty": "medium", "endless": false, "decimatio": false}
+var run_setup: Dictionary = RUN_SETUP.duplicate()
 
 @onready var world: Node2D = $World
 @onready var hud: Node2D = $UI/Hud
@@ -106,13 +108,13 @@ func _ready() -> void:
 	hud.ui = ui
 	screens = {"camp": CampScreen.new(self), "quartermaster": QuartermasterScreen.new(self), "tablinum": TablinumScreen.new(self),
 		"map": MapScreen.new(self), "commanders": CommandersScreen.new(self), "title": TitleScreen.new(self), "pause": PauseScreen.new(self),
-		"settings": SettingsScreen.new(self), "over": SummaryScreen.new(self)}
+		"settings": SettingsScreen.new(self), "over": SummaryScreen.new(self), "saves": SavesScreen.new(self)}
 	if args.has("text-size"):
-		Profile.data.settings.text_size = int(args["text-size"])
+		Profile.settings.text_size = int(args["text-size"])
 	apply_settings()
 	_load_run_setup()
 	_new_sim()
-	ui.focus = "march"
+	ui.focus = "continue"
 	if args.get("screen", "") in ["summary", "victory"]:
 		_sample_profile()
 		_summary_shot(args.screen == "victory")
@@ -124,6 +126,9 @@ func _ready() -> void:
 		if state == "settings":
 			screens.settings.enter()
 			screens.settings.page = args.get("page", "main")
+		if state == "saves" and args.get("page", "") == "delete":
+			screens.saves.confirming = maxi(1, Profile.slot)
+			ui.focus = "no"
 	if args.has("autoplay") or args.has("skip"):
 		_start()
 		if args.has("skip"):
@@ -422,7 +427,7 @@ func _summary_shot(won := false) -> void:
 
 ## Puts every saved setting to work: volumes, full screen, text size, damage numbers and screen shake.
 func apply_settings() -> void:
-	var cfg := Profile.settings_of(Profile.data)
+	var cfg := Profile.settings_of(Profile.settings)
 	SettingsScreen.apply_audio(cfg)
 	var want := DisplayServer.WINDOW_MODE_FULLSCREEN if cfg.fullscreen else DisplayServer.WINDOW_MODE_WINDOWED
 	if DisplayServer.window_get_mode() != want:
@@ -448,7 +453,7 @@ func open_settings(from: String) -> void:
 
 
 func close_settings() -> void:
-	Profile.save()
+	Profile.save_settings()
 	state = settings_from
 	ui.focus = "settings"
 
@@ -457,10 +462,24 @@ func go_to_camp() -> void:
 	_enter_camp()
 
 
-func go_to_title() -> void:
+func go_to_title(focus_id := "continue") -> void:
 	_new_sim()
 	state = "title"
-	ui.focus = "march"
+	ui.focus = focus_id
+
+
+func open_saves() -> void:
+	screens.saves.confirming = 0
+	state = "saves"
+	ui.focus = ""
+
+
+## Puts the game just opened from its slot to work: its open provinces and the camp's choices as that game left them.
+func use_profile() -> void:
+	Profile.open_won_provinces(content)
+	run_setup = RUN_SETUP.duplicate()
+	_load_run_setup()
+	Steamworks.sync()
 
 
 func _new_sim() -> void:
@@ -482,7 +501,7 @@ func _new_sim() -> void:
 
 ## The camp's choices, the saved ones first, then anything the command line asks for.
 func _load_run_setup() -> void:
-	var settings: Dictionary = Profile.data.settings
+	var settings: Dictionary = Profile.data.choices
 	var offered := Game.commanders(content, balance)
 	if content.ready("provinces", str(settings.get("province", ""))) and Profile.province_unlocked(settings.province) and Game.province_allowed(settings.province, balance):
 		run_setup.province = settings.province
@@ -554,7 +573,7 @@ func _start() -> void:
 
 
 func _setup_input() -> void:
-	Controls.install(Profile.data.settings.get("bindings", {}))
+	Controls.install(Profile.settings.get("bindings", {}))
 
 
 func _process(dt: float) -> void:
@@ -570,11 +589,11 @@ func _process(dt: float) -> void:
 		return
 	if Input.is_action_just_pressed("fullscreen"):
 		var full := DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
-		Profile.data.settings.fullscreen = not full
+		Profile.settings.fullscreen = not full
 		apply_settings()
-		Profile.save()
+		Profile.save_settings()
 	match state:
-		"title", "camp", "quartermaster", "tablinum", "map", "commanders", "pause", "settings", "over":
+		"title", "camp", "quartermaster", "tablinum", "map", "commanders", "pause", "settings", "over", "saves":
 			_screen_input(dt)
 		"play":
 			if Input.is_action_just_pressed("pause"):
@@ -717,6 +736,9 @@ func _back() -> void:
 		"settings":
 			if not screens.settings.back():
 				close_settings()
+		"saves":
+			if not screens.saves.back():
+				go_to_title("load")
 		_:
 			_enter_camp(state)
 

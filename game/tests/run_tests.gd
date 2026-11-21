@@ -2003,21 +2003,38 @@ func test_quartermaster_ranks_change_the_start(b: Dictionary) -> void:
 
 
 const ProfileScript := preload("res://scripts/profile.gd")
-const TEST_PROFILE := "user://test_profile.json"
+const TEST_SAVES := "user://test_saves"
 
 
+## A profile playing slot 1 of the test folder, which never holds the player's own saves.
 func _fresh_profile() -> Node:
 	var p: Node = ProfileScript.new()
 	p.disabled = false
-	p.path = TEST_PROFILE
+	p.dir = TEST_SAVES
+	p.slot = 1
 	p.data = ProfileScript.defaults()
+	p.settings = {}
 	return p
 
 
 func _cleanup_profile_files() -> void:
-	for f in [TEST_PROFILE, TEST_PROFILE + ".tmp"]:
-		if FileAccess.file_exists(f):
-			DirAccess.remove_absolute(ProjectSettings.globalize_path(f))
+	var d := DirAccess.open(TEST_SAVES)
+	if d == null:
+		return
+	for f in d.get_files():
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_SAVES.path_join(f)))
+
+
+func _write_raw(path: String, text: String) -> void:
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(path.get_base_dir()))
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	f.store_string(text)
+	f.close()
+
+
+func _test_files() -> Array:
+	var d := DirAccess.open(TEST_SAVES)
+	return Array(d.get_files()) if d != null else []
 
 
 func test_denarii_are_banked_after_a_run(b: Dictionary) -> void:
@@ -2120,19 +2137,13 @@ func test_quartermaster_rank_costs_and_caps(b: Dictionary) -> void:
 func test_damaged_profile_loads_defaults(b: Dictionary) -> void:
 	_cleanup_profile_files()
 	var p := _fresh_profile()
-	p.load_file()
-	check(p.data == ProfileScript.defaults(), "a missing file gives the defaults")
-	for junk in ["", "not json at all {{{", "[1, 2, 3]", "\"text\"", "null"]:
-		var f := FileAccess.open(TEST_PROFILE, FileAccess.WRITE)
-		f.store_string(junk)
-		f.close()
-		p.load_file()
-		check(p.data == ProfileScript.defaults(), "damaged file %s gives the defaults" % junk.left(8))
-	var partial := FileAccess.open(TEST_PROFILE, FileAccess.WRITE)
-	partial.store_string(JSON.stringify({"denarii": 75, "ranks": {"damage": 2, "armour": "lots"}, "totals": {"kills": "many", "runs": 3},
+	check(not p.load_slot(1) and p.data == ProfileScript.defaults(), "a missing file gives the defaults")
+	for junk in ["", "not json at all {{{", "[1, 2, 3]", "\"text\"", "null", "{\"denarii\": 5}"]:
+		_write_raw(p.path_for(1), junk)
+		check(not p.load_slot(1) and p.data == ProfileScript.defaults(), "damaged file %s gives the defaults" % junk.left(8))
+	_write_raw(p.path_for(1), JSON.stringify({"version": 1, "denarii": 75, "ranks": {"damage": 2, "armour": "lots"}, "totals": {"kills": "many", "runs": 3},
 		"unlocked": {"commanders": ["tribune", "legate", 7]}, "seen": {"wolf": true, "pilum": "yes"}, "old_key": 1}))
-	partial.close()
-	p.load_file()
+	check(p.load_slot(1), "a save with readable parts loads")
 	check(p.data.denarii == 75, "a readable number is kept")
 	check(p.data.ranks == {"damage": 2}, "a rank with the wrong type is dropped and the rest kept")
 	check(p.data.totals.kills == 0 and p.data.totals.runs == 3, "totals merge by key")
@@ -2149,18 +2160,309 @@ func test_disabled_profile_never_writes(b: Dictionary) -> void:
 	p.disabled = true
 	p.data.denarii = 99
 	p.save()
-	check(not FileAccess.file_exists(TEST_PROFILE) and not FileAccess.file_exists(TEST_PROFILE + ".tmp"), "a disabled profile writes nothing")
+	p.save_settings()
+	check(_test_files().is_empty(), "a disabled profile writes nothing")
 	p.disabled = false
 	p.save()
-	check(FileAccess.file_exists(TEST_PROFILE), "an enabled one does write")
+	check(FileAccess.file_exists(p.path_for(1)), "an enabled one does write")
 	var back := _fresh_profile()
-	back.load_file()
+	back.load_slot(1)
 	check(back.data.denarii == 99, "and reads back what it wrote")
 	back.free()
 	p.free()
 	_cleanup_profile_files()
 	check(Profile.disabled, "the real profile is disabled while the tests run")
-	check(Profile.path == "user://profile.json" and Profile.data == ProfileScript.defaults(), "and holds only defaults")
+	check(Profile.dir == "user://" and Profile.slot == 0 and Profile.data == ProfileScript.defaults(), "and holds only defaults")
+
+
+func test_save_slots_keep_their_own_progress(_b: Dictionary) -> void:
+	_cleanup_profile_files()
+	var p := _fresh_profile()
+	p.slot = 0
+	check(p.new_game() == 1, "the first game goes in slot 1")
+	p.data.denarii = 50
+	p.save()
+	check(p.new_game() == 2 and p.data == ProfileScript.defaults(), "a new game starts from nothing in slot 2")
+	p.data.denarii = 7
+	p.data.records["germania"] = {"best_time": 900.0, "longest": 900.0, "won": true, "hard_won": false}
+	p.save()
+	check(p.load_slot(1) and p.slot == 1 and int(p.data.denarii) == 50 and not p.record_of("germania").won, "slot 1 keeps its own game")
+	check(p.load_slot(2) and p.slot == 2 and int(p.data.denarii) == 7 and p.record_of("germania").won, "and slot 2 its own")
+	check(not p.load_slot(3), "an empty slot loads nothing")
+	var info: Dictionary = p.slot_info(2)
+	check(info.get("won", []) == ["germania"] and int(info.get("denarii", -1)) == 7 and float(info.get("saved_at", 0.0)) > 0.0, "a slot tells what is in it (%s)" % str(info))
+	check(p.slot_info(3).is_empty(), "and an empty slot tells nothing")
+	var again := _fresh_profile()
+	again.slot = 0
+	again.start_up()
+	check(again.slot == 2 and int(again.data.denarii) == 7, "starting the game opens the slot saved last")
+	again.free()
+	p.free()
+	_cleanup_profile_files()
+
+
+func test_a_new_game_takes_the_first_free_slot_and_never_overwrites(_b: Dictionary) -> void:
+	_cleanup_profile_files()
+	var p := _fresh_profile()
+	p.slot = 0
+	check(p.free_slot() == 1, "with no saves slot 1 is free")
+	for n in [1, 2, 3]:
+		check(p.new_game() == n, "game %d goes in slot %d" % [n, n])
+		p.data.denarii = n * 100
+		p.save()
+	check(p.free_slot() == 0, "with three games no slot is free")
+	check(p.new_game() == 0 and p.slot == 3 and int(p.data.denarii) == 300, "and a new game is refused, leaving the one being played")
+	for n in [1, 2, 3]:
+		check(int(p.slot_info(n).get("denarii", -1)) == n * 100, "slot %d is untouched" % n)
+	p.delete_slot(2)
+	check(p.free_slot() == 2 and p.new_game() == 2, "a deleted slot is the next free one")
+	p.free()
+	_cleanup_profile_files()
+
+
+func test_deleting_a_slot_removes_it_and_its_backups(_b: Dictionary) -> void:
+	_cleanup_profile_files()
+	var p := _fresh_profile()
+	p.save()
+	_write_raw(p.path_for(1) + ".bak1", "{}")
+	_write_raw(p.path_for(1) + ".bak3", "{}")
+	_write_raw(p.path_for(1) + ".tmp", "{}")
+	p.slot = 2
+	p.save()
+	p.load_slot(1)
+	p.data.denarii = 40
+	p.delete_slot(1)
+	check(_test_files() == ["save_2.json"], "only the other slot's save is left (%s)" % str(_test_files()))
+	check(p.slot == 0 and p.data == ProfileScript.defaults(), "deleting the slot being played leaves no game open")
+	p.free()
+	_cleanup_profile_files()
+
+
+func test_a_broken_save_falls_back_to_its_newest_readable_backup(_b: Dictionary) -> void:
+	_cleanup_profile_files()
+	var p := _fresh_profile()
+	p.data.denarii = 10
+	p.save()
+	p.data.denarii = 20
+	p.save()
+	check(FileAccess.file_exists(p.path_for(1) + ".bak1"), "a second save keeps the first as a backup")
+	p.data.denarii = 30
+	p.save()
+	check(not FileAccess.file_exists(p.path_for(1) + ".bak2"), "backups move along at most every few minutes")
+	_write_raw(p.path_for(1) + ".bak2", JSON.stringify({"version": 1, "saved_at": 1.0, "denarii": 5}))
+	_write_raw(p.path_for(1), "{\"version\": 1, \"denar")
+	check(p.load_slot(1) and int(p.data.denarii) == 10, "a broken save loads its newest readable backup")
+	_write_raw(p.path_for(1) + ".bak1", "")
+	check(p.load_slot(1) and int(p.data.denarii) == 5, "and the next one when that is broken too")
+	_write_raw(p.path_for(1) + ".tmp", JSON.stringify({"version": 1, "saved_at": Time.get_unix_time_from_system() + 60.0, "denarii": 77}))
+	check(p.load_slot(1) and int(p.data.denarii) == 77, "a newer whole .tmp left by a cut-off save is read first")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(p.path_for(1) + ".tmp"))
+	_write_raw(p.path_for(1) + ".bak2", "garbage")
+	check(not p.load_slot(1), "with nothing readable the slot does not load")
+	check(p.slot_taken(1), "but the slot still counts as taken")
+	check(p.free_slot() == 2, "so a new game never goes over it")
+	p.slot = 1
+	p.data = ProfileScript.defaults()
+	p.data.denarii = 1
+	p.save()
+	var aside := _test_files().filter(func(f: String) -> bool: return f.contains(".unreadable-"))
+	check(aside.size() == 3, "an unreadable game is set aside before anything is saved in its slot (%s)" % str(_test_files()))
+	p.free()
+	_cleanup_profile_files()
+
+
+func test_settings_are_shared_by_every_slot(_b: Dictionary) -> void:
+	_cleanup_profile_files()
+	var p := _fresh_profile()
+	p.slot = 0
+	p.settings.text_size = 2
+	p.settings.language = "de"
+	check(p.save_settings(), "the settings save with no game open")
+	p.new_game()
+	p.save()
+	p.new_game()
+	p.settings.master = 0.3
+	p.save_settings()
+	p.load_slot(1)
+	check(int(p.setting("text_size")) == 2 and is_equal_approx(float(p.setting("master")), 0.3), "loading another slot keeps the settings")
+	var saved: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(p.path_for(1)))
+	check(not saved.has("settings") and not saved.has("text_size") and not str(saved).contains("language"), "a slot's file holds no settings")
+	var other := _fresh_profile()
+	other.load_settings()
+	check(other.setting("language") == "de" and int(other.setting("text_size")) == 2, "the settings file is read back")
+	other.free()
+	p.free()
+	_cleanup_profile_files()
+
+
+func test_the_old_profile_moves_into_slot_one_and_the_settings_file(_b: Dictionary) -> void:
+	_cleanup_profile_files()
+	var old := JSON.stringify({"denarii": 4321, "ranks": {"damage": 3}, "unlocked": {"commanders": ["tribune", "engineer"], "provinces": ["germania", "gaul", "britannia"]},
+		"records": {"germania": {"best_time": 800.0, "longest": 900.0, "won": true, "hard_won": true}, "gaul": {"won": true, "best_time": 850.0, "longest": 850.0}},
+		"seen": {"wolf": true}, "totals": {"kills": 9000, "runs": 30, "wins": 2, "ravine_tips": 3}, "achievements": ["kills_1000"],
+		"settings": {"language": "fr", "text_size": 2, "music": 0.4, "fullscreen": true, "bindings": {"left": {"keys": [KEY_J]}}, "province": "gaul", "commander": "engineer", "difficulty": "hard"}}, "\t")
+	var old_path := TEST_SAVES.path_join("profile.json")
+	_write_raw(old_path, old)
+	var p := _fresh_profile()
+	p.slot = 0
+	p.start_up()
+	check(p.slot == 1 and int(p.data.denarii) == 4321 and p.record_of("gaul").won and p.rank("damage") == 3, "the old progress opens in slot 1")
+	check(p.data.get("choices", {}) == {"province": "gaul", "commander": "engineer", "difficulty": "hard"} and int(p.data.totals.kills) == 9000, "with its choices and totals")
+	check(p.data.achievements == ["kills_1000"] and p.commander_unlocked("engineer"), "its achievements and unlocks")
+	check(p.setting("language") == "fr" and int(p.setting("text_size")) == 2 and p.setting("fullscreen") == true, "the old settings are the shared settings")
+	check(p.setting("bindings").get("left", {}).get("keys", []) == [KEY_J], "the player's own keys too")
+	check(FileAccess.file_exists(p.settings_path()) and FileAccess.file_exists(p.path_for(1)), "both files are written")
+	check(not FileAccess.file_exists(old_path), "the old file is no longer read")
+	check(FileAccess.get_file_as_string(old_path + ".migrated") == old, "but kept whole beside them")
+	var next := _fresh_profile()
+	next.slot = 0
+	next.start_up()
+	check(next.slot == 1 and next.free_slot() == 2 and int(next.data.denarii) == 4321, "the next start opens the same game and makes no copy")
+	next.free()
+	_write_raw(old_path, old)
+	var twice := _fresh_profile()
+	twice.slot = 0
+	twice.start_up()
+	check(twice.free_slot() == 2 and FileAccess.file_exists(old_path), "an old file beside saves already made is left alone")
+	twice.free()
+	p.free()
+	_cleanup_profile_files()
+	_write_raw(old_path, "{ not json")
+	var broken := _fresh_profile()
+	broken.slot = 0
+	broken.start_up()
+	check(broken.slot == 0 and broken.free_slot() == 1 and FileAccess.get_file_as_string(old_path) == "{ not json", "an unreadable old file is left as it is")
+	broken.free()
+	_cleanup_profile_files()
+
+
+func test_a_fresh_slot_plays_like_a_new_player(b: Dictionary) -> void:
+	_cleanup_profile_files()
+	var p := _fresh_profile()
+	_won(b, p, "germania")
+	p.data.denarii = 999
+	p.slot = 0
+	p.new_game()
+	check(p.data == ProfileScript.defaults(), "a new game holds nothing earned")
+	p.open_won_provinces(content)
+	check(p.province_unlocked("germania") and not p.province_unlocked("gaul"), "only Germania is open")
+	check(not p.commander_unlocked("archer_captain") and int(p.data.denarii) == 0, "with the tribune alone and no denarii")
+	p.free()
+	_cleanup_profile_files()
+
+
+func test_saves_can_be_kept_in_another_folder(_b: Dictionary) -> void:
+	check(ProfileScript.save_dir_of(PackedStringArray([])) == "user://", "saves are in the user folder")
+	check(ProfileScript.save_dir_of(PackedStringArray(["--save-dir=look"])) == "user://look", "--save-dir keeps them in a folder of their own")
+	check(not Profile.blocks_saving(PackedStringArray(["--save-dir=look"])), "where they are saved")
+	check(Profile.blocks_saving(PackedStringArray(["--no-save"])) and Profile.blocks_saving(PackedStringArray(["--max-state"])), "--no-save and --max-state never save")
+	check(not Profile.reads() and Profile.free_slot() == 1 and not Profile.load_slot(1), "and a look never reads the player's games")
+
+
+class FakeMenuMain:
+	extends Node
+	var state := "saves"
+	var ui := Ui.new()
+	var content: Content
+	var balance: Dictionary
+	var camp := 0
+	var used := 0
+
+	func use_profile() -> void:
+		used += 1
+
+	func go_to_camp() -> void:
+		camp += 1
+		state = "camp"
+
+	func go_to_title(focus_id := "continue") -> void:
+		state = "title"
+		ui.focus = focus_id
+
+	func open_saves() -> void:
+		state = "saves"
+
+
+## Points the real Profile at the test folder for a test of the title or the load list, returning what to put back.
+func _borrow_profile() -> Dictionary:
+	_cleanup_profile_files()
+	var kept := {"disabled": Profile.disabled, "dir": Profile.dir, "slot": Profile.slot, "data": Profile.data, "settings": Profile.settings}
+	Profile.disabled = false
+	Profile.dir = TEST_SAVES
+	Profile.slot = 0
+	Profile.data = ProfileScript.defaults()
+	return kept
+
+
+func _return_profile(kept: Dictionary) -> void:
+	for key in kept:
+		Profile.set(key, kept[key])
+	_cleanup_profile_files()
+
+
+func test_the_title_offers_continue_new_game_and_load(b: Dictionary) -> void:
+	var kept := _borrow_profile()
+	var ids := func() -> Array: return TitleScreen.buttons(b).map(func(x: Array) -> String: return x[0])
+	check(ids.call() == ["new", "settings"], "a first start offers a new game (%s)" % str(ids.call()))
+	var m := FakeMenuMain.new()
+	m.state = "title"
+	var title := TitleScreen.new(m)
+	title.activate("new")
+	check(Profile.slot == 1 and m.used == 1 and m.camp == 1, "New game opens slot 1 and goes to the camp")
+	check(ids.call() == ["continue", "new", "load", "settings"], "with a game there is Continue and Load (%s)" % str(ids.call()))
+	title.activate("continue")
+	check(m.camp == 2 and Profile.slot == 1, "Continue goes on with the open game")
+	Profile.new_game()
+	Profile.new_game()
+	var new_button: Array = TitleScreen.buttons(b)[1]
+	check(new_button[0] == "new" and not new_button[2], "with three games New game is refused")
+	title.activate("new")
+	check(Profile.slot == 3 and m.camp == 2 and m.used == 1, "and pressing it changes nothing")
+	title.activate("load")
+	check(m.state == "saves", "Load opens the load list")
+	m.free()
+	_return_profile(kept)
+
+
+func test_the_load_list_plays_and_deletes_slots(b: Dictionary) -> void:
+	var kept := _borrow_profile()
+	var m := FakeMenuMain.new()
+	m.content = content
+	m.balance = b
+	var saves := SavesScreen.new(m)
+	Profile.new_game()
+	Profile.data.denarii = 11
+	Profile.save()
+	Profile.new_game()
+	Profile.data.denarii = 22
+	Profile.save()
+	saves.activate("play:1")
+	check(Profile.slot == 1 and int(Profile.data.denarii) == 11 and m.used == 1 and m.camp == 1, "Play opens that slot's game in the camp")
+	saves.activate("delete:2")
+	check(saves.confirming == 2 and m.ui.focus == "no", "Delete asks first, starting on Cancel")
+	saves.activate("no")
+	check(saves.confirming == 0 and Profile.slot_taken(2) and m.ui.focus == "delete:2", "Cancel keeps the game")
+	saves.activate("delete:2")
+	check(saves.back() and saves.confirming == 0 and Profile.slot_taken(2), "and so does the back key")
+	check(not saves.back(), "which then leaves the list")
+	saves.activate("delete:2")
+	saves.activate("yes")
+	check(not Profile.slot_taken(2) and Profile.slot == 1, "confirming deletes the game")
+	Profile.new_game()
+	Profile.save()
+	Profile.load_slot(1)
+	saves.activate("delete:1")
+	saves.activate("yes")
+	check(Profile.slot == 2 and m.used == 2, "deleting the open game opens the one saved last")
+	saves.activate("delete:2")
+	saves.activate("yes")
+	check(Profile.slot == 0 and m.state == "title" and m.ui.focus == "new", "deleting the last game goes back to the title on New game")
+	var info := {"won": ["germania", "gaul", "nowhere"], "denarii": 1240, "runs": 3, "saved_at": 0.0}
+	var playable := content.provinces.keys().filter(func(p: String) -> bool: return content.ready("provinces", p)).size()
+	check(SavesScreen.summary(info, content, b) == ["2 of %d provinces won" % playable, "1240 denarii"], "a row says the provinces won and the denarii (%s)" % str(SavesScreen.summary(info, content, b)))
+	check(SavesScreen.played_on(Time.get_unix_time_from_system()).begins_with("Last played 20"), "and the day it was last played")
+	m.free()
+	_return_profile(kept)
 
 
 func _won(b: Dictionary, p: Node, province: String, time := 900.0, peak := 99) -> void:
@@ -2207,12 +2509,16 @@ func test_every_entry_has_a_history_line(b: Dictionary) -> void:
 			check(line.length() > 0 and line.length() <= 110, "%s has a history line that fits" % id)
 
 
-func test_saved_settings_keep_only_text_for_province_and_commander(b: Dictionary) -> void:
-	var merged: Dictionary = ProfileScript.merge_saved({"settings": {"province": 5, "commander": "legate", "other": 1}})
-	check(not merged.settings.has("province") and merged.settings.commander == "legate", "only string choices are kept")
-	check(ProfileScript.merge_saved({"settings": {"difficulty": "easy"}}).settings.difficulty == "easy", "a saved difficulty is kept")
-	check(not ProfileScript.merge_saved({"settings": {"difficulty": "brutal"}}).settings.has("difficulty"), "an unknown one is dropped")
-	check(not ProfileScript.merge_saved({"settings": {"difficulty": 2}}).settings.has("difficulty"), "and so is one that is not text")
+func test_saved_choices_keep_only_text_for_province_and_commander(b: Dictionary) -> void:
+	var merged: Dictionary = ProfileScript.merge_saved({"choices": {"province": 5, "commander": "legate", "other": 1}})
+	check(not merged.choices.has("province") and merged.choices.commander == "legate", "only string choices are kept")
+	check(not merged.choices.has("other"), "and nothing but the three choices")
+	check(ProfileScript.merge_saved({"choices": {"difficulty": "easy"}}).choices.difficulty == "easy", "a saved difficulty is kept")
+	check(not ProfileScript.merge_saved({"choices": {"difficulty": "brutal"}}).choices.has("difficulty"), "an unknown one is dropped")
+	check(not ProfileScript.merge_saved({"choices": {"difficulty": 2}}).choices.has("difficulty"), "and so is one that is not text")
+	var old: Dictionary = ProfileScript.merge_saved({"settings": {"province": "gaul", "difficulty": "hard", "language": "de"}})
+	check(old.choices == {"province": "gaul", "difficulty": "hard"}, "an old profile's choices come from its settings")
+	check(not old.has("settings"), "and a save keeps no settings of its own")
 
 
 func test_damage_is_counted_by_source(b: Dictionary) -> void:
@@ -2313,19 +2619,18 @@ func test_rebinding_to_a_key_held_in_another_slot_keeps_it(b: Dictionary) -> voi
 
 
 func test_empty_saved_bindings_fall_back_to_the_defaults(b: Dictionary) -> void:
-	var merged: Dictionary = ProfileScript.merge_saved({"settings": {"bindings": {"up": {"keys": [], "pads": []}, "down": {"keys": [0, -3, "x"]}, "left": {"keys": [KEY_J]}}}})
-	var cfg: Dictionary = ProfileScript.settings_of(merged)
+	var cfg: Dictionary = ProfileScript.settings_of(ProfileScript.merge_settings({"bindings": {"up": {"keys": [], "pads": []}, "down": {"keys": [0, -3, "x"]}, "left": {"keys": [KEY_J]}}}))
 	check(not cfg.bindings.has("up") and not cfg.bindings.has("down"), "empty or unusable lists are dropped when loaded")
 	check(cfg.bindings.left.keys == [KEY_J], "a good list is kept")
 	check(Controls.effective({"up": {"keys": [], "pads": []}}, "up").keys == [KEY_W, KEY_UP], "an empty saved list gives the defaults")
-	var pad: Dictionary = ProfileScript.settings_of(ProfileScript.merge_saved({"settings": {"bindings": {"testudo": {"pads": [0]}}}}))
+	var pad: Dictionary = ProfileScript.settings_of(ProfileScript.merge_settings({"bindings": {"testudo": {"pads": [0]}}}))
 	check(pad.bindings.testudo.pads == [0], "pad button 0 is a real button")
 
 
 func test_saved_settings_are_checked(b: Dictionary) -> void:
-	var merged: Dictionary = ProfileScript.merge_saved({"settings": {"master": 4, "music": "loud", "text_size": 7, "shake": "yes", "numbers": false,
-		"bindings": {"testudo": {"keys": [KEY_T, "x"], "pads": [2.0]}, "bad": 3}}})
-	var cfg: Dictionary = ProfileScript.settings_of(merged)
+	var cfg: Dictionary = ProfileScript.settings_of(ProfileScript.merge_settings({"master": 4, "music": "loud", "text_size": 7, "shake": "yes", "numbers": false,
+		"bindings": {"testudo": {"keys": [KEY_T, "x"], "pads": [2.0]}, "bad": 3}, "province": "gaul"}))
+	check(not cfg.has("province"), "the shared settings keep only the player's settings")
 	check(is_equal_approx(float(cfg.master), 1.0), "a volume is held between 0 and 1")
 	check(is_equal_approx(float(cfg.music), float(ProfileScript.SETTING_DEFAULTS.music)), "a volume that is not a number gives the default")
 	check(int(cfg.text_size) == 1 and cfg.shake == true and cfg.numbers == false, "text size, and the on or off choices, are checked")
@@ -2853,23 +3158,21 @@ func test_confirm_waits_after_a_choice_or_the_summary_opens(b: Dictionary) -> vo
 
 
 func test_hints_name_the_players_own_keys(_b: Dictionary) -> void:
-	var saved: Dictionary = Profile.data
-	Profile.data = Profile.defaults()
-	Profile.data.settings.bindings = {}
+	var saved: Dictionary = Profile.settings
+	Profile.settings = {"bindings": {}}
 	check(Controls.hint("level") == "A / D  choose     Space  take it", "the default level-up hint is unchanged (%s)" % Controls.hint("level"))
-	Controls.rebind(Profile.data.settings.bindings, "left", "keys", 0, KEY_J)
-	Controls.rebind(Profile.data.settings.bindings, "confirm", "keys", 0, KEY_E)
+	Controls.rebind(Profile.settings.bindings, "left", "keys", 0, KEY_J)
+	Controls.rebind(Profile.settings.bindings, "confirm", "keys", 0, KEY_E)
 	check(Controls.hint("level") == "J / D  choose     E  take it", "the level-up hint shows the rebound keys")
 	check(Controls.hint("summary").begins_with("E  choose"), "the summary hint shows the rebound confirm key (%s)" % Controls.hint("summary"))
 	check(Controls.hint("pick").begins_with("W J S D  move"), "the move hint shows the rebound march keys")
 	Controls.install({})
-	Profile.data = saved
+	Profile.settings = saved
 
 
 func test_hints_are_built_from_single_translated_words(_b: Dictionary) -> void:
-	var saved: Dictionary = Profile.data
-	Profile.data = Profile.defaults()
-	Profile.data.settings.bindings = {}
+	var saved: Dictionary = Profile.settings
+	Profile.settings = {"bindings": {}}
 	Controls.install({})
 	var before := TranslationServer.get_locale()
 	for loc in LANGUAGES:
@@ -2890,17 +3193,16 @@ func test_hints_are_built_from_single_translated_words(_b: Dictionary) -> void:
 	check(Controls.key_name(KEY_SPACE) == "Leertaste", "key names are translated (%s)" % Controls.key_name(KEY_SPACE))
 	check(Controls.key_name(KEY_W) == "W", "a letter key keeps its letter")
 	TranslationServer.set_locale(before)
-	Profile.data = saved
+	Profile.settings = saved
 
 
 func test_reroll_and_banish_can_be_rebound(_b: Dictionary) -> void:
-	var saved: Dictionary = Profile.data
-	Profile.data = Profile.defaults()
-	Profile.data.settings.bindings = {}
+	var saved: Dictionary = Profile.settings
+	Profile.settings = {"bindings": {}}
 	var names: Array = Controls.ACTIONS.map(func(a: Array) -> String: return a[0])
 	check(names.has("reroll") and names.has("banish"), "the key page lists reroll and banish")
-	Controls.rebind(Profile.data.settings.bindings, "reroll", "keys", 0, KEY_T)
-	Controls.rebind(Profile.data.settings.bindings, "banish", "pads", 0, JOY_BUTTON_LEFT_SHOULDER)
+	Controls.rebind(Profile.settings.bindings, "reroll", "keys", 0, KEY_T)
+	Controls.rebind(Profile.settings.bindings, "banish", "pads", 0, JOY_BUTTON_LEFT_SHOULDER)
 	var has_t := false
 	for e in InputMap.action_get_events("reroll"):
 		has_t = has_t or (e is InputEventKey and e.physical_keycode == KEY_T)
@@ -2910,7 +3212,7 @@ func test_reroll_and_banish_can_be_rebound(_b: Dictionary) -> void:
 	check(Controls.hint("banish", 1) == "LB  banish (1)", "with a gamepad in hand the banish hint names the new button (%s)" % Controls.hint("banish", 1))
 	Controls.pad_in_use = false
 	Controls.install({})
-	Profile.data = saved
+	Profile.settings = saved
 
 
 func test_japanese_lines_never_start_with_a_full_stop(_b: Dictionary) -> void:
@@ -6986,7 +7288,7 @@ func test_the_map_chooses_the_difficulty_and_keeps_modes_for_a_win(b: Dictionary
 	Profile.open_won_provinces(content)
 	map.activate("easy:gaul")
 	check(host.run_setup.difficulty == "easy" and host.run_setup.province == "gaul", "Easy is chosen, and with it the province of the panel")
-	check(Profile.data.settings.difficulty == "easy" and Profile.data.settings.province == "gaul", "both are kept in the settings")
+	check(Profile.data.choices.difficulty == "easy" and Profile.data.choices.province == "gaul", "both are kept in the save")
 	map.activate("hard:gaul")
 	check(host.run_setup.difficulty == "hard", "Hard needs no win")
 	map.activate("endless:gaul")

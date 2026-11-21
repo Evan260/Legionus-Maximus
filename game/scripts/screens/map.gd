@@ -53,13 +53,13 @@ func activate(id: String) -> void:
 			setup.province = parts[1]
 			for m in MODES:
 				setup[m[0]] = false
-		Profile.data.settings.province = setup.province
+		Profile.data.choices.province = setup.province
 		Profile.save()
 	elif parts[0] in Sim.DIFFICULTIES:
 		if parts[1] != setup.province:
 			activate("prov:" + parts[1])
 		setup.difficulty = parts[0]
-		Profile.data.settings.difficulty = parts[0]
+		Profile.data.choices.difficulty = parts[0]
 		Profile.save()
 	elif Profile.record_of(parts[1]).won:
 		if parts[1] != setup.province:
