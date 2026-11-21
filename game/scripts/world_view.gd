@@ -486,8 +486,8 @@ func _draw_ground_zones(view: Rect2) -> void:
 				draw_arc(p, r * 0.6, 3.5 + sin(sim.time * 2.0) * 0.2, 4.7, 10, Color(0.45, 0.5, 0.65, 0.55 * fade), 1.0)
 				draw_arc(p, r * 0.3, 0.2, 1.4, 8, Color(0.45, 0.5, 0.65, 0.4 * fade), 1.0)
 			"stakes":
-				# The ditch is the dark band the stakes stand in.
-				draw_arc(p, r, 0.0, TAU, 72, Color(0.2, 0.13, 0.07, 0.5), 5.0)
+				# The ditch is the dark band the stakes stand in, rounded like the legion so it keeps step with them.
+				draw_arc(_snap(sim.commander.pos), r, 0.0, TAU, 72, Color(0.2, 0.13, 0.07, 0.5), 5.0)
 
 
 ## Sprites that stand on the field and sort with the legion: caltrops, stakes and war dogs, drawn when their art exists.
@@ -502,9 +502,9 @@ func _add_arm_sprites(view: Rect2) -> void:
 		var st: Dictionary = sim.arms.stakes
 		var n := int(st.radius * TAU / 14.0)
 		for i in n:
-			var p: Vector2 = st.pos + Vector2.from_angle(i * TAU / n) * st.radius
+			var p: Vector2 = sim.commander.pos + Vector2.from_angle(i * TAU / n) * st.radius
 			if view.has_point(p):
-				_add(p.y, f[0], p - f[1], Color.WHITE)
+				_add(p.y, f[0], p - f[1], Color.WHITE, true)
 	if atlas.units.has("war_dog"):
 		var action := "move" if atlas.units.war_dog.has("move") else "idle"
 		for d in sim.arms.dogs:
