@@ -295,6 +295,8 @@ var e_bare := PackedByteArray()
 var e_tended := PackedFloat32Array()
 ## Until when each warrior is hardened by a priest of Sobek's blessing, and the share of each blow it turns.
 var e_ward := PackedFloat32Array()
+# Which way the last blow that reached each enemy was travelling, or zero, so he falls away from it.
+var e_hit := PackedVector2Array()
 var ward_cut := 0.0
 ## The Roxolani king's timers for his lancer sweep and for setting the steppe alight.
 var lancers_cd := 0.0
@@ -570,6 +572,7 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 	e_bare.append(0)
 	e_tended.append(-INF)
 	e_ward.append(-INF)
+	e_hit.append(Vector2.ZERO)
 	if beh == DRIVER:
 		# A chariot comes in heading for the legion, and only some carry warriors to set down.
 		var last := e_id.size() - 1
@@ -3530,3 +3533,4 @@ func remove_at(i: int) -> void:
 	e_bare[i] = e_bare[last]; e_bare.resize(last)
 	e_tended[i] = e_tended[last]; e_tended.resize(last)
 	e_ward[i] = e_ward[last]; e_ward.resize(last)
+	e_hit[i] = e_hit[last]; e_hit.resize(last)

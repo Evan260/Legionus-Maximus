@@ -17,7 +17,7 @@ const NO_SAVE_FLAGS := ["run-tests", "bench", "autoplay", "skip", "shot", "at", 
 	"commander", "chieftain-at", "as-demo", "objectives-near", "boss", "boss-act", "god", "god-at", "give", "go-to", "hold-choice", "win-at", "timber", "max-state",
 	"province", "seed", "men", "mortal", "trailer-shot", "no-save"]
 
-const SETTING_DEFAULTS := {"master": 0.8, "music": 0.8, "effects": 0.8, "fullscreen": false, "shake": true, "numbers": true,
+const SETTING_DEFAULTS := {"master": 0.8, "music": 0.8, "effects": 0.8, "fullscreen": false, "shake": true, "numbers": true, "blood": true,
 	"text_size": 1, "bindings": {}, "language": ""}
 
 var disabled := false
@@ -282,7 +282,7 @@ static func _checked_setting(key: String, v: Variant) -> Variant:
 	match key:
 		"master", "music", "effects":
 			return clampf(float(v), 0.0, 1.0) if _is_number(v) else null
-		"fullscreen", "shake", "numbers":
+		"fullscreen", "shake", "numbers", "blood":
 			return v if v is bool else null
 		"text_size":
 			return clampi(int(v), 1, 2) if _is_number(v) and int(v) in [1, 2] else null

@@ -3095,7 +3095,7 @@ func _cuts_in(loc: String, scale: int, c: Content, sim: Sim, cuts: Array) -> voi
 	var pct := Ui.width_at("100%", Ui.px)
 	for s in ["Master volume", "Music volume", "Effects volume"]:
 		_fit(cuts, loc, scale, "volume name", tr_.call(s), 440.0 - 6.0 - 12.0 - pct - 80.0 - 6.0)
-	for s in ["Full screen", "Screen shake", "Damage numbers"]:
+	for s in ["Full screen", "Screen shake", "Damage numbers", "Blood"]:
 		_fit(cuts, loc, scale, "toggle name", tr_.call(s), 440.0 - 12.0 - maxf(Ui.width_at(tr_.call("On"), Ui.px), Ui.width_at(tr_.call("Off"), Ui.px)) - 6.0)
 	_fit(cuts, loc, scale, "text size", tr_.call("Text size"), 440.0 - 12.0 - maxf(Ui.width_at(tr_.call("Large"), Ui.px), Ui.width_at(tr_.call("Normal"), Ui.px)) - 6.0)
 	_fit(cuts, loc, scale, "language label", tr_.call("Language"), 440.0 - 12.0 - 120.0)
@@ -9859,3 +9859,167 @@ func test_a_fractional_window_scale_is_drawn_from_the_next_whole_scale(_b: Dicti
 	check(Display.prescale(Vector2(0.5, 0.5)) == Vector2(1, 1), "a window smaller than the view still draws from whole pixels")
 	check(Display.is_whole(Vector2(3, 3)) and Display.is_whole(Vector2(4.0, 4.0)), "3 and 4 times are whole")
 	check(not Display.is_whole(Vector2(3.75, 3.75)) and not Display.is_whole(Vector2(4, 3.5)), "3.75 times is not whole")
+
+
+func _death_of(s: Sim) -> Dictionary:
+	for e in s.effects:
+		if e.kind == "death":
+			return e
+	return {}
+
+
+func test_a_kill_leaves_a_stain_where_he_fell_for_a_while(b: Dictionary) -> void:
+	var cfg: Dictionary = b.deaths
+	var s := Sim.new(b, content, {"seed": 1})
+	s.terrain.clear()
+	s.time = 30.0
+	s.horde.spawn("barbarian_club", Vector2(120.4, -40.6))
+	s.hit(0, 999.0)
+	s._remove_dead()
+	check(s.stains_alive() == 1, "one stain on the ground (%d)" % s.stains_alive())
+	check(s.stain_pos[0] == Vector2(120, -41), "it lies where he fell, on a whole pixel (%s)" % s.stain_pos[0])
+	check(is_equal_approx(s.stain_born[0], 30.0), "it is laid at the moment of the kill")
+	var life := s.stain_life[0]
+	check(life >= float(cfg.stain_seconds[0]) and life <= float(cfg.stain_seconds[1]), "it lasts between %s and %s seconds (%s)" % [cfg.stain_seconds[0], cfg.stain_seconds[1], life])
+	s.time += life + 0.01
+	check(s.stains_alive() == 0, "and is gone after its time")
+
+
+func test_the_stains_are_capped_and_the_oldest_goes_first(b: Dictionary) -> void:
+	var cap := int(b.deaths.stain_cap)
+	var s := Sim.new(b, content, {"seed": 2})
+	s.terrain.clear()
+	for k in cap + 5:
+		s.horde.spawn("barbarian_club", Vector2(200 + k * 3, 300))
+		s.hit(0, 999.0)
+		s._remove_dead()
+	check(s.stains_alive() == cap, "at most %d stains (%d)" % [cap, s.stains_alive()])
+	check(not s.stain_pos.has(Vector2(200, 300)) and not s.stain_pos.has(Vector2(212, 300)), "the five oldest are gone")
+	check(s.stain_pos.has(Vector2(215, 300)) and s.stain_pos.has(Vector2(200 + (cap + 4) * 3, 300)), "the newer ones stay")
+
+
+func test_with_blood_off_a_kill_leaves_no_stain_or_spray(b: Dictionary) -> void:
+	var s := Sim.new(b, content, {"seed": 3})
+	s.terrain.clear()
+	s.blood = false
+	s.horde.spawn("barbarian_club", Vector2(150, 0))
+	s.hit(0, 999.0)
+	s._remove_dead()
+	var e := _death_of(s)
+	check(s.stains_alive() == 0, "no stain")
+	check(not e.is_empty() and e.blood == false, "the death is drawn with no blood")
+	check(ProfileScript.SETTING_DEFAULTS.blood == true, "blood is on by default")
+
+
+func test_a_boss_falls_harder_than_an_ordinary_barbarian(b: Dictionary) -> void:
+	var cfg: Dictionary = b.deaths
+	var s := Sim.new(b, content, {"seed": 4})
+	s.terrain.clear()
+	s.horde.spawn("barbarian_club", Vector2(150, 0))
+	s.hit(0, 999.0)
+	s._remove_dead()
+	var plain := _death_of(s)
+	var plain_size := s.stain_size[0]
+	check(s.shake == 0.0, "an ordinary kill does not shake the screen")
+	s.effects.clear()
+	s.horde.spawn("berserker", Vector2(150, 60), true)
+	s.hit(0, 1e9)
+	s._remove_dead()
+	var big := _death_of(s)
+	check(big.big and int(big.spray) > int(plain.spray), "an elite sprays more blood (%s against %s)" % [big.spray, plain.spray])
+	check(s.stain_size[1] > plain_size, "and leaves a bigger stain")
+	check(is_equal_approx(s.shake, float(b.shake.elite_death)), "and shakes the screen (%s)" % s.shake)
+	s.effects.clear()
+	s.shake = 0.0
+	var ci := s.horde.spawn_chieftain(Vector2(150, -60))
+	s.hit(ci, 1e12)
+	s._remove_dead()
+	var chief := _death_of(s)
+	check(chief.chief and int(chief.spray) >= int(big.spray), "the chieftain sprays the most")
+	check(is_equal_approx(s.shake, float(b.shake.chief_death)), "and shakes the screen hardest (%s)" % s.shake)
+	check(float(cfg.big_seconds) > float(cfg.seconds), "a boss takes longer to fall")
+
+
+func test_a_dead_barbarian_is_knocked_away_from_the_blow_that_killed_him(b: Dictionary) -> void:
+	var s := Sim.new(b, content, {"seed": 5})
+	s.terrain.clear()
+	s.horde.spawn("barbarian_club", Vector2(150, 150))
+	s.hit(0, 999.0, 0.0, "", Vector2(150, 100))
+	s._remove_dead()
+	var e := _death_of(s)
+	check(e.dir.distance_to(Vector2(0, 1)) < 0.01, "a blow from above knocks him down the screen (%s)" % e.dir)
+	s.effects.clear()
+	s.horde.spawn("barbarian_club", Vector2(-120, 0))
+	s.hit(0, 999.0)
+	s._remove_dead()
+	e = _death_of(s)
+	check(e.dir.distance_to(Vector2(-1, 0)) < 0.01, "with no blow to follow he falls away from the commander (%s)" % e.dir)
+	s.effects.clear()
+	s.horde.spawn("barbarian_club", Vector2(100, 0))
+	s.horde.rebuild_grid()
+	s._explode(Vector2(100, -30), 60.0, 999.0, "")
+	s._remove_dead()
+	e = _death_of(s)
+	check(e.dir.distance_to(Vector2(0, 1)) < 0.01, "a blast throws him away from where it burst (%s)" % e.dir)
+
+
+func test_a_death_is_drawn_for_its_set_time(b: Dictionary) -> void:
+	var s := Sim.new(b, content, {"seed": 6})
+	s.terrain.clear()
+	s.horde.spawn("barbarian_club", Vector2(150, 0))
+	s.hit(0, 999.0)
+	s._remove_dead()
+	s._effects(float(b.deaths.seconds) - 0.02)
+	check(not _death_of(s).is_empty(), "the body is still falling just before its time")
+	s._effects(0.04)
+	check(_death_of(s).is_empty(), "and gone after it")
+
+
+func test_fallen_romans_and_the_triumph_leave_no_stains(b: Dictionary) -> void:
+	var s := Sim.new(b, content, {"seed": 7})
+	s.terrain.clear()
+	s.soldiers[0].hp = 0.0
+	s.legion.remove_fallen(s)
+	check(s.stains_alive() == 0, "a fallen soldier leaves no stain")
+	s.horde.spawn("barbarian_club", Vector2(40, 0))
+	s.win(s.commander.pos)
+	for f in 30:
+		s.update(1.0 / 30.0, Vector2.ZERO, false)
+	check(s.horde.e_pos.is_empty(), "the triumph's wave killed him")
+	check(s.stains_alive() == 0 and s.shake == 0.0, "the triumph kills with no stains or shake")
+
+
+func test_no_stain_is_laid_over_a_gorge(b: Dictionary) -> void:
+	var s := Sim.new(b, content, {"seed": 8})
+	s.terrain.clear()
+	_gorge(s, -400.0, 400.0, 100.0, 20.0)
+	s.horde.spawn("barbarian_club", Vector2(50, 100.0 - 20.0 - 2.0))
+	s.hit(0, 999.0)
+	s._remove_dead()
+	check(s.stains_alive() == 0, "a barbarian killed on the lip leaves no stain hanging over the drop")
+	s.horde.spawn("barbarian_club", Vector2(50, 100.0 - 20.0 - 40.0))
+	s.hit(0, 999.0)
+	s._remove_dead()
+	check(s.stains_alive() == 1, "one killed well back from it does")
+
+
+func test_the_blood_setting_is_shared_and_checked(_b: Dictionary) -> void:
+	_cleanup_profile_files()
+	var p := _fresh_profile()
+	p.slot = 0
+	p.settings.blood = false
+	p.save_settings()
+	p.new_game()
+	p.save()
+	p.new_game()
+	p.load_slot(1)
+	check(p.setting("blood") == false, "loading another slot keeps blood off")
+	var other := _fresh_profile()
+	other.load_settings()
+	check(other.setting("blood") == false, "the settings file holds it")
+	other.free()
+	p.free()
+	_cleanup_profile_files()
+	var cfg: Dictionary = ProfileScript.settings_of(ProfileScript.merge_settings({"blood": "no"}))
+	check(cfg.blood == true, "a blood setting that is not on or off gives the default")
+	check(SettingsScreen.TOGGLES.any(func(t): return t[0] == "blood"), "the settings screen has a blood switch")

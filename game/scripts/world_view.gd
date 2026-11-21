@@ -5,6 +5,10 @@ extends Node2D
 # How far the wheat tile is laid past each field for its frayed edge, and how many fields the shader holds (its `fields` array).
 const FIELD_FRAY := 20.0
 const FIELD_SHAPES := 32
+# Ground pictures sort 60000 px above where they lie, so every depth key from here up belongs to something standing.
+const STANDING_KEY := 70000 * 65536
+# How many stain shapes are painted for each size and direction.
+const STAIN_SHAPES := 4
 
 
 var sim: Sim
@@ -24,6 +28,16 @@ var _rects: Array[Rect2] = []
 var _dests := PackedVector2Array()
 var _mods := PackedColorArray()
 var _sizes := PackedVector2Array()
+# The toppling dead are drawn through transforms of their own, kept in _turns by sprite index; every one lies between _turn_lo and _turn_hi.
+var _turns := {}
+var _turn_lo := 0
+var _turn_hi := 0
+# Whether each kind of enemy stands on four legs or rides, so it rolls onto its side when it dies.
+var _all_fours := {}
+# The stain pictures, painted once, with each size's cell width and the row it starts at.
+var _stain_sheet: Texture2D
+var _stain_cells: Array[int] = []
+var _stain_rows: Array[int] = []
 # The trees being chopped this frame, as [position, seconds of chopping], for their progress bars.
 var _felling: Array = []
 # Per enemy kind of the current sim: its art name, whether it has an attack drawn, and its shadow's width.
@@ -133,6 +147,27 @@ func _add(y: float, rect: Rect2, dest: Vector2, mod: Color, moving := false, siz
 	_sizes.append(rect.size if size == Vector2.ZERO else size)
 
 
+## Draws the sorted sprites from `from` up to `to` in depth order.
+func _draw_sorted(tex: Texture2D, from: int, to: int) -> void:
+	for n in range(from, to):
+		var idx := int(_keys[n] % 65536)
+		if idx >= _turn_lo and idx < _turn_hi and _turns.has(idx):
+			draw_set_transform_matrix(_turns[idx])
+			draw_texture_rect_region(tex, Rect2(_dests[idx], _sizes[idx]), _rects[idx], _mods[idx])
+			draw_set_transform_matrix(Transform2D.IDENTITY)
+		else:
+			draw_texture_rect_region(tex, Rect2(_dests[idx], _sizes[idx]), _rects[idx], _mods[idx])
+
+
+## A sprite drawn turned and squashed by `xf` about its origin, for a body toppling over.
+func _add_turned(y: float, rect: Rect2, dest: Vector2, mod: Color, size: Vector2, xf: Transform2D) -> void:
+	if _turns.is_empty():
+		_turn_lo = _rects.size()
+	_turns[_rects.size()] = xf
+	_turn_hi = _rects.size() + 1
+	_add(y, rect, dest - xf.origin, mod, false, size)
+
+
 ## Feather grass bends in the wind: its upper half is drawn a pixel or two aside, in a slow wave that runs across the field.
 func _add_swaying(at: Vector2, f: Array, mod: Color) -> void:
 	var rect: Rect2 = f[0]
@@ -165,6 +200,9 @@ func _draw() -> void:
 	_dests.clear()
 	_mods.clear()
 	_sizes.clear()
+	_turns.clear()
+	_turn_lo = 0
+	_turn_hi = 0
 	var white := Color.WHITE
 	var margin := 80.0
 	var view := Rect2(top_left - Vector2(margin, margin), screen + Vector2(margin, margin) * 2.0)
@@ -301,10 +339,7 @@ func _draw() -> void:
 
 	for e in sim.effects:
 		if e.kind == "death" or e.kind == "fallen":
-			var f := atlas.unit_frame(e.type, "idle", Sim.dir_name(e.facing), 0.0)
-			var a: float = 1.0 - e.t / 0.45
-			var sc := _scale_of(e.type)
-			_add(e.pos.y, f[0], e.pos - f[1] * sc + Vector2(0, e.t * 8.0), Color(0.75, 0.35, 0.3, a), false, f[0].size * sc)
+			_add_body(e)
 		elif e.kind == "plunge":
 			# The body shrinks and darkens as it drops into the gorge; a boss shudders at the lip first.
 			var f := atlas.unit_frame(e.type, "idle", Sim.dir_name(e.facing), 0.0)
@@ -324,9 +359,12 @@ func _draw() -> void:
 	_draw_coins(view)
 	_keys.sort()
 	var tex := atlas.texture
-	for key in _keys:
-		var idx := int(key % 65536)
-		draw_texture_rect_region(tex, Rect2(_dests[idx], _sizes[idx]), _rects[idx], _mods[idx])
+	# Stains go over the ground pictures, such as dunes and heather, and under everything that stands.
+	var standing := _keys.bsearch(STANDING_KEY)
+	_draw_sorted(tex, 0, standing)
+	_draw_stains(view)
+	_draw_sorted(tex, standing, _keys.size())
+	_draw_death_bits()
 
 	_draw_shots(tex)
 	_draw_spears()
@@ -1591,3 +1629,199 @@ func _draw_bridge(br: Dictionary) -> void:
 			var post: Vector2 = (c + d * (hl - 3.0) * end + side * edge * (hw + 1.0)).round()
 			draw_rect(Rect2(post - Vector2(3, 3), Vector2(6, 6)), ink)
 			draw_rect(Rect2(post - Vector2(2, 2), Vector2(4, 4)), beam)
+
+
+## A dead man flashes white, is knocked away from the blow, topples over away from it and fades.
+func _add_body(e: Dictionary) -> void:
+	var cfg: Dictionary = sim.b.deaths
+	var soldier: bool = e.kind == "fallen"
+	var big: bool = e.get("big", false)
+	var secs := float(cfg.big_seconds if big else cfg.seconds)
+	var t: float = e.t
+	var dir := _death_dir(e)
+	var f := atlas.unit_frame(e.type, "idle", Sim.dir_name(e.facing), 0.0)
+	var sc := _scale_of(e.type)
+	var knock := float(cfg.soldier_knock if soldier else (cfg.big_knock if big else cfg.knock))
+	var kk := clampf(t / float(cfg.knock_seconds), 0.0, 1.0)
+	var at: Vector2 = (e.pos + dir * knock * (1.0 - (1.0 - kk) * (1.0 - kk))).round()
+	var tk := clampf(t / float(cfg.topple_seconds), 0.0, 1.0)
+	tk *= tk
+	var side := signf(dir.x) if absf(dir.x) > 0.05 else (1.0 if _death_seed(e) % 2 == 0 else -1.0)
+	var lean := maxf(absf(dir.x), float(cfg.least_lean))
+	var angle := deg_to_rad(float(cfg.soldier_degrees if soldier else cfg.topple_degrees)) * side * lean * tk
+	var flat := 1.0 - (1.0 - float(cfg.flat)) * tk * absf(dir.y)
+	if not soldier and _on_all_fours(e.type):
+		# Turned on end, a beast or a horse would look like it was rearing, so it rolls onto its side instead.
+		angle = deg_to_rad(float(cfg.beast_degrees)) * side * tk
+		flat = 1.0 - (1.0 - float(cfg.beast_flat)) * tk
+	var xf := Transform2D(angle, Vector2.ZERO).scaled(Vector2(1.0, flat))
+	xf.origin = at
+	var a := 1.0 - smoothstep(float(cfg.fade_from) * secs, secs, t)
+	var tint: Array = cfg.tint
+	var bright := float(cfg.flash_bright)
+	var mod := Color(bright, bright, bright, 1.0) if t < float(cfg.flash) else Color(float(tint[0]), float(tint[1]), float(tint[2]), a)
+	_add_turned(at.y, f[0], at - f[1] * sc, mod, f[0].size * sc, xf)
+
+
+## The way a dead man falls: away from the blow that killed him, or backwards from where a soldier faced.
+func _death_dir(e: Dictionary) -> Vector2:
+	if e.has("dir"):
+		return e.dir
+	var back: Vector2 = -e.facing
+	return back.normalized() if back != Vector2.ZERO else Vector2.DOWN
+
+
+func _on_all_fours(type: String) -> bool:
+	if not _all_fours.has(type):
+		var info: Dictionary = sim.content.enemies.get(type, {})
+		_all_fours[type] = info.get("behaviour", "") in ["beast", "driver", "charger"] or info.get("mounted", false) or type in sim.b.deaths.roll_kinds
+	return _all_fours[type]
+
+
+func _death_seed(e: Dictionary) -> int:
+	return int(e.get("seed", int(e.pos.x) * 31 + int(e.pos.y) * 17))
+
+
+## A steady number from 0 to 1 for the k-th draw of a seed, so each death's blood and stain keep their shape every frame.
+static func _hash01(seed_n: int, k: int) -> float:
+	var h := (seed_n * 73856093) ^ (k * 19349663) ^ 0x5bd1e995
+	h = (h ^ (h >> 13)) * 1274126177
+	return float((h ^ (h >> 16)) & 0xffff) / 65535.0
+
+
+## The blood thrown out along the killing blow, falling to the ground, or a puff of dust when blood is off.
+func _draw_death_bits() -> void:
+	var cfg: Dictionary = sim.b.deaths
+	var g := float(cfg.gravity)
+	for e in sim.effects:
+		if e.kind != "death" and e.kind != "fallen":
+			continue
+		var soldier: bool = e.kind == "fallen"
+		var big: bool = e.get("big", false)
+		var seed_n := _death_seed(e)
+		var t: float = e.t
+		var bloody: bool = e.get("blood", sim.blood and soldier and sim.triumph_left <= 0.0)
+		if bloody:
+			var dir := _death_dir(e)
+			var col: Array = cfg.blood
+			var c := Color(float(col[0]), float(col[1]), float(col[2]))
+			var n := int(e.get("spray", cfg.soldier_spray))
+			var speed: Array = cfg.spray_speed
+			var rise: Array = cfg.spray_rise
+			var reach := 1.4 if big else 1.0
+			var z0 := float(cfg.spray_height) * (1.6 if big else 1.0) * _scale_of(e.type)
+			var r0 := float(rise[0])
+			var r1 := float(rise[1])
+			var s0 := float(speed[0]) * reach
+			var s1 := float(speed[1]) * reach
+			var aim := dir.angle()
+			var spread := 2.0 * float(cfg.spray_spread)
+			var fall := z0 - 0.5 * g * t * t
+			for k in n:
+				var z := fall + lerpf(r0, r1, _hash01(seed_n, k * 3 + 2)) * t
+				if z < 0.0:
+					continue
+				var ang := aim + (_hash01(seed_n, k * 3) - 0.5) * spread
+				var p: Vector2 = e.pos + Vector2.from_angle(ang) * lerpf(s0, s1, _hash01(seed_n, k * 3 + 1)) * t - Vector2(0, z)
+				draw_rect(Rect2(p.round(), Vector2(2 if k % 3 == 0 else 1, 1)), c)
+		else:
+			var secs := float(cfg.big_seconds if big else cfg.seconds)
+			var k01 := clampf(t / secs, 0.0, 1.0)
+			var col: Array = cfg.dust
+			var c := Color(float(col[0]), float(col[1]), float(col[2]), 0.75 * (1.0 - k01))
+			var n := int(cfg.dust_puffs) * (2 if big else 1)
+			var spread := (1.0 - (1.0 - k01) * (1.0 - k01)) * float(cfg.dust_reach[1] if big else cfg.dust_reach[0])
+			for k in n:
+				var ang := _hash01(seed_n, k) * TAU
+				var r := spread * (0.5 + 0.5 * _hash01(seed_n, k + 40))
+				var p: Vector2 = e.pos + Vector2(cos(ang) * r, sin(ang) * r * 0.5 - 3.0 * k01 - 1.0)
+				draw_rect(Rect2(p.round(), Vector2(2, 2)), c)
+
+
+## Dark red splats where barbarians fell, one picture each from the stain sheet, faded in as the body lands and out at the end of its time.
+func _draw_stains(view: Rect2) -> void:
+	if sim.stain_pos.is_empty():
+		return
+	if _stain_sheet == null:
+		_stain_sheet = _paint_stains()
+	var cfg: Dictionary = sim.b.deaths
+	var fade := float(cfg.stain_fade)
+	var knock := float(cfg.knock)
+	var topple := deg_to_rad(float(cfg.topple_degrees))
+	var lean_least := float(cfg.least_lean)
+	var torso := float(cfg.stain_torso)
+	var fade_in := float(cfg.stain_in)
+	var big := float(cfg.big_stain)
+	var now := sim.time
+	var area := view.grow(-40.0)
+	for k in sim.stain_pos.size():
+		var age := now - sim.stain_born[k]
+		var life := sim.stain_life[k]
+		if age < 0.0 or age >= life:
+			continue
+		var p := sim.stain_pos[k]
+		if not area.has_point(p):
+			continue
+		var sz := sim.stain_size[k]
+		var d := sim.stain_dir[k]
+		var seed_n := sim.stain_seed[k]
+		var row := 0 if sz <= 1.0 else (1 if sz <= big else 2)
+		var cell := float(_stain_cells[row])
+		var col := Sim.dir_index(d) * STAIN_SHAPES + posmod(seed_n, STAIN_SHAPES)
+		var a := clampf((life - age) / fade, 0.0, 1.0) * clampf(age / fade_in, 0.0, 1.0)
+		# The pool spreads under the body's middle, which lies to the side it toppled towards.
+		var fell := signf(d.x) if absf(d.x) > 0.05 else (1.0 if seed_n % 2 == 0 else -1.0)
+		var mid := (p + d * knock * sz + Vector2(fell * sin(topple * maxf(absf(d.x), lean_least)) * torso * sz, -2.0)).round()
+		draw_texture_rect_region(_stain_sheet, Rect2(mid - Vector2(cell, cell) / 2.0, Vector2(cell, cell)), Rect2(col * cell, _stain_rows[row], cell, cell), Color(1, 1, 1, a))
+
+
+## Paints every stain picture once: a row for ordinary, elite and chieftain sizes, each with STAIN_SHAPES shapes thrown along each of the eight directions.
+func _paint_stains() -> Texture2D:
+	var cfg: Dictionary = sim.b.deaths
+	var sizes := [1.0, float(cfg.big_stain), float(cfg.chief_stain)]
+	var light: Array = cfg.stain
+	var dark: Array = cfg.stain_dark
+	var c := Color(float(light[0]), float(light[1]), float(light[2]), float(light[3]))
+	var cd := Color(float(dark[0]), float(dark[1]), float(dark[2]), float(dark[3]))
+	_stain_cells.clear()
+	_stain_rows.clear()
+	var tall := 0
+	for sz in sizes:
+		_stain_rows.append(tall)
+		_stain_cells.append(int(ceil(32.0 * sz / 2.0)) * 2)
+		tall += _stain_cells[-1]
+	var img := Image.create(8 * STAIN_SHAPES * _stain_cells[2], tall, false, Image.FORMAT_RGBA8)
+	for row in sizes.size():
+		var sz: float = sizes[row]
+		var cell: int = _stain_cells[row]
+		for dir_i in 8:
+			var d := Vector2.from_angle(dir_i * PI / 4.0)
+			var side := d.orthogonal()
+			for v in STAIN_SHAPES:
+				var seed_n := 101 + v * 7919 + row * 31
+				var mid := Vector2((dir_i * STAIN_SHAPES + v) * cell + cell / 2, _stain_rows[row] + cell / 2)
+				var w := roundf((7.0 + 4.0 * _hash01(seed_n, 1)) * sz)
+				var h := maxf(2.0, roundf((3.0 + 2.0 * _hash01(seed_n, 2)) * sz))
+				_blob(img, mid, w, h, c)
+				var lobe := (mid + d * w * 0.45 + side * roundf((_hash01(seed_n, 4) - 0.5) * 4.0)).round()
+				_blob(img, lobe, roundf(w * 0.55), maxf(2.0, roundf(h * 0.7)), c)
+				_blob(img, mid + Vector2(roundf((_hash01(seed_n, 5) - 0.5) * 2.0), 0), roundf(w * 0.45), maxf(1.0, roundf(h * 0.5)), cd)
+				var drops := 2 + int(_hash01(seed_n, 3) * 3.0) + (3 if sz > 1.0 else 0)
+				for j in drops:
+					var out := w / 2.0 + 1.0 + (2.0 + 6.0 * _hash01(seed_n, 10 + j)) * sz
+					var off := (_hash01(seed_n, 20 + j) - 0.5) * 6.0 * sz
+					var dp := (mid + d * out + side * off).round()
+					img.fill_rect(Rect2i(Vector2i(dp), Vector2i(2 if _hash01(seed_n, 30 + j) > 0.6 else 1, 1)), c)
+	return ImageTexture.create_from_image(img)
+
+
+## A rounded pixel splat w by h centred on p: a rectangle with its corners cut.
+func _blob(img: Image, p: Vector2, w: float, h: float, c: Color) -> void:
+	var corner := Vector2i(p - Vector2(floorf(w / 2.0), floorf(h / 2.0)))
+	var wi := int(w)
+	var hi := int(h)
+	if hi <= 2 or wi <= 2:
+		img.fill_rect(Rect2i(corner, Vector2i(wi, hi)), c)
+		return
+	img.fill_rect(Rect2i(corner + Vector2i(0, 1), Vector2i(wi, hi - 2)), c)
+	img.fill_rect(Rect2i(corner + Vector2i(1, 0), Vector2i(wi - 2, hi)), c)

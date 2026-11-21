@@ -1,12 +1,12 @@
 class_name SettingsScreen
 extends RefCounted
-## The settings: volumes, full screen, screen shake, damage numbers, text size, language, and the key and button bindings.
+## The settings: volumes, full screen, screen shake, damage numbers, blood, text size, language, and the key and button bindings.
 ## Changes apply at once; they are saved when the screen is left.
 
 const VOLUMES := ["master", "music", "effects"]
 const VOLUME_NAMES := {"master": "Master volume", "music": "Music volume", "effects": "Effects volume"}
 const BUSES := {"master": "Master", "music": "Music", "effects": "Effects"}
-const TOGGLES := [["fullscreen", "Full screen"], ["shake", "Screen shake"], ["numbers", "Damage numbers"]]
+const TOGGLES := [["fullscreen", "Full screen"], ["shake", "Screen shake"], ["numbers", "Damage numbers"], ["blood", "Blood"]]
 
 var main: Node
 var page := "main"

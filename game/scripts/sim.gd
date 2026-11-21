@@ -124,7 +124,17 @@ var damage_by_source: Dictionary:
 var history: Array = []
 var numbers: Array = []
 var show_numbers := false
+## The player's blood setting: with it off a kill sprays no blood and leaves no stain.
+var blood := true
 var shake := 0.0
+## The stains kills leave on the ground, kept as a ring of at most `deaths.stain_cap`, written over oldest first.
+var stain_pos := PackedVector2Array()
+var stain_dir := PackedVector2Array()
+var stain_born := PackedFloat32Array()
+var stain_life := PackedFloat32Array()
+var stain_size := PackedFloat32Array()
+var stain_seed := PackedInt32Array()
+var _stain_next := 0
 var _next_sample := 0.0
 var _damage_named := {}
 var _damage := PackedFloat64Array()
@@ -774,6 +784,8 @@ func _number(i: int, taken: float) -> void:
 ## `from` is where a direct blow or shot came from, for a boss's shield; it is left out for harm that falls from above or burns.
 func hit(i: int, dmg: float, burn_dps: float = 0.0, src := "", from := Vector2.INF) -> void:
 	_number(i, _harm(i, dmg * horde.guard_mult(i, from), src_id(src)))
+	if from != Vector2.INF and from != horde.e_pos[i]:
+		horde.e_hit[i] = (horde.e_pos[i] - from).normalized()
 	tally(0, horde.e_pos[i])
 	horde.e_flash[i] = 0.1
 	if burn_dps > 0.0:
@@ -899,6 +911,8 @@ func _bounce(s: Dictionary, from_enemy: int) -> bool:
 func _explode(p: Vector2, radius: float, dmg: float, src: String) -> void:
 	for j in enemies_near(p, radius):
 		hit(j, dmg, 0.0, src)
+		if horde.e_pos[j] != p:
+			horde.e_hit[j] = (horde.e_pos[j] - p).normalized()
 	effects.append({"kind": "boom", "pos": p, "t": 0.0, "radius": radius})
 
 
@@ -945,7 +959,10 @@ func _kill(i: int) -> void:
 	var at := lip if lip != Vector2.INF else horde.e_pos[i]
 	if value > 0 and (not fell or (boss and lip != Vector2.INF)):
 		drop_coin(at, value)
-	effects.append({"kind": "plunge" if fell else "death", "pos": horde.e_pos[i], "t": 0.0, "type": id, "facing": horde.e_face[i], "big": boss})
+	if fell:
+		effects.append({"kind": "plunge", "pos": horde.e_pos[i], "t": 0.0, "type": id, "facing": horde.e_face[i], "big": boss})
+	else:
+		_death(i, id)
 	if horde.e_tag[i] == Horde.ELITE:
 		horde.drop_chest(at)
 	if horde.e_id[i] == horde.chieftain_id:
@@ -1122,11 +1139,73 @@ func gain(value: int) -> void:
 		event("level", commander.pos)
 
 
+## A barbarian topples away from the blow that killed him, spraying blood and leaving a stain, more of both for a boss.
+func _death(i: int, id: String) -> void:
+	var cfg: Dictionary = b.deaths
+	var p := horde.e_pos[i]
+	var dir := horde.e_hit[i]
+	if dir == Vector2.ZERO or victory:
+		dir = p - commander.pos
+		dir = dir.normalized() if dir != Vector2.ZERO else Vector2.DOWN
+	var tag := horde.e_tag[i]
+	var bloody := blood and not victory
+	var spray := int(cfg.chief_spray if tag == Horde.CHIEF else (cfg.big_spray if tag == Horde.ELITE else cfg.spray))
+	effects.append({"kind": "death", "pos": p, "t": 0.0, "type": id, "facing": horde.e_face[i], "big": tag != Horde.ORDINARY,
+		"chief": tag == Horde.CHIEF, "dir": dir, "blood": bloody, "spray": spray, "seed": horde.e_id[i]})
+	if victory:
+		return
+	if tag != Horde.ORDINARY:
+		shake = maxf(shake, float(b.shake.chief_death if tag == Horde.CHIEF else b.shake.elite_death))
+	if bloody:
+		var size := float(cfg.chief_stain if tag == Horde.CHIEF else (cfg.big_stain if tag == Horde.ELITE else 1.0))
+		add_stain(p, dir, size, horde.e_id[i])
+
+
+## Lays a stain on the ground unless it would hang over a gorge or canal, writing over the oldest once the cap is reached.
+func add_stain(p: Vector2, dir: Vector2, size: float, seed_n: int) -> void:
+	var cfg: Dictionary = b.deaths
+	if terrain.over_ravine(p, -float(cfg.stain_clear) * size):
+		return
+	var spans: Array = cfg.stain_seconds
+	var life := lerpf(float(spans[0]), float(spans[1]), float(posmod(seed_n * 7919, 1000)) / 999.0)
+	var at := p.round()
+	if stain_pos.size() < int(cfg.stain_cap):
+		stain_pos.append(at)
+		stain_dir.append(dir)
+		stain_born.append(time)
+		stain_life.append(life)
+		stain_size.append(size)
+		stain_seed.append(seed_n)
+		return
+	var k := _stain_next
+	_stain_next = (_stain_next + 1) % stain_pos.size()
+	stain_pos[k] = at
+	stain_dir[k] = dir
+	stain_born[k] = time
+	stain_life[k] = life
+	stain_size[k] = size
+	stain_seed[k] = seed_n
+
+
+## How many stains are still on the ground.
+func stains_alive() -> int:
+	var n := 0
+	for k in stain_pos.size():
+		if time - stain_born[k] < stain_life[k]:
+			n += 1
+	return n
+
+
 func _effects(dt: float) -> void:
 	var keep: Array = []
+	var dying := float(b.deaths.seconds)
+	var big_dying := float(b.deaths.big_seconds)
 	for e in effects:
 		e.t += dt
-		if e.t < (0.12 if e.kind == "slash" else (PLUNGE_SECONDS if e.kind == "plunge" else 0.45)):
+		var last := 0.12 if e.kind == "slash" else (PLUNGE_SECONDS if e.kind == "plunge" else 0.45)
+		if e.kind == "death" or e.kind == "fallen":
+			last = big_dying if e.get("big", false) else dying
+		if e.t < last:
 			keep.append(e)
 	effects = keep
 	_float_numbers(dt)

@@ -435,7 +435,7 @@ func _summary_shot(won := false) -> void:
 	_finish_run()
 
 
-## Puts every saved setting to work: volumes, full screen, text size, damage numbers and screen shake.
+## Puts every saved setting to work: volumes, full screen, text size, damage numbers, blood and screen shake.
 func apply_settings() -> void:
 	var cfg := Profile.settings_of(Profile.settings)
 	SettingsScreen.apply_audio(cfg)
@@ -447,6 +447,7 @@ func apply_settings() -> void:
 	for s in [sim, camp_sim]:
 		if s != null:
 			s.show_numbers = cfg.numbers
+			s.blood = cfg.blood
 
 
 ## The words and fonts change with the language, and the text size is drawn again in the new font.
@@ -495,6 +496,7 @@ func use_profile() -> void:
 func _new_sim() -> void:
 	sim = Sim.new(balance, content, _run_options())
 	sim.show_numbers = bool(Profile.setting("numbers"))
+	sim.blood = bool(Profile.setting("blood"))
 	world.sim = sim
 	if args.has("autoplay") or args.has("skip"):
 		sim.timber = int(args.get("timber", "0"))
@@ -555,6 +557,7 @@ func _sample_profile() -> void:
 func _enter_camp(focus_id := "march") -> void:
 	camp_sim = Sim.new(balance, content, _run_options())
 	camp_sim.show_numbers = bool(Profile.setting("numbers"))
+	camp_sim.blood = bool(Profile.setting("blood"))
 	if Profile.rank("triumphal_arch") > 0:
 		var spot: Array = CampScreen.arch_clearing()
 		camp_sim.terrain.add_clearing(camp_sim.commander.pos + spot[0], spot[1], [])
