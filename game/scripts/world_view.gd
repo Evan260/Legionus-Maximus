@@ -121,7 +121,8 @@ func _process(dt: float) -> void:
 
 ## A sprite's place in the drawing order, from its depth measured from the camera so the key stays positive however far the legion marches.
 static func depth_key(y: float, cam_y: float, index: int) -> int:
-	return (int(y - cam_y) + 100000) * 65536 + index
+	# Each side is rounded down on its own, so two sprites keep their order while the camera moves between pixels.
+	return (floori(y) - floori(cam_y) + 100000) * 65536 + index
 
 
 func _add(y: float, rect: Rect2, dest: Vector2, mod: Color, moving := false, size := Vector2.ZERO) -> void:

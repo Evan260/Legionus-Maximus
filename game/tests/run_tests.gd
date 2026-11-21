@@ -9093,6 +9093,11 @@ func test_sprites_far_north_keep_their_depth_order(b: Dictionary) -> void:
 	check(ground >= 0 and behind >= 0 and man >= 0, "depth keys far north stay positive")
 	check(ground < behind and behind < man, "and keep the ground under the men, and the further man behind the nearer")
 	check(ground % 65536 == 3 and man % 65536 == 1, "and each key still names its sprite")
+	var steady := true
+	for k in 8:
+		var c := 0.125 * k
+		steady = steady and view.depth_key(100.7, c, 1) < view.depth_key(101.2, c, 0)
+	check(steady, "two trees a pixel apart keep their order however the camera moves between pixels")
 
 
 func test_a_boss_shoved_into_a_canal_falls_into_the_water(b: Dictionary) -> void:
