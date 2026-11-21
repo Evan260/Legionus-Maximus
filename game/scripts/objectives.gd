@@ -115,7 +115,12 @@ func raise_fort(sim: Sim) -> void:
 	var from: Vector2 = sim.commander.pos
 	var best := from + Vector2.UP * float(cfg.near)
 	var fewest := INF
-	var room := float(cfg.clearing)
+	var sr := float(cfg.stake_radius)
+	# The yard holds the largest legion this run allows, standing in its block, with room to spare, and a rim of tents round it.
+	var block: Vector2 = Legion.block_size(sim.legion.cap, sim.b.legion)
+	var half := maxf(float(cfg.half), maxf(block.x, block.y) / 2.0 + Sim.UNIT_RADIUS + sr + float(cfg.room_margin)) + float(cfg.tent_rim)
+	# The clearing reaches past the corner towers, so no tree of the wood round the fort stands inside its walls.
+	var room := maxf(float(cfg.clearing), half * 1.42 + 40.0)
 	var arc := float(cfg.arc)
 	for k in int(cfg.tries):
 		var p := from + Vector2.from_angle(-PI / 2.0 + r.randf_range(-arc, arc)) * r.randf_range(float(cfg.near), float(cfg.far))
@@ -133,14 +138,12 @@ func raise_fort(sim: Sim) -> void:
 			best = p
 		if n == 0.0:
 			break
-	var sr := float(cfg.stake_radius)
-	# The yard holds the largest legion this run allows, standing in its block, with room to spare.
-	var block: Vector2 = Legion.block_size(sim.legion.cap, sim.b.legion)
-	var half := maxf(float(cfg.half), maxf(block.x, block.y) / 2.0 + Sim.UNIT_RADIUS + sr + float(cfg.room_margin))
 	var foot := best + Vector2(0, half)
+
 	var tx := float(cfg.tower_x)
 	var tr := float(cfg.tower_radius)
 	var pieces: Array = [["fort_gate", foot, 0.0], ["", foot + Vector2(-tx, -8), tr], ["", foot + Vector2(tx, -8), tr]]
+	# The walls are solid all round but drawn as palisade pieces, so the blockers along them have no picture of their own.
 	var steps := int(ceilf(2.0 * half / float(cfg.stake_gap)))
 	var corners := [Vector2(-half, -half), Vector2(half, -half), Vector2(half, half), Vector2(-half, half)]
 	for side in 4:
@@ -151,14 +154,60 @@ func raise_fort(sim: Sim) -> void:
 			# The south wall leaves the gate's width open; its towers close the rest.
 			if side == 2 and absf(at.x) < tx + tr + sr - 0.01 and at.y > 0.0:
 				continue
-			# A stake is taller than the gap, so down the east and west walls every second one is drawn and the rest only block.
-			var shown := side % 2 == 0 or k % 2 == 0
-			pieces.append(["stake" if shown else "", best + at, sr])
+			pieces.append(["", best + at, sr])
 	for edge in [-1.0, 1.0]:
-		pieces.append(["stake", foot + Vector2(edge * (tx + tr + sr * 0.5), 0.0), sr])
+		pieces.append(["", foot + Vector2(edge * (tx + tr + sr * 0.5), 0.0), sr])
+	pieces.append_array(_fort_pictures(best, half, cfg))
 	fort = {"pos": foot, "gate": foot + Vector2(0, -12), "centre": best, "half": half, "gate_half": tx - tr, "hold": 0.0, "seen": false, "entered": false}
 	sim.terrain.add_clearing(best, room, pieces)
 	notice = {"kind": "fort", "at": sim.time}
+
+
+## The fort's palisade, corner towers and tents round a yard of `half` either side of `centre`: pictures, with a solid
+## blocker under each tower and tent so nobody stands inside them.
+func _fort_pictures(centre: Vector2, half: float, cfg: Dictionary) -> Array:
+	var out: Array = []
+	var wall := float(cfg.wall_step)
+	var gate_half := float(cfg.gate_width) / 2.0
+	# The front and back walls in pieces laid side by side; the front leaves room for the gate.
+	# The pieces are spread evenly from corner to corner, so both sides of the gate match.
+	var n := maxi(1, ceili(2.0 * half / wall))
+	for k in n:
+		var x := -half + (k + 0.5) * 2.0 * half / n
+		out.append(["fort_wall", centre + Vector2(x, -half + 10.0), 0.0])
+		if absf(x) >= gate_half + wall / 2.0 - 8.0:
+			out.append(["fort_wall", centre + Vector2(x, half + 10.0), 0.0])
+	# Each side wall is short pieces stacked up the screen, which reads as a palisade running away from the viewer.
+	var y := -half + 22.0
+	while y <= half + 6.0:
+		for sx in [-1.0, 1.0]:
+			out.append(["fort_side", centre + Vector2(sx * half, y), 0.0])
+		y += float(cfg.side_step)
+	for sx in [-1.0, 1.0]:
+		for sy in [-1.0, 1.0]:
+			out.append(["watchtower", centre + Vector2(sx * half, sy * half + 14.0), 0.0])
+			out.append(["", centre + Vector2(sx * half, sy * half), float(cfg.tower_radius)])
+	# Tents line the inside of the side and back walls, with the commander's tent in the middle of the back.
+	var rim := float(cfg.tent_rim)
+	var tent_r := float(cfg.tent_radius)
+	y = -half + rim + 20.0
+	while y <= half - rim:
+		for sx in [-1.0, 1.0]:
+			var at := centre + Vector2(sx * (half - rim * 0.75), y)
+			out.append(["tent", at, 0.0])
+			out.append(["", at + Vector2(0, -6), tent_r])
+		y += float(cfg.tent_step)
+	var x := -half + rim * 1.75
+	while x <= half - rim * 1.75 + 0.5:
+		if absf(x) > float(cfg.command_clear):
+			var at := centre + Vector2(x, -half + rim + 4.0)
+			out.append(["tent", at, 0.0])
+			out.append(["", at + Vector2(0, -6), tent_r])
+		x += float(cfg.tent_step)
+	var head := centre + Vector2(0, -half + rim + 16.0)
+	out.append(["command_tent", head, 0.0])
+	out.append(["", head + Vector2(0, -12), float(cfg.command_radius)])
+	return out
 
 
 ## Whether p stands within the fort's walls, past the gate.

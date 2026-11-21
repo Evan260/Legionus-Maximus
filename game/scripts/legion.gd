@@ -348,6 +348,10 @@ func _via_gate(k: int, p: Vector2, target: Vector2, fort: Dictionary) -> Vector2
 	var far := foot.y + GATE_DEPTH if inside else foot.y - GATE_DEPTH - 4.0
 	if absf(dx) <= room + 0.5 and (inside or p.y >= foot.y - GATE_DEPTH):
 		return Vector2(foot.x + clampf(dx, -room, room), far)
+	# A man outside beside a side wall first goes round the front corner, since its tower stands across the straight way to the gate.
+	var half := float(fort.half)
+	if not inside and p.y < foot.y + 4.0 and absf(dx) > half - 4.0:
+		return Vector2(foot.x + signf(dx) * (half + 26.0), foot.y + GATE_DEPTH)
 	var files := _files(room)
 	return Vector2(foot.x + float(files[k % files.size()]), near)
 

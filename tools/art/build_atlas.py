@@ -44,12 +44,17 @@ PROPS = {"oak": "props2/oak.png", "fir": "props2/fir.png", "rock": "props2/rock.
          "hedge_end_right": "props6/hedge_end_right.png", "village": "props3/village.png", "roundhouse": "roundhouse/house_a.png",
          "wheat_field": "wheat_field/field_tile.png", "pine": "props3/pine.png", "frozen_stream": "frozen_stream/ice_tile.png",
          "dune": "props4/dune.png", "palm": "props4/palm.png", "ruined_wall": "props4/ruined_wall.png", "well": "props4/well.png",
+         "fort_wall": "castra/wall_h.png", "fort_side": "castra/wall_h.png", "watchtower": "castra/tower.png", "tent": "castra/tent.png",
+         "command_tent": "castra/command_tent.png",
          "heather": "props5/heather.png", "bog": "props5/bog.png", "stone_circle": "props5/stone_circle.png"}
 # Props drawn as several frames side by side on one sheet, played in turn.
 SHEETS = {"flame": "props3/flame_sheet_b.png"}
 # Props toned down after drawing, as (how much the light parts darken, how much colour is taken out), so the
 # scattered stones and felled stumps do not shine like coins on the grass.
 TONE = {"stones": (0.4, 0.5), "stump": (0.4, 0.2)}
+# Props cut from a larger picture, as (left, top, right, bottom): the fort's side wall is a few logs of its front wall with
+# their bank, which stacked up the screen reads as a palisade running away from the viewer.
+CROP = {"fort_side": (22, 8, 46, 44)}
 # Props whose leaves are brought to another prop's greens, as prop: (the prop whose greens set the change, the prop to match),
 # so the Gaulish hedges wear the same green as the oaks beside them; every hedge piece takes the change worked out from the hedge.
 MATCH_GREEN = {"hedge": ("hedge", "oak"), "hedge_end_left": ("hedge", "oak"), "hedge_end_right": ("hedge", "oak")}
@@ -194,6 +199,8 @@ def main():
                 sets.append((("units", unit, "attack", d), images, anchor))
     for name, path in PROPS.items():
         im = Image.open(RAW / path).convert("RGBA")
+        if name in CROP:
+            im = im.crop(CROP[name])
         if name in TONE:
             im = tone(im, *TONE[name])
         if name in MATCH_GREEN:

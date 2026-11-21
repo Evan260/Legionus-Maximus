@@ -1042,3 +1042,10 @@ time,kind,name,cost_usd,cost_generations,usd_left
 2026-11-18T14:06:56,proflash,game/assets/icons/laurel.png,0.0233,0,8.7074
 2026-11-21T07:57:34,proflash,tools/art/raw/props4/well_11.png,0.0231,0,8.6842
 2026-11-21T07:57:55,proflash,tools/art/raw/props4/well_12.png,0.0232,0,8.6611
+2026-11-21T08:42:43,proflash,tools/art/raw/castra/wall_h.png,0.0242,0,8.6369
+2026-11-21T08:43:03,proflash,tools/art/raw/castra/wall_v.png,0.0236,0,8.6133
+2026-11-21T08:43:23,proflash,tools/art/raw/castra/tower.png,0.0236,0,8.5896
+2026-11-21T08:43:52,proflash,tools/art/raw/castra/tent.png,0.0235,0,8.5661
+2026-11-21T08:44:30,proflash,tools/art/raw/castra/command_tent.png,0.0245,0,8.5416
+2026-11-21T08:45:46,proflash,tools/art/raw/castra/wall_v_21.png,0.0237,0,8.5179
+2026-11-21T08:46:06,proflash,tools/art/raw/castra/wall_v_22.png,0.0237,0,8.4942
