@@ -1150,6 +1150,206 @@
    },
    "guard": "celtiberian_warrior"
   },
+  "egyptian_spearman": {
+   "name": "Egyptian spearman",
+   "text": "A sturdy spearman behind a tall shield. He is slow, but his spear thrust reaches past the man in front of him, and his shield turns part of each arrow.",
+   "history": "The machimoi, Egypt's own soldiers, stood in the Ptolemaic phalanx at Raphia in 217 BC.",
+   "behaviour": "melee",
+   "hp": 26,
+   "speed": 36,
+   "dps": 1.8,
+   "radius": 6,
+   "coins": 1,
+   "art": [
+    "unit:egyptian_spearman"
+   ],
+   "thrust": {
+    "every": 3.5,
+    "damage_mult": 1.6,
+    "arc": 0.5,
+    "reach": 22
+   },
+   "armour": {
+    "arrows": 0.3
+   }
+  },
+  "nubian_archer": {
+   "name": "Nubian archer",
+   "text": "He looses volleys of arrows from far off, and they fall on a ring among the soldiers.",
+   "history": "The Egyptians called Nubia Ta-Seti, the Land of the Bow, after its famous archers.",
+   "behaviour": "ranged",
+   "hp": 16,
+   "speed": 38,
+   "dps": 1.4,
+   "radius": 6,
+   "coins": 2,
+   "art": [
+    "unit:nubian_archer"
+   ],
+   "range": 185,
+   "volley": {
+    "radius": 16,
+    "delay": 1.1,
+    "damage_mult": 0.33
+   },
+   "arrives": 75
+  },
+  "khopesh_raider": {
+   "name": "Khopesh raider",
+   "text": "A quick raider with a sickle-shaped sword. He darts in at the legion and cuts at the man in front of him.",
+   "history": "The khopesh, a sword bent like a sickle, was carried by Egyptian warriors and shown in the hands of pharaohs.",
+   "behaviour": "melee",
+   "hp": 16,
+   "speed": 50,
+   "dps": 1.9,
+   "radius": 6,
+   "coins": 1,
+   "art": [
+    "unit:khopesh_raider"
+   ],
+   "sprint": {
+    "every": 5.0,
+    "speed_mult": 1.8,
+    "seconds": 0.7,
+    "reach": 90
+   },
+   "slash": {
+    "every": 3.5,
+    "damage_mult": 1.4,
+    "arc": 1.2,
+    "reach": 10
+   },
+   "arrives": 45
+  },
+  "crocodile": {
+   "name": "Crocodile",
+   "text": "A Nile crocodile. It is slow on land, but it lunges a short way to bite the soldier in front of it.",
+   "history": "Crocodiles were sacred to Sobek, and at Crocodilopolis the priests fed a tame one on cakes, meat and wine.",
+   "behaviour": "beast",
+   "share": 0.5,
+   "most": 6,
+   "hp": 30,
+   "speed": 30,
+   "dps": 2.6,
+   "radius": 8,
+   "coins": 1,
+   "art": [
+    "unit:crocodile"
+   ],
+   "rush": {
+    "every": 6.0,
+    "speed_mult": 3.0,
+    "seconds": 0.35,
+    "burst_mult": 1.6,
+    "stun": 1.0,
+    "reach": 45
+   },
+   "arrives": 150
+  },
+  "sobek_priest": {
+   "name": "Priest of Sobek",
+   "text": "He raises his crocodile staff and blesses the warriors round him: for a few seconds their skin is as hard as a crocodile's hide, and blows hurt them less.",
+   "history": "Sobek, the crocodile god of the Nile, was said to give strength and to guard against the dangers of the river.",
+   "behaviour": "lobber",
+   "hp": 5000,
+   "speed": 38,
+   "dps": 0,
+   "radius": 14,
+   "coins": 0,
+   "range": 150,
+   "art": [
+    "unit:sobek_priest"
+   ],
+   "elite": true,
+   "harden": {
+    "every": 10.0,
+    "radius": 160,
+    "seconds": 6.0,
+    "cut": 0.4
+   }
+  },
+  "camel_captain": {
+   "name": "Camel captain",
+   "text": "He marks a lane and leads a charge down it with camel riders in a wedge behind him, riding down the soldiers in their path.",
+   "history": "Camel riders from the desert served the kings of Egypt as scouts and raiders.",
+   "behaviour": "melee",
+   "hp": 6000,
+   "speed": 50,
+   "dps": 26,
+   "radius": 16,
+   "coins": 0,
+   "art": [
+    "unit:camel_captain"
+   ],
+   "elite": true,
+   "wedge": {
+    "every": 13.0,
+    "range": 240,
+    "warn": 1.4,
+    "width": 70,
+    "length": 300,
+    "seconds": 0.7,
+    "damage_mult": 0.8,
+    "throw": 24,
+    "riders": 3,
+    "kind": "camel_rider",
+    "spacing": 22,
+    "rider_mult": 0.5
+   }
+  },
+  "achillas": {
+   "name": "Egyptian general",
+   "text": "Achillas, who besieged Caesar in Alexandria. He raises his hand, and Nubian volleys fall on marked rings over the legion, striking soldiers and commander alike, so step out of them. He opens the sluices to flood a band of ground in the legion's path while his warriors close in. When hurt he fights faster.",
+   "history": "He led King Ptolemy's army, had Pompey killed in 48 BC and was murdered by his own side.",
+   "behaviour": "melee",
+   "hp": 29000,
+   "speed": 28,
+   "dps": 32,
+   "radius": 26,
+   "coins": 0,
+   "art": [
+    "unit:achillas"
+   ],
+   "chieftain": true,
+   "attacks": {
+    "cleave": {
+     "every": 4.0,
+     "reach": 34,
+     "arc": 2.0,
+     "damage_mult": 2.0,
+     "retry": 0.25
+    },
+    "volleys": {
+     "every": 11.0,
+     "range": 420,
+     "rings": 4,
+     "fury_rings": 6,
+     "radius": 26,
+     "spread": 110,
+     "delay": 1.5,
+     "damage": 14
+    },
+    "sluice": {
+     "every": 20.0,
+     "range": 420,
+     "warn": 1.5,
+     "ahead": 70,
+     "length": 360,
+     "width": 80,
+     "seconds": 5.0,
+     "slow": 0.5,
+     "radius": 260,
+     "rush_seconds": 4.0,
+     "rush_mult": 1.5
+    }
+   },
+   "fury": {
+    "below": 0.5,
+    "rate_mult": 1.3,
+    "release": true
+   },
+   "guard": "egyptian_spearman"
+  },
   "gaul_swordsman": {
    "name": "Swordsman",
    "text": "A Gaulish warrior whose long sword cuts down two men at once.",
@@ -1909,6 +2109,37 @@
     "prop:dry_grass",
     "ground:hispania"
    ]
+  },
+  "aegyptus": {
+   "name": "Aegyptus",
+   "text": "The Nile valley: palm groves, reed beds and irrigation canals.",
+   "ground": "river valley",
+   "props": [
+    "date_palm",
+    "papyrus",
+    "fallen_column",
+    "obelisk",
+    "crops"
+   ],
+   "ordinary": [
+    "egyptian_spearman",
+    "nubian_archer",
+    "khopesh_raider",
+    "crocodile"
+   ],
+   "elites": [
+    "sobek_priest",
+    "camel_captain"
+   ],
+   "chieftain": "achillas",
+   "art": [
+    "prop:date_palm",
+    "prop:papyrus",
+    "prop:fallen_column",
+    "prop:obelisk",
+    "prop:crops",
+    "ground:aegyptus"
+   ]
   }
  },
  "commanders": {
@@ -2324,6 +2555,12 @@
    "text": "Win a run in Hispania.",
    "kind": "province",
    "target": "hispania"
+  },
+  "win_aegyptus": {
+   "name": "Victory in Aegyptus",
+   "text": "Win a run in Aegyptus.",
+   "kind": "province",
+   "target": "aegyptus"
   },
   "win_as_archer_captain": {
    "name": "Victory as the Archer captain",

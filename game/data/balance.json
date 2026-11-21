@@ -10,9 +10,9 @@
     "metre_px": 16,
     "purse": {"camp": 1500, "column": 600, "grove": 800},
     "notice_seconds": 3.5,
-    "camp": {"wake": 250, "huts": 6, "hut_ring": 72, "hut_radius": 14, "touch": 16, "leader": {"germania": "war_band_leader", "gaul": "champion", "dacia": "falx_band", "parthia": "cataphract_charge", "britannia": "chariot_charge", "hispania": "lusitanian_raider"}, "burn_seconds": 4},
+    "camp": {"wake": 250, "huts": 6, "hut_ring": 72, "hut_radius": 14, "touch": 16, "leader": {"germania": "war_band_leader", "gaul": "champion", "dacia": "falx_band", "parthia": "cataphract_charge", "britannia": "chariot_charge", "hispania": "lusitanian_raider", "aegyptus": "camel_captain"}, "burn_seconds": 4},
     "column": {"wake": 300, "guards": 4, "guard_ring": 24, "reach": 40, "band_from": 160},
-    "grove": {"ring": 96, "oak_step": 22, "trees": {"dacia": "pine", "parthia": "palm", "hispania": "olive"}, "centre": {"parthia": "well"}, "stones": {"britannia": {"ring": 116, "step": 60, "lift": [2, 20]}}, "gaps": 3, "gap_width": 0.6, "inside": 80, "hold": 5.0, "band_every": 2.5, "band_from": 230, "calm_seconds": 60, "calm_mult": 0.5, "burn_seconds": 10, "tip_within": 300, "tip_seconds": 10}
+    "grove": {"ring": 96, "oak_step": 22, "trees": {"dacia": "pine", "parthia": "palm", "hispania": "olive", "aegyptus": "date_palm"}, "centre": {"parthia": "well"}, "stones": {"britannia": {"ring": 116, "step": 60, "lift": [2, 20]}}, "gaps": 3, "gap_width": 0.6, "inside": 80, "hold": 5.0, "band_every": 2.5, "band_from": 230, "calm_seconds": 60, "calm_mult": 0.5, "burn_seconds": 10, "tip_within": 300, "tip_seconds": 10}
   },
   "fort": {"near": 900, "far": 1200, "arc": 0.9, "clearing": 200, "half": 90, "room_margin": 16, "hold": 4.0, "inside_margin": 8, "seen_within": [290, 150], "tries": 16, "tower_x": 34, "tower_radius": 12, "stake_gap": 12, "stake_radius": 6, "tent_rim": 40, "tent_step": 38, "tent_radius": 9, "command_clear": 40, "command_radius": 14, "wall_step": 58, "side_step": 12, "gate_width": 96},
   "terrain_clear_radius": 200,
@@ -24,6 +24,8 @@
   "deserts": {"parthia": {"scatter": ["dune", "stones", "dune", "stones", "dune"], "oasis_chance": 0.3, "palms": [3, 6], "oasis_radius": 44, "palm_gap": 22, "wall_chance": 0.3, "wall_length": [160, 320], "wall_step": 30, "wall_gap_chance": 0.5, "wall_gap": 60, "dune_chance": 0.25, "dunes": [3, 6], "dune_spread": 130, "dune_size": [38, 16], "dune_slow": 0.35}},
   "moors": {"britannia": {"scatter": ["heather", "heather", "stones", "heather", "rock", "stones", "heather"], "ridge_chance": 0.2, "circle_chance": 0.2, "bog_chance": 0.3, "heather_chance": 0.2, "circle_radius": 110, "circle_count": 10, "circle_gap": 2, "circle_clear": 60, "circle_stones": [[-25, -27], [-6, -35], [13, -33], [25, -17], [11, -7], [-8, -5], [-26, -14]], "stone_radius": 10, "bogs": [3, 6], "bog_spread": 170, "bog_size": [26, 15], "bog_lift": 20, "bog_slow": 0.5, "heathers": [5, 9], "heather_spread": 110}},
   "hills": {"hispania": {"scatter": ["dry_grass", "rock", "dry_grass", "stones", "olive", "dry_grass", "stones"], "tree": "olive", "ridge_chance": 0.2, "grove_chance": 0.25, "wall_chance": 0.3, "grass_chance": 0.15, "grove_rows": [2, 4], "grove_cols": [3, 6], "grove_step": [44, 40], "grove_jitter": 4, "wall_length": [220, 420], "wall_step": 26, "wall_tilt": 0.3, "wall_bend": 10, "walls": [1, 2], "wall_apart": 110, "wall_gaps": [1, 2], "wall_gap": 80, "grasses": [5, 9], "grass_spread": 120}},
+  "valleys": {"aegyptus": {"scatter": ["crops", "stones", "crops", "date_palm", "crops", "stones"], "grove_chance": 0.3, "reed_chance": 0.25, "ruin_chance": 0.15, "crop_chance": 0.2, "palms": [5, 9], "grove_radius": 70, "palm_gap": 26, "reeds": [4, 7], "reed_spread": [60, 26], "reed_gap": 18, "reed_bank": 300, "reed_radius": 14, "reed_slow": 0.25, "columns": [2, 4], "ruin_spread": 100, "ruin_gap": 56, "column_blockers": [[-28, -18], [-9, -16], [10, -15], [29, -14]], "column_radius": 10, "crops_count": [4, 8], "crop_spread": 120}},
+  "canals": {"aegyptus": {"region": 1200, "chance": 0.75, "inset": 120, "width": [36, 48], "length": [600, 1100], "step": 16, "band": 40, "start_clear": 320, "tries": 8, "crossings": [1, 2], "crossing_width": 56, "crossing_end": 140, "crossing_apart": 220, "overhang": 14}},
   "fields": {"gaul": {"solid": false, "scatter": ["stones"], "village_chance": 0.4, "hedge_chance": 0.3, "wheat_chance": 0.25, "villages": [1, 3], "village_gap": [300, 360], "village_hedge": 0.6, "village_houses": [[-72, -8], [64, -28], [-4, 62]], "house_spacing": 80, "house_blockers": [[0, -26, 34], [0, -48, 26]], "village_reach": 150, "hedge_length": [220, 460], "hedge_span": 56, "hedge_blockers": 4, "hedge_radius": 9, "hedge_cap": 34, "gate_chance": 0.6, "field_size": [[200, 320], [120, 220]], "village_fields": [1, 2], "village_field_size": [[160, 260], [100, 180]], "village_field_reach": [300, 440], "field_tries": 6, "field_wing": 0.5, "field_lane": 150, "field_least": [100, 70], "field_inset": 10, "field_corner": 16}},
   "bridge": {"cost": 8, "width": 60, "reach": 56, "longest": 360, "overhang": 18, "notice_seconds": 1.5, "look_every": 0.25, "tip_within": 170, "tip_seconds": 7, "tip_runs": 3},
   "felling": {"seconds": 3.0, "timber": 1, "shake_seconds": 0.25, "barbarian_rate": 0.2},
@@ -32,7 +34,7 @@
   "guard_release": {"seconds": 4.0, "speed_mult": 1.4},
   "triumph": {"seconds": 1.5, "most_seconds": 12.0, "linger": 0.5, "wave_speed": 520, "coin_speed": 700, "cheer_cycle": 1.4, "cheer_swing": 0.6, "hop": 6},
   "chieftain_guard": {"count": 10, "radius": 48},
-  "pursuit": {"tick": 1.0, "window": 20.0, "from": 45, "moving": 18, "per_kill": 1.5, "rise": 0.012, "fall": 0.03, "still_speed": 3, "still_rise": 0.02, "hunt_min": 0.2, "hunt_every": 6.0, "hunt_start": 2, "hunt_growth": 0.06, "spread_min": 0.6, "boss_haste": 0.0, "cap": 4.0, "bosses": 0.0, "tough": 1.25, "fierce": 0.5, "pace": 1.1, "most": 20, "province_mult": {"gaul": 0.3, "dacia": 0.3, "parthia": 0.6, "britannia": 0.6, "hispania": 0.4}},
+  "pursuit": {"tick": 1.0, "window": 20.0, "from": 45, "moving": 18, "per_kill": 1.5, "rise": 0.012, "fall": 0.03, "still_speed": 3, "still_rise": 0.02, "hunt_min": 0.2, "hunt_every": 6.0, "hunt_start": 2, "hunt_growth": 0.06, "spread_min": 0.6, "boss_haste": 0.0, "cap": 4.0, "bosses": 0.0, "tough": 1.25, "fierce": 0.5, "pace": 1.1, "most": 20, "province_mult": {"gaul": 0.3, "dacia": 0.3, "parthia": 0.6, "britannia": 0.6, "hispania": 0.4, "aegyptus": 0.4}},
   "surge_every": 90,
   "war_band": {"first": 38, "every": 26, "size_start": 6, "size_growth": 0.0176, "spread": 30, "rush": 1.8, "rush_seconds": 5.0, "rush_from": 120, "loop_samples": 16, "loop_spread": 260, "loop_walk": 500, "loop_mult": 1.6, "loop_from": 0},
   "spawn_per_second_start": 0.88,
@@ -149,7 +151,8 @@
     "dacia": {"health": 0.75, "damage": 0.75, "elites": 0.75},
     "parthia": {"health": 0.85, "damage": 0.8, "elites": 0.7},
     "britannia": {"health": 0.8, "damage": 0.7, "elites": 0.5},
-    "hispania": {"health": 1.15, "damage": 1.2, "elites": 1.0}
+    "hispania": {"health": 1.15, "damage": 1.2, "elites": 1.0},
+    "aegyptus": {"health": 1.15, "damage": 1.2, "elites": 1.0}
   },
   "bosses": {"first": 90, "every": 45, "count_start": 1, "count_growth": 0.00213, "count_max": 3, "max_alive": 3, "max_alive_start": 1, "max_alive_growth": 0.00333, "health_growth": 0.00111, "early_mult": 0.25, "early_pace": 0.25, "early_until": 180, "early_health": 0.25, "early_health_until": 450},
   "ranged": {"every": 1.8, "throws": 3, "spear_speed": 120, "arrow_mult": 1.6, "spear_life": 3.0, "spear_radius": 3},

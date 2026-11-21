@@ -252,6 +252,13 @@ var ambush_wait := 0.0
 ## His feigned flight while he runs, as {left, from: where the commander stood, dir: the way he runs}, and when the next may start.
 var feint := {}
 var feint_cd := 0.0
+## The Egyptian general's timers for his marked arrow volleys and for opening the sluices.
+var volleys_cd := 0.0
+var sluice_cd := 0.0
+## The flooded band he opens across the legion's path, {pos, dir: along the band, half_len, half_w, t, warn, seconds, slow, open}, or empty;
+## and how much the water the commander stands in slows the march.
+var flood := {}
+var flood_slow := 0.0
 var chests: Array = []
 var elite_ids: Array = []
 ## The elites that came on the boss timer, as opposed to an objective's defenders.
@@ -284,6 +291,9 @@ var e_power := PackedFloat32Array()
 var e_bare := PackedByteArray()
 ## When each enemy was last tended by a druid acolyte, so several acolytes round one warrior heal him no faster than one.
 var e_tended := PackedFloat32Array()
+## Until when each warrior is hardened by a priest of Sobek's blessing, and the share of each blow it turns.
+var e_ward := PackedFloat32Array()
+var ward_cut := 0.0
 # Each elite's own ability timers and state, by enemy id, since there are only ever a few of them.
 var boss := {}
 ## How hard the horde hunts a legion that keeps marching without fighting, or never moves: 1 brings hunters from all round, and it climbs on to `cap`.
@@ -411,8 +421,8 @@ func _init(balance: Dictionary, game_content: Content, random: RandomNumberGener
 		k_drop.append(float(info.get("drop", {}).get("chance", 0.0)))
 		k_rides.append(1 if beh == DRIVER or beh == CHARGER or info.get("mounted", false) else 0)
 		k_foot.append(1 if (beh == MELEE or beh == RANGED) and not info.get("mounted", false) and not info.get("elite", false) and not info.get("chieftain", false) else 0)
-		var dash: Dictionary = info.get("fearless", info.get("sprint", {}))
-		k_dash_reach.append(float(dash.get("reach", -1.0)) if k_foot[k_foot.size() - 1] == 1 else -1.0)
+		var dash: Dictionary = info.get("fearless", info.get("sprint", info.get("rush", {})))
+		k_dash_reach.append(float(dash.get("reach", -1.0)) if k_foot[k_foot.size() - 1] == 1 or beh == BEAST else -1.0)
 		k_share.append(float(info.get("share", 1.0)))
 		k_most.append(int(info.get("most", 0)))
 		k_alive.append(0)
@@ -449,6 +459,8 @@ func _init(balance: Dictionary, game_content: Content, random: RandomNumberGener
 	burn_cd = float(attacks.get("burn", {}).get("every", 8.0)) * 0.5
 	ambush_cd = float(attacks.get("ambush", {}).get("every", 28.0)) * 0.5
 	feint_cd = float(attacks.get("feint", {}).get("every", 18.0)) * 0.5
+	volleys_cd = float(attacks.get("volleys", {}).get("every", 11.0)) * 0.5
+	sluice_cd = float(attacks.get("sluice", {}).get("every", 20.0)) * 0.5
 	king_wall = content.enemies[chief].get("wall", {})
 	var sworn: Dictionary = content.enemies[chief].get("sworn", {})
 	sworn_min = int(sworn.get("min", 0))
@@ -535,6 +547,7 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 	e_power.append(power)
 	e_bare.append(0)
 	e_tended.append(-INF)
+	e_ward.append(-INF)
 	if beh == DRIVER:
 		# A chariot comes in heading for the legion, and only some carry warriors to set down.
 		var last := e_id.size() - 1
@@ -709,6 +722,7 @@ func update(dt: float, sim: Sim) -> void:
 	_marks(dt, sim)
 	_storms(dt, sim)
 	_arrow_storm(dt, sim)
+	_sluice_on(dt, sim)
 	_spears(dt, sim)
 	_carts(dt, sim)
 	_chests(sim)
@@ -1008,6 +1022,9 @@ func _chieftain(dt: float, sim: Sim) -> void:
 	ambush_cd -= dt * rate
 	if feint.is_empty():
 		feint_cd -= dt * rate
+	volleys_cd -= dt * rate
+	if flood.is_empty():
+		sluice_cd -= dt * rate
 	chief_hold = maxf(0.0, chief_hold - dt)
 	_feint_on(ci, dt, sim)
 	if ambush_wait > 0.0:
@@ -1019,6 +1036,15 @@ func _chieftain(dt: float, sim: Sim) -> void:
 		warn_ambush(ci, sim)
 	if feint_cd <= 0.0 and atk.has("feint") and feint.is_empty() and chief_hold <= 0.0 and not charging:
 		feint_cd = float(atk.feint.every) if start_feint(ci, sim) else 1.0
+	var gap: float = (commander.pos - e_pos[ci]).length()
+	if volleys_cd <= 0.0 and atk.has("volleys"):
+		volleys_cd = float(atk.volleys.every) if gap < float(atk.volleys.range) else 1.0
+		if gap < float(atk.volleys.range):
+			volleys(ci, sim)
+	if sluice_cd <= 0.0 and atk.has("sluice") and flood.is_empty():
+		sluice_cd = float(atk.sluice.every) if gap < float(atk.sluice.range) else 1.0
+		if gap < float(atk.sluice.range):
+			open_sluices(ci, sim)
 	_sweep_and_leap(ci, dt, sim)
 	_drive_on(ci, dt, sim)
 	if drive_cd <= 0.0 and atk.has("drive") and drive.is_empty() and chief_hold <= 0.0:
@@ -1374,6 +1400,64 @@ func _feint_on(ci: int, dt: float, sim: Sim) -> void:
 	sim.effects.append({"kind": "cry", "pos": p, "t": 0.0, "radius": float(cfg.radius)})
 
 
+## The Egyptian general raises his hand: rings are marked over the legion, one on the commander, and the Nubian volleys fall in them
+## once the warning is over, striking soldiers and commander alike.
+func volleys(ci: int, sim: Sim) -> void:
+	var cfg: Dictionary = content.enemies[kind_ids[e_kind[ci]]].attacks.volleys
+	var n := int(cfg.fury_rings) if chief_fury else int(cfg.rings)
+	var from := e_pos[ci]
+	for k in n:
+		var at: Vector2 = commander.pos
+		if k > 0:
+			at += Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(float(cfg.radius), float(cfg.spread) + sim.legion_reach * 0.5)
+		foe_lobs.append({"from": from + Vector2(rng.randf_range(-40.0, 40.0), rng.randf_range(-30.0, 30.0)), "to": at, "t": 0.0, "dur": float(cfg.delay), "radius": float(cfg.radius), "dmg": float(cfg.damage), "volley": true})
+	e_strike[ci] = time
+	e_face[ci] = (commander.pos - from).normalized() if commander.pos != from else e_face[ci]
+	sim.objectives.notice = {"kind": "volleys", "at": time}
+	sim.event("summon", from)
+
+
+## The general opens the sluices: a band of ground across the legion's path is marked, then floods for a while.
+func open_sluices(ci: int, sim: Sim) -> void:
+	var cfg: Dictionary = content.enemies[kind_ids[e_kind[ci]]].attacks.sluice
+	var ahead := Vector2.from_angle(sim.facing_angle)
+	flood = {"pos": commander.pos + ahead * float(cfg.ahead), "dir": ahead.orthogonal(), "half_len": float(cfg.length) / 2.0, "half_w": float(cfg.width) / 2.0,
+		"t": 0.0, "warn": float(cfg.warn), "seconds": float(cfg.seconds), "slow": float(cfg.slow), "open": false,
+		"radius": float(cfg.radius), "rush_seconds": float(cfg.rush_seconds), "rush_mult": float(cfg.rush_mult)}
+	e_strike[ci] = time
+	sim.objectives.notice = {"kind": "sluice", "at": time}
+	sim.event("carnyx", e_pos[ci])
+
+
+## Whether p stands in the band the general floods.
+func in_flood(p: Vector2) -> bool:
+	if flood.is_empty():
+		return false
+	var off: Vector2 = p - flood.pos
+	return absf(off.dot(flood.dir)) <= flood.half_len and absf(off.dot(flood.dir.orthogonal())) <= flood.half_w
+
+
+## Fills the marked band once its warning is over, sending the warriors near the legion in as it floods, and drains it when its time is up.
+func _sluice_on(dt: float, sim: Sim) -> void:
+	flood_slow = 0.0
+	if flood.is_empty():
+		return
+	flood.t += dt
+	if flood.t < flood.warn:
+		return
+	if flood.t >= flood.warn + flood.seconds:
+		flood = {}
+		return
+	if not flood.open:
+		flood.open = true
+		for j in near(commander.pos, flood.radius):
+			if e_tag[j] == ORDINARY:
+				hasten(j, flood.rush_seconds, flood.rush_mult)
+		sim.event("whirl", flood.pos)
+	if in_flood(commander.pos):
+		flood_slow = flood.slow
+
+
 ## In her second phase the queen burns the land: rings are marked round the legion, one on the commander, and each catches fire and burns a while.
 func burn_land(ci: int, sim: Sim) -> void:
 	var cfg: Dictionary = content.enemies[kind_ids[e_kind[ci]]].attacks.burn
@@ -1514,7 +1598,7 @@ func _rally(dt: float, sim: Sim) -> void:
 
 const ABILITY_TIMERS := {"whirlwind": "whirl_cd", "shield_wall": "shield_cd", "call_band": "band_cd", "mend": "mend_cd", "curse": "curse_cd", "blink": "blink_cd",
 	"duel": "duel_cd", "blast": "blast_cd", "onrush": "onrush_cd", "blizzard": "blizzard_cd", "wedge": "wedge_cd", "trample": "trample_cd", "tower": "tower_cd",
-	"scythe": "scythe_cd", "sky_fire": "fire_cd", "rouse": "rouse_cd"}
+	"scythe": "scythe_cd", "sky_fire": "fire_cd", "rouse": "rouse_cd", "harden": "harden_cd"}
 
 
 ## The timers and state of elite i, made the first time he is asked for, each timer starting half way so a new boss acts soon.
@@ -1620,6 +1704,11 @@ func _bosses(dt: float, sim: Sim) -> void:
 			if st.rouse_cd <= 0.0:
 				st.rouse_cd = float(info.rouse.every)
 				rouse(i, info.rouse, sim)
+		if st.has("harden_cd"):
+			st.harden_cd -= paced
+			if st.harden_cd <= 0.0:
+				st.harden_cd = float(info.harden.every)
+				harden(i, info.harden, sim)
 		if st.has("tower_cd"):
 			st.tower_cd -= paced
 			if st.tower_cd <= 0.0 and gap < sim.legion_reach + float(info.tower.range):
@@ -1761,6 +1850,18 @@ func rouse(i: int, cfg: Dictionary, sim: Sim) -> void:
 	sim.event("mend", p)
 	sim.effects.append({"kind": "mend", "pos": p, "t": 0.0, "radius": float(cfg.radius)})
 	sim.effects.append({"kind": "cry", "pos": p, "t": 0.0, "radius": float(cfg.radius) * 0.6})
+
+
+## The priest of Sobek blesses the warriors round him, and for a few seconds blows hurt them less.
+func harden(i: int, cfg: Dictionary, sim: Sim) -> void:
+	var p := e_pos[i]
+	ward_cut = float(cfg.cut)
+	for j in near(p, float(cfg.radius)):
+		if e_tag[j] == ORDINARY:
+			e_ward[j] = time + float(cfg.seconds)
+	e_strike[i] = time
+	sim.event("mend", p)
+	sim.effects.append({"kind": "ward", "pos": p, "t": 0.0, "radius": float(cfg.radius)})
 
 
 ## Riders fall in behind the cataphract leader in a wedge, two to a row, each row wider than the last.
@@ -2056,6 +2157,8 @@ func _bosses_after() -> void:
 ## The share of a blow from `from` that reaches enemy i: a war band leader's raised shield stops most of a blow from in front,
 ## the champion's ring makes blows from inside it land harder and stops most from outside, and the king's sworn guard turns harm from him.
 func guard_mult(i: int, from: Vector2) -> float:
+	if e_ward[i] > time:
+		return 1.0 - ward_cut
 	if e_tag[i] == CHIEF:
 		if not king_wall.is_empty():
 			if guards_alive < int(king_wall.min) or not from.is_finite() or from == e_pos[i]:
@@ -3151,3 +3254,4 @@ func remove_at(i: int) -> void:
 	e_power[i] = e_power[last]; e_power.resize(last)
 	e_bare[i] = e_bare[last]; e_bare.resize(last)
 	e_tended[i] = e_tended[last]; e_tended.resize(last)
+	e_ward[i] = e_ward[last]; e_ward.resize(last)

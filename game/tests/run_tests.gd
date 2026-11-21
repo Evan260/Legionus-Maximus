@@ -691,7 +691,7 @@ func test_every_content_entry_has_a_name_and_text(b: Dictionary) -> void:
 			check(str(entries[id].get("name", "")) != "", "%s %s has a name" % [kind, id])
 			check(str(entries[id].get("text", "")) != "", "%s %s has a text" % [kind, id])
 	check(content.recruits.size() == 7 and content.arms.size() == 12 and content.forged.size() == 6 and content.drills.size() == 15, "the full set of recruits, arms, forged forms and drills")
-	check(content.provinces.size() == 6 and content.commanders.size() == 6, "six provinces and six commanders")
+	check(content.provinces.size() == 7 and content.commanders.size() == 6, "seven provinces and six commanders")
 	for p in content.provinces:
 		var pr: Dictionary = content.provinces[p]
 		check(pr.ordinary.size() == 4 and pr.elites.size() >= 2 and content.enemies.has(pr.chieftain), "%s has its enemies" % p)
@@ -2195,7 +2195,7 @@ func test_the_engineer_and_legate_unlocks(b: Dictionary) -> void:
 	_won(b, p, "gaul")
 	check(p.commander_unlocked("engineer"), "winning in Gaul unlocks the engineer")
 	check(not p.commander_unlocked("legate"), "two provinces are not enough for the legate")
-	for id in ["britannia", "dacia", "parthia", "hispania"]:
+	for id in ["britannia", "dacia", "parthia", "hispania", "aegyptus"]:
 		_won(b, p, id)
 	check(p.commander_unlocked("legate"), "a win in every province unlocks the legate")
 	p.free()
@@ -3112,7 +3112,7 @@ func test_the_camp_pours_out_defenders_and_gives_back_the_eagle(b: Dictionary) -
 
 func test_the_camp_brings_its_own_provinces_leader(b: Dictionary) -> void:
 	var cfg: Dictionary = b.objectives.camp
-	for province in ["gaul", "dacia", "parthia", "britannia", "hispania"]:
+	for province in ["gaul", "dacia", "parthia", "britannia", "hispania", "aegyptus"]:
 		var s := Sim.new(b, Content.with_all_art(), {"seed": 151, "province": province})
 		s.terrain.clear()
 		s.objectives.list.clear()
@@ -3165,7 +3165,7 @@ func test_the_stranded_column_holds_and_joins_the_legion(b: Dictionary) -> void:
 
 
 func test_the_grove_is_ringed_with_its_provinces_own_props(b: Dictionary) -> void:
-	for province in ["germania", "dacia", "parthia", "britannia", "hispania"]:
+	for province in ["germania", "dacia", "parthia", "britannia", "hispania", "aegyptus"]:
 		var s := Sim.new(b, Content.with_all_art(), {"seed": 152, "province": province})
 		s.objectives.list.clear()
 		var at := Vector2(900, 0)
@@ -3174,7 +3174,7 @@ func test_the_grove_is_ringed_with_its_provinces_own_props(b: Dictionary) -> voi
 		for pr in s.terrain.extras:
 			if pr[1].distance_to(at) < float(b.objectives.clearing):
 				kinds[pr[0]] = true
-		var want: String = {"germania": "oak", "dacia": "pine", "parthia": "palm", "britannia": "stone_circle", "hispania": "olive"}[province]
+		var want: String = {"germania": "oak", "dacia": "pine", "parthia": "palm", "britannia": "stone_circle", "hispania": "olive", "aegyptus": "date_palm"}[province]
 		check(kinds.has(want) and (want == "oak" or not kinds.has("oak")), "the grove in %s is ringed with %s (%s)" % [province, want, kinds.keys()])
 
 
@@ -3629,8 +3629,8 @@ func test_the_dacian_king_never_wipes_out_a_packed_legion_at_once(b: Dictionary)
 
 
 func test_a_charging_boss_is_stopped_by_a_wall(b: Dictionary) -> void:
-	for kind in ["gaul_king", "falx_band", "lusitanian_raider"]:
-		var s := _gaul_sim(b, 1660, {"gaul_king": "gaul", "falx_band": "dacia", "lusitanian_raider": "hispania"}[kind])
+	for kind in ["gaul_king", "falx_band", "lusitanian_raider", "camel_captain"]:
+		var s := _gaul_sim(b, 1660, {"gaul_king": "gaul", "falx_band": "dacia", "lusitanian_raider": "hispania", "camel_captain": "aegyptus"}[kind])
 		s.horde.cleave_cd = 1e9
 		s.horde.summon_cd = 1e9
 		s.horde.siege_cd = 1e9
@@ -3654,12 +3654,12 @@ func test_a_charging_boss_is_stopped_by_a_wall(b: Dictionary) -> void:
 			for key in st:
 				if str(key).ends_with("_cd"):
 					st[key] = 1e9
-			st.onrush_cd = 0.0
+			st["wedge_cd" if st.has("wedge_cd") else "onrush_cd"] = 0.0
 		var through := false
 		var charged := false
 		for k in 4 * 60:
 			s.update(1.0 / 60.0, Vector2.ZERO, false)
-			charged = charged or s.horde.charging or (kind != "gaul_king" and float(s.horde.boss_state(s.horde.e_id.find(id)).get("rush_left", 0.0)) > 0.0)
+			charged = charged or s.horde.charging or (kind != "gaul_king" and s.horde.e_id.has(id) and float(s.horde.boss_state(s.horde.e_id.find(id)).get("rush_left", 0.0)) > 0.0)
 			var j := s.horde.e_id.find(id)
 			if j >= 0:
 				through = through or s.horde.e_pos[j].x > wall_x
@@ -3668,8 +3668,8 @@ func test_a_charging_boss_is_stopped_by_a_wall(b: Dictionary) -> void:
 
 
 func test_the_testudo_stops_a_boss_charge(b: Dictionary) -> void:
-	for kind in ["gaul_king", "falx_band", "lusitanian_raider"]:
-		var s := _gaul_sim(b, 1661, {"gaul_king": "gaul", "falx_band": "dacia", "lusitanian_raider": "hispania"}[kind])
+	for kind in ["gaul_king", "falx_band", "lusitanian_raider", "camel_captain"]:
+		var s := _gaul_sim(b, 1661, {"gaul_king": "gaul", "falx_band": "dacia", "lusitanian_raider": "hispania", "camel_captain": "aegyptus"}[kind])
 		s.horde.cleave_cd = 1e9
 		s.horde.summon_cd = 1e9
 		s.horde.siege_cd = 1e9
@@ -3688,7 +3688,7 @@ func test_the_testudo_stops_a_boss_charge(b: Dictionary) -> void:
 			for key in st:
 				if str(key).ends_with("_cd"):
 					st[key] = 1e9
-			st.onrush_cd = 0.0
+			st["wedge_cd" if st.has("wedge_cd") else "onrush_cd"] = 0.0
 		var hp := 0.0
 		for so in s.soldiers:
 			hp += so.hp
@@ -6903,7 +6903,7 @@ func test_winning_parthia_opens_britannia(b: Dictionary) -> void:
 	p.free()
 
 
-func test_the_map_shows_all_six_provinces_in_order(b: Dictionary) -> void:
+func test_the_map_shows_all_seven_provinces_in_order(b: Dictionary) -> void:
 	var host_script := GDScript.new()
 	host_script.source_code = "extends Node\nvar content\nvar balance\nvar run_setup := {}\n"
 	host_script.reload()
@@ -6913,7 +6913,7 @@ func test_the_map_shows_all_six_provinces_in_order(b: Dictionary) -> void:
 	host.balance = b
 	host.run_setup = {"province": "germania", "difficulty": "medium", "endless": false, "decimatio": false}
 	var map := MapScreen.new(host)
-	check(map.road() == ["germania", "gaul", "dacia", "parthia", "britannia", "hispania"], "the road runs Germania, Gaul, Dacia, Parthia, Britannia, Hispania (%s)" % str(map.road()))
+	check(map.road() == ["germania", "gaul", "dacia", "parthia", "britannia", "hispania", "aegyptus"], "the road runs Germania, Gaul, Dacia, Parthia, Britannia, Hispania, Aegyptus (%s)" % str(map.road()))
 	var saved: Dictionary = Profile.data
 	Profile.data = Profile.defaults()
 	check(map.state_of("germania") == "open" and map.state_of("gaul") == "locked" and map.state_of("britannia") == "locked", "a new profile has only Germania open and no province in fog")
@@ -6930,6 +6930,12 @@ func test_the_map_shows_all_six_provinces_in_order(b: Dictionary) -> void:
 	check(map.state_of("hispania") == "open", "with Britannia won Hispania is open")
 	var to_hispania := MapScreen.route("britannia", "hispania", 0.0)
 	check(to_hispania[0] == MapScreen.spot("britannia") and to_hispania[to_hispania.size() - 1] == MapScreen.spot("hispania"), "and the road runs on from Britannia to it")
+	check(map.locked_text("aegyptus") == "Win in Hispania to open" and map.state_of("aegyptus") == "locked", "Aegyptus waits for a win in Hispania")
+	Profile.data.records["hispania"] = {"best_time": 900.0, "longest": 900.0, "won": true, "hard_won": false}
+	Profile.open_won_provinces(content)
+	check(map.state_of("aegyptus") == "open", "with Hispania won Aegyptus is open")
+	var to_egypt := MapScreen.route("hispania", "aegyptus", 0.0)
+	check(to_egypt[0] == MapScreen.spot("hispania") and to_egypt[to_egypt.size() - 1] == MapScreen.spot("aegyptus"), "and the road sails on from Hispania to it")
 	Profile.data = saved
 	host.free()
 
@@ -7500,6 +7506,7 @@ func test_the_map_puts_each_province_where_it_lies(_b: Dictionary) -> void:
 	check(Rect2(0, 0, Ui.W, Ui.H - 24).has_point(MapScreen.spot("parthia")), "Parthia lies on the map above the key hints")
 	check(MapScreen.spot("britannia").x < MapScreen.spot("gaul").x and MapScreen.spot("britannia").y < MapScreen.spot("gaul").y, "Britannia lies north-west of Gaul")
 	check(MapScreen.spot("hispania").x < MapScreen.spot("gaul").x and MapScreen.spot("hispania").y > MapScreen.spot("gaul").y, "Hispania lies south-west of Gaul")
+	check(MapScreen.spot("aegyptus").x > MapScreen.spot("dacia").x and MapScreen.spot("aegyptus").y > MapScreen.spot("dacia").y and Rect2(0, 0, Ui.W, Ui.H - 24).has_point(MapScreen.spot("aegyptus")), "Aegyptus lies south-east across the sea, above the key hints")
 	var road := MapScreen.route("roma", "germania", 0.0)
 	var alps := MapScreen.project(Vector2(11.5, 47.0))
 	var near := INF
@@ -8274,7 +8281,7 @@ func _hispania_sim(b: Dictionary, seed_value: int) -> Sim:
 
 func test_winning_britannia_opens_hispania(b: Dictionary) -> void:
 	check(content.ready("provinces", "hispania"), "Hispania is drawn")
-	check(content.provinces.keys().back() == "hispania", "Hispania is the last province on the road")
+	check(content.provinces.keys().find("hispania") == content.provinces.keys().find("britannia") + 1, "Hispania comes after Britannia on the road")
 	check(content.province_before("hispania") == "britannia", "it follows Britannia")
 	var p := _fresh_profile()
 	var before: Dictionary = p.data.duplicate(true)
@@ -8435,3 +8442,309 @@ func test_the_shepherd_general_feigns_flight_and_turns_on_a_legion_that_follows(
 			check(h.e_haste[c] > 0.0 and k >= 0 and h.e_haste[k] > 0.0, "and he and the warriors round him rush back in")
 		else:
 			check(s.objectives.notice.get("kind", "") == "feint" and h.e_haste[c] <= 0.0 and (k < 0 or h.e_haste[k] <= 0.0), "a legion that holds its ground is not caught")
+
+
+func _aegyptus_sim(b: Dictionary, seed_value: int) -> Sim:
+	var s := _gaul_sim(b, seed_value, "aegyptus")
+	for t in ["volleys_cd", "sluice_cd"]:
+		s.horde.set(t, 1e9)
+	s.commander.pos = Vector2.ZERO
+	s.legion.place_all(s.facing_angle)
+	s._rebuild_grids()
+	return s
+
+
+func _nile_terrain(b: Dictionary, seed_value: int) -> Terrain:
+	var t := Terrain.new(seed_value, b.forest, b.ravines)
+	t.valley = b.valleys.aegyptus
+	t.set_canals(b.canals.aegyptus)
+	return t
+
+
+func test_winning_hispania_opens_aegyptus(b: Dictionary) -> void:
+	check(content.ready("provinces", "aegyptus"), "Aegyptus is drawn")
+	check(content.provinces.keys().back() == "aegyptus", "Aegyptus is the last province on the road")
+	check(content.province_before("aegyptus") == "hispania", "it follows Hispania")
+	var p := _fresh_profile()
+	var before: Dictionary = p.data.duplicate(true)
+	var s := Sim.new(b, content, {"seed": 1990, "province": "hispania"})
+	s.time = 900.0
+	s.over = true
+	s.victory = true
+	p.record_run(s)
+	check(p.province_unlocked("aegyptus"), "winning in Hispania opens Aegyptus")
+	var said := false
+	for u in SummaryScreen.unlocks(before, p.data, content, "hispania"):
+		said = said or (u.kind == "province" and u.id == "aegyptus" and str(u.text) == "Aegyptus is open")
+	check(said, "and the summary says Aegyptus is open")
+	check(content.achievements.has("win_aegyptus") and content.achievements.win_aegyptus.target == "aegyptus", "a win in Aegyptus has its own achievement")
+	_cleanup_profile_files()
+	p.free()
+
+
+func test_aegyptus_is_the_nile_valley_with_palms_reeds_ruins_and_canals(b: Dictionary) -> void:
+	var area := Rect2(-4000, -4000, 8000, 8000)
+	var t := _nile_terrain(b, 1991)
+	var kinds := {}
+	for pr in t.props_in(area):
+		kinds[pr[0]] = kinds.get(pr[0], 0) + 1
+	for want in ["date_palm", "papyrus", "fallen_column", "obelisk", "crops"]:
+		check(kinds.has(want), "the valley holds %s (%s)" % [want, str(kinds.keys())])
+	for not_here in ["oak", "fir", "palm", "dune", "ruined_wall", "olive", "dry_grass"]:
+		check(not kinds.has(not_here), "and no %s" % not_here)
+	check(Terrain.TREES.has("date_palm") and Terrain.SOLID.has("date_palm") and Terrain.SOLID.has("obelisk"), "date palms are solid trees that can be felled, and obelisks are solid")
+	check(not Terrain.SOLID.has("papyrus") and not Terrain.SOLID.has("crops"), "reeds and crops block nothing")
+	var canals := t.ravines_in(area)
+	check(canals.size() >= 3 and canals.all(func(rv: Dictionary) -> bool: return rv.get("canal", false)), "the field is cut by irrigation canals and no gorges (%d)" % canals.size())
+
+
+func test_every_canal_is_straight_with_a_bridge_across_it(b: Dictionary) -> void:
+	var cfg: Dictionary = b.canals.aegyptus
+	var t := _nile_terrain(b, 1992)
+	var canals := t.ravines_in(Rect2(-6000, -6000, 12000, 12000))
+	var straight := true
+	var even := true
+	var crossed := true
+	var decks := true
+	for rv in canals:
+		var pts: PackedVector2Array = rv.pieces[0].pts
+		var a := pts[0]
+		var dir := (pts[pts.size() - 1] - a).normalized()
+		for q in pts:
+			straight = straight and absf((q - a).dot(dir.orthogonal())) < 0.5
+		for h in rv.pieces[0].half:
+			even = even and h >= float(cfg.width[0]) / 2.0 - 0.01 and h <= float(cfg.width[1]) / 2.0 + 0.01
+		crossed = crossed and rv.crossings.size() >= int(cfg.crossings[0])
+		for br in rv.crossings:
+			decks = decks and t.bridges.has(br) and absf(br.dir.dot(dir)) < 0.01 and Terrain.edge_of(rv, br.pos) < 0.0
+			decks = decks and Terrain.edge_of(rv, br.pos + br.dir * br.half_len) >= 0.0 and Terrain.edge_of(rv, br.pos - br.dir * br.half_len) >= 0.0
+	check(canals.size() > 5, "canals are laid across the field (%d)" % canals.size())
+	check(straight and even, "each canal runs straight and keeps its width")
+	check(crossed, "each canal has a crossing")
+	check(decks, "and every crossing is a deck laid across the water from bank to bank")
+
+
+func test_a_canal_holds_men_back_but_its_bridge_carries_them(b: Dictionary) -> void:
+	var s := Sim.new(b, Content.with_all_art(), {"seed": 1993, "province": "aegyptus"})
+	var rv: Dictionary = {}
+	for c in s.terrain.ravines_in(Rect2(-3000, -3000, 6000, 6000)):
+		if rv.is_empty() or c.box.get_center().length() < rv.box.get_center().length():
+			rv = c
+	check(not rv.is_empty(), "a canal lies near the start")
+	if rv.is_empty():
+		return
+	var br: Dictionary = rv.crossings[0]
+	var along: Vector2 = br.dir.orthogonal()
+	var water: Vector2 = br.pos + along * (br.half_w + 30.0)
+	if Terrain.edge_of(rv, water) >= 0.0:
+		water = br.pos - along * (br.half_w + 30.0)
+	s.commander.pos = br.pos
+	s.terrain.refresh(s.commander.pos)
+	check(Terrain.edge_of(rv, s.terrain.push_out(water, Sim.UNIT_RADIUS)) >= -0.5, "a man is kept out of the water")
+	check(s.terrain.push_out(br.pos, Sim.UNIT_RADIUS) == br.pos and s.terrain.on_bridge(br.pos) >= 0, "but walks over the crossing, which the legion files across like any bridge")
+
+
+func test_reeds_slow_the_march_but_block_nothing(b: Dictionary) -> void:
+	var s := _aegyptus_sim(b, 1994)
+	s.terrain.add_clearing(Vector2(0, 300), 1.0, [["papyrus", Vector2(0, 300), 0.0]])
+	s.terrain.refresh(s.commander.pos)
+	check(s.terrain.push_out(Vector2(0, 302), Sim.UNIT_RADIUS) == Vector2(0, 302), "a man walks into the reeds")
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	var open := s.speed()
+	s.commander.pos = Vector2(0, 300)
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.in_reeds and is_equal_approx(s.speed(), open * (1.0 - float(b.valleys.aegyptus.reed_slow))), "and the legion marches a little slower while the commander is among them (%.1f against %.1f)" % [s.speed(), open])
+
+
+func test_reed_beds_are_patches_on_the_canal_banks(b: Dictionary) -> void:
+	var cfg: Dictionary = b.valleys.aegyptus
+	var t := _nile_terrain(b, 1995)
+	t.set_canals({})
+	t.add_ravine([{"pts": PackedVector2Array([Vector2(-400, 0), Vector2(400, 0)]), "half": PackedFloat32Array([20.0, 20.0])}])
+	var roll := float(cfg.grove_chance) + 0.01
+	var small := true
+	var banks := true
+	var dry := true
+	for k in 30:
+		var r := RandomNumberGenerator.new()
+		r.seed = 700 + k
+		var bed: Array = t._valley_feature(r, roll, Vector2(r.randf_range(-200, 200), r.randf_range(-250, 250)))
+		small = small and bed.size() >= int(cfg.reeds[0]) and bed.size() <= int(cfg.reeds[1]) and bed.all(func(pr: Array) -> bool: return pr[0] == "papyrus")
+		if bed.is_empty():
+			continue
+		var box := Rect2(bed[0][1], Vector2.ZERO)
+		for pr in bed:
+			box = box.expand(pr[1])
+			banks = banks and absf(pr[1].y) < 20.0 + 2.0 * float(cfg.reed_spread[1]) + 10.0
+			dry = dry and t.ravine_edge(pr[1]) > 0.0
+		small = small and box.size.x <= 2.0 * float(cfg.reed_spread[0]) + 1.0 and box.size.y <= 2.0 * float(cfg.reed_spread[1]) + 1.0
+	check(small, "a reed bed is a small patch of papyrus, never a maze")
+	check(banks, "it grows on the bank of the canal nearby")
+	check(dry, "and never in the water")
+
+
+func test_temple_ruins_are_solid_and_leave_room_to_pass(b: Dictionary) -> void:
+	var cfg: Dictionary = b.valleys.aegyptus
+	var t := _nile_terrain(b, 1996)
+	t.set_canals({})
+	var roll := float(cfg.grove_chance) + float(cfg.reed_chance) + 0.01
+	var whole := true
+	var apart := true
+	for k in 30:
+		var r := RandomNumberGenerator.new()
+		r.seed = 800 + k
+		var ruin: Array = t._valley_feature(r, roll, Vector2(900, 900))
+		var pieces := ruin.filter(func(pr: Array) -> bool: return pr[0] != "")
+		var obelisks := pieces.filter(func(pr: Array) -> bool: return pr[0] == "obelisk").size()
+		var columns := pieces.filter(func(pr: Array) -> bool: return pr[0] == "fallen_column").size()
+		whole = whole and obelisks == 1 and columns >= int(cfg.columns[0]) and columns <= int(cfg.columns[1])
+		whole = whole and ruin.size() - pieces.size() == columns * cfg.column_blockers.size()
+		for i in pieces.size():
+			for j in range(i + 1, pieces.size()):
+				apart = apart and pieces[i][1].distance_to(pieces[j][1]) >= float(cfg.ruin_gap)
+	check(whole, "a ruin is an obelisk and a few fallen columns, each column held by its blockers")
+	check(apart, "and its stones lie far enough apart to march between")
+	var s := _aegyptus_sim(b, 1997)
+	s.terrain.add_clearing(Vector2(0, 300), 1.0, [["fallen_column", Vector2(0, 300), 0.0], ["", Vector2(20, 300), 8.0], ["obelisk", Vector2(200, 300), Terrain.SOLID.obelisk]])
+	s.terrain.refresh(s.commander.pos)
+	check(s.terrain.push_out(Vector2(20, 302), Sim.UNIT_RADIUS) != Vector2(20, 302) and s.terrain.push_out(Vector2(200, 302), Sim.UNIT_RADIUS) != Vector2(200, 302), "a man is pushed out of a column or an obelisk")
+
+
+func test_aegyptus_warriors_thrust_shoot_dart_and_lunge(b: Dictionary) -> void:
+	var e: Dictionary = content.enemies
+	check(e.egyptian_spearman.thrust.reach > e.celtiberian_warrior.slash.reach and e.egyptian_spearman.speed < e.celtiberian_warrior.speed, "the spearman is slow but his thrust reaches further than a sword")
+	check(float(e.egyptian_spearman.armour.arrows) > 0.0, "and his tall shield turns part of each arrow")
+	check(e.nubian_archer.has("volley") and float(e.nubian_archer.range) > float(e.gaul_archer.range), "the Nubian archer looses volleys from further off than a Gaulish archer")
+	check(e.khopesh_raider.has("sprint") and e.khopesh_raider.speed > e.egyptian_spearman.speed, "the khopesh raider is quick and darts in")
+	check(e.crocodile.behaviour == "beast" and is_equal_approx(float(e.crocodile.share), 0.5) and float(e.crocodile.arrives) >= 120.0, "the crocodile is a beast that comes after a couple of minutes, half as often")
+	check(float(e.crocodile.speed) < float(e.war_hound.speed) and float(e.crocodile.speed) < float(content.base_commander.speed) * 0.6, "and is slow on land")
+	var s := _aegyptus_sim(b, 1998)
+	var h := s.horde
+	var far := h.spawn("crocodile", Vector2(s.legion_reach + 160.0, 0))
+	h.e_cd[far] = 0.0
+	h._move(1.0 / 60.0, s)
+	check(h.e_dash[far] <= 0.0, "a crocodile far from the legion does not lunge")
+	var near := h.spawn("crocodile", Vector2(-s.legion_reach - 35.0, 0))
+	h.e_cd[near] = 0.0
+	h._move(1.0 / 60.0, s)
+	var rush: Dictionary = e.crocodile.rush
+	check(h.e_dash[near] > 0.0 and float(e.crocodile.speed) * float(rush.speed_mult) * float(rush.seconds) < 50.0, "one close to it lunges a short way")
+
+
+func test_the_priest_of_sobek_hardens_the_warriors_round_him(b: Dictionary) -> void:
+	var s := _aegyptus_sim(b, 1999)
+	var h := s.horde
+	var info: Dictionary = content.enemies.sobek_priest
+	var cfg: Dictionary = info.harden
+	var i := h.spawn("sobek_priest", Vector2(300, 0), true)
+	var st: Dictionary = h.boss_state(i)
+	var near_one := h.spawn("egyptian_spearman", h.e_pos[i] + Vector2(40, 0))
+	var far_one := h.spawn("egyptian_spearman", h.e_pos[i] + Vector2(float(cfg.radius) + 60.0, 0))
+	h.rebuild_grid()
+	st.harden_cd = 0.0
+	h._bosses(1.0 / 60.0, s)
+	var taken := func(j: int) -> float:
+		var before := h.e_hp[j]
+		s.hit(j, 10.0)
+		var lost := before - h.e_hp[j]
+		h.e_hp[j] = before
+		return lost
+	var hard: float = taken.call(near_one)
+	var soft: float = taken.call(far_one)
+	check(is_equal_approx(hard, soft * (1.0 - float(cfg.cut))), "his blessing hardens the warriors round him against blows (%.1f against %.1f)" % [hard, soft])
+	check(info.keys().filter(func(k: String) -> bool: return h.ABILITY_TIMERS.has(k)).size() == 1, "it is his one ability")
+	s.time += float(cfg.seconds) + 0.1
+	h.time = s.time
+	check(is_equal_approx(taken.call(near_one), soft), "and it wears off after %.0f seconds" % float(cfg.seconds))
+
+
+func test_the_camel_captain_leads_a_wedge_of_camel_riders(b: Dictionary) -> void:
+	var s := _aegyptus_sim(b, 2000)
+	var h := s.horde
+	var cfg: Dictionary = content.enemies.camel_captain.wedge
+	var i := h.spawn("camel_captain", Vector2(s.legion_reach + 100.0, 0), true)
+	var st: Dictionary = h.boss_state(i)
+	st.wedge_cd = 0.0
+	h._bosses(1.0 / 60.0, s)
+	var riders: Array = st.wedge.filter(func(w: Array) -> bool: return h.e_id.has(w[0]) and h.kind_ids[h.e_kind[h.e_id.find(w[0])]] == "camel_rider")
+	check(st.rush_warn > 0.0 and riders.size() == int(cfg.riders), "he marks a lane and %d camel riders form a wedge behind him" % int(cfg.riders))
+
+
+func test_achillas_raises_his_hand_and_volleys_fall_on_marked_rings(b: Dictionary) -> void:
+	var cfg: Dictionary = content.enemies.achillas.attacks.volleys
+	for stay in [true, false]:
+		var s := _aegyptus_sim(b, 2001)
+		var h := s.horde
+		h.spawn_chieftain(Vector2(250, 0))
+		h.cleave_cd = 1e9
+		var hp0: float = s.commander.hp
+		var men0 := 0.0
+		for so in s.soldiers:
+			men0 += so.hp
+		h.volleys_cd = 0.0
+		h._chieftain(1.0 / 60.0, s)
+		var rings := h.foe_lobs.filter(func(l: Dictionary) -> bool: return l.get("volley", false))
+		if stay:
+			check(s.objectives.notice.get("kind", "") == "volleys", "a notice says he raises his hand")
+			check(rings.size() == int(cfg.rings), "%d rings are marked over the legion" % int(cfg.rings))
+			check(rings.any(func(l: Dictionary) -> bool: return l.to.distance_to(s.commander.pos) < 1.0), "one of them on the commander")
+			check(rings.all(func(l: Dictionary) -> bool: return float(l.dur) >= 1.4), "each marked long enough to step out of it")
+		else:
+			s.commander.pos += Vector2(0, float(cfg.radius) * 2.0 + float(cfg.spread) * 2.0 + s.legion_reach)
+		var t := 0.0
+		while t < float(cfg.delay) - 0.1:
+			h._foe_lobs(1.0 / 60.0, s)
+			t += 1.0 / 60.0
+		if stay:
+			check(s.commander.hp == hp0, "nothing falls while the rings are marked")
+		for k in 12:
+			h._foe_lobs(1.0 / 60.0, s)
+		var men := 0.0
+		for so in s.soldiers:
+			men += so.hp
+		if stay:
+			check(s.commander.hp <= hp0 - float(cfg.damage) * 0.5, "then the arrows strike a commander who stayed in his ring")
+			check(men < men0, "and the soldiers under the rings")
+		else:
+			check(s.commander.hp == hp0, "but a commander who stepped out is not hurt")
+	var s2 := _aegyptus_sim(b, 2002)
+	s2.horde.spawn_chieftain(Vector2(250, 0))
+	s2.horde.chief_fury = true
+	s2.horde.volleys(s2.horde.chieftain_index(), s2)
+	check(s2.horde.foe_lobs.size() == int(cfg.fury_rings), "in his fury more rings are marked")
+
+
+func test_achillas_opens_the_sluices_across_the_legions_path(b: Dictionary) -> void:
+	var cfg: Dictionary = content.enemies.achillas.attacks.sluice
+	var s := _aegyptus_sim(b, 2003)
+	var h := s.horde
+	s.facing_angle = 0.0
+	h.spawn_chieftain(Vector2(-250, 0))
+	h.cleave_cd = 1e9
+	var w := h.spawn("khopesh_raider", Vector2(120, 140))
+	h.rebuild_grid()
+	var dry := s.speed()
+	h.sluice_cd = 0.0
+	h._chieftain(1.0 / 60.0, s)
+	check(s.objectives.notice.get("kind", "") == "sluice", "a notice says he opens the sluices")
+	check(not h.flood.is_empty(), "a band of ground is marked")
+	if h.flood.is_empty():
+		return
+	var ahead := Vector2.from_angle(s.facing_angle)
+	check((h.flood.pos - s.commander.pos).dot(ahead) > 0.0 and absf(h.flood.dir.dot(ahead)) < 0.05, "across the legion's path, ahead of it")
+	s.commander.pos = h.flood.pos
+	h._sluice_on(1.0 / 60.0, s)
+	check(is_equal_approx(s.speed(), dry), "the ground is only marked at first, and does not slow the march")
+	var t := 0.0
+	while t < float(cfg.warn) + 0.1:
+		h._sluice_on(1.0 / 60.0, s)
+		t += 1.0 / 60.0
+	check(is_equal_approx(s.speed(), dry * (1.0 - float(cfg.slow))), "then the water comes and slows the legion inside it")
+	check(h.e_haste[w] > 0.0, "while his warriors close in")
+	s.commander.pos = h.flood.pos + h.flood.dir.orthogonal() * (float(cfg.width) / 2.0 + 20.0)
+	h._sluice_on(1.0 / 60.0, s)
+	check(is_equal_approx(s.speed(), dry), "a legion beside the band marches on dry")
+	while t < float(cfg.warn) + float(cfg.seconds) + 0.2:
+		h._sluice_on(1.0 / 60.0, s)
+		t += 1.0 / 60.0
+	check(h.flood.is_empty(), "and the water drains after %.0f seconds" % float(cfg.seconds))

@@ -495,6 +495,12 @@ static func notice_line(kind: String, sim: Sim) -> String:
 			return TranslationServer.translate("The %s turns and runs: beware a trick") % chief_name(sim)
 		"feint_turn":
 			return TranslationServer.translate("A feint: his warriors turn and rush back")
+		"volleys":
+			return TranslationServer.translate("The %s raises his hand: step out of the marked rings") % chief_name(sim)
+		"sluice":
+			return TranslationServer.translate("The %s opens the sluices: the marked ground floods") % chief_name(sim)
+		"canal":
+			return TranslationServer.translate("Cross the canals by their bridges, or fell palms for timber to bridge them")
 		"ravine":
 			return TranslationServer.translate("Fell trees for timber, then bridge the ravine at its edge")
 		"fort_barred":

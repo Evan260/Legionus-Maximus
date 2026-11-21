@@ -7,8 +7,8 @@ extends RefCounted
 const CHUNK := 160.0
 const REGION := 480.0
 const SCATTER := ["oak", "fir", "rock", "log", "stones", "stones", "fir", "rock"]
-const SOLID := {"oak": 9.0, "fir": 8.0, "pine": 8.0, "palm": 8.0, "olive": 9.0, "rock": 10.0, "log": 9.0, "ruined_wall": 14.0, "stone_wall": 12.0}
-const TREES := {"oak": true, "fir": true, "pine": true, "palm": true, "olive": true}
+const SOLID := {"oak": 9.0, "fir": 8.0, "pine": 8.0, "palm": 8.0, "olive": 9.0, "date_palm": 8.0, "rock": 10.0, "log": 9.0, "ruined_wall": 14.0, "stone_wall": 12.0, "obelisk": 10.0}
+const TREES := {"oak": true, "fir": true, "pine": true, "palm": true, "olive": true, "date_palm": true}
 
 const CELL := 64.0
 const GN := 28
@@ -58,6 +58,10 @@ var desert: Dictionary
 var moor: Dictionary
 ## A hill province's scatter, olive groves, dry-stone terrace walls and dry grass from balance.json `hills`, with a few ridges of olives.
 var hills: Dictionary
+## A river valley province's scatter, date palm groves, reed beds, temple ruins and crops from balance.json `valleys`.
+var valley: Dictionary
+## Its irrigation canals from balance.json `canals`, laid out in place of ravines.
+var canal: Dictionary
 # The middle and reach of the stone circle of each moorland region that has one, kept free of the trees of ridges nearby.
 var _henges := {}
 # The frozen stream of each stream region once worked out, {} for a region without one, and streams laid by hand.
@@ -299,7 +303,7 @@ func chunk(cx: int, cy: int) -> Array:
 		return out
 	var r := RandomNumberGenerator.new()
 	r.seed = hash([seed_value, key])
-	var scatter: Array = field.get("scatter", mountain.get("scatter", desert.get("scatter", moor.get("scatter", hills.get("scatter", SCATTER)))))
+	var scatter: Array = field.get("scatter", mountain.get("scatter", desert.get("scatter", moor.get("scatter", hills.get("scatter", valley.get("scatter", SCATTER))))))
 	for i in r.randi_range(0, 2):
 		var p := Vector2((cx + r.randf()) * CHUNK, (cy + r.randf()) * CHUNK)
 		if p.length() > 90.0:
@@ -367,6 +371,8 @@ func _region(rx: int, ry: int) -> Array:
 		out = _ridge(r, centre) if roll < ridges else _moor_feature(r, roll - ridges, centre)
 	elif not hills.is_empty():
 		out = _ridge(r, centre) if roll < ridges else _hill_feature(r, roll - ridges, centre)
+	elif not valley.is_empty():
+		out = _valley_feature(r, roll, centre)
 	elif roll < ridges:
 		out = _ridge(r, centre)
 	elif roll < ridges + float(mountain.get("line_chance", forest.line_chance)):
@@ -382,7 +388,8 @@ func _region(rx: int, ry: int) -> Array:
 			t += 20.0
 	var kept: Array = []
 	for p in out:
-		if p[1].length() > clear_radius and not _in_clearing(p[1]) and not _by_ravine(p[1]):
+		# Reeds grow on the canal banks, inside the open band kept round the water.
+		if p[1].length() > clear_radius and not _in_clearing(p[1]) and (p[0] == "papyrus" or not _by_ravine(p[1])):
 			kept.append(p)
 	_regions[key] = kept
 	return kept
@@ -496,6 +503,17 @@ func in_bog(p: Vector2) -> bool:
 	return false
 
 
+## Whether p stands in a reed bed, which slows the legion's march a little.
+func in_reeds(p: Vector2) -> bool:
+	if valley.is_empty():
+		return false
+	var reach := float(valley.reed_radius)
+	for pr in props_in(Rect2(p - Vector2.ONE * reach, Vector2.ONE * reach * 2.0)):
+		if pr[0] == "papyrus" and pr[1].distance_to(p) < reach:
+			return true
+	return false
+
+
 ## A hill region holds an olive grove in rows, one or two dry-stone terrace walls with gaps to march through, a patch of dry grass or open hillside.
 func _hill_feature(r: RandomNumberGenerator, roll: float, centre: Vector2) -> Array:
 	var cfg := hills
@@ -536,6 +554,98 @@ func _hill_feature(r: RandomNumberGenerator, roll: float, centre: Vector2) -> Ar
 	elif roll < walls + float(cfg.grass_chance):
 		for k in r.randi_range(int(cfg.grasses[0]), int(cfg.grasses[1])):
 			out.append(["dry_grass", centre + Vector2(r.randf_range(-1.0, 1.0), r.randf_range(-0.7, 0.7)) * float(cfg.grass_spread), 0.0])
+	return out
+
+
+## Lays this province's irrigation canals where other provinces have ravines; an empty config lays neither.
+func set_canals(cfg: Dictionary) -> void:
+	canal = cfg
+	ravine_cfg = cfg
+	_ravines.clear()
+	_anchor = Vector2i(1 << 30, 0)
+
+
+## A valley region holds a grove of date palms, a reed bed on a canal bank, a ruined temple, a patch of crops or open ground.
+func _valley_feature(r: RandomNumberGenerator, roll: float, centre: Vector2) -> Array:
+	var cfg := valley
+	var out: Array = []
+	var grove := float(cfg.grove_chance)
+	var reeds := grove + float(cfg.reed_chance)
+	var ruin := reeds + float(cfg.ruin_chance)
+	if roll < grove:
+		var n := r.randi_range(int(cfg.palms[0]), int(cfg.palms[1]))
+		var gap := float(cfg.palm_gap)
+		for k in n * 4:
+			if out.size() >= n:
+				break
+			var p := centre + Vector2.from_angle(r.randf() * TAU) * sqrt(r.randf()) * float(cfg.grove_radius)
+			if out.all(func(q: Array) -> bool: return q[1].distance_to(p) >= gap):
+				out.append(["date_palm", p, SOLID.date_palm])
+	elif roll < reeds:
+		var bank := _bank_near(centre, float(cfg.reed_bank))
+		var spread := Vector2(float(cfg.reed_spread[0]), float(cfg.reed_spread[1]))
+		var at: Vector2 = centre if bank.is_empty() else bank[0] + bank[2] * (bank[3] + spread.y + 4.0)
+		var along: Vector2 = Vector2.from_angle(r.randf() * PI) if bank.is_empty() else bank[1]
+		var n := r.randi_range(int(cfg.reeds[0]), int(cfg.reeds[1]))
+		var gap := float(cfg.reed_gap)
+		for k in n * 6:
+			if out.size() >= n:
+				break
+			var p := at + along * r.randf_range(-spread.x, spread.x) + along.orthogonal() * r.randf_range(-spread.y, spread.y)
+			if out.all(func(q: Array) -> bool: return q[1].distance_to(p) >= gap) and (bank.is_empty() or ravine_edge(p, 200.0) > 2.0):
+				out.append(["papyrus", p, 0.0])
+	elif roll < ruin:
+		out = _ruin(r, centre)
+	elif roll < ruin + float(cfg.crop_chance):
+		for k in r.randi_range(int(cfg.crops_count[0]), int(cfg.crops_count[1])):
+			out.append(["crops", centre + Vector2(r.randf_range(-1.0, 1.0), r.randf_range(-0.7, 0.7)) * float(cfg.crop_spread), 0.0])
+	return out
+
+
+## The nearest point on a canal within `reach` of p, as [point, along, the side p is on, half width], or [] for none.
+func _bank_near(p: Vector2, reach: float) -> Array:
+	var best: Array = []
+	var near := reach
+	for rv in ravines_in(Rect2(p - Vector2.ONE * reach, Vector2.ONE * reach * 2.0)):
+		for piece in rv.pieces:
+			var pts: PackedVector2Array = piece.pts
+			for i in pts.size() - 1:
+				var ab := pts[i + 1] - pts[i]
+				var t := clampf((p - pts[i]).dot(ab) / maxf(ab.length_squared(), 0.0001), 0.0, 1.0)
+				var q := pts[i] + ab * t
+				var d := p.distance_to(q)
+				if d < near:
+					near = d
+					var side := (p - q).normalized() if d > 0.001 else ab.orthogonal().normalized()
+					best = [q, ab.normalized(), side, maxf(piece.half[i], piece.half[i + 1])]
+	return best
+
+
+## A ruined temple: an obelisk with a few fallen columns round it, every stone far enough from the others to march between.
+func _ruin(r: RandomNumberGenerator, centre: Vector2) -> Array:
+	var cfg := valley
+	var gap := float(cfg.ruin_gap)
+	var groups: Array = [[["obelisk", centre, SOLID.obelisk]]]
+	var want := r.randi_range(int(cfg.columns[0]), int(cfg.columns[1]))
+	for k in 40:
+		if groups.size() > want:
+			break
+		var at := centre + Vector2.from_angle(r.randf() * TAU) * r.randf_range(gap, float(cfg.ruin_spread))
+		var group: Array = [["fallen_column", at, 0.0]]
+		for off in cfg.column_blockers:
+			group.append(["", at + Vector2(float(off[0]), float(off[1])), float(cfg.column_radius)])
+		var clear := true
+		for other in groups:
+			for a in other:
+				for c in group:
+					clear = clear and a[1].distance_to(c[1]) >= gap
+		if clear:
+			groups.append(group)
+	var out: Array = []
+	for group in groups:
+		# A column is kept or left out whole, so no blocker lies there without its picture.
+		if group.all(func(g: Array) -> bool: return g[1].length() > clear_radius and not _in_clearing(g[1]) and not _by_ravine(g[1])):
+			out.append_array(group)
 	return out
 
 
@@ -848,6 +958,8 @@ func add_clearing(centre: Vector2, radius: float, pieces: Array) -> void:
 	clearings.append([centre, radius])
 	for key in _ravines:
 		if not _ravines[key].is_empty() and edge_of(_ravines[key], centre) < radius:
+			for br in _ravines[key].get("crossings", []):
+				bridges.erase(br)
 			_ravines[key] = {}
 	extras.append_array(pieces)
 	for pr in pieces:
@@ -1309,12 +1421,53 @@ func ravine(rx: int, ry: int) -> Dictionary:
 			var size := float(ravine_cfg.region)
 			var inner := Rect2(Vector2(rx, ry) * size, Vector2.ONE * size).grow(-float(ravine_cfg.inset) - float(ravine_cfg.width[1]) / 2.0)
 			for k in int(ravine_cfg.tries):
-				var made := _gorge_line(r, inner, ravine_cfg)
+				var made := _canal_line(r, inner, ravine_cfg) if not canal.is_empty() else _gorge_line(r, inner, ravine_cfg)
 				if _fits(made, inner, ravine_cfg):
 					out = made
 					break
+			if not canal.is_empty() and not out.is_empty():
+				_cross(out, r, canal)
 	_ravines[key] = out
 	return out
+
+
+## A straight irrigation canal of even width centred somewhere in `inner`.
+func _canal_line(r: RandomNumberGenerator, inner: Rect2, cfg: Dictionary) -> Dictionary:
+	var length := r.randf_range(float(cfg.length[0]), float(cfg.length[1]))
+	var dir := Vector2.from_angle(r.randf() * PI)
+	var centre := Vector2(r.randf_range(inner.position.x, inner.end.x), r.randf_range(inner.position.y, inner.end.y))
+	var half := r.randf_range(float(cfg.width[0]), float(cfg.width[1])) / 2.0
+	var ds := float(cfg.step)
+	var n := int(length / ds)
+	var pts := PackedVector2Array()
+	var widths := PackedFloat32Array()
+	for i in n + 1:
+		pts.append(centre + dir * (i - n / 2.0) * ds)
+		widths.append(half)
+	return _with_box({"pieces": [{"pts": pts, "half": widths}], "canal": true})
+
+
+## Lays the crossings of a canal as bridge decks from bank to bank, kept away from its ends and from each other.
+func _cross(rv: Dictionary, r: RandomNumberGenerator, cfg: Dictionary) -> void:
+	var pts: PackedVector2Array = rv.pieces[0].pts
+	var a := pts[0]
+	var length := a.distance_to(pts[pts.size() - 1])
+	var dir := (pts[pts.size() - 1] - a) / length
+	var end := minf(float(cfg.crossing_end), length / 2.0)
+	var at: Array = []
+	var want := r.randi_range(int(cfg.crossings[0]), int(cfg.crossings[1]))
+	for k in want * 6:
+		if at.size() >= want:
+			break
+		var t := r.randf_range(end, length - end)
+		if at.all(func(o: float) -> bool: return absf(o - t) >= float(cfg.crossing_apart)):
+			at.append(t)
+	var crossings: Array = []
+	for t in at:
+		var br := {"pos": a + dir * t, "dir": dir.orthogonal(), "half_len": float(rv.pieces[0].half[0]) + float(cfg.overhang), "half_w": float(cfg.crossing_width) / 2.0}
+		bridges.append(br)
+		crossings.append(br)
+	rv.crossings = crossings
 
 
 ## A winding gorge centred somewhere in `inner`, narrowing at its ends, sometimes broken by a natural land bridge.

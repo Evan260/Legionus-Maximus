@@ -13,6 +13,7 @@ extends Node
 ##                      fort-gate stands it south of a freshly raised fort and marches it in through the gate
 ##                      crowd gives it 80 men on cleared ground ringed by a full late horde
 ##                      village or hedge stands it beside the nearest village or hedge, in a province that has them
+##                      canal stands it before the nearest canal crossing, reeds, ruin or palms beside the nearest reed bed, obelisk or date palm
 ##   --hold-choice      with --autoplay, give a level at once and leave its choices open
 ##   --easy, --hard     start the run at that difficulty
 ##   --endless, --decimatio   start the run in that mode
@@ -32,9 +33,10 @@ extends Node
 ##                      duel|rally|blast|flee for the Gaulish elites and siege|summon for the Gaulish king, onrush|blizzard for the Dacian elites and
 ##                      sweep|rockfall|leap for the Dacian king, wedge|trample for the Parthian elites and storm|elephants for the shah,
 ##                      scythe|skyfire|rouse for the British elites and drive|tribes|burn for the warrior queen, rouse|onrush for the Hispanic elites
-##                      and ambush|feint for the shepherd general, makes him use that ability at once
+##                      and ambush|feint for the shepherd general, harden|wedge for the Egyptian elites and volleys|sluice for the Egyptian general,
+##                      makes him use that ability at once
 ##                      and holds his others back; an ordinary enemy comes as a small group, and slash|rear|volley|rush (Gaul),
-##                      chop|salvo|howl|maul (Dacia), kite|lance|thrust|sling (Parthia), cry|stones|tend|pass (Britannia) or slash|sling|kite (Hispania) has them use theirs
+##                      chop|salvo|howl|maul (Dacia), kite|lance|thrust|sling (Parthia), cry|stones|tend|pass (Britannia), slash|sling|kite (Hispania) or thrust|volley|sprint|rush (Aegyptus) has them use theirs
 ##   --province=ID      start the run in that province, for looking at it
 ##   --god=ID           with --autoplay, call that god at --god-at seconds (default 2) of the look; --god=choose fills the favour and holds the choice open
 ##   --seed=N           lay out the field and run from a fixed seed, so a look comes out the same every time
@@ -192,6 +194,9 @@ func _bring_boss(kind: String, act: String) -> void:
 		elif act == "ambush" or act == "feint":
 			h.ambush_cd = 0.0 if act == "ambush" else 1e9
 			h.feint_cd = 0.0 if act == "feint" else 1e9
+		elif act == "volleys" or act == "sluice":
+			h.volleys_cd = 0.0 if act == "volleys" else 1e9
+			h.sluice_cd = 0.0 if act == "sluice" else 1e9
 		return
 	if not content.enemies[kind].get("elite", false):
 		_bring_group(kind, act)
@@ -206,7 +211,7 @@ func _bring_boss(kind: String, act: String) -> void:
 	var st := h.boss_state(i)
 	var timers := {"whirl": "whirl_cd", "shield": "shield_cd", "band": "band_cd", "mend": "mend_cd", "curse": "curse_cd", "blink": "blink_cd",
 		"duel": "duel_cd", "blast": "blast_cd", "onrush": "onrush_cd", "blizzard": "blizzard_cd", "wedge": "wedge_cd", "trample": "trample_cd",
-		"scythe": "scythe_cd", "skyfire": "fire_cd", "rouse": "rouse_cd"}
+		"scythe": "scythe_cd", "skyfire": "fire_cd", "rouse": "rouse_cd", "harden": "harden_cd"}
 	for key in timers.values():
 		if st.has(key):
 			st[key] = 1e9
@@ -215,7 +220,7 @@ func _bring_boss(kind: String, act: String) -> void:
 	if act == "rage":
 		h.e_hp[i] = h.e_max[i] * 0.45
 	h.rally_cd[h.e_id[i]] = 0.0 if act == "rally" else 1e9
-	if act == "mend" or act == "rally" or act == "onrush" or act == "rouse":
+	if act == "mend" or act == "rally" or act == "onrush" or act == "rouse" or act == "harden":
 		for k in 6:
 			var j := h.spawn(h.ordinary[0], at + Vector2.from_angle(k * TAU / 6.0) * 60.0)
 			h.e_hp[j] = h.e_max[j] * 0.4
@@ -235,7 +240,7 @@ func _stand_at_lip(i: int) -> void:
 func _bring_group(kind: String, act: String) -> void:
 	var h := sim.horde
 	var away := {"slash": 26.0, "rear": 170.0, "volley": 150.0, "rush": 170.0, "chop": 26.0, "salvo": 150.0, "howl": 90.0, "maul": 30.0,
-		"kite": 120.0, "lance": 170.0, "thrust": 30.0, "sling": 130.0, "cry": 150.0, "stones": 190.0, "tend": 120.0, "pass": 220.0}
+		"kite": 120.0, "lance": 170.0, "thrust": 30.0, "sling": 130.0, "cry": 150.0, "stones": 190.0, "tend": 120.0, "pass": 220.0, "sprint": 140.0}
 	var r: float = away.get(act, 90.0)
 	var ahead := Vector2.from_angle(sim.facing_angle)
 	for k in 4:
@@ -291,15 +296,28 @@ func _go_to(kind: String) -> void:
 		sim.legion.place_all(sim.facing_angle)
 		look_march = Vector2.ZERO
 		return
-	if kind == "circle" or kind == "bog" or kind == "terrace" or kind == "olives":
-		var want: String = {"circle": "stone_circle", "bog": "bog", "terrace": "stone_wall", "olives": "olive"}[kind]
+	if kind == "canal":
+		var near := {}
+		for br in sim.terrain.bridges:
+			if near.is_empty() or br.pos.length() < near.pos.length():
+				near = br
+		if near.is_empty():
+			return
+		sim.commander.pos = near.pos - near.dir * (near.half_len + 60.0)
+		sim.facing_angle = near.dir.angle()
+		sim.commander.facing = near.dir
+		sim.legion.place_all(sim.facing_angle)
+		look_march = Vector2.ZERO
+		return
+	if kind in ["circle", "bog", "terrace", "olives", "reeds", "ruin", "palms"]:
+		var want: String = {"circle": "stone_circle", "bog": "bog", "terrace": "stone_wall", "olives": "olive", "reeds": "papyrus", "ruin": "obelisk", "palms": "date_palm"}[kind]
 		var best := Vector2.INF
 		for pr in sim.terrain.props_in(Rect2(-3000, -3000, 6000, 6000)):
 			if pr[0] == want and pr[1].length() < best.length():
 				best = pr[1]
 		if best == Vector2.INF:
 			return
-		sim.commander.pos = best + Vector2(0, {"circle": 150, "bog": 70, "terrace": 80, "olives": 90}[kind])
+		sim.commander.pos = best + Vector2(0, {"circle": 150, "bog": 70, "terrace": 80, "olives": 90, "reeds": 50, "ruin": 110, "palms": 90}[kind])
 		sim.legion.place_all(sim.facing_angle)
 		look_march = Vector2.ZERO
 		return

@@ -50,6 +50,8 @@ var glide := Vector2.ZERO
 var on_sand := false
 ## Whether the commander stands in a bog pool, which slows the march more than sand.
 var in_bog := false
+## Whether the commander stands in a reed bed, which slows the march a little.
+var in_reeds := false
 # How many barbarians were locked in melee with the legion on the last update.
 var pressing := 0
 
@@ -191,6 +193,9 @@ func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
 	terrain.desert = b.get("deserts", {}).get(province, {})
 	terrain.moor = b.get("moors", {}).get(province, {})
 	terrain.hills = b.get("hills", {}).get(province, {})
+	terrain.valley = b.get("valleys", {}).get(province, {})
+	if b.get("canals", {}).has(province):
+		terrain.set_canals(b.canals[province])
 	terrain.clear_radius = float(b.terrain_clear_radius)
 	terrain.fell_seconds = float(b.felling.seconds)
 	objectives.place_start(self, options.get("objectives_near", false))
@@ -266,7 +271,9 @@ func speed() -> float:
 	var frozen := 1.0 - horde.frost_slow
 	var sand := 1.0 - float(terrain.desert.get("dune_slow", 0.0)) if on_sand else 1.0
 	var bog := 1.0 - float(terrain.moor.get("bog_slow", 0.0)) if in_bog else 1.0
-	return v * maxf(float(b.press.slowest), held * cursed * frozen * sand * bog * (b.testudo_speed if testudo_left > 0.0 else 1.0))
+	var reeds := 1.0 - float(terrain.valley.get("reed_slow", 0.0)) if in_reeds else 1.0
+	var flooded := 1.0 - horde.flood_slow
+	return v * maxf(float(b.press.slowest), held * cursed * frozen * sand * bog * reeds * flooded * (b.testudo_speed if testudo_left > 0.0 else 1.0))
 
 
 func range_mult() -> float:
@@ -410,6 +417,7 @@ func _move_legion(dt: float, move: Vector2) -> void:
 	moving = move.length() > 0.15
 	on_sand = terrain.on_dune(commander.pos)
 	in_bog = terrain.in_bog(commander.pos)
+	in_reeds = terrain.in_reeds(commander.pos)
 	var want := Vector2.ZERO
 	if moving:
 		var dir := move.normalized() if move.length() > 1.0 else move
@@ -605,7 +613,7 @@ func _look_for_ravines() -> void:
 	var quiet := note.is_empty() or time - float(note.at) >= float(note.get("seconds", b.objectives.notice_seconds))
 	if ravine_near and ravine_tip and not ravine_tip_shown and quiet:
 		ravine_tip_shown = true
-		objectives.notice = {"kind": "ravine", "at": time, "seconds": float(b.bridge.tip_seconds)}
+		objectives.notice = {"kind": "canal" if not terrain.canal.is_empty() else "ravine", "at": time, "seconds": float(b.bridge.tip_seconds)}
 
 
 ## Spends timber on a plank bridge across the ravine ahead; with no ravine ahead or too little timber it is refused.

@@ -45,6 +45,8 @@ var _prop_frames := {}
 var ravine_edge: Texture2D
 # The ice laid along every frozen stream, repeated across the world.
 var ice: Texture2D
+# The water of every canal, repeated across the world like the ice.
+var water: Texture2D
 # Soldiers reeling from a sling stone, and the camels bringing the shah's riders fresh arrows, marked over their heads this frame.
 var _dazed := PackedVector2Array()
 var _train_marks := PackedVector2Array()
@@ -67,6 +69,7 @@ func _ready() -> void:
 	digits = _digit_texture()
 	ravine_edge = load("res://assets/ravine_edge.png")
 	ice = load("res://assets/ice.png")
+	water = load("res://assets/water.png")
 	# The ravine lip repeats along each gorge; every other picture is drawn inside its own rectangle, so repeating changes nothing for it.
 	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	for layer in [_floor, _wheat]:
@@ -160,8 +163,8 @@ func _draw() -> void:
 					f = atlas.prop_frame(pr[0])
 					_prop_frames[pr[0]] = f
 				var at: Vector2 = pr[1]
-				if pr[0] == "dune" or pr[0] == "bog" or pr[0] == "heather" or pr[0] == "dry_grass":
-					# Dunes, bog pools, heather and dry grass are walked over, so they are drawn on the ground under everything that stands on them.
+				if pr[0] == "dune" or pr[0] == "bog" or pr[0] == "heather" or pr[0] == "dry_grass" or pr[0] == "crops":
+					# Dunes, bog pools, heather, dry grass and crops are walked over, so they are drawn on the ground under everything that stands on them.
 					_add(at.y - 60000.0, f[0], at - f[1], white)
 					continue
 				if not chops.is_empty() and chops.has(at) and sim.time - float(chops[at][1]) < shaking:
@@ -171,7 +174,7 @@ func _draw() -> void:
 				# A tree standing in front of the commander is seen through, so he is not lost once the legion cuts into a ridge.
 				# Only the middle of the picture counts, since the empty margins round a canopy hide nothing.
 				# A log lies low on the ground and hides nobody, so it stays solid.
-				if (pr[2] > 0.0 or Terrain.SOLID.has(pr[0])) and pr[0] != "log" and at.y > cam.y and _solid_part(Rect2(at - f[1], f[0].size)).intersects(him):
+				if (pr[2] > 0.0 or Terrain.SOLID.has(pr[0]) or pr[0] == "papyrus") and pr[0] != "log" and at.y > cam.y and _solid_part(Rect2(at - f[1], f[0].size)).intersects(him):
 					mod = see_through
 				# The gate fades only half way, so the fort still reads while the commander walks under it.
 				elif pr[0] == "fort_gate" and at.y > cam.y and Rect2(at - f[1], f[0].size).intersects(him):
@@ -254,6 +257,8 @@ func _draw() -> void:
 			mod = Color(1.0, 0.42 + 0.12 * sin(sim.time * 10.0), 0.36)
 		elif h.e_burn[i] > 0.0:
 			mod = Color(1.0, 0.78, 0.6)
+		elif h.e_ward[i] > sim.time:
+			mod = Color(0.72, 0.95, 0.6)
 		var sw := _k_shadow[kind]
 		if sw <= 16.0:
 			draw_texture(shadow, _snap(p - Vector2(8, 3)))
@@ -582,6 +587,8 @@ func _draw_warnings() -> void:
 		_draw_path(h.drive.pts, h.drive.lens, h.drive.width, clampf(h.drive.t / h.drive.warn, 0.0, 1.0))
 	for st in h.storms:
 		_draw_storm(st)
+	if not h.flood.is_empty():
+		_draw_flood(h.flood)
 	for l in sim.horde.foe_lobs:
 		var k: float = clampf(l.t / l.dur, 0.0, 1.0)
 		if l.get("sky", false):
@@ -619,6 +626,33 @@ func _draw_warnings() -> void:
 			for n in 3:
 				var a := sim.time * 2.0 + n * TAU / 3.0
 				draw_arc(at, m.radius * 0.6, a, a + 1.2, 8, Color(0.85, 0.55, 1.0, 0.8), 1.0)
+
+
+## The band the Egyptian general floods: a blue outline filling from the bank while it is marked, then muddy water with ripples until it drains.
+func _draw_flood(fl: Dictionary) -> void:
+	var c: Vector2 = fl.pos
+	var d: Vector2 = fl.dir
+	var side := d.orthogonal()
+	var hl: float = fl.half_len
+	var hw: float = fl.half_w
+	var corners := PackedVector2Array([c - d * hl - side * hw, c + d * hl - side * hw, c + d * hl + side * hw, c - d * hl + side * hw])
+	if fl.t < fl.warn:
+		var k: float = clampf(fl.t / fl.warn, 0.0, 1.0)
+		draw_colored_polygon(corners, Color(0.25, 0.5, 0.85, 0.1 + 0.15 * k))
+		draw_colored_polygon(PackedVector2Array([c - d * hl - side * hw, c + d * hl - side * hw, c + d * hl + side * hw * (2.0 * k - 1.0), c - d * hl + side * hw * (2.0 * k - 1.0)]), Color(0.35, 0.6, 0.95, 0.22))
+		corners.append(corners[0])
+		draw_polyline(corners, Color(0.5, 0.75, 1.0, 0.9), 1.0)
+		return
+	var left: float = fl.warn + fl.seconds - fl.t
+	var a := clampf(left / 0.8, 0.0, 1.0) * clampf((fl.t - fl.warn) / 0.3, 0.0, 1.0)
+	draw_colored_polygon(corners, Color(0.32, 0.42, 0.36, 0.75 * a))
+	for n in 6:
+		var along: float = -hl + hl * 2.0 * fmod(n * 0.37 + sim.time * 0.15, 1.0)
+		var across: float = hw * (n % 3 - 1) * 0.55
+		var at := c + d * along + side * across
+		draw_line(at - d * 6.0, at + d * 6.0, Color(0.7, 0.8, 0.78, 0.5 * a), 1.0)
+	corners.append(corners[0])
+	draw_polyline(corners, Color(0.24, 0.2, 0.14, 0.8 * a), 2.0)
 
 
 ## The lane of a coming charge, filling from where it starts as it nears.
@@ -1044,6 +1078,11 @@ func _draw_effects() -> void:
 		elif e.kind == "mend":
 			var k: float = e.t / 0.45
 			draw_arc(e.pos, e.radius * (0.3 + 0.7 * k), 0.0, TAU, 64, Color(0.5, 1.0, 0.55, 1.0 - k), 3.0)
+		elif e.kind == "ward":
+			# A priest of Sobek's blessing spreads as a green ring of scales.
+			var k: float = e.t / 0.45
+			draw_circle(e.pos, e.radius * (0.3 + 0.7 * k), Color(0.35, 0.6, 0.25, 0.25 * (1.0 - k)))
+			draw_arc(e.pos, e.radius * (0.3 + 0.7 * k), 0.0, TAU, 64, Color(0.6, 0.85, 0.35, 1.0 - k), 2.0)
 		elif e.kind == "curse":
 			var k: float = e.t / 0.45
 			draw_circle(e.pos, e.radius * (0.6 + 0.6 * k), Color(0.65, 0.3, 0.95, 0.45 * (1.0 - k)))
@@ -1239,6 +1278,14 @@ func _draw_ravines(view: Rect2) -> void:
 			draw_polyline(g[4], Color(0.35, 0.45, 0.6, 0.7), 1.0)
 	for rv in sim.terrain.ravines_in(view):
 		for piece in rv.pieces:
+			if rv.get("canal", false):
+				if not piece.has("mesh"):
+					piece.mesh = _water_mesh(piece)
+				var w: Array = piece.mesh
+				RenderingServer.canvas_item_add_triangle_array(item, w[0], w[1], w[2], w[3], PackedInt32Array(), PackedFloat32Array(), water.get_rid())
+				draw_polyline(w[4], Color(0.2, 0.15, 0.09, 0.9), 3.0)
+				draw_polyline(w[4], Color(0.42, 0.52, 0.22, 0.8), 1.0)
+				continue
 			# Each piece keeps its triangles once worked out, since a ravine never changes.
 			if not piece.has("mesh"):
 				piece.mesh = _gorge_mesh(piece)
@@ -1250,14 +1297,21 @@ func _draw_ravines(view: Rect2) -> void:
 			_draw_bridge(br)
 
 
+## The triangles of one canal piece, the water laid in world space like the ice, and its bank as a closed line.
+func _water_mesh(piece: Dictionary) -> Array:
+	return _ice_mesh(piece, water)
+
+
 ## The triangles of one frozen stream piece, the ice laid in world space so it lines up across pieces, and its bank as a closed line.
-func _ice_mesh(piece: Dictionary) -> Array:
+func _ice_mesh(piece: Dictionary, surface: Texture2D = null) -> Array:
 	var o := _outline(piece)
 	var centres: PackedVector2Array = o[0]
 	var outs: PackedVector2Array = o[1]
 	var widths: PackedFloat32Array = o[2]
 	var m := centres.size()
-	var tex := Vector2(ice.get_width(), ice.get_height())
+	if surface == null:
+		surface = ice
+	var tex := Vector2(surface.get_width(), surface.get_height())
 	var pts := PackedVector2Array()
 	var cols := PackedColorArray()
 	var uvs := PackedVector2Array()
