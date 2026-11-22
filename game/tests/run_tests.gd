@@ -3988,6 +3988,38 @@ func test_the_cheer_keeps_real_time_whatever_the_walk_counter_does(b: Dictionary
 	check(not is_equal_approx(view.cheer_phase(1.0, 3, cycle), view.cheer_phase(1.0, 4, cycle)), "and neighbours cheer a little out of step")
 
 
+func test_horse_archers_on_the_edge_of_their_ring_do_not_flicker(b: Dictionary) -> void:
+	var s := Sim.new(b, Content.with_all_art(), {"seed": 1672, "province": "parthia"})
+	s.commander.max_hp = 1e9
+	s.commander.hp = 1e9
+	while s.soldiers.size() < 30:
+		s.legion.add(["legionary", "archer", "cavalry"][s.soldiers.size() % 3])
+	s.legion.place_all(s.facing_angle)
+	for k in 150 * 30:
+		var a0 := k / 30.0 * 0.6
+		s.update(1.0 / 30.0, Vector2(cos(a0), sin(a0)) * 0.8, false)
+	var hist := {}
+	var flips := 0
+	var riders := {}
+	for k in 26 * 60:
+		var a := k / 60.0 * 0.6
+		s.update(1.0 / 60.0, Vector2(cos(a), sin(a)) * 0.8, false)
+		for j in s.horde.e_pos.size():
+			if s.horde.kind_ids[s.horde.e_kind[j]] != "horse_archer":
+				continue
+			var id: int = s.horde.e_id[j]
+			riders[id] = true
+			var h: Array = hist.get(id, [])
+			h.append(Sim.dir_index(s.horde.e_face[j]))
+			if h.size() > 3:
+				h.pop_front()
+			hist[id] = h
+			if h.size() == 3 and h[0] == h[2] and h[1] != h[0]:
+				flips += 1
+	check(riders.size() > 3, "horse archers ride round the legion (%d)" % riders.size())
+	check(flips <= riders.size() * 2, "and their pictures do not flick back and forth between two ways (%d flicks among %d riders in 26 s)" % [flips, riders.size()])
+
+
 func test_the_testudo_stops_a_boss_charge(b: Dictionary) -> void:
 	for kind in ["gaul_king", "falx_band", "lusitanian_raider", "camel_captain"]:
 		var s := _gaul_sim(b, 1661, {"gaul_king": "gaul", "falx_band": "dacia", "lusitanian_raider": "hispania", "camel_captain": "aegyptus"}[kind])

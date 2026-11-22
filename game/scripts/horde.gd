@@ -127,6 +127,8 @@ var e_burn_src := PackedInt32Array()
 var e_flash := PackedFloat32Array()
 var e_phase := PackedInt32Array()
 var e_fighting := PackedByteArray()
+# 1 while a horse archer rides away from soldiers who closed in, until he is `kite_out` px clear of where he turned.
+var e_kiting := PackedByteArray()
 # When each enemy last threw, lobbed or struck a single blow, for its attack animation.
 var e_strike := PackedFloat32Array()
 var e_stun := PackedFloat32Array()
@@ -534,6 +536,7 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 	e_flash.append(0.0)
 	e_phase.append(rng.randi_range(0, 7))
 	e_fighting.append(0)
+	e_kiting.append(0)
 	e_strike.append(-1e9)
 	e_stun.append(0.0)
 	e_slow.append(1.0)
@@ -2631,6 +2634,7 @@ func _move(dt: float, sim: Sim) -> void:
 	var seen_x := view.x / 2.0 + 64.0
 	var seen_y := view.y / 2.0 + 64.0
 	var slide_until := detour_seconds - float(b.detour.get("slide", 0.0))
+	var kite_out := float(b.ranged.kite_out)
 	var rear := -Vector2.from_angle(sim.facing_angle)
 	var ci := chieftain_index()
 	var chief_pos := e_pos[ci] if ci >= 0 else Vector2.ZERO
@@ -2708,12 +2712,15 @@ func _move(dt: float, sim: Sim) -> void:
 		elif throwing:
 			if d <= k_range[kind] + legion_reach:
 				var kite := k_kite[kind]
-				if kite > 0.0 and d < legion_reach + kite:
+				# He turns to ride off once soldiers come within `kite`, and keeps riding until he is clear by more, so he never wavers on the line.
+				if kite > 0.0 and d < legion_reach + kite + (kite_out if e_kiting[i] == 1 else 0.0):
+					e_kiting[i] = 1
 					# The Parthian shot: with soldiers closing in he rides straight away, still shooting back over his shoulder,
 					# so he faces the way he rides except while he looses an arrow.
 					circling = time - e_strike[i] >= strike_secs
 					v = -to / maxf(d, 0.001) * spd * k_kite_mult[kind]
 				else:
+					e_kiting[i] = 0
 					# Between throws he circles the legion rather than standing still, so he never looks stuck; a horse archer rides his circles at full pace.
 					v = Vector2(-to.y, to.x) / maxf(d, 0.001) * spd * (1.0 if kite > 0.0 else 0.5) * (1.0 if e_id[i] % 2 == 0 else -1.0)
 				e_cd[i] -= dt
@@ -3508,6 +3515,7 @@ func remove_at(i: int) -> void:
 	e_flash[i] = e_flash[last]; e_flash.resize(last)
 	e_phase[i] = e_phase[last]; e_phase.resize(last)
 	e_fighting[i] = e_fighting[last]; e_fighting.resize(last)
+	e_kiting[i] = e_kiting[last]; e_kiting.resize(last)
 	e_strike[i] = e_strike[last]; e_strike.resize(last)
 	e_stun[i] = e_stun[last]; e_stun.resize(last)
 	e_slow[i] = e_slow[last]; e_slow.resize(last)
