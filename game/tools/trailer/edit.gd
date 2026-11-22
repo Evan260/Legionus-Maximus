@@ -8,13 +8,13 @@ const FIRST_BEAT := 0.0697
 const MUSIC := "res://assets/audio/music/battle_war_theme.ogg"
 ## From the trailer's beat on the left the music plays from the track's beat on the right: the track's opening, then the
 ## quiet bars before its big return, the return itself as Jupiter's lightning strikes, and the track's own last bars.
-const MUSIC_CUTS := [[0, 0], [87, 271], [95, 279], [119, 471]]
+const MUSIC_CUTS := [[0, 0], [63, 275], [67, 279], [87, 471]]
 const MUSIC_DB := -1.0
 ## The fighting recorded with each shot plays under the music.
 const SOUND_DB := -7.0
 ## Sounds laid over the edit, as [trailer beat, sound, decibels]: the logo's landing, the drop into the quiet bars and
 ## the end card's horn.
-const STINGS := [[7, "boom_1", 0.0], [87, "boom_2", -8.0], [119, "horn_1", -5.0]]
+const STINGS := [[7, "boom_1", 0.0], [63, "boom_2", -8.0], [87, "horn_1", -5.0]]
 ## Screen pixels to the game pixel, as the game draws its 640 by 360 view in a 1920 by 1080 frame.
 const PIXEL := 3
 const SIZE := Vector2(1920, 1080)
@@ -44,27 +44,27 @@ const GOOGLE_MARGIN := 41.0 / 250.0
 ## How far the picture shakes when the logo lands, in screen pixels, and how long the shake lasts.
 const SHAKE := 12.0
 const SHAKE_TIME := 0.4
-## The story, from the end of a run to its start and back: a gold legion in a sea of barbarians and the logo landing
-## over it, then a handful of men, a level-up, a legion of a hundred, its archers, its armour going from
-## iron to gold, a boss's blow stepped out of, the forest, the gorge and the cliff, a quick cut through all eight provinces, the gods' choice in the
-## music's quiet bars, Jupiter's lightning on its return, a chieftain's fall, the fort's victory and the end card.
+## The story, a minute long: a gold legion in a sea of barbarians and the logo landing over it, then a handful of
+## men, a level-up, a legion of a hundred, its archers, a boss's blow stepped out of, its armour going from iron to
+## gold, the forest and the cliff, a quick cut through all eight provinces, the gods' choice in the music's quiet bars,
+## Jupiter's lightning on its return, a chieftain's fall, the fort's victory and the end card.
 ## A shot plays from `from` seconds into its recording, or `follows` the one before it on without a cut; `caption`
 ## is the line in large letters and `label` the province above it; `logo` lands the logo over the shot and `flash`
 ## opens it on a flash of white.
 const TRAILER := [
-	{"shot": "hook", "from": 1.0, "beats": 7},
-	{"shot": "hook", "follows": true, "beats": 8, "logo": true},
-	{"shot": "skirmish", "from": 1.5, "beats": 8, "caption": "START WITH A FEW MEN"},
-	{"shot": "levelup", "from": 0.6, "beats": 8},
-	{"shot": "march", "from": 1.0, "beats": 8, "caption": "GROW A LEGION OF 100"},
+	# The horde has closed round the legion by six seconds into the recording.
+	{"shot": "hook", "from": 6.0, "beats": 7},
+	{"shot": "hook", "follows": true, "beats": 4, "logo": true},
+	{"shot": "skirmish", "from": 1.5, "beats": 4, "caption": "START WITH A FEW MEN"},
+	{"shot": "levelup", "from": 0.85, "beats": 4},
+	{"shot": "march", "from": 1.0, "beats": 4, "caption": "GROW A LEGION OF 100"},
 	{"shot": "archers", "from": 1.4, "beats": 4, "caption": "YOU MARCH. THEY FIGHT."},
 	{"shot": "dodge", "from": 0.3, "beats": 4, "caption": "DODGE BOSS ATTACKS"},
 	{"shot": "livery0", "from": 1.0, "beats": 2, "caption": "IRON"},
 	{"shot": "livery1", "from": 2.161, "beats": 2, "caption": "BRONZE"},
 	{"shot": "livery2", "from": 3.322, "beats": 4, "caption": "GOLD"},
 	{"shot": "fell", "from": 1.5, "beats": 4, "caption": "FELL FORESTS"},
-	{"shot": "bridge", "from": 0.3, "beats": 4, "caption": "BRIDGE GORGES"},
-	{"shot": "ravine", "from": 0.2, "beats": 8, "caption": "SHOVE THEM OFF CLIFFS"},
+	{"shot": "ravine", "from": 0.2, "beats": 4, "caption": "SHOVE THEM OFF CLIFFS"},
 	{"shot": "p_germania", "from": 1.0, "beats": 2, "caption": "CONQUER 8 PROVINCES", "label": "GERMANIA"},
 	{"shot": "p_gaul", "from": 1.0, "beats": 2, "caption": "CONQUER 8 PROVINCES", "label": "GAUL"},
 	{"shot": "p_britannia", "from": 1.0, "beats": 2, "caption": "CONQUER 8 PROVINCES", "label": "BRITANNIA"},
@@ -73,11 +73,11 @@ const TRAILER := [
 	{"shot": "p_parthia", "from": 1.2, "beats": 2, "caption": "CONQUER 8 PROVINCES", "label": "PARTHIA"},
 	{"shot": "p_dacia", "from": 0.6, "beats": 2, "caption": "CONQUER 8 PROVINCES", "label": "DACIA"},
 	{"shot": "p_sarmatia", "from": 1.0, "beats": 2, "caption": "CONQUER 8 PROVINCES", "label": "SARMATIA"},
-	{"shot": "gods", "from": 0.9, "beats": 8},
+	{"shot": "gods", "from": 0.9, "beats": 4},
 	{"shot": "reveal", "from": 2.0, "beats": 8, "flash": true},
-	{"shot": "chief", "from": 1.0, "beats": 8, "caption": "TOPPLE THEIR WARLORDS"},
-	# The VICTORY lands 4.0 seconds into the fort's recording, on the fifth beat of the shot.
-	{"shot": "fort", "from": 1.68, "beats": 8},
+	{"shot": "chief", "from": 1.0, "beats": 6, "caption": "TOPPLE THEIR WARLORDS"},
+	# The VICTORY lands 4.0 seconds into the fort's recording, on the third beat of the shot.
+	{"shot": "fort", "from": 2.84, "beats": 6},
 	{"end": "endcard", "from": 1.0, "beats": 14},
 ]
 

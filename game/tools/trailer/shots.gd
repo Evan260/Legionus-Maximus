@@ -6,6 +6,7 @@ extends Node
 ##   --mortal       let the legion take harm as in a real run
 ##   --hud=L,S,K    show the top bar as a run at level L, S seconds in with K kills would, counting on from there
 ##   --zoom=Z       draw the field Z times larger round the commander, with the interface at its own size
+##   --march=X,Y    keep the legion marching that way, at that share of its full pace
 
 const MIX := ["legionary", "legionary", "archer"]
 ## How far down the end card's field is moved, in game pixels, so the legion stands below the logo.
@@ -17,8 +18,8 @@ const END_SIDE := 170.0
 const LEVEL_CHOICES := ["medicus", "cavalry", "ballista"]
 const LEVEL_TAKE := "ballista"
 const LEVEL_AT := 1.0
-const PICK_AT := 2.0
-const TAKE_AT := 3.0
+const PICK_AT := 1.7
+const TAKE_AT := 2.4
 ## The provinces the map shot shows as won, so the whole road to Britannia is lit.
 const MAP_WON := ["germania", "gaul", "dacia", "parthia"]
 ## Where the falx band leader and his band are moved to in the Dacia shot, from where --boss brings them, in game pixels.
@@ -27,15 +28,18 @@ const ONRUSH_SHIFT := Vector2(170.0, -20.0)
 const ONRUSH_AT := 0.5
 ## The gods' shot: when Jupiter is picked out and when he is called, in seconds from the start. The edit cuts to the
 ## lightning before the call, so the call only keeps the choice open to the end of the recording.
-const GOD_PICK_AT := 3.6
+const GOD_PICK_AT := 2.0
 const GOD_CALL_AT := 7.0
 ## When the chieftain falls in his shot, in seconds, so he is seen in the fight first.
 const CHIEF_FALLS_AT := 2.2
+## How fast the legion marches along the ravine's lip once the berserker has gone over, as a share of its full pace.
+const LIP_MARCH := 0.6
 
 var main: Node
 var shot := ""
 var _clock := 0.0
 var _levelled := false
+var _turned := false
 var _zoom := 1.0
 ## The top bar's level, seconds and kills from --hud, and the run's own at the start, which they count on from.
 var _hud := PackedStringArray()
@@ -100,6 +104,9 @@ func _ready() -> void:
 		_hud = str(main.args.hud).split(",")
 	if has_method("_shot_" + shot):
 		call("_shot_" + shot, sim)
+	if main.args.has("march"):
+		var way := str(main.args.march).split(",")
+		main.look_march = Vector2(float(way[0]), float(way[1]))
 	_from = Vector3(sim.level, sim.time, sim.kills)
 
 
@@ -133,6 +140,10 @@ func _process(dt: float) -> void:
 		main.world.position.y += END_DROP
 	if shot == "whirl" and _whirling(sim):
 		main.look_march = Vector2(-1.0, 0.15)
+	if shot == "ravine" and not _turned and _boss_went_over(sim):
+		# Once he is over, the legion wheels and marches along the lip rather than on into the edge.
+		_turned = true
+		main.look_march = Vector2.from_angle(sim.facing_angle).orthogonal() * LIP_MARCH
 
 
 ## A level comes in the middle of the fight, offering three of the newer recruits, and the ballista crew is picked out and taken.
@@ -159,6 +170,14 @@ func _pray() -> void:
 		main._call_god(i)
 	elif _clock >= GOD_PICK_AT:
 		main.selected = i
+
+
+## Whether a boss has been shoved into the ravine, which leaves a big body falling in it.
+func _boss_went_over(sim: Sim) -> bool:
+	for e in sim.effects:
+		if e.kind == "plunge" and e.get("big", false):
+			return true
+	return false
 
 
 ## Whether the berserker's whirlwind is winding up, its ring on the ground.

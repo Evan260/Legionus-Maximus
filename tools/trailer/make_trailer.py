@@ -34,57 +34,64 @@ MIXED = "archer:2,cavalry:2,ballista:1,centurion:1"
 LARGE = "archer:4,cavalry:4,ballista:2,centurion:2,standard_bearer:1,medicus:1"
 
 
-def province(name, go_to, hud):
-    """A shot for the provinces' run of quick cuts: a large legion in gold ringed by the province's own barbarians, beside
-    the province's own scenery when `go_to` names it."""
+def province(name, go_to, hud, march):
+    """A shot for the provinces' run of quick cuts: a large legion in gold marching through a ring of the province's own
+    barbarians, beside the province's own scenery when `go_to` names it."""
     return (6, 2.5, [*LOOK, "--trailer-shot=hold", f"--province={name}", "--men=40", f"--give={LARGE}",
-                     *([f"--go-to={go_to}"] if go_to else []), "--livery=2,2", f"--hud={hud}"])
+                     *([f"--go-to={go_to}"] if go_to else []), "--livery=2,2", f"--hud={hud}", f"--march={march}"])
 
 
 # name: (seconds to record, the second a quick screenshot of it is taken at, its look flags). The edit takes its part of each from
 # edit.gd; a shot runs a moment before the part that is used, so the field has settled. --livery sets the armour and cloth the
-# legion has earned by that point of the story, from iron and red at the start to gold and purple at the end, and --hud the
-# level, clock and kills of a run at that point.
+# legion has earned by that point of the story, from iron and red at the start to gold and purple at the end, --hud the
+# level, clock and kills of a run at that point, and --march keeps the legion on the move, as a player always is.
 SHOTS = {
-    "hook": (13, 4.0, [*LOOK, "--trailer-shot=hook", f"--give={LARGE}", "--go-to=crowd", "--livery=2,2", "--hud=31,702,4870"]),
-    "skirmish": (8, 3.0, [*LOOK, "--trailer-shot=skirmish", "--men=2", "--zoom=2", "--livery=0,0", "--hud=2,41,23"]),
-    "levelup": (8, 2.5, [*LOOK, "--trailer-shot=levelup", "--men=2", "--zoom=2", "--livery=0,0", "--hud=1,58,31"]),
+    "hook": (13, 4.0, [*LOOK, "--trailer-shot=hook", f"--give={LARGE}", "--go-to=crowd", "--livery=2,2", "--hud=31,702,4870",
+                       "--march=0.5,0.15"]),
+    # The hook again without the top bar, for the thumbnail.
+    "thumb": (11, 10.0, [*LOOK, "--trailer-shot=hook", f"--give={LARGE}", "--go-to=crowd", "--livery=2,2", "--march=0.5,0.15"]),
+    "skirmish": (8, 3.0, [*LOOK, "--trailer-shot=skirmish", "--men=2", "--zoom=2", "--livery=0,0", "--hud=2,41,23",
+                          "--march=0.45,0"]),
+    "levelup": (8, 2.5, [*LOOK, "--trailer-shot=levelup", "--men=2", "--zoom=2", "--livery=0,0", "--hud=1,58,31",
+                         "--march=0.45,0"]),
     "march": (8, 3.0, [*LOOK, "--trailer-shot=field", "--province=gaul", "--men=80", f"--give={LARGE}", "--go-to=field",
-                       "--livery=1,1", "--hud=22,455,1630"]),
+                       "--livery=1,1", "--hud=22,455,1630", "--march=-0.7,0"]),
     "archers": (8, 3.0, [*LOOK, "--trailer-shot=archers", "--men=4:legionary", "--give=archer:7,ballista:2", "--zoom=2",
-                         "--livery=0,0", "--hud=8,190,380"]),
+                         "--livery=0,0", "--hud=8,190,380", "--march=0.35,0"]),
     "dodge": (8, 1.0, [*LOOK, "--trailer-shot=whirl", "--men=10", f"--give={MIXED}", "--boss=berserker", "--boss-act=whirl",
                        "--zoom=2", "--livery=1,1", "--hud=14,330,900"]),
     **{f"livery{k}": (6, 2.5, [*LOOK, "--trailer-shot=livery", "--men=16", f"--give={MIXED}", "--zoom=2", f"--livery={k},{k}",
-                               "--hud=12,288,690"]) for k in range(3)},
+                               "--hud=12,288,690", "--march=0.45,0"]) for k in range(3)},
     "fell": (9, 5.0, [*LOOK, "--trailer-shot=fell", "--men=14", f"--give={MIXED}", "--zoom=2", "--livery=1,1",
                       "--hud=16,372,1120"]),
-    "bridge": (8, 3.0, [*LOOK, "--trailer-shot=bridge", "--men=14", f"--give={MIXED}", "--go-to=bridge", "--livery=1,1",
-                        "--hud=17,398,1200"]),
     "ravine": (8, 1.5, [*LOOK, "--trailer-shot=ravine", "--men=24", f"--give={MIXED}", "--go-to=ravine", "--boss=berserker",
                         "--boss-act=fall", "--livery=1,1", "--hud=18,430,1310"]),
-    "p_germania": province("germania", None, "24,500,2010"),
-    "p_gaul": province("gaul", "field", "25,520,2140"),
-    "p_britannia": province("britannia", "circle", "26,545,2330"),
-    "p_hispania": province("hispania", "olives", "27,566,2510"),
-    "p_aegyptus": province("aegyptus", "palms", "27,590,2690"),
+    "p_germania": province("germania", None, "24,500,2010", "0.5,-0.2"),
+    "p_gaul": province("gaul", "field", "25,520,2140", "0.5,0.2"),
+    "p_britannia": province("britannia", "circle", "26,545,2330", "-0.5,-0.15"),
+    "p_hispania": province("hispania", "olives", "27,566,2510", "0.5,-0.2"),
+    "p_aegyptus": province("aegyptus", "palms", "27,590,2690", "-0.45,0.2"),
     "p_parthia": (7, 3.0, [*LOOK, "--trailer-shot=hold", "--province=parthia", "--men=30", f"--give={LARGE},onager:2",
-                           "--boss=war_elephant", "--boss-act=trample", "--livery=2,2", "--hud=28,612,2880"]),
+                           "--boss=war_elephant", "--boss-act=trample", "--livery=2,2", "--hud=28,612,2880", "--march=0.4,0.1"]),
     "p_dacia": (8, 1.5, [*LOOK, "--trailer-shot=onrush", "--province=dacia", "--men=30", f"--give={LARGE}", "--boss=falx_band",
-                         "--boss-act=onrush", "--livery=2,2", "--hud=29,640,3090"]),
-    "p_sarmatia": province("sarmatia", "kurgan", "30,668,3300"),
+                         "--boss-act=onrush", "--livery=2,2", "--hud=29,640,3090", "--march=0.4,0"]),
+    "p_sarmatia": province("sarmatia", "kurgan", "30,668,3300", "0.5,0.15"),
     "gods": (9, 3.5, [*LOOK, "--trailer-shot=gods", f"--give={LARGE}", "--go-to=crowd", "--god=choose", "--god-at=1",
-                      "--livery=2,2", "--hud=33,735,5300"]),
+                      "--livery=2,2", "--hud=33,735,5300", "--march=0.45,0.1"]),
     "reveal": (9, 2.6, [*LOOK, "--trailer-shot=reveal", f"--give={LARGE}", "--go-to=crowd", "--god=jupiter", "--god-at=2",
-                        "--livery=2,2", "--hud=33,741,5330"]),
+                        "--livery=2,2", "--hud=33,741,5330", "--march=0.45,0.1"]),
     "chief": (9, 3.0, [*LOOK, "--trailer-shot=chief", "--men=60", f"--give={LARGE}", "--boss=chieftain", "--boss-act=die",
-                       "--livery=2,2", "--hud=35,802,5980"]),
+                       "--livery=2,2", "--hud=35,802,5980", "--march=0.4,0.3"]),
     "fort": (11, 3.0, [*LOOK, "--trailer-shot=fort", "--province=britannia", "--men=50", f"--give={LARGE}", "--go-to=fort",
                        "--livery=2,2", "--hud=36,840,6240"]),
     "endcard": (10, 3.0, [*LOOK, "--trailer-shot=endcard", "--province=gaul", "--men=85", f"--give={LARGE}", "--go-to=field",
                           "--livery=2,2"]),
 }
 SHOTS_DIR = WORK / "trailer_shots"
+# The thumbnail: the second of the thumb shot it is taken from, the logo's size in screen pixels to its own, and its top.
+THUMB_AT = 10.0
+THUMB_LOGO_SCALE = 4
+THUMB_LOGO_Y = 60
 OUT = VIDEOS / "steam_trailer" / "steam_trailer.avi"
 
 
@@ -174,8 +181,20 @@ def cut_list():
 
 
 def thumbnail(out):
-    label, start, length = cut_list()[-1]
-    edit_frame(start + 4.0, out)
+    """The opening battle at full brightness with the logo large over a soft dark glow, and nothing else, so it still
+    reads at the size a thumbnail is seen at."""
+    from PIL import Image, ImageDraw, ImageFilter
+    frame = Image.open(SHOTS_DIR / "thumb" / f"f{round(THUMB_AT * FPS):08d}.png").convert("RGB")
+    picture = frame.resize(SIZE, Image.NEAREST)
+    logo = Image.open(ROOT / "game" / "assets" / "logo.png").convert("RGBA")
+    logo = logo.resize((logo.width * THUMB_LOGO_SCALE, logo.height * THUMB_LOGO_SCALE), Image.NEAREST)
+    at = ((SIZE[0] - logo.width) // 2, THUMB_LOGO_Y)
+    glow = Image.new("L", SIZE, 0)
+    ImageDraw.Draw(glow).ellipse((at[0] - 120, at[1] - 60, at[0] + logo.width + 120, at[1] + logo.height + 60), fill=170)
+    glow = glow.filter(ImageFilter.GaussianBlur(70))
+    picture = Image.composite(Image.new("RGB", SIZE, (12, 8, 6)), picture, glow)
+    picture.paste(logo, at, logo)
+    picture.save(out)
 
 
 def stills(folder):
