@@ -2977,14 +2977,19 @@ func test_the_level_up_choices_stack_down_the_middle_of_the_screen(b: Dictionary
 					problems.append("x2 %d choices: the description box %s is not centred under the rows" % [n, d])
 				foot = d.end.y
 			else:
-				var panel := Hud.build_rect(n)
-				if panel.position.y != rows[0].position.y or panel.end.y != rows[-1].end.y:
-					problems.append("x1 %d choices: the panel %s is not level with the rows" % [n, panel])
-				if panel.end.x + 12.0 > rows[0].position.x:
+				var panel := Hud.build_rect()
+				if panel.position.y >= rows[0].position.y or panel.end.y <= rows[-1].end.y:
+					problems.append("x1 %d choices: the panel %s does not stand taller than the rows, %s to %s" % [n, panel, rows[0].position.y, rows[-1].end.y])
+				if panel.end.x + 8.0 > rows[0].position.x:
 					problems.append("x1 %d choices: the panel reaches the rows" % n)
 			# The key hints go under the rows, above the corners of the screen where the testudo and favour sit.
 			if foot + (40.0 if big else 29.0) > Ui.H - 4.0:
 				problems.append("x%d %d choices: no room left for the key hints under the rows" % [scale, n])
+		# The panel keeps clear of the level in the top bar and of the testudo and timber in the bottom corner.
+		var room := Hud.build_rect()
+		var top_bar: float = 16.0 + 8.0 * scale + Ui.leading() - Ui.px
+		if room.position.y < top_bar + 4.0 or room.end.y > Ui.H - 44.0:
+			problems.append("x%d the panel %s runs into the top bar or the testudo" % [scale, room])
 	Ui.set_text_size(before_scale, b)
 	for p in problems:
 		print("  ", p)
@@ -3011,14 +3016,21 @@ func test_every_choice_fits_its_row_in_every_language(b: Dictionary) -> void:
 		for scale in [1, 2]:
 			Ui.set_text_size(scale, b)
 			var big: bool = scale > 1
-			# The pause screen shows the panel at both text sizes, clear of its buttons, and the level-up beside three or four rows.
-			var rooms: Array = [Hud.build_rect()] + ([] if big else [Hud.build_rect(3), Hud.build_rect(4)])
-			for room in rooms:
-				if room.end.x >= (Ui.W - PauseScreen.button_width()) / 2.0:
-					problems.append("%s x%d the panel reaches the pause buttons" % [loc, scale])
-				for it in Hud.build_items(s, room):
-					if not room.encloses(it[1]):
-						problems.append("%s x%d %s at %s spills out of the panel %s" % [loc, scale, it[2], it[1], room])
+			# The pause screen shows the panel at both text sizes, clear of its buttons, and the level-up beside its rows.
+			var room := Hud.build_rect()
+			if room.end.x >= (Ui.W - PauseScreen.button_width()) / 2.0:
+				problems.append("%s x%d the panel reaches the pause buttons" % [loc, scale])
+			var placed: Array = []
+			for it in Hud.build_items(s, room):
+				if not room.grow(-1.0).encloses(it[1]):
+					problems.append("%s x%d %s at %s spills out of the panel %s" % [loc, scale, it[2], it[1], room])
+				if it[0] != "line":
+					if int(it[5]) < (20 if big else 24):
+						problems.append("%s x%d %s's icon is only %d px" % [loc, scale, it[2], it[5]])
+					for other in placed:
+						if other.intersects(it[1]):
+							problems.append("%s x%d %s at %s overlaps another piece" % [loc, scale, it[2], it[1]])
+					placed.append(it[1])
 			for n in [3, 4]:
 				var r: Rect2 = Hud.choice_rows(n, big)[0]
 				var head := Hud.row_text(r, big)

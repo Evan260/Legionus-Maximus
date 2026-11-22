@@ -19,13 +19,16 @@ const MUTED := Color(0.7, 0.66, 0.6)
 const EDGE := 26.0
 ## How far above its foot an objective's name is written when it is on screen, clear of its sprite.
 const LABEL_RISE := {"camp": 56.0, "column": 50.0, "grove": 40.0, "fort": 76.0}
-## The build panel on the left of the level-up and pause screens: its left edge, its width, its inner margin and the side of an icon in it.
-const BUILD_X := 12.0
-const BUILD_W := 132.0
+## The build panel on the left of the level-up and pause screens: its left edge, its top and foot between the top bar and the testudo, its width at each text size, its inner margin, and the icon sides it tries, largest first, until everything fits.
+const BUILD_X := 8.0
+const BUILD_TOP := 30.0
+const BUILD_FOOT := 316.0
+const BUILD_W := 144.0
+const BUILD_W_BIG := 172.0
 const BUILD_PAD := 4.0
-const BUILD_ICON := 16.0
+const BUILD_ICONS := [24.0, 22.0, 20.0, 18.0, 16.0]
 const PIP_DARK := Color(0.32, 0.26, 0.2)
-## The level-up's rows at the normal text size: their width, the gap between them, the top of the first, and the height of each when there are three, which is the build panel's, or four.
+## The level-up's rows at the normal text size: their width, the gap between them, the top of the first, and the height of each when there are three or four.
 const ROW_W := 320.0
 const ROW_GAP := 5.0
 const ROW_TOP := 72.0
@@ -918,12 +921,10 @@ static func detail_lines() -> int:
 	return floori((DETAIL_H - DETAIL_PAD - first) / Ui.leading()) + 1
 
 
-## The build panel's room: level with the rows of n choices at the normal text size, and taller in large text, where it shows only on the pause screen.
-static func build_rect(n := 3) -> Rect2:
-	if Ui.scale > 1:
-		return Rect2(BUILD_X, 44.0, BUILD_W, 236.0)
-	var rows := choice_rows(n, false)
-	return Rect2(BUILD_X, rows[0].position.y, BUILD_W, rows[-1].end.y - rows[0].position.y)
+## The build panel's room, taller than the level-up's rows; large text shows it only on the pause screen, where it is wider and starts below the larger top bar.
+static func build_rect() -> Rect2:
+	var top := BUILD_TOP + (10.0 if Ui.scale > 1 else 0.0)
+	return Rect2(BUILD_X, top, BUILD_W_BIG if Ui.scale > 1 else BUILD_W, BUILD_FOOT - top)
 
 
 ## The build panel sits beside a level-up's rows at the normal text size; large text needs the whole width, and the gods' choice is not about the build.
@@ -946,24 +947,34 @@ static func build_sections(sim: Sim) -> Array:
 	return [["soldiers", parts.soldiers], ["arms", parts.arms], ["drills", parts.drills]].filter(func(part: Array) -> bool: return not part[1].is_empty())
 
 
-## Where each piece of the build panel goes inside `r`, as [kind, rect, id, number, most]: a soldier's icon with his count beside it, an arm or drill's icon with its rank in pips beneath, and a line between the parts.
+## Where each piece of the build panel goes inside `r`, as [kind, rect, id, number, most, icon side]: a soldier's icon with his count under it, an arm or drill's icon with its rank in pips under it, and a line between the parts; the icons are as large as lets everything fit.
 static func build_items(sim: Sim, r: Rect2) -> Array:
 	var items: Array = []
-	var x0 := r.position.x + BUILD_PAD
+	for side in BUILD_ICONS:
+		items = _build_items_at(sim, r, side)
+		if items.is_empty() or items[-1][1].end.y <= r.end.y - BUILD_PAD:
+			break
+	return items
+
+
+static func _build_items_at(sim: Sim, r: Rect2, side: float) -> Array:
+	var items: Array = []
 	var inner := r.size.x - 2.0 * BUILD_PAD
 	var y := r.position.y + BUILD_PAD
 	for sec in build_sections(sim):
 		if not items.is_empty():
-			items.append(["line", Rect2(x0, y + 1.0, inner, 1.0), "", 0, 0])
+			items.append(["line", Rect2(r.position.x + BUILD_PAD, y + 1.0, inner, 1.0), "", 0, 0, 0])
 			y += 4.0
 		var soldiers: bool = sec[0] == "soldiers"
-		var cell := Vector2(BUILD_ICON + 2.0 + Ui.width_at("999", Ui.px) + 4.0, maxf(BUILD_ICON, Ui.leading()) + 2.0) if soldiers else Vector2(BUILD_ICON + 4.0, BUILD_ICON + 5.0)
-		var per_row := maxi(1, floori((inner + 4.0) / cell.x))
+		var cell := Vector2(maxf(side, Ui.width_at("100", Ui.px)) + 2.0, side + Ui.px + 3.0) if soldiers else Vector2(side + 2.0, side + 4.0)
+		var per_row := maxi(1, floori((inner + 2.0) / cell.x))
 		var list: Array = sec[1]
+		# Each part's grid is centred across the panel, so a short last row does not leave the panel lopsided.
+		var x0 := r.position.x + BUILD_PAD + floorf((inner - (mini(per_row, list.size()) * cell.x - 2.0)) / 2.0)
 		for k in list.size():
 			var e: Array = list[k]
 			var at := Vector2(x0 + (k % per_row) * cell.x, y + (k / per_row) * cell.y)
-			items.append(["soldier" if soldiers else "rank", Rect2(at, cell - Vector2(4.0, 2.0)), e[0], e[1], e[2]])
+			items.append(["soldier" if soldiers else "rank", Rect2(at, cell - Vector2(2.0, 1.0)), e[0], e[1], e[2], side])
 		y += ceili(float(list.size()) / per_row) * cell.y
 	return items
 
@@ -979,14 +990,18 @@ func draw_build(sim: Sim, r: Rect2) -> void:
 			continue
 		# What the legion has none of yet is shown faded, so the whole set reads at a glance.
 		var none: bool = int(it[3]) == 0
+		var side := float(it[5])
+		var cell: Rect2 = it[1]
 		var icon := icon_of(it[2])
 		if icon != null:
-			draw_texture_rect(icon, Rect2(at, Vector2(BUILD_ICON, BUILD_ICON)), false, Color(1, 1, 1, 0.35) if none else Color.WHITE)
+			draw_texture_rect(icon, Rect2(Vector2(at.x + floorf((cell.size.x - side) / 2.0), at.y), Vector2(side, side)), false, Color(1, 1, 1, 0.35) if none else Color.WHITE)
 		if it[0] == "soldier":
-			text(str(it[3]), Vector2(at.x + BUILD_ICON + 2.0, at.y + (BUILD_ICON + Ui.px) / 2.0), MUTED if none else CREAM)
+			text(str(it[3]), Vector2(at.x, at.y + side + Ui.px), MUTED if none else CREAM, HORIZONTAL_ALIGNMENT_CENTER, cell.size.x)
 			continue
-		for k in int(it[4]):
-			draw_rect(Rect2(at.x + k * 3.0, at.y + BUILD_ICON + 1.0, 2.0, 2.0), GOLD if k < int(it[3]) else PIP_DARK)
+		var pips := int(it[4])
+		var px0 := at.x + floorf((cell.size.x - (pips * 3.0 - 1.0)) / 2.0)
+		for k in pips:
+			draw_rect(Rect2(px0 + k * 3.0, at.y + side + 1.0, 2.0, 2.0), GOLD if k < int(it[3]) else PIP_DARK)
 
 
 func _choices(sim: Sim) -> void:
@@ -999,7 +1014,7 @@ func _choices(sim: Sim) -> void:
 	var n: int = main.choices.size()
 	var rows := choice_rows(n, big)
 	if shows_build(praying, big):
-		draw_build(sim, build_rect(n))
+		draw_build(sim, build_rect())
 	# With large text the heading takes the clock's place in the top bar, which already says the level.
 	var head_y := 16.0 + 8.0 * Ui.scale if big else ROW_TOP - 22.0
 	if praying:
