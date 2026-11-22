@@ -26,14 +26,23 @@ const MAP_WON := ["germania", "gaul", "dacia", "parthia"]
 const ONRUSH_SHIFT := Vector2(170.0, -20.0)
 ## When he marks his lane, in seconds from the start of the shot.
 const ONRUSH_AT := 0.5
-## The gods' shot: when Jupiter is picked out and when he is called, in seconds from the start. The edit cuts to the
-## lightning before the call, so the call only keeps the choice open to the end of the recording.
+## When Jupiter is picked out and when he is called, in seconds; the edit cuts to the lightning before the call.
 const GOD_PICK_AT := 2.0
 const GOD_CALL_AT := 7.0
 ## When the chieftain falls in his shot, in seconds, so he is seen in the fight first.
 const CHIEF_FALLS_AT := 2.2
 ## How fast the legion marches along the ravine's lip once the berserker has gone over, as a share of its full pace.
 const LIP_MARCH := 0.6
+## The great horde's shots, the gap between its barbarians, the open ground left round the commander and how far it reaches, in game pixels.
+const HORDE_SHOTS := ["hook", "gods", "reveal"]
+const HORDE_STEP := 28.0
+const HORDE_CLEAR := 110.0
+const HORDE_REACH := Vector2(380.0, 230.0)
+## How many barbarians walk in from beyond the edges each frame at most, to make up for the fallen.
+const HORDE_INFLOW := 8
+## Where the chieftain comes from in his shot and how far in front of the legion's ranks he starts, in game pixels.
+const CHIEF_FROM := Vector2(1.0, 0.3)
+const CHIEF_AHEAD := 60.0
 
 var main: Node
 var shot := ""
@@ -41,6 +50,9 @@ var _clock := 0.0
 var _levelled := false
 var _turned := false
 var _zoom := 1.0
+var _march := Vector2.ZERO
+var _horde_size := 0
+var _rng := RandomNumberGenerator.new()
 ## The top bar's level, seconds and kills from --hud, and the run's own at the start, which they count on from.
 var _hud := PackedStringArray()
 var _from := Vector3.ZERO
@@ -102,11 +114,16 @@ func _ready() -> void:
 	_zoom = float(main.args.get("zoom", "1"))
 	if main.args.has("hud"):
 		_hud = str(main.args.hud).split(",")
-	if has_method("_shot_" + shot):
-		call("_shot_" + shot, sim)
 	if main.args.has("march"):
 		var way := str(main.args.march).split(",")
-		main.look_march = Vector2(float(way[0]), float(way[1]))
+		_march = Vector2(float(way[0]), float(way[1]))
+	_rng.seed = 7
+	if shot in HORDE_SHOTS:
+		_horde(sim)
+	if has_method("_shot_" + shot):
+		call("_shot_" + shot, sim)
+	if _march != Vector2.ZERO:
+		main.look_march = _march
 	_from = Vector3(sim.level, sim.time, sim.kills)
 
 
@@ -138,6 +155,8 @@ func _process(dt: float) -> void:
 			s.hp = s.max_hp
 	if shot == "endcard":
 		main.world.position.y += END_DROP
+	if shot in HORDE_SHOTS:
+		_top_up(sim)
 	if shot == "whirl" and _whirling(sim):
 		main.look_march = Vector2(-1.0, 0.15)
 	if shot == "ravine" and not _turned and _boss_went_over(sim):
@@ -246,11 +265,50 @@ func _shot_livery(sim: Sim) -> void:
 	_wave(sim, sim.commander.pos, 0.0, 1.4, 90.0, 170.0, 14)
 
 
-## The chieftain fights in the thick of a crowd for a moment, then falls.
+## The legion holds its line facing the chieftain, who charges in with a crowd, meets its front rank and falls there.
 func _shot_chief(sim: Sim) -> void:
 	_quiet(sim)
-	_wave(sim, sim.commander.pos, 0.0, TAU, 140.0, 300.0, 90)
+	var way := CHIEF_FROM.normalized()
+	_stand(sim, sim.commander.pos, way.angle())
+	_wave(sim, sim.commander.pos, way.angle(), 2.4, 150.0, 300.0, 90)
+	var front := 0.0
+	for s in sim.soldiers:
+		front = maxf(front, (s.pos - sim.commander.pos).dot(way))
+	var ci := sim.horde.chieftain_index()
+	if ci >= 0:
+		sim.horde.e_pos[ci] = sim.commander.pos + way * (front + CHIEF_AHEAD)
 	main.slay_at = main.clock + CHIEF_FALLS_AT
+
+
+## Fills the field round the legion with the province's barbarians a pace apart, on cleared ground, with the run's own stream stopped.
+func _horde(sim: Sim) -> void:
+	sim.terrain.clear()
+	_quiet(sim)
+	var c: Vector2 = sim.commander.pos
+	var x := -HORDE_REACH.x
+	while x <= HORDE_REACH.x:
+		var y := -HORDE_REACH.y
+		while y <= HORDE_REACH.y:
+			var at := Vector2(x, y) + Vector2(_rng.randf_range(-0.4, 0.4), _rng.randf_range(-0.4, 0.4)) * HORDE_STEP
+			if at.length() > HORDE_CLEAR and _rng.randf() > 0.12:
+				_spawn_ordinary(sim, c + at)
+			y += HORDE_STEP
+		x += HORDE_STEP
+	_horde_size = sim.horde.e_pos.size()
+
+
+## Brings fresh barbarians in from just beyond the edges of the view as others fall, so the horde never thins out.
+func _top_up(sim: Sim) -> void:
+	var c: Vector2 = sim.commander.pos
+	for k in mini(HORDE_INFLOW, _horde_size - sim.horde.e_pos.size()):
+		var edge := Vector2(_rng.randf_range(-1.0, 1.0), _rng.randf_range(-1.0, 1.0))
+		edge = edge / maxf(absf(edge.x), absf(edge.y))
+		_spawn_ordinary(sim, c + edge * HORDE_REACH)
+
+
+func _spawn_ordinary(sim: Sim, at: Vector2) -> void:
+	var kinds: Array = sim.horde.ordinary
+	sim.horde.spawn(kinds[_rng.randi() % kinds.size()], at)
 
 
 ## The berserker waits at the ravine's lip while the legion, set back from it, marches up and shoves him over.

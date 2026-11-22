@@ -52,8 +52,8 @@ const SHAKE_TIME := 0.4
 ## is the line in large letters and `label` the province above it; `logo` lands the logo over the shot and `flash`
 ## opens it on a flash of white.
 const TRAILER := [
-	# The horde has closed round the legion by six seconds into the recording.
-	{"shot": "hook", "from": 6.0, "beats": 7},
+	# By three seconds into the recording the horde has begun to close in from every side.
+	{"shot": "hook", "from": 3.0, "beats": 7},
 	{"shot": "hook", "follows": true, "beats": 4, "logo": true},
 	{"shot": "skirmish", "from": 1.5, "beats": 4, "caption": "START WITH A FEW MEN"},
 	{"shot": "levelup", "from": 0.85, "beats": 4},
@@ -75,7 +75,7 @@ const TRAILER := [
 	{"shot": "p_sarmatia", "from": 1.0, "beats": 2, "caption": "CONQUER 8 PROVINCES", "label": "SARMATIA"},
 	{"shot": "gods", "from": 0.9, "beats": 4},
 	{"shot": "reveal", "from": 2.0, "beats": 8, "flash": true},
-	{"shot": "chief", "from": 1.0, "beats": 6, "caption": "TOPPLE THEIR WARLORDS"},
+	{"shot": "chief", "from": 0.6, "beats": 6, "caption": "TOPPLE THEIR WARLORDS"},
 	# The VICTORY lands 4.0 seconds into the fort's recording, on the third beat of the shot.
 	{"shot": "fort", "from": 2.84, "beats": 6},
 	{"end": "endcard", "from": 1.0, "beats": 14},

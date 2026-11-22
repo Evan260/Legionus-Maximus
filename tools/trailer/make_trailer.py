@@ -46,10 +46,10 @@ def province(name, go_to, hud, march):
 # legion has earned by that point of the story, from iron and red at the start to gold and purple at the end, --hud the
 # level, clock and kills of a run at that point, and --march keeps the legion on the move, as a player always is.
 SHOTS = {
-    "hook": (13, 4.0, [*LOOK, "--trailer-shot=hook", f"--give={LARGE}", "--go-to=crowd", "--livery=2,2", "--hud=31,702,4870",
+    "hook": (13, 4.0, [*LOOK, "--trailer-shot=hook", f"--give={LARGE}", "--men=80", "--livery=2,2", "--hud=31,702,4870",
                        "--march=0.5,0.15"]),
     # The hook again without the top bar, for the thumbnail.
-    "thumb": (11, 10.0, [*LOOK, "--trailer-shot=hook", f"--give={LARGE}", "--go-to=crowd", "--livery=2,2", "--march=0.5,0.15"]),
+    "thumb": (7, 5.5, [*LOOK, "--trailer-shot=hook", f"--give={LARGE}", "--men=80", "--livery=2,2", "--march=0.5,0.15"]),
     "skirmish": (8, 3.0, [*LOOK, "--trailer-shot=skirmish", "--men=2", "--zoom=2", "--livery=0,0", "--hud=2,41,23",
                           "--march=0.45,0"]),
     "levelup": (8, 2.5, [*LOOK, "--trailer-shot=levelup", "--men=2", "--zoom=2", "--livery=0,0", "--hud=1,58,31",
@@ -76,12 +76,12 @@ SHOTS = {
     "p_dacia": (8, 1.5, [*LOOK, "--trailer-shot=onrush", "--province=dacia", "--men=30", f"--give={LARGE}", "--boss=falx_band",
                          "--boss-act=onrush", "--livery=2,2", "--hud=29,640,3090", "--march=0.4,0"]),
     "p_sarmatia": province("sarmatia", "kurgan", "30,668,3300", "0.5,0.15"),
-    "gods": (9, 3.5, [*LOOK, "--trailer-shot=gods", f"--give={LARGE}", "--go-to=crowd", "--god=choose", "--god-at=1",
+    "gods": (9, 3.5, [*LOOK, "--trailer-shot=gods", f"--give={LARGE}", "--men=80", "--god=choose", "--god-at=1",
                       "--livery=2,2", "--hud=33,735,5300", "--march=0.45,0.1"]),
-    "reveal": (9, 2.6, [*LOOK, "--trailer-shot=reveal", f"--give={LARGE}", "--go-to=crowd", "--god=jupiter", "--god-at=2",
+    "reveal": (9, 2.6, [*LOOK, "--trailer-shot=reveal", f"--give={LARGE}", "--men=80", "--god=jupiter", "--god-at=2",
                         "--livery=2,2", "--hud=33,741,5330", "--march=0.45,0.1"]),
     "chief": (9, 3.0, [*LOOK, "--trailer-shot=chief", "--men=60", f"--give={LARGE}", "--boss=chieftain", "--boss-act=die",
-                       "--livery=2,2", "--hud=35,802,5980", "--march=0.4,0.3"]),
+                       "--livery=2,2", "--hud=35,802,5980"]),
     "fort": (11, 3.0, [*LOOK, "--trailer-shot=fort", "--province=britannia", "--men=50", f"--give={LARGE}", "--go-to=fort",
                        "--livery=2,2", "--hud=36,840,6240"]),
     "endcard": (10, 3.0, [*LOOK, "--trailer-shot=endcard", "--province=gaul", "--men=85", f"--give={LARGE}", "--go-to=field",
@@ -89,7 +89,7 @@ SHOTS = {
 }
 SHOTS_DIR = WORK / "trailer_shots"
 # The thumbnail: the second of the thumb shot it is taken from, the logo's size in screen pixels to its own, and its top.
-THUMB_AT = 10.0
+THUMB_AT = 5.5
 THUMB_LOGO_SCALE = 4
 THUMB_LOGO_Y = 60
 OUT = VIDEOS / "steam_trailer" / "steam_trailer.avi"
