@@ -14,6 +14,8 @@ const DRIVER := 6
 const BEHAVIOURS := {"melee": MELEE, "ranged": RANGED, "charger": CHARGER, "beast": BEAST, "lobber": LOBBER, "flanker": FLANKER, "driver": DRIVER}
 ## Below this real speed in pixels a second a barbarian counts as standing still.
 const STILL_PACE := 8.0
+## How long a barbarian locked in melee keeps facing one way before he turns to another foe, in seconds.
+const TURN_HOLD := 0.6
 const ORDINARY := 0
 const ELITE := 1
 const CHIEF := 2
@@ -129,6 +131,8 @@ var e_phase := PackedInt32Array()
 var e_fighting := PackedByteArray()
 # 1 while a horse archer rides away from soldiers who closed in, until he is `kite_out` px clear of where he turned.
 var e_kiting := PackedByteArray()
+# When each enemy last turned to face another way, so one locked in melee does not turn again too soon.
+var e_turned := PackedFloat32Array()
 # When each enemy last threw, lobbed or struck a single blow, for its attack animation.
 var e_strike := PackedFloat32Array()
 var e_stun := PackedFloat32Array()
@@ -537,6 +541,7 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 	e_phase.append(rng.randi_range(0, 7))
 	e_fighting.append(0)
 	e_kiting.append(0)
+	e_turned.append(-1e9)
 	e_strike.append(-1e9)
 	e_stun.append(0.0)
 	e_slow.append(1.0)
@@ -1805,6 +1810,16 @@ func _chieftain_after(sim: Sim) -> void:
 		sim.legion.remove_fallen(sim)
 
 
+## Turns an enemy to face `dir`; one locked in melee holds his facing a moment, so a man hemmed in on every side does not spin from foe to foe.
+func _turn(i: int, dir: Vector2) -> void:
+	var way := Sim.dir_index(dir)
+	if way != Sim.dir_index(e_face[i]):
+		if e_fighting[i] == 1 and time - e_turned[i] < TURN_HOLD:
+			return
+		e_turned[i] = time
+	e_face[i] = dir
+
+
 ## Hurts every soldier in an arc in front of the chieftain; false when nobody is in it.
 func cleave(ci: int, sim: Sim) -> bool:
 	var kind := e_kind[ci]
@@ -2875,7 +2890,7 @@ func _move(dt: float, sim: Sim) -> void:
 				e_fighting[i] = 1
 				var foe: Vector2 = units[target_unit].pos - p
 				if foe.length_squared() > 0.000001:
-					e_face[i] = foe.normalized()
+					_turn(i, foe.normalized())
 				# Only a man fighting ahead of the commander stands in the legion's way; one at its back or side cannot hold it as it marches on.
 				if (p - cpos).dot(heading) > 0.0:
 					held += 1
@@ -3017,7 +3032,7 @@ func _move(dt: float, sim: Sim) -> void:
 			e_want[i] = 1 if v != Vector2.ZERO else 0
 			e_pace[i] += ((np - p).length() / dt - e_pace[i]) * pace_k
 		if v != Vector2.ZERO:
-			e_face[i] = e_dir[i] if dashing else (v.normalized() if circling or fleeing else to / maxf(d, 0.001))
+			_turn(i, e_dir[i] if dashing else (v.normalized() if circling or fleeing else to / maxf(d, 0.001)))
 		if e_flash[i] > 0.0:
 			e_flash[i] -= dt
 	for k in gone:
@@ -3516,6 +3531,7 @@ func remove_at(i: int) -> void:
 	e_phase[i] = e_phase[last]; e_phase.resize(last)
 	e_fighting[i] = e_fighting[last]; e_fighting.resize(last)
 	e_kiting[i] = e_kiting[last]; e_kiting.resize(last)
+	e_turned[i] = e_turned[last]; e_turned.resize(last)
 	e_strike[i] = e_strike[last]; e_strike.resize(last)
 	e_stun[i] = e_stun[last]; e_stun.resize(last)
 	e_slow[i] = e_slow[last]; e_slow.resize(last)

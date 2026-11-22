@@ -4020,6 +4020,39 @@ func test_horse_archers_on_the_edge_of_their_ring_do_not_flicker(b: Dictionary) 
 	check(flips <= riders.size() * 2, "and their pictures do not flick back and forth between two ways (%d flicks among %d riders in 26 s)" % [flips, riders.size()])
 
 
+func test_a_chieftain_hemmed_in_by_the_legion_does_not_spin(b: Dictionary) -> void:
+	var s := Sim.new(b, Content.with_all_art(), {"seed": 7, "province": "germania"})
+	s.commander.max_hp = 1e9
+	s.commander.hp = 1e9
+	while s.soldiers.size() < 60:
+		s.legion.add(["legionary", "legionary", "archer"][s.soldiers.size() % 3])
+	s.legion.place_all(s.facing_angle)
+	s.horde.next_band = 1e9
+	s.horde.spawn_acc = -1e9
+	for t in ["cleave_cd", "summon_cd", "siege_cd", "charge_cd"]:
+		s.horde.set(t, 1e9)
+	var ci := s.horde.spawn_chieftain(s.commander.pos + Vector2(60, 50))
+	var id: int = s.horde.e_id[ci]
+	var turns := 0
+	var fought := 0
+	var last := -1
+	for k in 4 * 30:
+		for u in s.units:
+			u.hp = u.max_hp
+		s.update(1.0 / 30.0, Vector2.ZERO, false)
+		var j := s.horde.e_id.find(id)
+		if j < 0:
+			break
+		s.horde.e_hp[j] = s.horde.e_max[j]
+		fought += s.horde.e_fighting[j]
+		var dir := Sim.dir_index(s.horde.e_face[j])
+		if last >= 0 and dir != last:
+			turns += 1
+		last = dir
+	check(fought > 60, "the chieftain is locked in melee among the soldiers (%d of 120 frames)" % fought)
+	check(turns <= 8, "and turns now and then rather than from soldier to soldier every few frames (%d turns in 4 s)" % turns)
+
+
 func test_the_testudo_stops_a_boss_charge(b: Dictionary) -> void:
 	for kind in ["gaul_king", "falx_band", "lusitanian_raider", "camel_captain"]:
 		var s := _gaul_sim(b, 1661, {"gaul_king": "gaul", "falx_band": "dacia", "lusitanian_raider": "hispania", "camel_captain": "aegyptus"}[kind])
