@@ -10209,3 +10209,93 @@ func test_the_chieftains_fall_throws_up_dust_with_blood_off(b: Dictionary) -> vo
 	var e := _death_of(s)
 	check(s.stains_alive() == 0, "no stain")
 	check(not e.is_empty() and e.blood == false and int(e.get("dust", 0)) == int(cfg.dust_puffs), "a great cloud of dust instead (%s)" % e.get("dust", 0))
+
+
+func test_the_legions_livery_follows_its_upgrades(b: Dictionary) -> void:
+	var plain := Sim.new(b, content, {"seed": 1})
+	check(Livery.tiers(plain) == Vector2i(0, 0), "no upgrades, no new colours")
+	var qm := Sim.new(b, content, {"seed": 1, "profile_bonuses": {"soldier_health": 2, "armour": 1, "damage": 4}})
+	check(Livery.tiers(qm) == Vector2i(1, 1), "three armour ranks bring bronze and four damage ranks white cloth (%s)" % Livery.tiers(qm))
+	qm.ranks["lorica"] = 3
+	qm.ranks["shield_wall"] = 2
+	qm.ranks["gladius"] = 5
+	qm.ranks["discipline"] = 2
+	check(Livery.tiers(qm) == Vector2i(2, 2), "drills in the run add to the quartermaster's ranks (%s)" % Livery.tiers(qm))
+	var full := Sim.new(b, content, {"seed": 1, "profile_bonuses": {"soldier_health": 4, "armour": 4, "damage": 8, "attack_speed": 4}})
+	check(Livery.tiers(full) == Vector2i(2, 2), "a fully upgraded quartermaster shows the last tier in camp")
+	var other := Sim.new(b, content, {"seed": 1, "profile_bonuses": {"move_speed": 4, "start_health": 8, "rerolls": 3}})
+	check(Livery.tiers(other) == Vector2i(0, 0), "upgrades of other kinds change nothing")
+
+
+## The pixels of one frame of a unit's standing pose in the atlas.
+func _livery_frame(unit: String, dir: String) -> Array:
+	var img := Image.load_from_file("res://assets/atlas.png")
+	var meta: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://assets/atlas.json"))
+	var f: Array = meta.units[unit].idle[dir].frames[0]
+	var px := []
+	for y in int(f[3]):
+		for x in int(f[2]):
+			var c := img.get_pixel(int(f[0]) + x, int(f[1]) + y)
+			if c.a8 > 0:
+				px.append(c)
+	return px
+
+
+func test_the_livery_recolours_only_armour_and_cloth(b: Dictionary) -> void:
+	for unit in ["legionary", "centurion", "cavalry"]:
+		var px := _livery_frame(unit, "south")
+		var armour := 0
+		var cloth := 0
+		var kept := true
+		var outline_kept := true
+		var armour_changed := true
+		var cloth_alone := true
+		for c: Color in px:
+			var tag := c.a8
+			var bronze := Livery.recolour(c, 1, 0)
+			var purple := Livery.recolour(c, 0, 2)
+			if tag == Livery.ARMOUR_ALPHA:
+				armour += 1
+				armour_changed = armour_changed and not bronze.is_equal_approx(Color(c, 1.0))
+				cloth_alone = cloth_alone and purple.is_equal_approx(Color(c, 1.0))
+			elif tag == Livery.CLOTH_ALPHA:
+				cloth += 1
+				cloth_alone = cloth_alone and bronze.is_equal_approx(Color(c, 1.0)) and not purple.is_equal_approx(Color(c, 1.0))
+			else:
+				kept = kept and bronze == c and purple == c and Livery.recolour(c, 2, 2) == c
+			if c.r8 + c.g8 + c.b8 < 30:
+				outline_kept = outline_kept and tag == 255
+		check(armour > 20 and cloth > 20, "%s has armour and cloth marked (%d, %d)" % [unit, armour, cloth])
+		check(armour_changed, "%s: every armour pixel turns bronze" % unit)
+		check(cloth_alone, "%s: armour and cloth change only with their own tier" % unit)
+		check(kept, "%s: skin, leather and everything else keep their colours" % unit)
+		check(outline_kept, "%s: the dark outline is never marked" % unit)
+
+
+func test_soldiers_with_no_upgrades_keep_their_colours(b: Dictionary) -> void:
+	for unit in ["legionary", "archer", "medicus", "ballista"]:
+		var same := true
+		for c: Color in _livery_frame(unit, "south-east"):
+			same = same and Livery.recolour(c, 0, 0).is_equal_approx(Color(c, 1.0))
+		check(same, "%s looks as drawn at the first tier" % unit)
+
+
+func test_only_the_legions_soldiers_carry_livery_marks(b: Dictionary) -> void:
+	for unit in ["commander", "barbarian_club", "gaul_swordsman", "cataphract", "egyptian_spearman"]:
+		var marked := 0
+		for c: Color in _livery_frame(unit, "south"):
+			if c.a8 == Livery.ARMOUR_ALPHA or c.a8 == Livery.CLOTH_ALPHA:
+				marked += 1
+		check(marked == 0, "%s keeps its own colours (%d marked)" % [unit, marked])
+	var medicus := 0
+	for c: Color in _livery_frame("medicus", "south"):
+		if c.a8 == Livery.ARMOUR_ALPHA:
+			medicus += 1
+	check(medicus == 0, "the medicus's grey hair is not armour")
+
+
+func test_a_soldiers_mark_comes_off_whole(b: Dictionary) -> void:
+	for mod in [Color.WHITE, Color(1.0, 0.55, 0.55), Color(4.0, 4.0, 4.0, 1.0), Color(0.82, 0.74, 0.72, 0.3)]:
+		var marked := Livery.mark(mod)
+		check(marked.r > Livery.MARK / 2.0, "the mark stands out from any tint (%s)" % mod)
+		check(Livery.unmark(marked).is_equal_approx(mod), "and comes off to the tint it was (%s)" % mod)

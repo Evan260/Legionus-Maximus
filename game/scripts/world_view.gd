@@ -73,6 +73,9 @@ var _train_marks := PackedVector2Array()
 var _floor := Node2D.new()
 var _wheat := Node2D.new()
 var _wheat_tile: Texture2D
+# The legion's armour and cloth tiers drawn now, and tiers set from the command line for a look, or -1 to follow the upgrades.
+var _livery := Vector2i(-1, -1)
+var livery_force := Vector2i(-1, -1)
 
 
 func _ready() -> void:
@@ -104,6 +107,9 @@ func _ready() -> void:
 	fray.shader = load("res://scripts/wheat_field.gdshader")
 	_wheat.material = fray
 	_wheat.draw.connect(_draw_fields)
+	var dress := ShaderMaterial.new()
+	dress.shader = load("res://scripts/livery.gdshader")
+	material = dress
 
 
 ## The ten digits as 3 by 5 pixel shapes in one strip, four pixels apart.
@@ -200,6 +206,10 @@ func _draw() -> void:
 	_draw_god_ground()
 	_draw_scorch(view_for(top_left))
 	_draw_warnings()
+	var livery := livery_force if livery_force.x >= 0 else Livery.tiers(sim)
+	if livery != _livery:
+		_livery = livery
+		Livery.apply(material, livery)
 	_keys.clear()
 	_rects.clear()
 	_dests.clear()
@@ -290,7 +300,7 @@ func _draw() -> void:
 		var hop := Vector2.ZERO
 		if cheering and not u.moving:
 			hop.y = -sin(PI * phase / cycle) * float(sim.b.triumph.hop)
-		_add(u.pos.y, f[0], u.pos - f[1] + hop, mod, true)
+		_add(u.pos.y, f[0], u.pos - f[1] + hop, Livery.mark(mod), true)
 
 	if _kinds_of != sim:
 		_index_kinds()
@@ -1696,6 +1706,8 @@ func _add_body(e: Dictionary) -> void:
 	var tint: Array = cfg.tint
 	var bright := float(cfg.flash_bright)
 	var mod := Color(bright, bright, bright, 1.0) if t < float(cfg.flash) else Color(float(tint[0]), float(tint[1]), float(tint[2]), a)
+	if soldier:
+		mod = Livery.mark(mod)
 	_add_turned(at.y, f[0], at - f[1] * sc, mod, f[0].size * sc, xf)
 
 

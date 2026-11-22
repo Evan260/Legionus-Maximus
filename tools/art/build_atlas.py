@@ -6,11 +6,15 @@ position whatever the canvas PixelLab drew them on. A unit whose attack_<directi
 action, anchored on the standing pose its first frame repeats. A prop in SHEETS is several frames drawn side by side,
 such as the flame, and is packed as one prop with a frame per drawing.
 
-Usage: python tools/art/build_atlas.py
+Soldiers' armour and red cloth are marked in the alpha channel (LIVERY) so the game can recolour them as the legion is
+upgraded; `--livery-only` marks the existing atlas without rebuilding it.
+
+Usage: python tools/art/build_atlas.py [--livery-only]
 Writes game/assets/atlas.png, game/assets/atlas.json and the province grounds in game/assets/grounds/.
 """
 import json
 import shutil
+import sys
 from pathlib import Path
 
 import cv2
@@ -89,6 +93,49 @@ MIRROR = {"mountain_bear": {"t_running_east": "t_running_west", "t_running_south
 # The atlas stays one page so the horde draws in one batch, and grows wide before tall.
 WIDTH = 8192
 MAX_SIDE = 8192
+
+
+# Soldiers whose armour and cloth game/scripts/livery.gd recolours, with the parts each one has.
+LIVERY = {"legionary": "armour cloth", "archer": "armour cloth", "cavalry": "armour cloth", "standard_bearer": "armour cloth",
+          "medicus": "cloth", "ballista": "armour cloth", "centurion": "armour cloth"}
+# Red-brown wood of the ballista's frame that falls inside the cloth colours.
+NOT_CLOTH = {"ballista": [(108, 38, 30), (95, 29, 34)]}
+# Alpha values that mark a pixel as armour or cloth; livery.gd reads the same values and draws them opaque.
+ARMOUR_ALPHA = 254
+CLOTH_ALPHA = 253
+
+
+def livery_parts(rgb):
+    """Which pixels of an RGB array are armour metal (bluish grey) and which are red cloth."""
+    c = rgb.astype(np.float32) / 255.0
+    r, g, b = c[..., 0], c[..., 1], c[..., 2]
+    hi, lo = c.max(-1), c.min(-1)
+    sat = np.where(hi > 0, (hi - lo) / np.maximum(hi, 1e-6), 0)
+    armour = (sat < 0.5) & (b >= r + 0.02) & (b >= g - 0.03) & (hi > 0.24)
+    hue = 60.0 * (g - b) / np.maximum(hi - lo, 1e-6)
+    cloth = (r == hi) & (r > 0.33) & (sat > 0.6) & (hue > -40) & (hue < 12)
+    return armour, cloth
+
+
+def tag_livery(atlas, meta):
+    """Marks the armour and cloth pixels of every LIVERY soldier's frames in the atlas's alpha channel."""
+    px = np.array(atlas)
+    for unit, parts in LIVERY.items():
+        for action in meta["units"][unit].values():
+            for anim in action.values():
+                for x, y, w, h in anim["frames"]:
+                    cell = px[y:y + h, x:x + w]
+                    alpha = cell[..., 3]
+                    alpha[(alpha >= CLOTH_ALPHA) & (alpha < 255)] = 255
+                    armour, cloth = livery_parts(cell[..., :3])
+                    for colour in NOT_CLOTH.get(unit, []):
+                        cloth &= ~np.all(cell[..., :3] == colour, -1)
+                    solid = alpha == 255
+                    if "armour" in parts:
+                        alpha[solid & armour] = ARMOUR_ALPHA
+                    if "cloth" in parts:
+                        alpha[solid & cloth & ~armour] = CLOTH_ALPHA
+    return Image.fromarray(px, "RGBA")
 
 
 def crop_set(images, anchor):
@@ -211,6 +258,10 @@ def frames_of(unit, src, folder):
 
 
 def main():
+    if "--livery-only" in sys.argv:
+        atlas = Image.open(OUT / "atlas.png").convert("RGBA")
+        tag_livery(atlas, json.loads((OUT / "atlas.json").read_text())).save(OUT / "atlas.png")
+        return
     sets = []
     for unit, action in UNITS.items():
         src = RAW / FOLDERS.get(unit, unit)
@@ -280,6 +331,7 @@ def main():
             meta["units"].setdefault(key[1], {}).setdefault(key[2], {})[key[3]] = entry
         else:
             meta["props"][key[1]] = entry
+    atlas = tag_livery(atlas, meta)
     OUT.mkdir(parents=True, exist_ok=True)
     atlas.save(OUT / "atlas.png")
     (OUT / "atlas.json").write_text(json.dumps(meta))

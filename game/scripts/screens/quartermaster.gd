@@ -13,7 +13,9 @@ func _init(owner_node: Node) -> void:
 
 func activate(id: String) -> void:
 	if id.begins_with("buy:"):
-		Profile.buy(id.trim_prefix("buy:"), main.content)
+		if Profile.buy(id.trim_prefix("buy:"), main.content) and main.camp_sim:
+			# The camp's legion behind the screen puts on its new armour at once.
+			main.camp_sim.bonuses = Profile.bonuses()
 
 
 ## The widest price a row shows, so every name is fitted to the room left beside it.

@@ -171,6 +171,8 @@
   "history_every": 10,
   "damage_numbers": {"cap": 60, "seconds": 0.6, "rise": 14},
   "shake": {"hurt": 0.12, "chieftain": 0.3, "roar": 0.6, "bossfall": 0.7, "testudo": 0.2, "elite_death": 0.2, "pixels": 2},
+  "livery": {"defence": {"quartermaster": ["soldier_health", "armour"], "drills": ["lorica", "shield_wall"], "tiers": [3, 8]},
+    "offence": {"quartermaster": ["damage", "attack_speed"], "drills": ["gladius", "discipline"], "tiers": [4, 11]}},
   "deaths": {
     "seconds": 0.55, "big_seconds": 0.8, "flash": 0.06, "tint": [0.82, 0.74, 0.72],
     "knock": 4.0, "big_knock": 8.0, "soldier_knock": 2.0, "knock_seconds": 0.12,

@@ -108,6 +108,9 @@ func _ready() -> void:
 		return
 	_setup_input()
 	world.atlas = Atlas.new()
+	if args.has("livery"):
+		var tiers: PackedStringArray = str(args.livery).split(",")
+		world.livery_force = Vector2i(int(tiers[0]), int(tiers[1] if tiers.size() > 1 else tiers[0]))
 	hud.main = self
 	hud.ui = ui
 	screens = {"camp": CampScreen.new(self), "quartermaster": QuartermasterScreen.new(self), "tablinum": TablinumScreen.new(self),
