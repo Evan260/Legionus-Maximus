@@ -127,6 +127,12 @@ var show_numbers := false
 ## The player's blood setting: with it off a kill sprays no blood and leaves no stain.
 var blood := true
 var shake := 0.0
+## How far the screen shakes, in pixels, while it shakes harder than `shake.pixels`; 0 for the usual.
+var shake_pixels := 0
+## Real seconds left of the slow motion that follows the chieftain's fall.
+var slow_left := 0.0
+## When the chieftain fell, on the run's clock, for his banner; -1 while he stands.
+var chief_fallen_at := -1.0
 ## The stains kills leave on the ground, kept as a ring of at most `deaths.stain_cap`, written over oldest first.
 var stain_pos := PackedVector2Array()
 var stain_dir := PackedVector2Array()
@@ -968,7 +974,7 @@ func _kill(i: int) -> void:
 	if horde.e_id[i] == horde.chieftain_id:
 		# His death opens the fort, and holding it wins the run.
 		if not victory:
-			objectives.notice = {"kind": "chieftain", "at": time, "seconds": 6.0}
+			_chief_falls(i)
 	horde.remove_at(i)
 
 
@@ -1149,25 +1155,71 @@ func _death(i: int, id: String) -> void:
 		dir = dir.normalized() if dir != Vector2.ZERO else Vector2.DOWN
 	var tag := horde.e_tag[i]
 	var bloody := blood and not victory
-	var spray := int(cfg.chief_spray if tag == Horde.CHIEF else (cfg.big_spray if tag == Horde.ELITE else cfg.spray))
-	effects.append({"kind": "death", "pos": p, "t": 0.0, "type": id, "facing": horde.e_face[i], "big": tag != Horde.ORDINARY,
-		"chief": tag == Horde.CHIEF, "dir": dir, "blood": bloody, "spray": spray, "seed": horde.e_id[i]})
+	var chief := tag == Horde.CHIEF
+	var spray := int(b.chief_death.spray if chief else (cfg.big_spray if tag == Horde.ELITE else cfg.spray))
+	var e := {"kind": "death", "pos": p, "t": 0.0, "type": id, "facing": horde.e_face[i], "big": tag != Horde.ORDINARY,
+		"chief": chief, "dir": dir, "blood": bloody, "spray": spray, "seed": horde.e_id[i]}
+	if chief and not bloody:
+		e.dust = int(b.chief_death.dust_puffs)
+	effects.append(e)
 	if victory:
 		return
-	if tag != Horde.ORDINARY:
-		shake = maxf(shake, float(b.shake.chief_death if tag == Horde.CHIEF else b.shake.elite_death))
+	if tag == Horde.ELITE:
+		shake = maxf(shake, float(b.shake.elite_death))
 	if bloody:
-		var size := float(cfg.chief_stain if tag == Horde.CHIEF else (cfg.big_stain if tag == Horde.ELITE else 1.0))
-		add_stain(p, dir, size, horde.e_id[i])
+		if chief:
+			add_stain(p, dir, float(b.chief_death.stain), horde.e_id[i], float(b.chief_death.stain_seconds))
+		else:
+			add_stain(p, dir, float(cfg.big_stain) if tag == Horde.ELITE else 1.0, horde.e_id[i])
+
+
+## The chieftain's fall: the battle slows and flashes white, his warriors nearby run, his purse spills and his name is written large.
+func _chief_falls(i: int) -> void:
+	var cfg: Dictionary = b.chief_death
+	var p := horde.e_pos[i]
+	chief_fallen_at = time
+	slow_left = float(cfg.slow_seconds)
+	shake = maxf(shake, float(cfg.shake))
+	shake_pixels = int(cfg.shake_pixels)
+	objectives.notice = {"kind": "chieftain", "at": time + float(cfg.banner_seconds), "seconds": 6.0}
+	event("chief_drum", p)
+	event("chief_fall", p)
+	var r2 := float(cfg.rout_radius) * float(cfg.rout_radius)
+	for j in horde.e_pos.size():
+		if horde.e_tag[j] == Horde.ORDINARY and horde.e_pos[j].distance_squared_to(p) <= r2:
+			horde.e_flee[j] = maxf(horde.e_flee[j], float(cfg.rout_seconds))
+	var total := roundi(float(cfg.coins) * horde.level_mult("denarii_mult"))
+	var n := mini(int(cfg.coin_pieces), total)
+	var reach: Array = cfg.coin_reach
+	for k in n:
+		var at := p + Vector2.from_angle(TAU * (k + rng.randf() * 0.6) / n) * rng.randf_range(float(reach[0]), float(reach[1]))
+		drop_coin(at, total / n + (1 if k < total % n else 0))
+
+
+## The time step the run takes for `real_dt` seconds of play: slowed for a moment after the chieftain falls.
+func slowed(real_dt: float) -> float:
+	if slow_left <= 0.0:
+		return real_dt
+	slow_left = maxf(0.0, slow_left - real_dt)
+	return real_dt * float(b.chief_death.slow_rate)
+
+
+## How white the field is flashed just after the chieftain falls, from 0 to 1, on the real clock of the slow motion.
+func flash() -> float:
+	var cfg: Dictionary = b.chief_death
+	if slow_left <= 0.0:
+		return 0.0
+	var since := float(cfg.slow_seconds) - slow_left
+	return clampf(1.0 - since / float(cfg.flash_seconds), 0.0, 1.0)
 
 
 ## Lays a stain on the ground unless it would hang over a gorge or canal, writing over the oldest once the cap is reached.
-func add_stain(p: Vector2, dir: Vector2, size: float, seed_n: int) -> void:
+func add_stain(p: Vector2, dir: Vector2, size: float, seed_n: int, lasts := 0.0) -> void:
 	var cfg: Dictionary = b.deaths
 	if terrain.over_ravine(p, -float(cfg.stain_clear) * size):
 		return
 	var spans: Array = cfg.stain_seconds
-	var life := lerpf(float(spans[0]), float(spans[1]), float(posmod(seed_n * 7919, 1000)) / 999.0)
+	var life := lasts if lasts > 0.0 else lerpf(float(spans[0]), float(spans[1]), float(posmod(seed_n * 7919, 1000)) / 999.0)
 	var at := p.round()
 	if stain_pos.size() < int(cfg.stain_cap):
 		stain_pos.append(at)
@@ -1178,7 +1230,12 @@ func add_stain(p: Vector2, dir: Vector2, size: float, seed_n: int) -> void:
 		stain_seed.append(seed_n)
 		return
 	var k := _stain_next
-	_stain_next = (_stain_next + 1) % stain_pos.size()
+	# A stain meant to outlast the ordinary ones, such as the chieftain's, is stepped over while it lasts.
+	for tries in stain_pos.size():
+		if stain_life[k] <= float(spans[1]) or time - stain_born[k] >= stain_life[k]:
+			break
+		k = (k + 1) % stain_pos.size()
+	_stain_next = (k + 1) % stain_pos.size()
 	stain_pos[k] = at
 	stain_dir[k] = dir
 	stain_born[k] = time
@@ -1204,7 +1261,7 @@ func _effects(dt: float) -> void:
 		e.t += dt
 		var last := 0.12 if e.kind == "slash" else (PLUNGE_SECONDS if e.kind == "plunge" else 0.45)
 		if e.kind == "death" or e.kind == "fallen":
-			last = big_dying if e.get("big", false) else dying
+			last = float(b.chief_death.fall_seconds) if e.get("chief", false) else (big_dying if e.get("big", false) else dying)
 		if e.t < last:
 			keep.append(e)
 	effects = keep

@@ -170,16 +170,24 @@
   "banishes": 0,
   "history_every": 10,
   "damage_numbers": {"cap": 60, "seconds": 0.6, "rise": 14},
-  "shake": {"hurt": 0.12, "chieftain": 0.3, "roar": 0.6, "bossfall": 0.7, "testudo": 0.2, "elite_death": 0.2, "chief_death": 0.5, "pixels": 2},
+  "shake": {"hurt": 0.12, "chieftain": 0.3, "roar": 0.6, "bossfall": 0.7, "testudo": 0.2, "elite_death": 0.2, "pixels": 2},
   "deaths": {
     "seconds": 0.55, "big_seconds": 0.8, "flash": 0.06, "tint": [0.82, 0.74, 0.72],
     "knock": 4.0, "big_knock": 8.0, "soldier_knock": 2.0, "knock_seconds": 0.12,
     "topple_seconds": 0.24, "topple_degrees": 82.0, "soldier_degrees": 70.0, "beast_degrees": 22.0, "beast_flat": 0.6, "roll_kinds": ["chariot_charge", "war_elephant", "war_wagon", "camel_captain", "cataphract_charge"], "least_lean": 0.4, "flat": 0.55, "fade_from": 0.55,
-    "spray": 6, "big_spray": 14, "chief_spray": 22, "soldier_spray": 3,
+    "spray": 6, "big_spray": 14, "soldier_spray": 3,
     "spray_speed": [28.0, 70.0], "spray_spread": 1.1, "spray_rise": [10.0, 45.0], "spray_height": 11.0, "gravity": 300.0,
     "blood": [0.72, 0.07, 0.06], "dust": [0.66, 0.6, 0.48], "dust_puffs": 6, "dust_reach": [9.0, 14.0], "flash_bright": 4.0,
-    "stain_cap": 150, "stain_clear": 16.0, "stain_torso": 7.0, "stain_in": 0.2, "stain_seconds": [5.0, 8.0], "stain_fade": 1.5, "big_stain": 1.7, "chief_stain": 2.3,
+    "stain_cap": 150, "stain_clear": 16.0, "stain_torso": 7.0, "stain_in": 0.2, "stain_seconds": [5.0, 8.0], "stain_fade": 1.5, "big_stain": 1.7,
     "stain": [0.62, 0.06, 0.05, 0.85], "stain_dark": [0.38, 0.02, 0.03, 0.9]
+  },
+  "chief_death": {
+    "slow_seconds": 0.7, "slow_rate": 0.25, "flash_seconds": 0.35, "flash": 0.75, "shake": 0.9, "shake_pixels": 4,
+    "fall_seconds": 1.5, "stagger_seconds": 0.45, "stagger_degrees": 9.0, "drop_seconds": 0.2, "drop": 0.12, "topple_seconds": 0.55, "knock": 10.0, "fade_from": 0.7,
+    "spray": 44, "spray_reach": 1.8, "dust_puffs": 30, "dust_reach": 30.0, "stain": 3.0, "stain_seconds": 20.0,
+    "rout_radius": 220.0, "rout_seconds": 3.0,
+    "coins": 40, "coin_pieces": 16, "coin_reach": [24.0, 70.0],
+    "banner_seconds": 3.0
   },
   "text_px": [8, 16],
   "audio": {
@@ -245,6 +253,8 @@
       "summon": {"set": "horn_1", "max": 1, "db": -6.0, "spread": 0.0, "pitch": 0.8, "priority": 2},
       "siege": {"set": "stake", "max": 1, "db": -4.0, "spread": 0.06, "pitch": 0.85, "priority": 1},
       "boss": {"set": "boss", "max": 1, "db": -4.0, "spread": 0.0, "pitch": 0.9, "priority": 2},
+      "chief_fall": {"set": "horn_2", "max": 1, "db": -2.0, "spread": 0.0, "pitch": 0.7, "priority": 2},
+      "chief_drum": {"set": "drum", "max": 1, "db": 0.0, "spread": 0.0, "pitch": 0.55, "priority": 2},
       "back": {"set": "click", "max": 2, "db": -8.0, "spread": 0.0, "pitch": 0.75, "priority": 1}
     }
   },

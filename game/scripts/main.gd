@@ -30,7 +30,7 @@ extends Node
 ##   --give=ID,ID:RANK  start the run with these arms or drills at the rank (default 1), or that many of a recruit, for looking at them
 ##   --timber=N         with --autoplay, start the run carrying that much timber
 ##   --men=N            with --autoplay, start the run with N soldiers, legionaries and archers
-##   --boss=ID          with --autoplay, bring that elite or the chieftain beside the legion; --boss-act=far (stunned, off screen, for the edge badge)|edge (stunned, his feet below the screen, for a look at a big boss half in view)|whirl|shield|band|mend|curse|blink|rage|roar,
+##   --boss=ID          with --autoplay, bring that elite or the chieftain beside the legion; --boss-act=far (stunned, off screen, for the edge badge)|edge (stunned, his feet below the screen, for a look at a big boss half in view)|die (cut down a second in, for a look at his fall)|whirl|shield|band|mend|curse|blink|rage|roar,
 ##                      fall (with --go-to=ravine) stands him at the lip for the legion to shove in,
 ##                      duel|rally|blast|flee for the Gaulish elites and siege|summon for the Gaulish king, onrush|blizzard for the Dacian elites and
 ##                      sweep|rockfall|leap for the Dacian king, wedge|trample for the Parthian elites and storm|elephants for the shah,
@@ -72,6 +72,8 @@ var profile_at_start := {}
 ## With --win-at, the second at which an autoplay wins, for a look at the triumph.
 var win_at := -1.0
 var god_at := -1.0
+# When the look started by --boss-act=die cuts the chieftain down, on the real clock.
+var slay_at := -1.0
 const RUN_SETUP := {"province": "germania", "commander": "tribune", "difficulty": "medium", "endless": false, "decimatio": false}
 var run_setup: Dictionary = RUN_SETUP.duplicate()
 
@@ -171,6 +173,8 @@ func _bring_boss(kind: String, act: String) -> void:
 		at = sim.commander.pos + Vector2(700, -160)
 	if kind == h.chief_kind:
 		var ci := h.spawn_chieftain(at)
+		if act == "die":
+			slay_at = clock + 1.0
 		if act == "far":
 			h.e_stun[ci] = 1e9
 		if act == "roar":
@@ -307,7 +311,7 @@ func _go_to(kind: String) -> void:
 		if fields.is_empty():
 			return
 		fields.sort_custom(func(f: Rect2, g: Rect2) -> bool: return f.get_center().length() < g.get_center().length())
-		sim.commander.pos = sim.terrain.out_of_fields(Vector2(fields[0].get_center().x, fields[0].end.y + 40.0), 60.0)
+		sim.commander.pos = sim.terrain.out_of_fields(Vector2(fields[0].get_center().x, fields[0].end.y + 40.0).rotated(sim.terrain.field_turn), 60.0)
 		sim.legion.place_all(sim.facing_angle)
 		look_march = Vector2.ZERO
 		return
@@ -617,6 +621,11 @@ func _process(dt: float) -> void:
 				_look_at_god(str(args.god))
 				if state != "play":
 					return
+			if slay_at >= 0.0 and clock >= slay_at:
+				slay_at = -1.0
+				var ci := sim.chieftain_index()
+				if ci >= 0:
+					sim.hit(ci, 1e12, 0.0, "", sim.commander.pos)
 			if win_at >= 0.0 and sim.time >= win_at:
 				win_at = -1.0
 				sim.win(sim.commander.pos)
@@ -639,7 +648,7 @@ func _process(dt: float) -> void:
 				sim.build_wall()
 			if Input.is_action_just_pressed("bridge"):
 				sim.build_bridge()
-			sim.update(minf(dt, 1.0 / 30.0), move, testudo)
+			sim.update(sim.slowed(minf(dt, 1.0 / 30.0)), move, testudo)
 			Audio.drain(sim)
 			if sim.over:
 				_finish_run()

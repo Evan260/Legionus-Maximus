@@ -122,6 +122,9 @@ func _scene() -> void:
 		main.screens[main.state].draw(self, ui)
 		ui.end()
 		return
+	var white := sim.flash()
+	if white > 0.0:
+		draw_rect(Rect2(Vector2.ZERO, Ui.view), Color(1, 1, 1, white * float(sim.b.chief_death.flash)))
 	_top_bar(sim)
 	var choosing: bool = main.state == "choose" or main.state == "pray"
 	# The boss names and objective badges would sit on the choice's heading and cards, so they wait until it is made.
@@ -135,11 +138,12 @@ func _scene() -> void:
 			var chief := chieftain_rect(sim)
 			if chief.has_area():
 				avoid.append(chief)
-			var banner := god_banner_rect(sim)
-			if banner.has_area():
-				avoid.append(banner)
+			for banner in [god_banner_rect(sim), chief_banner_rect(sim)]:
+				if banner.has_area():
+					avoid.append(banner)
 			_objective_arrows(sim, avoid)
 	_god_banner(sim)
+	_chief_banner(sim)
 	_victory_banner(sim)
 	if choosing:
 		_choices(sim)
@@ -460,6 +464,47 @@ func _victory_banner(sim: Sim) -> void:
 	draw_string(Ui.font(), Vector2(0, y + Ui.leading() + Ui.px * 0.6), line.to_upper(), HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x, Ui.px, Color(CREAM, a))
 
 
+## Whether the chieftain's fall is written across the screen.
+static func chief_banner_shown(sim: Sim) -> bool:
+	return sim.chief_fallen_at >= 0.0 and sim.triumph_left <= 0.0 and sim.time - sim.chief_fallen_at < float(sim.b.chief_death.banner_seconds)
+
+
+static func chief_banner_line(sim: Sim) -> String:
+	return TranslationServer.translate("The %s has fallen") % chief_name(sim)
+
+
+## The size the chieftain's banner is written at: as large as a god's name, smaller for a long name.
+static func _chief_banner_size(line: String) -> int:
+	var size := Ui.px * 3
+	while size > Ui.px and Ui.width_at(line, size) > Ui.view.x - 24.0:
+		size -= 1
+	return size
+
+
+## The dark band the chieftain's banner lies on, so the objective badges stand clear of it; empty when it is not shown.
+func chief_banner_rect(sim: Sim) -> Rect2:
+	if not chief_banner_shown(sim):
+		return Rect2()
+	var size := _chief_banner_size(chief_banner_line(sim).to_upper())
+	var y := Ui.view.y * 0.3
+	return Rect2(0, y - size * 1.2, Ui.view.x, size * 1.7)
+
+
+## The chieftain's fall written large across the field over a dark band.
+func _chief_banner(sim: Sim) -> void:
+	if not chief_banner_shown(sim) or main.state != "play":
+		return
+	var age := sim.time - sim.chief_fallen_at
+	var secs := float(sim.b.chief_death.banner_seconds)
+	var a := clampf(minf(age * 6.0, (secs - age) * 2.0), 0.0, 1.0)
+	var line := chief_banner_line(sim).to_upper()
+	var size := _chief_banner_size(line)
+	var y := Ui.view.y * 0.3
+	draw_rect(chief_banner_rect(sim), Color(INK, 0.5 * a))
+	draw_string(Ui.font(), Vector2(3, y + 3), line, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x, size, Color(INK, a))
+	draw_string(Ui.font(), Vector2(0, y), line, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x, size, Color(GOLD_LIGHT, a))
+
+
 func _notice_text(kind: String, sim: Sim) -> String:
 	return notice_line(kind, sim)
 
@@ -706,7 +751,7 @@ func _objective_arrows(sim: Sim, avoid: Array) -> void:
 	var note: Dictionary = sim.objectives.notice
 	var lines: Array = []
 	var spot := Rect2()
-	if not note.is_empty() and sim.time - float(note.at) < float(note.get("seconds", sim.b.objectives.notice_seconds)):
+	if not note.is_empty() and sim.time >= float(note.at) and sim.time - float(note.at) < float(note.get("seconds", sim.b.objectives.notice_seconds)):
 		lines = Ui.lines_of(_notice_text(note.kind, sim).to_upper(), view.x - 24.0)
 		var nw := 0.0
 		for line in lines:

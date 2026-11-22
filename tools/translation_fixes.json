@@ -2889,6 +2889,22 @@
       "zh_CN": "%s来了",
       "zh_TW": "%s來了"
     },
+    "The %s has fallen": {
+      "en": "The %s has fallen",
+      "fr": "%s est à terre",
+      "de": "%s ist gefallen",
+      "es": "%s ha caído",
+      "it": "%s è a terra",
+      "pt_BR": "%s caiu",
+      "pl": "%s upada",
+      "tr": "%s düştü",
+      "ru": "%s падает",
+      "uk": "%s падає",
+      "ja": "%sが倒れた",
+      "ko": "%s 쓰러졌다",
+      "zh_CN": "%s倒下了",
+      "zh_TW": "%s倒下了"
+    },
     "The %s falls: now hold the fort": {
       "en": "The %s falls: now hold the fort",
       "fr": "%s tombe : tenez maintenant le fort",

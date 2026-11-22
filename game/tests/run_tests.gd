@@ -9946,7 +9946,7 @@ func test_a_boss_falls_harder_than_an_ordinary_barbarian(b: Dictionary) -> void:
 	s._remove_dead()
 	var chief := _death_of(s)
 	check(chief.chief and int(chief.spray) >= int(big.spray), "the chieftain sprays the most")
-	check(is_equal_approx(s.shake, float(b.shake.chief_death)), "and shakes the screen hardest (%s)" % s.shake)
+	check(is_equal_approx(s.shake, float(b.chief_death.shake)), "and shakes the screen hardest (%s)" % s.shake)
 	check(float(cfg.big_seconds) > float(cfg.seconds), "a boss takes longer to fall")
 
 
@@ -10033,3 +10033,117 @@ func test_the_blood_setting_is_shared_and_checked(_b: Dictionary) -> void:
 	var cfg: Dictionary = ProfileScript.settings_of(ProfileScript.merge_settings({"blood": "no"}))
 	check(cfg.blood == true, "a blood setting that is not on or off gives the default")
 	check(SettingsScreen.TOGGLES.any(func(t): return t[0] == "blood"), "the settings screen has a blood switch")
+
+
+func _slay_chieftain(s: Sim, at := Vector2(80, 0)) -> void:
+	var ci := s.horde.spawn_chieftain(at)
+	s.hit(ci, 1e12, 0.0, "", s.commander.pos)
+	s._remove_dead()
+
+
+func test_the_chieftains_fall_slows_the_battle_for_a_moment(b: Dictionary) -> void:
+	var cfg: Dictionary = b.chief_death
+	var s := Sim.new(b, content, {"seed": 11})
+	s.terrain.clear()
+	check(is_equal_approx(s.slowed(0.1), 0.1), "the battle runs at full speed at first")
+	s.horde.spawn("berserker", Vector2(60, 0), true)
+	s.hit(0, 1e12)
+	s._remove_dead()
+	check(s.slow_left == 0.0, "an elite's death does not slow it")
+	_slay_chieftain(s)
+	check(is_equal_approx(s.slow_left, float(cfg.slow_seconds)), "the chieftain's does, for %s real seconds (%s)" % [cfg.slow_seconds, s.slow_left])
+	check(is_equal_approx(s.slowed(0.1), 0.1 * float(cfg.slow_rate)), "the battle runs at %s of its speed" % cfg.slow_rate)
+	check(s.flash() > 0.5, "the field flashes white (%s)" % s.flash())
+	check(is_equal_approx(s.shake, float(cfg.shake)) and s.shake_pixels == int(cfg.shake_pixels), "and the screen shakes hard")
+	var real := 0.1
+	while real < float(cfg.slow_seconds) + 0.05:
+		s.slowed(1.0 / 60.0)
+		real += 1.0 / 60.0
+	check(s.slow_left == 0.0 and is_equal_approx(s.slowed(0.1), 0.1), "then it runs at full speed again")
+	check(s.flash() == 0.0, "and the flash is gone")
+
+
+func test_the_chieftains_fall_breaks_the_warriors_round_him(b: Dictionary) -> void:
+	var cfg: Dictionary = b.chief_death
+	var s := Sim.new(b, content, {"seed": 12})
+	s.terrain.clear()
+	var r := float(cfg.rout_radius)
+	var near_id := s.horde.e_id[s.horde.spawn("barbarian_club", Vector2(80 + r * 0.6, 0))]
+	var far_id := s.horde.e_id[s.horde.spawn("barbarian_club", Vector2(80 + r * 1.4, 0))]
+	var elite_id := s.horde.e_id[s.horde.spawn("berserker", Vector2(80, r * 0.5), true)]
+	_slay_chieftain(s)
+	var near := s.horde.e_id.find(near_id)
+	var far := s.horde.e_id.find(far_id)
+	var elite := s.horde.e_id.find(elite_id)
+	check(is_equal_approx(s.horde.e_flee[near], float(cfg.rout_seconds)), "a warrior near him flees for %s seconds (%s)" % [cfg.rout_seconds, s.horde.e_flee[near]])
+	check(s.horde.e_flee[far] == 0.0, "one far off fights on")
+	check(s.horde.e_flee[elite] == 0.0, "an elite does not run")
+	var from := s.horde.e_pos[near].distance_to(s.commander.pos)
+	for f in 20:
+		s.update(1.0 / 30.0, Vector2.ZERO, false)
+	near = s.horde.e_id.find(near_id)
+	check(near >= 0 and s.horde.e_pos[near].distance_to(s.commander.pos) > from, "the fleeing warrior runs from the legion")
+
+
+func test_the_chieftains_fall_is_announced_by_name(b: Dictionary) -> void:
+	var cfg: Dictionary = b.chief_death
+	var s := Sim.new(b, content, {"seed": 13})
+	s.terrain.clear()
+	s.time = 700.0
+	_slay_chieftain(s)
+	var name := Hud.chief_name(s)
+	check(Hud.chief_banner_line(s).contains(name), "the banner names him (%s)" % Hud.chief_banner_line(s))
+	check(Hud.chief_banner_shown(s), "it shows at once")
+	check(s.objectives.notice.kind == "chieftain" and is_equal_approx(float(s.objectives.notice.at), 700.0 + float(cfg.banner_seconds)), "the fort's notice waits for the banner to end")
+	check(s.events.any(func(e: Dictionary) -> bool: return e.kind == "chief_fall") and s.events.any(func(e: Dictionary) -> bool: return e.kind == "chief_drum"), "a horn and a drum sound")
+	check(b.audio.kinds.has("chief_fall") and b.audio.kinds.has("chief_drum"), "and both are audio kinds")
+	s.time += float(cfg.banner_seconds) + 0.01
+	check(not Hud.chief_banner_shown(s), "the banner is gone after %s seconds" % cfg.banner_seconds)
+
+
+func test_the_chieftains_fall_spills_his_purse(b: Dictionary) -> void:
+	var cfg: Dictionary = b.chief_death
+	var s := Sim.new(b, content, {"seed": 14})
+	s.terrain.clear()
+	_slay_chieftain(s, Vector2(80, 0))
+	var total := 0
+	var spots := {}
+	for k in s.c_pos.size():
+		total += s.c_val[k]
+		spots[s.c_pos[k].round()] = true
+		check(s.c_pos[k].distance_to(Vector2(80, 0)) <= float(cfg.coin_reach[1]) + 0.01, "every coin lies round him (%s)" % s.c_pos[k])
+	check(s.c_pos.size() == int(cfg.coin_pieces), "his purse spills as %d coins (%d)" % [cfg.coin_pieces, s.c_pos.size()])
+	check(total == roundi(float(cfg.coins) * s.horde.level_mult("denarii_mult")), "worth %d denarii (%d)" % [cfg.coins, total])
+	check(spots.size() > int(cfg.coin_pieces) / 2, "scattered, not in one heap")
+
+
+func test_the_chieftains_fall_leaves_a_big_lasting_stain(b: Dictionary) -> void:
+	var cfg: Dictionary = b.chief_death
+	var s := Sim.new(b, content, {"seed": 15})
+	s.terrain.clear()
+	_slay_chieftain(s, Vector2(80, 0))
+	var k := s.stain_size.find(float(cfg.stain))
+	check(k >= 0 and float(cfg.stain) > float(b.deaths.big_stain), "his stain is the biggest")
+	check(k >= 0 and is_equal_approx(s.stain_life[k], float(cfg.stain_seconds)), "and lasts %s seconds" % cfg.stain_seconds)
+	var e := _death_of(s)
+	check(not e.is_empty() and e.chief and int(e.spray) == int(cfg.spray), "he sprays a great burst of blood")
+	for n in int(b.deaths.stain_cap) + 10:
+		s.horde.spawn("barbarian_club", Vector2(-300 + n * 3, 300))
+		s.hit(0, 999.0)
+		s._remove_dead()
+	check(s.stain_size.has(float(cfg.stain)), "the kills after his do not write over it")
+	s._effects(float(cfg.fall_seconds) - 0.02)
+	check(not _death_of(s).is_empty() and _death_of(s).get("chief", false), "he takes %s seconds to fall" % cfg.fall_seconds)
+	s._effects(0.04)
+	check(not s.effects.any(func(x: Dictionary) -> bool: return x.get("chief", false)), "and is gone after it")
+
+
+func test_the_chieftains_fall_throws_up_dust_with_blood_off(b: Dictionary) -> void:
+	var cfg: Dictionary = b.chief_death
+	var s := Sim.new(b, content, {"seed": 16})
+	s.terrain.clear()
+	s.blood = false
+	_slay_chieftain(s)
+	var e := _death_of(s)
+	check(s.stains_alive() == 0, "no stain")
+	check(not e.is_empty() and e.blood == false and int(e.get("dust", 0)) == int(cfg.dust_puffs), "a great cloud of dust instead (%s)" % e.get("dust", 0))
