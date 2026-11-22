@@ -885,26 +885,19 @@ static func card_text_top(big: bool, name_lines: int) -> float:
 	return (62.0 if big else 86.0) + 3.0 * step + 6.0 + (name_lines - 1) * step
 
 
-## The legion's build as [part, [[id, count or rank, most ranks], ...]]: its soldiers, then its arms with the forged ones after, then its drills, leaving out an empty part.
+## The legion's build as [part, [[id, count or rank, most ranks], ...]]: every kind of soldier, then every arm with the forged ones after, then every drill, with none for one not yet taken.
 static func build_sections(sim: Sim) -> Array:
-	var soldiers: Array = []
-	for id in sim.content.recruits:
-		if sim.count(id) > 0:
-			soldiers.append([id, sim.count(id), 0])
-	var arms: Array = []
-	for kind in ["arms", "forged"]:
-		for id in sim.content.get(kind):
-			if sim.rank(id) > 0:
-				arms.append([id, sim.rank(id), int(sim.content.get(kind)[id].max)])
-	var drills: Array = []
-	for id in sim.content.drills:
-		if sim.rank(id) > 0:
-			drills.append([id, sim.rank(id), int(sim.content.drills[id].max)])
-	var out: Array = []
-	for part in [["soldiers", soldiers], ["arms", arms], ["drills", drills]]:
-		if not part[1].is_empty():
-			out.append(part)
-	return out
+	var parts := {"soldiers": [], "arms": [], "drills": []}
+	for kind in ["recruits", "arms", "forged", "drills"]:
+		var group: Dictionary = sim.content.get(kind)
+		for id in group:
+			if not group[id].get("implemented", false) or not sim.content.ready(kind, id):
+				continue
+			if kind == "recruits":
+				parts.soldiers.append([id, sim.count(id), 0])
+			else:
+				parts["drills" if kind == "drills" else "arms"].append([id, sim.rank(id), int(group[id].max)])
+	return [["soldiers", parts.soldiers], ["arms", parts.arms], ["drills", parts.drills]].filter(func(part: Array) -> bool: return not part[1].is_empty())
 
 
 ## Where each piece of the build panel goes inside `r`, as [kind, rect, id, number, most]: a soldier's icon with his count beside it, an arm or drill's icon with its rank in pips beneath, and a line between the parts.
@@ -932,7 +925,7 @@ static func build_items(sim: Sim, r: Rect2) -> Array:
 ## The legion's soldiers, arms and drills on a dark plate, so a choice can be made knowing what the legion already has.
 func draw_build(sim: Sim, r: Rect2) -> void:
 	var items := build_items(sim, r)
-	# The plate is only as tall as what is on it, so a young legion's panel is not a tall empty box.
+	# The plate ends below its last row rather than at the foot of the room it is given.
 	var foot := r.position.y + BUILD_PAD + BUILD_ICON
 	for it in items:
 		foot = maxf(foot, it[1].end.y)
@@ -944,11 +937,13 @@ func draw_build(sim: Sim, r: Rect2) -> void:
 		if it[0] == "line":
 			draw_rect(it[1], Color(GOLD, 0.45))
 			continue
+		# What the legion has none of yet is shown faded, so the whole set reads at a glance.
+		var none: bool = int(it[3]) == 0
 		var icon := icon_of(it[2])
 		if icon != null:
-			draw_texture_rect(icon, Rect2(at, Vector2(BUILD_ICON, BUILD_ICON)), false)
+			draw_texture_rect(icon, Rect2(at, Vector2(BUILD_ICON, BUILD_ICON)), false, Color(1, 1, 1, 0.35) if none else Color.WHITE)
 		if it[0] == "soldier":
-			text(str(it[3]), Vector2(at.x + BUILD_ICON + 2.0, at.y + (BUILD_ICON + Ui.px) / 2.0), CREAM)
+			text(str(it[3]), Vector2(at.x + BUILD_ICON + 2.0, at.y + (BUILD_ICON + Ui.px) / 2.0), MUTED if none else CREAM)
 			continue
 		for k in int(it[4]):
 			draw_rect(Rect2(at.x + k * 3.0, at.y + BUILD_ICON + 1.0, 2.0, 2.0), GOLD if k < int(it[3]) else PIP_DARK)

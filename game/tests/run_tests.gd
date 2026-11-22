@@ -2908,7 +2908,7 @@ func test_no_card_draws_over_the_choice_or_the_summary(b: Dictionary) -> void:
 	Steamworks.card = {}
 
 
-func test_the_build_panel_lists_the_legions_soldiers_arms_and_drills(b: Dictionary) -> void:
+func test_the_build_panel_lists_every_soldier_arm_and_drill_even_at_none(b: Dictionary) -> void:
 	var s := Sim.new(b, Content.with_all_art(), {"seed": 3})
 	s.legion.add("ballista")
 	s.legion.add("archer")
@@ -2919,16 +2919,17 @@ func test_the_build_panel_lists_the_legions_soldiers_arms_and_drills(b: Dictiona
 	var by := {}
 	for sec in sections:
 		by[sec[0]] = sec[1]
-	var soldiers: Array = by.get("soldiers", [])
-	var counted := {}
-	for e in soldiers:
-		counted[e[0]] = e[1]
-	for id in s.content.recruits:
-		check(counted.get(id, 0) == s.count(id), "the panel counts the %s as the legion does (%d, %d)" % [id, counted.get(id, 0), s.count(id)])
-	check(not counted.has("cavalry"), "a soldier the legion has none of is left out")
-	check(by.get("arms", []) == [["pilum", 2, 5], ["hooked_pila", 1, 1]], "the arms show their rank and most ranks, the forged ones after (%s)" % [by.get("arms", [])])
-	check(by.get("drills", []) == [["march", 1, 5]], "the drills show their rank and most ranks (%s)" % [by.get("drills", [])])
 	check(sections.map(func(sec): return sec[0]) == ["soldiers", "arms", "drills"], "soldiers come first, then arms, then drills")
+	var soldiers: Array = by.get("soldiers", [])
+	check(soldiers.map(func(e): return e[0]) == s.content.recruits.keys(), "every kind of soldier is listed, in order (%s)" % [soldiers.map(func(e): return e[0])])
+	for e in soldiers:
+		check(e[1] == s.count(e[0]), "the panel counts the %s as the legion does (%d, %d)" % [e[0], e[1], s.count(e[0])])
+	var arms: Array = by.get("arms", [])
+	check(arms.map(func(e): return e[0]) == s.content.arms.keys() + s.content.forged.keys(), "every arm is listed, the forged ones after")
+	check(arms.has(["pilum", 2, 5]) and arms.has(["scorpio", 0, 5]) and arms.has(["hooked_pila", 1, 1]) and arms.has(["greek_fire", 0, 1]), "with its rank, none for one not taken, and its most ranks")
+	var drills: Array = by.get("drills", [])
+	check(drills.map(func(e): return e[0]) == s.content.drills.keys(), "every drill is listed")
+	check(drills.has(["march", 1, 5]) and drills.has(["lorica", 0, 5]), "with its rank and most ranks")
 
 
 func test_the_build_panel_fits_beside_three_cards_in_every_language(b: Dictionary) -> void:
