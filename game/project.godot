@@ -11,6 +11,7 @@ run/main_scene="res://scenes/display.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.png"
 config/windows_native_icon="res://icon.ico"
+config/quit_on_go_back=false
 boot_splash/bg_color=Color(0.2939, 0.3184, 0.1724, 1)
 boot_splash/show_image=true
 boot_splash/image="res://assets/boot_splash.png"
@@ -33,6 +34,7 @@ window/size/window_height_override=720
 window/stretch/mode="viewport"
 window/stretch/aspect="expand"
 window/stretch/scale_mode="fractional"
+window/handheld/orientation=4
 
 [internationalization]
 
