@@ -62,7 +62,7 @@ Every run is a campaign to win back the eagle standards Rome has lost.
 [*]Storm a barbarian camp and take back its eagle, then watch the huts burn.
 [*]Reach a stranded column holding out round its supply cart, and its survivors join your ranks.
 [*]Hold the sacred grove while war bands come to defend it, and burn it.
-[*]At 12 minutes a Roman fort appears and the chieftain comes out to fight. March into the fort and hold it to win, while he does all he can to stop you.
+[*]At 15 minutes a Roman fort appears and the chieftain comes out to fight. March into the fort and hold it to win, while he does all he can to stop you.
 [/list]
 
 [h2]Between runs[/h2]
