@@ -4,6 +4,8 @@ extends Node
 ## out for the edit's, the legion never falls, and level-ups are taken out of sight unless the shot shows the choice.
 ##   --men=N        start with N more soldiers in the trailer's mix of recruits, or --men=N:KIND all of one kind
 ##   --mortal       let the legion take harm as in a real run
+##   --hud=L,S,K    show the top bar as a run at level L, S seconds in with K kills would, counting on from there
+##   --zoom=Z       draw the field Z times larger round the commander, with the interface at its own size
 
 const MIX := ["legionary", "legionary", "archer"]
 ## How far down the end card's field is moved, in game pixels, so the legion stands below the logo.
@@ -23,14 +25,45 @@ const MAP_WON := ["germania", "gaul", "dacia", "parthia"]
 const ONRUSH_SHIFT := Vector2(170.0, -20.0)
 ## When he marks his lane, in seconds from the start of the shot.
 const ONRUSH_AT := 0.5
-## The gods' shot: when Jupiter is picked out and when he is called, in seconds from the start.
-const GOD_PICK_AT := 2.2
-const GOD_CALL_AT := 3.4
+## The gods' shot: when Jupiter is picked out and when he is called, in seconds from the start. The edit cuts to the
+## lightning before the call, so the call only keeps the choice open to the end of the recording.
+const GOD_PICK_AT := 3.6
+const GOD_CALL_AT := 7.0
+## When the chieftain falls in his shot, in seconds, so he is seen in the fight first.
+const CHIEF_FALLS_AT := 2.2
 
 var main: Node
 var shot := ""
 var _clock := 0.0
 var _levelled := false
+var _zoom := 1.0
+## The top bar's level, seconds and kills from --hud, and the run's own at the start, which they count on from.
+var _hud := PackedStringArray()
+var _from := Vector3.ZERO
+
+
+func _init() -> void:
+	name = "TrailerShots"
+
+
+func hud_shown() -> bool:
+	return _hud.size() == 3
+
+
+func zoomed() -> bool:
+	return _zoom != 1.0
+
+
+func level(sim: Sim) -> int:
+	return int(_hud[0]) + sim.level - int(_from.x)
+
+
+func seconds(sim: Sim) -> float:
+	return float(_hud[1]) + sim.time - _from.y
+
+
+func kills(sim: Sim) -> int:
+	return int(_hud[2]) + sim.kills - int(_from.z)
 
 
 func _ready() -> void:
@@ -61,8 +94,13 @@ func _ready() -> void:
 	sim.legion.place_all(sim.facing_angle)
 	# Damage numbers would cover the fighting at trailer size.
 	sim.show_numbers = false
+	sim.blood = true
+	_zoom = float(main.args.get("zoom", "1"))
+	if main.args.has("hud"):
+		_hud = str(main.args.hud).split(",")
 	if has_method("_shot_" + shot):
 		call("_shot_" + shot, sim)
+	_from = Vector3(sim.level, sim.time, sim.kills)
 
 
 func _process(dt: float) -> void:
@@ -71,6 +109,12 @@ func _process(dt: float) -> void:
 	var sim: Sim = main.sim
 	if sim == null:
 		return
+	if _zoom != 1.0:
+		# The field is drawn larger round the middle of the view, which the commander stands at.
+		var world: Node2D = main.world
+		var middle := get_viewport().get_visible_rect().size / 2.0
+		world.scale = Vector2(_zoom, _zoom)
+		world.position = ((world.position - middle) * _zoom + middle).round()
 	if shot == "levelup":
 		_level_up(sim)
 	if main.state == "pray":
@@ -176,9 +220,18 @@ func _shot_hold(sim: Sim) -> void:
 	_wave(sim, sim.commander.pos, 0.0, TAU, 150.0, 330.0, 140)
 
 
-## The hold again, with the choice of gods opened over it by --god=choose.
-func _shot_gods(sim: Sim) -> void:
-	_shot_hold(sim)
+## The legion on a cleared meadow meets a band coming on from the right, for a close look at its armour and cloth.
+func _shot_livery(sim: Sim) -> void:
+	sim.terrain.clear()
+	_quiet(sim)
+	_wave(sim, sim.commander.pos, 0.0, 1.4, 90.0, 170.0, 14)
+
+
+## The chieftain fights in the thick of a crowd for a moment, then falls.
+func _shot_chief(sim: Sim) -> void:
+	_quiet(sim)
+	_wave(sim, sim.commander.pos, 0.0, TAU, 140.0, 300.0, 90)
+	main.slay_at = main.clock + CHIEF_FALLS_AT
 
 
 ## The berserker waits at the ravine's lip while the legion, set back from it, marches up and shoves him over.

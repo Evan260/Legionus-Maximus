@@ -32,27 +32,57 @@ LOOK = ["--autoplay", "--no-save", "--seed=7"]
 # The legion's newer recruits, given beside --men's legionaries and archers so the later shots show a mixed legion.
 MIXED = "archer:2,cavalry:2,ballista:1,centurion:1"
 LARGE = "archer:4,cavalry:4,ballista:2,centurion:2,standard_bearer:1,medicus:1"
+
+
+def province(name, go_to, hud):
+    """A shot for the provinces' run of quick cuts: a large legion in gold ringed by the province's own barbarians, beside
+    the province's own scenery when `go_to` names it."""
+    return (6, 2.5, [*LOOK, "--trailer-shot=hold", f"--province={name}", "--men=40", f"--give={LARGE}",
+                     *([f"--go-to={go_to}"] if go_to else []), "--livery=2,2", f"--hud={hud}"])
+
+
 # name: (seconds to record, the second a quick screenshot of it is taken at, its look flags). The edit takes its part of each from
-# edit.gd; a shot runs a moment before the part that is used, so the field has settled.
+# edit.gd; a shot runs a moment before the part that is used, so the field has settled. --livery sets the armour and cloth the
+# legion has earned by that point of the story, from iron and red at the start to gold and purple at the end, and --hud the
+# level, clock and kills of a run at that point.
 SHOTS = {
-    "skirmish": (8, 3.0, [*LOOK, "--trailer-shot=skirmish", "--men=8"]),
-    "levelup": (7, 2.5, [*LOOK, "--trailer-shot=levelup", "--men=8"]),
-    "archers": (8, 3.0, [*LOOK, "--trailer-shot=archers", "--men=4:legionary", "--give=archer:7,ballista:2"]),
-    "fell": (9, 5.0, [*LOOK, "--trailer-shot=fell", "--men=14", f"--give={MIXED}"]),
-    "bridge": (8, 3.0, [*LOOK, "--trailer-shot=bridge", "--men=14", f"--give={MIXED}", "--go-to=bridge"]),
-    "whirl": (8, 1.0, [*LOOK, "--trailer-shot=whirl", "--men=10", f"--give={MIXED}", "--boss=berserker", "--boss-act=whirl"]),
-    "onrush": (9, 1.5, [*LOOK, "--trailer-shot=onrush", "--province=dacia", "--men=20", f"--give={MIXED}", "--boss=falx_band",
-                        "--boss-act=onrush"]),
+    "hook": (13, 4.0, [*LOOK, "--trailer-shot=hook", f"--give={LARGE}", "--go-to=crowd", "--livery=2,2", "--hud=31,702,4870"]),
+    "skirmish": (8, 3.0, [*LOOK, "--trailer-shot=skirmish", "--men=2", "--zoom=2", "--livery=0,0", "--hud=2,41,23"]),
+    "levelup": (8, 2.5, [*LOOK, "--trailer-shot=levelup", "--men=2", "--zoom=2", "--livery=0,0", "--hud=1,58,31"]),
+    "march": (8, 3.0, [*LOOK, "--trailer-shot=field", "--province=gaul", "--men=80", f"--give={LARGE}", "--go-to=field",
+                       "--livery=1,1", "--hud=22,455,1630"]),
+    "archers": (8, 3.0, [*LOOK, "--trailer-shot=archers", "--men=4:legionary", "--give=archer:7,ballista:2", "--zoom=2",
+                         "--livery=0,0", "--hud=8,190,380"]),
+    "dodge": (8, 1.0, [*LOOK, "--trailer-shot=whirl", "--men=10", f"--give={MIXED}", "--boss=berserker", "--boss-act=whirl",
+                       "--zoom=2", "--livery=1,1", "--hud=14,330,900"]),
+    **{f"livery{k}": (6, 2.5, [*LOOK, "--trailer-shot=livery", "--men=16", f"--give={MIXED}", "--zoom=2", f"--livery={k},{k}",
+                               "--hud=12,288,690"]) for k in range(3)},
+    "fell": (9, 5.0, [*LOOK, "--trailer-shot=fell", "--men=14", f"--give={MIXED}", "--zoom=2", "--livery=1,1",
+                      "--hud=16,372,1120"]),
+    "bridge": (8, 3.0, [*LOOK, "--trailer-shot=bridge", "--men=14", f"--give={MIXED}", "--go-to=bridge", "--livery=1,1",
+                        "--hud=17,398,1200"]),
     "ravine": (8, 1.5, [*LOOK, "--trailer-shot=ravine", "--men=24", f"--give={MIXED}", "--go-to=ravine", "--boss=berserker",
-                        "--boss-act=fall"]),
-    "hold": (8, 3.0, [*LOOK, "--trailer-shot=hold", "--province=parthia", "--men=30", f"--give={LARGE},onager:2",
-                      "--boss=war_elephant", "--boss-act=trample"]),
-    "field": (8, 3.0, [*LOOK, "--trailer-shot=field", "--province=gaul", "--men=40", f"--give={LARGE}", "--go-to=field"]),
-    "gods": (7, 2.5, [*LOOK, "--trailer-shot=gods", "--province=dacia", "--men=30", f"--give={LARGE}", "--god=choose", "--god-at=1"]),
-    "reveal": (8, 2.6, [*LOOK, "--trailer-shot=reveal", f"--give={LARGE}", "--go-to=crowd", "--god=jupiter", "--god-at=2"]),
-    "fort": (11, 3.0, [*LOOK, "--trailer-shot=fort", "--province=britannia", "--men=50", f"--give={LARGE}", "--go-to=fort"]),
-    "map": (6, 2.0, ["--no-save", "--trailer-shot=map", "--screen=map"]),
-    "endcard": (9, 3.0, [*LOOK, "--trailer-shot=endcard", "--province=gaul", "--men=85", f"--give={LARGE}", "--go-to=field"]),
+                        "--boss-act=fall", "--livery=1,1", "--hud=18,430,1310"]),
+    "p_germania": province("germania", None, "24,500,2010"),
+    "p_gaul": province("gaul", "field", "25,520,2140"),
+    "p_britannia": province("britannia", "circle", "26,545,2330"),
+    "p_hispania": province("hispania", "olives", "27,566,2510"),
+    "p_aegyptus": province("aegyptus", "palms", "27,590,2690"),
+    "p_parthia": (7, 3.0, [*LOOK, "--trailer-shot=hold", "--province=parthia", "--men=30", f"--give={LARGE},onager:2",
+                           "--boss=war_elephant", "--boss-act=trample", "--livery=2,2", "--hud=28,612,2880"]),
+    "p_dacia": (8, 1.5, [*LOOK, "--trailer-shot=onrush", "--province=dacia", "--men=30", f"--give={LARGE}", "--boss=falx_band",
+                         "--boss-act=onrush", "--livery=2,2", "--hud=29,640,3090"]),
+    "p_sarmatia": province("sarmatia", "kurgan", "30,668,3300"),
+    "gods": (9, 3.5, [*LOOK, "--trailer-shot=gods", f"--give={LARGE}", "--go-to=crowd", "--god=choose", "--god-at=1",
+                      "--livery=2,2", "--hud=33,735,5300"]),
+    "reveal": (9, 2.6, [*LOOK, "--trailer-shot=reveal", f"--give={LARGE}", "--go-to=crowd", "--god=jupiter", "--god-at=2",
+                        "--livery=2,2", "--hud=33,741,5330"]),
+    "chief": (9, 3.0, [*LOOK, "--trailer-shot=chief", "--men=60", f"--give={LARGE}", "--boss=chieftain", "--boss-act=die",
+                       "--livery=2,2", "--hud=35,802,5980"]),
+    "fort": (11, 3.0, [*LOOK, "--trailer-shot=fort", "--province=britannia", "--men=50", f"--give={LARGE}", "--go-to=fort",
+                       "--livery=2,2", "--hud=36,840,6240"]),
+    "endcard": (10, 3.0, [*LOOK, "--trailer-shot=endcard", "--province=gaul", "--men=85", f"--give={LARGE}", "--go-to=field",
+                          "--livery=2,2"]),
 }
 SHOTS_DIR = WORK / "trailer_shots"
 OUT = VIDEOS / "steam_trailer" / "steam_trailer.avi"
@@ -124,14 +154,22 @@ def cut_list():
     import re
     text = (ROOT / "game" / "tools" / "trailer" / "edit.gd").read_text(encoding="utf-8")
     beat = float(re.search(r"const BEAT := ([\d.]+)", text).group(1))
+    first = float(re.search(r"const FIRST_BEAT := ([\d.]+)", text).group(1))
     cut = text.split("const TRAILER := [", 1)[1].split("\n]", 1)[0]
+    # As in edit.gd, every cut but the first lands on a beat of the music.
+    def frame_of(beats):
+        return 0 if beats <= 0 else round((first + beats * beat) * FPS)
     out = []
-    frame = 0
-    for m in re.finditer(r'\{"(card|shot|end)": "((?:[^"\\]|\\.)*)".*?"beats": ([\d.]+)', cut):
-        frames = round(float(m.group(3)) * beat * FPS)
-        label = m.group(2).replace(r"\n", " ") if m.group(1) == "card" else m.group(2)
-        out.append((label, frame / FPS, frames / FPS))
-        frame += frames
+    beats = 0.0
+    for line in cut.splitlines():
+        m = re.search(r'\{"(?:shot|end)": "([^"]+)".*?"beats": ([\d.]+)', line)
+        if not m:
+            continue
+        caption = re.search(r'"caption": "([^"]+)"', line)
+        label = m.group(1) + (f": {caption.group(1)}" if caption else "")
+        start, end = frame_of(beats), frame_of(beats + float(m.group(2)))
+        out.append((label, start / FPS, (end - start) / FPS))
+        beats += float(m.group(2))
     return out
 
 

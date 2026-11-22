@@ -1,36 +1,50 @@
 # Legionus Maximus trailer
 
-The Steam trailer is 68 seconds long. It shows what playing feels like, close in first and wider as it goes, and takes in all five provinces: the commander and a handful of men in a small fight, a level-up offering slingers, cavalry and a ballista crew and a mixed legion at work, the forest felled and a gorge bridged, the bosses read and beaten in Germania and in Dacia's snow, a crowd held round a war elephant in Parthia, Gaul, the gods called on in Dacia, the one great horde under Jupiter's lightning, the fort held in Britannia to the triumph and the map of the five provinces. It is made the same way as the Fishus, Mosaicus and Farmus Maximus trailers: every shot is the game playing itself in movie mode, and an edit scene cuts the shots together on the beat of the game's own music.
+The Steam trailer is 77 seconds long and cut the way survivors-like trailers are: it opens on the busiest moment of a run with the interface showing, lands the logo over it, then tells the run from its start, a handful of men growing into a legion of a hundred, its armour turning from iron to gold, and climbs through all eight provinces to the gods, a chieftain's fall and the victory. Every word is a short caption in large letters over the play; there are no black cards. Every shot is the game playing itself in movie mode, and an edit scene cuts the shots together on the beat of the game's own war theme.
+
+## Music
+
+The music is `battle_war_theme.ogg`, 103.36 beats a minute, one beat every 0.5805 seconds with the first at 0.0697 seconds. Every cut lands on a beat. The trailer plays four stretches of the track, each from a beat of the track to a beat of the trailer, so the beat never breaks:
+
+| Trailer beats | Track | What it is |
+|---|---|---|
+| 0 to 87 | from the start | the track's opening, at full strength from the first second |
+| 87 to 95 | beats 271 to 279 (2:37) | the last quiet bars before the track's big return |
+| 95 to 119 | beat 279 on (2:42) | the return, which lands as Jupiter's lightning strikes |
+| 119 to the end | beat 471 on (4:33) | the track's own last bars and final note |
+
+A boom lands with the logo and with the drop into the quiet bars, and a horn with the end card.
 
 ## Cut list
 
-One beat is 0.667 seconds of the game's own music, 90 beats a minute, and every cut lands on a beat. The harp layer plays throughout; the drum layer comes in with the mixed legion and drops out for the end card. "2x" shots are shown twice as large, so the soldiers' blows and the missiles read. From the level-up on, the legion is a mixed one: `--give=` adds slingers, cavalry, ballista crews and centurions (and in the larger legions a standard bearer and a medicus) beside the legionaries and archers of `--men=`.
+The top bar shows a run at that point of the story (level, clock, legion and kills, counting on from there); the objective markers and the key hints are left out. The legion's armour and cloth follow the story too: iron and red at the start, bronze and white in the middle, gold and purple from the provinces on.
 
-| # | Shot or card | Province | Caption | Beats |
+| # | Shot | Province | Caption | Beats |
 |---|---|---|---|---|
-| 1 | Card: Germania, AD 9. | | | 4 |
-| 2 | `skirmish`, 2x: the commander and 8 men against a band of 16 | Germania | Lead the legion. | 7 |
-| 3 | `levelup`: the level-up opens mid-fight offering a medicus, cavalrymen and a ballista crew, and the ballista crew is picked out and taken | Germania | Choose your men. | 6 |
-| 4 | `archers`, 2x: legionaries in front, archers and two ballistas behind, loosing at a band charging in | Germania | Every man fights. | 7 |
-| 5 | `fell`: the legion marches into a forest and fells it | Germania | Fell the forest. | 6 |
-| 6 | `bridge`: a bridge laid over a ravine and marched across | Germania | Bridge the gorge. | 6 |
-| 7 | `whirl`, 2x: the berserker's ring shows and the legion marches out of it | Germania | Step out of the ring. | 7 |
-| 8 | `onrush`: in the snow the falx band leader marks a lane through the legion and charges down it with his band, and falx warriors and bears come on behind | Dacia | Read the charge. | 7 |
-| 9 | `ravine`: the legion shoves the berserker into a ravine | Germania | Shove them over. | 6 |
-| 10 | `hold`: a crowd of horse archers, cataphracts and camel riders round 40 men, and the war elephant tramples through | Parthia | Hold the line. | 6 |
-| 11 | `field`: the legion marching along the grass between a wheat field and a village | Gaul | March on Gaul. | 6 |
-| 12 | `gods`: the choice of gods over a crowd in the snow, Jupiter picked out and called | Dacia | Call on the gods. | 5 |
-| 13 | `reveal`: the one great horde, struck by Jupiter's lightning | | | 6 |
-| 14 | `fort`: the fort on the moor ringed by painted warriors, slingers and chariots, swept clear for the VICTORY | Britannia | Hold the fort. | 8 |
-| 15 | `map`: the campaign map with Germania, Gaul, Dacia and Parthia won and the road sailing on to Britannia | | Five provinces. | 5 |
-| 16 | `endcard`: the legion standing on the grass beside Gaul's wheat below the logo, a dark oval behind the lettering, the scroll and the store badges | Gaul | | 10 |
+| 1 | `hook`: a gold legion of a hundred in a sea of 800 barbarians | Germania | | 7 |
+| 2 | `hook` carries on, darkened, and the logo lands with a flash and a jolt | Germania | | 8 |
+| 3 | `skirmish`, twice as large: the commander and six men against a small band | Germania | START WITH A FEW MEN | 8 |
+| 4 | `levelup`, twice as large: the level-up offers a medicus, cavalry and a ballista crew, and the ballista is taken | Germania | | 8 |
+| 5 | `march`: a legion of a hundred marching between a wheat field and a village | Gaul | GROW A LEGION OF 100 | 8 |
+| 6 | `archers`, twice as large: archers and ballistas loosing at a band charging in | Germania | YOU MARCH. THEY FIGHT. | 4 |
+| 7 | `dodge`, twice as large: the berserker's whirlwind marks its ring on the ground and the legion marches out of it | Germania | DODGE BOSS ATTACKS | 4 |
+| 8 | `livery0`, `livery1`, `livery2`, twice as large: one moment of a fight cut three times, the legion in iron, bronze and gold | Germania | IRON, BRONZE, GOLD | 2, 2, 4 |
+| 9 | `fell`, twice as large: the legion marches into a forest and fells it | Germania | FELL FORESTS | 4 |
+| 10 | `bridge`: a bridge laid over a ravine and marched across | Germania | BRIDGE GORGES | 4 |
+| 11 | `ravine`: the legion shoves the berserker into a ravine | Germania | SHOVE THEM OFF CLIFFS | 8 |
+| 12 | `p_germania` to `p_sarmatia`: one quick cut in each province, the gold legion ringed by the province's own barbarians: Germania's forest, Gaul's wheat, Britannia's stone circle, Hispania's olives, Aegyptus' palms, Parthia's war elephant, Dacia's falx charge in the snow and Sarmatia's kurgans, with the province named above the caption | all eight | CONQUER 8 PROVINCES | 2 each |
+| 13 | `gods`: the choice of gods over the great horde, Jupiter picked out, in the music's quiet bars | Germania | | 8 |
+| 14 | `reveal`: Jupiter's lightning on the great horde, on the music's return, opening on a flash | Germania | | 8 |
+| 15 | `chief`: the war chief fights in a crowd and falls | Germania | TOPPLE THEIR WARLORDS | 8 |
+| 16 | `fort`: the fort on the moor ringed by a horde, swept clear for the VICTORY on the shot's fifth beat, and the victory screen's rays | Britannia | | 8 |
+| 17 | `endcard`: the gold legion beside Gaul's wheat under the logo, the scroll and the store badges | Gaul | | 14 |
 
 ## How it is made
 
 - `python tools/trailer/make_trailer.py` records every shot that is not recorded yet, then renders the trailer. `shots NAME...` records shots again, `render` renders from the recorded shots, or from a given second into a preview, and `stills DIR` saves a contact sheet of one frame from every segment of the edit and the end card at full size, to check the look before rendering.
-- Each shot in `SHOTS` in `make_trailer.py` is the game's own look flags (`--autoplay`, `--go-to`, `--boss`, `--boss-act`, `--god`, `--province`, `--give`, which takes recruits as well as arms) on a fixed seed, `--seed=7`, so it comes out the same every time. `--trailer-shot=NAME` has `main.gd` add `game/tools/trailer/shots.gd`, which mutes the game's music, hides the interface but for the gods' names and the VICTORY (`trailer_hud.gd`), draws the level-up and gods' choices, shows the map without its panel and key hints (`trailer_map.gd`), turns off the pursuit that hunts a marching legion, keeps the legion alive, takes level-ups out of sight, adds men with `--men=N` (or `--men=N:archer`), and stages what no flag does: small bands and medium crowds with the run's own stream stopped, the level-up offering slingers, cavalry and a ballista crew with the ballista picked out and taken, Jupiter picked out from the choice of gods, the legion marching out of the berserker's ring, the falx band leader moved off to the side to mark his lane with a wave of falx warriors behind him, the map with the first four provinces won, the berserker waiting at a ravine's lip, the march into a forest, the march between the wheat and a village, the horde round the fort, the legion standing beside the wheat on the end card, and the end card's field moved down so the legion stands below the logo.
+- Each shot in `SHOTS` in `make_trailer.py` is the game's own look flags (`--autoplay`, `--go-to`, `--boss`, `--boss-act`, `--god`, `--province`, `--give`, `--livery`) on a fixed seed, `--seed=7`, so it comes out the same every time. `--trailer-shot=NAME` has `main.gd` add `game/tools/trailer/shots.gd`, which mutes the game's music, keeps the legion alive, takes level-ups out of sight, turns off the pursuit that hunts a marching legion, adds men with `--men=N`, draws the field larger round the commander with `--zoom=Z` while the interface keeps its size, and sets the top bar's level, clock and kills with `--hud=LEVEL,SECONDS,KILLS`. It also stages what no flag does: small bands and medium crowds with the run's own stream stopped, the level-up's choice, Jupiter picked out from the gods, the legion marching out of the berserker's ring, the berserker at a ravine's lip, the falx band's charge, the march into a forest, the march between the wheat and a village, the chieftain's fall, the horde round the fort and the end card's legion beside the wheat. `trailer_hud.gd` draws the interface as the trailer shows it.
 - The shots are recorded at the game's own 640 by 360 and 30 frames a second into `marketing/recordings/content/trailer_shots/`, which git ignores, and the edit shows them three times larger in whole pixels.
-- `game/tools/trailer/edit.gd` is the edit: the cut list, the cards and captions in the game's own pixel font at twice its size, the end card and the two music layers. Each shot's own sounds play under the music. The edit is recorded at 1920 by 1080.
+- `game/tools/trailer/edit.gd` is the edit: the cut list, the music's four stretches and the sounds laid over them, the captions in the game's own pixel font at three times its size in the logo's gold, landing larger and settling with a small bounce over a dark band, the logo landing over the hook and the end card. Each shot's own sounds play under the music. The edit is recorded at 1920 by 1080.
 - The end card is the game's logo, `game/assets/logo.png`, over the legion beside the wheat, the parchment scroll reading "Wishlist now on Steam", drawn by `tools/trailer/make_scroll.py` with the logo script's scroll, and below it the "Download on the App Store" and "Get it on Google Play" badges side by side, 96 pixels tall, from `tools/trailer/badge_app_store.png` and `badge_google_play.png`.
 - The finished trailer, `steam_trailer.avi` and an `.mp4` copy with its sound brought to -16 LUFS, goes to `marketing/recordings/videos/steam_trailer/`, beside its `title.txt`, `description.txt` and `thumbnail.png`, a frame of the end card. Git ignores it for its size.
 - The `.mp4` uploaded to Steam is encoded again from the `.avi` at a steady bit rate: `ffmpeg -i steam_trailer.avi -c:v libx264 -b:v 12M -maxrate 16M -bufsize 24M -preset slow -pix_fmt yuv420p -c:a aac -b:a 192k -movflags +faststart steam_trailer.mp4`, run in `marketing/recordings/videos/steam_trailer/`.
