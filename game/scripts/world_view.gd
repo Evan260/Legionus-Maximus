@@ -63,6 +63,8 @@ var ravine_edge: Texture2D
 var ice: Texture2D
 # The water of every canal, repeated across the world like the ice and drifting along the canals through water.gdshader on its own layer.
 var water: Texture2D
+# Seconds the legion has been cheering, kept here so it runs on once the run is over and the sim stops.
+var _cheer_t := 0.0
 var _water := Node2D.new()
 # Soldiers reeling from a sling stone, and the camels bringing the shah's riders fresh arrows, marked over their heads this frame.
 var _dazed := PackedVector2Array()
@@ -118,13 +120,16 @@ func _digit_texture() -> Texture2D:
 
 func _process(dt: float) -> void:
 	if sim:
+		_cheer_t = _cheer_t + dt if _cheering() else 0.0
 		var jolt := Vector2.ZERO
 		if shake_on and sim.shake > 0.0:
 			# Neptune's earthquake shakes the screen harder than any blow.
-			var reach := int(sim.b.gods.neptune.shake_pixels) if sim.gods.quake > 0.0 else int(sim.b.shake.pixels)
+			var reach := int(sim.b.gods.neptune.shake_pixels) if sim.gods.quake > 0.0 else (sim.shake_pixels if sim.shake_pixels > 0 else int(sim.b.shake.pixels))
 			jolt = Vector2(_shake_rng.randi_range(-reach, reach), _shake_rng.randi_range(-reach, reach))
 		# The shake dies away here, not in the sim, so it still ends while the run is paused or over.
 		sim.shake = maxf(0.0, sim.shake - dt)
+		if sim.shake <= 0.0:
+			sim.shake_pixels = 0
 		sim.gods.quake = maxf(0.0, sim.gods.quake - dt)
 		position = (get_viewport_rect().size / 2.0 - sim.commander.pos).round() + jolt
 		queue_redraw()
@@ -259,11 +264,15 @@ func _draw() -> void:
 	var gold := Color(1.0, 0.92, 0.7)
 	var cursed := Color(0.78, 0.55, 1.0)
 	var stunned := Color(0.78, 0.74, 0.62)
-	var cheering := sim.triumph_left > 0.0
+	var cheering := _cheering()
+	var cycle := float(sim.b.triumph.cheer_cycle)
 	_dazed.clear()
 	_train_marks.clear()
-	for u in [sim.commander] + sim.soldiers:
-		var f := _cheer_frame(u) if cheering and not u.moving else _legion_frame(u)
+	var men: Array = [sim.commander] + sim.soldiers
+	for k in men.size():
+		var u: Dictionary = men[k]
+		var phase := cheer_phase(_cheer_t, k, cycle)
+		var f := _cheer_frame(u, phase) if cheering and not u.moving else _legion_frame(u)
 		var mod := white
 		if u.get("dazed", 0.0) > 0.0:
 			_dazed.append(u.pos)
@@ -280,7 +289,7 @@ func _draw() -> void:
 		draw_texture(shadow, _snap(u.pos - Vector2(8, 3)))
 		var hop := Vector2.ZERO
 		if cheering and not u.moving:
-			hop.y = -sin(PI * _cheer_phase(u) / float(sim.b.triumph.cheer_cycle)) * float(sim.b.triumph.hop)
+			hop.y = -sin(PI * phase / cycle) * float(sim.b.triumph.hop)
 		_add(u.pos.y, f[0], u.pos - f[1] + hop, mod, true)
 
 	if _kinds_of != sim:
@@ -469,14 +478,19 @@ func _draw_triumph_wave() -> void:
 
 
 ## A soldier cheering the win: he turns to the front and swings his weapon or raises his shield again and again, each in his own time.
-## How far each man is through his cheer, in seconds from 0 to `triumph.cheer_cycle`, a little out of step with his neighbours.
-func _cheer_phase(u: Dictionary) -> float:
-	return fmod(sim.triumph_t + float(u.anim) * 0.37, float(sim.b.triumph.cheer_cycle))
+## Whether the legion cheers: through the triumph and on behind the victory screens that follow it.
+func _cheering() -> bool:
+	return sim.triumph_left > 0.0 or (sim.over and sim.victory)
 
 
-func _cheer_frame(u: Dictionary) -> Array:
+## How far man number `k` is through his cheer at `clock` seconds, from 0 to `cycle`, a little out of step with his neighbours.
+static func cheer_phase(clock: float, k: int, cycle: float) -> float:
+	return fmod(clock + k * 0.37, cycle)
+
+
+func _cheer_frame(u: Dictionary, phase: float) -> Array:
 	# The swing plays slower than a blow, so the raised weapons read as a cheer and not a twitch.
-	var f := atlas.attack_frame(u.type, "south", _cheer_phase(u) * float(sim.b.triumph.cheer_swing))
+	var f := atlas.attack_frame(u.type, "south", phase * float(sim.b.triumph.cheer_swing))
 	if not f.is_empty():
 		return f
 	return atlas.unit_frame(u.type, "idle", "south", 0.0)
@@ -1650,13 +1664,31 @@ func _add_body(e: Dictionary) -> void:
 	var lean := maxf(absf(dir.x), float(cfg.least_lean))
 	var angle := deg_to_rad(float(cfg.soldier_degrees if soldier else cfg.topple_degrees)) * side * lean * tk
 	var flat := 1.0 - (1.0 - float(cfg.flat)) * tk * absf(dir.y)
+	var xf_fade := float(cfg.fade_from)
 	if not soldier and _on_all_fours(e.type):
 		# Turned on end, a beast or a horse would look like it was rearing, so it rolls onto its side instead.
 		angle = deg_to_rad(float(cfg.beast_degrees)) * side * tk
 		flat = 1.0 - (1.0 - float(cfg.beast_flat)) * tk
+	if e.get("chief", false):
+		# The chieftain reels back swaying, sinks to his knees and only then topples over.
+		var cc: Dictionary = sim.b.chief_death
+		secs = float(cc.fall_seconds)
+		var stagger := float(cc.stagger_seconds)
+		var sink := float(cc.drop_seconds)
+		var reel := clampf(t / stagger, 0.0, 1.0)
+		at = (e.pos + dir * float(cc.knock) * (1.0 - (1.0 - reel) * (1.0 - reel))).round()
+		var sway := deg_to_rad(float(cc.stagger_degrees)) * sin(reel * 2.5 * TAU) * (1.0 - reel * 0.5)
+		var kneel := clampf((t - stagger) / sink, 0.0, 1.0)
+		tk = clampf((t - stagger - sink) / float(cc.topple_seconds), 0.0, 1.0)
+		tk *= tk
+		angle = sway * (1.0 - kneel) + deg_to_rad(float(cfg.topple_degrees)) * side * lean * tk
+		flat = (1.0 - float(cc.drop) * kneel) * (1.0 - (1.0 - float(cfg.flat)) * tk * absf(dir.y))
+		if _on_all_fours(e.type):
+			angle = sway * (1.0 - kneel) + deg_to_rad(float(cfg.beast_degrees)) * side * tk
+		xf_fade = float(cc.fade_from)
 	var xf := Transform2D(angle, Vector2.ZERO).scaled(Vector2(1.0, flat))
 	xf.origin = at
-	var a := 1.0 - smoothstep(float(cfg.fade_from) * secs, secs, t)
+	var a := 1.0 - smoothstep(xf_fade * secs, secs, t)
 	var tint: Array = cfg.tint
 	var bright := float(cfg.flash_bright)
 	var mod := Color(bright, bright, bright, 1.0) if t < float(cfg.flash) else Color(float(tint[0]), float(tint[1]), float(tint[2]), a)
@@ -1708,7 +1740,7 @@ func _draw_death_bits() -> void:
 			var n := int(e.get("spray", cfg.soldier_spray))
 			var speed: Array = cfg.spray_speed
 			var rise: Array = cfg.spray_rise
-			var reach := 1.4 if big else 1.0
+			var reach := float(sim.b.chief_death.spray_reach) if e.get("chief", false) else (1.4 if big else 1.0)
 			var z0 := float(cfg.spray_height) * (1.6 if big else 1.0) * _scale_of(e.type)
 			var r0 := float(rise[0])
 			var r1 := float(rise[1])
@@ -1725,12 +1757,14 @@ func _draw_death_bits() -> void:
 				var p: Vector2 = e.pos + Vector2.from_angle(ang) * lerpf(s0, s1, _hash01(seed_n, k * 3 + 1)) * t - Vector2(0, z)
 				draw_rect(Rect2(p.round(), Vector2(2 if k % 3 == 0 else 1, 1)), c)
 		else:
-			var secs := float(cfg.big_seconds if big else cfg.seconds)
+			var chief: bool = e.get("chief", false)
+			var secs := float(sim.b.chief_death.fall_seconds) if chief else float(cfg.big_seconds if big else cfg.seconds)
 			var k01 := clampf(t / secs, 0.0, 1.0)
 			var col: Array = cfg.dust
 			var c := Color(float(col[0]), float(col[1]), float(col[2]), 0.75 * (1.0 - k01))
-			var n := int(cfg.dust_puffs) * (2 if big else 1)
-			var spread := (1.0 - (1.0 - k01) * (1.0 - k01)) * float(cfg.dust_reach[1] if big else cfg.dust_reach[0])
+			var n := int(e.get("dust", int(cfg.dust_puffs) * (2 if big else 1)))
+			var far := float(sim.b.chief_death.dust_reach) if chief else float(cfg.dust_reach[1] if big else cfg.dust_reach[0])
+			var spread := (1.0 - (1.0 - k01) * (1.0 - k01)) * far
 			for k in n:
 				var ang := _hash01(seed_n, k) * TAU
 				var r := spread * (0.5 + 0.5 * _hash01(seed_n, k + 40))
@@ -1778,7 +1812,7 @@ func _draw_stains(view: Rect2) -> void:
 ## Paints every stain picture once: a row for ordinary, elite and chieftain sizes, each with STAIN_SHAPES shapes thrown along each of the eight directions.
 func _paint_stains() -> Texture2D:
 	var cfg: Dictionary = sim.b.deaths
-	var sizes := [1.0, float(cfg.big_stain), float(cfg.chief_stain)]
+	var sizes := [1.0, float(cfg.big_stain), float(sim.b.chief_death.stain)]
 	var light: Array = cfg.stain
 	var dark: Array = cfg.stain_dark
 	var c := Color(float(light[0]), float(light[1]), float(light[2]), float(light[3]))

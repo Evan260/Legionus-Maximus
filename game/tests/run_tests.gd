@@ -3978,6 +3978,16 @@ func test_a_charging_boss_is_stopped_by_a_wall(b: Dictionary) -> void:
 		check(not through, "the %s's charge stops at a wall and never comes out the other side" % kind)
 
 
+func test_the_cheer_keeps_real_time_whatever_the_walk_counter_does(b: Dictionary) -> void:
+	var cycle := float(b.triumph.cheer_cycle)
+	var view: GDScript = load("res://scripts/world_view.gd")
+	var step := 0.1
+	var a: float = view.cheer_phase(1.0, 3, cycle)
+	var later: float = view.cheer_phase(1.0 + step, 3, cycle)
+	check(is_equal_approx(fposmod(later - a, cycle), step), "a man's cheer moves on at the pace of the clock (%.2f s for %.2f s)" % [fposmod(later - a, cycle), step])
+	check(not is_equal_approx(view.cheer_phase(1.0, 3, cycle), view.cheer_phase(1.0, 4, cycle)), "and neighbours cheer a little out of step")
+
+
 func test_the_testudo_stops_a_boss_charge(b: Dictionary) -> void:
 	for kind in ["gaul_king", "falx_band", "lusitanian_raider", "camel_captain"]:
 		var s := _gaul_sim(b, 1661, {"gaul_king": "gaul", "falx_band": "dacia", "lusitanian_raider": "hispania", "camel_captain": "aegyptus"}[kind])
