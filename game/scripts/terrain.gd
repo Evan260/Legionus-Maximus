@@ -58,7 +58,7 @@ var desert: Dictionary
 var moor: Dictionary
 ## A hill province's scatter, olive groves, dry-stone terrace walls and dry grass from balance.json `hills`, with a few ridges of olives.
 var hills: Dictionary
-## A river valley province's scatter, date palm groves, reed beds, temple ruins and crops from balance.json `valleys`.
+## A river valley province's scatter, date palm groves, reed beds, temple ruins and grain fields from balance.json `valleys`.
 var valley: Dictionary
 ## A steppe province's scatter, feather grass, kurgans, wagon circles and birch copses from balance.json `steppes`.
 var steppe: Dictionary
@@ -98,6 +98,10 @@ var _regions := {}
 # The wheat fields of each farmland region, as rectangles, and each farmland region as first laid out.
 var _fields := {}
 var _raw := {}
+## The angle every wheat field is turned through, so a field's rectangle is in a frame turned that far from the world's; 0 in Gaul.
+var field_turn := 0.0
+# The grain field on each side of each stretch of canal between two bridges, by [canal, bridge, side], null where none grows.
+var _grain := {}
 var _buckets := {}
 var _extra_at := {}
 var _ready_to_fall: Array = []
@@ -322,7 +326,7 @@ func chunk(cx: int, cy: int) -> Array:
 		var p := Vector2((cx + r.randf()) * CHUNK, (cy + r.randf()) * CHUNK)
 		if p.length() > 90.0:
 			var kind: String = scatter[r.randi_range(0, scatter.size() - 1)]
-			if not _in_clearing(p) and not _by_ravine(p):
+			if not _in_clearing(p) and not _by_ravine(p) and not _in_grain(p, 24.0):
 				out.append(_standing(kind, p))
 	var rx := floori(box.position.x / REGION)
 	var ry := floori(box.position.y / REGION)
@@ -666,6 +670,8 @@ func set_canals(cfg: Dictionary) -> void:
 	_bridges_dirty = true
 	_canal_bridges.clear()
 	_canal_lines.clear()
+	_grain.clear()
+	field_turn = 0.0
 	canal = cfg
 	ravine_cfg = cfg
 	_ravines.clear()
@@ -676,6 +682,7 @@ func set_canals(cfg: Dictionary) -> void:
 	r.seed = hash([seed_value, "canals"])
 	var tilt := float(cfg.tilt)
 	_canal_along = Vector2.from_angle(r.randf_range(-tilt, tilt) + (PI / 2.0 if r.randf() < 0.5 else 0.0))
+	field_turn = _canal_along.angle()
 	# The start lies between canals -1 and 0, and the shift never brings either nearer to it than `start_clear`.
 	var room := _canal_apart() / 2.0 - _canal_wobble() - float(cfg.start_clear) - float(cfg.width[1]) / 2.0
 	_canal_shift = r.randf_range(-room, room) if room > 0.0 else 0.0
@@ -806,7 +813,8 @@ func strip_middle(p: Vector2) -> Vector2:
 	return p + side * ((_canal_line(k).x + _canal_line(k + 1).x) / 2.0 - u)
 
 
-## A valley region holds a grove of date palms, a reed bed on a canal bank, a ruined temple, a patch of crops or open ground.
+## A valley region holds a grove of date palms, a reed bed on a canal bank, a ruined temple or open ground; a grove or temple
+## that would stand in a grain field is left out.
 func _valley_feature(r: RandomNumberGenerator, roll: float, centre: Vector2) -> Array:
 	var cfg := valley
 	var out: Array = []
@@ -814,6 +822,8 @@ func _valley_feature(r: RandomNumberGenerator, roll: float, centre: Vector2) -> 
 	var reeds := grove + float(cfg.reed_chance)
 	var ruin := reeds + float(cfg.ruin_chance)
 	if roll < grove:
+		if _in_grain(centre, float(cfg.grove_radius) + 40.0):
+			return out
 		var n := r.randi_range(int(cfg.palms[0]), int(cfg.palms[1]))
 		var gap := float(cfg.palm_gap)
 		for k in n * 4:
@@ -835,48 +845,84 @@ func _valley_feature(r: RandomNumberGenerator, roll: float, centre: Vector2) -> 
 			var p := at + along * r.randf_range(-spread.x, spread.x) + along.orthogonal() * r.randf_range(-spread.y, spread.y)
 			if out.all(func(q: Array) -> bool: return q[1].distance_to(p) >= gap) and (bank.is_empty() or ravine_edge(p, 200.0) > 2.0):
 				out.append(["papyrus", p, 0.0])
-	elif roll < ruin:
+	elif roll < ruin and not _in_grain(centre, float(cfg.ruin_spread) + 60.0):
 		out = _ruin(r, centre)
-	elif roll < ruin + float(cfg.crop_chance):
-		out = _crop_field(r, centre)
 	return out
 
 
-## A field of crops in rows along the nearest canal bank, on one side of the water or both, or nothing where no canal is near.
-func _crop_field(r: RandomNumberGenerator, centre: Vector2) -> Array:
+## The grain field on one bank (`sgn` 1 or -1) of canal k between its bridges j and j + 1, as a rectangle in the frame turned
+## through `field_turn`, or null where none grows; it starts `grain_bank` past the bank's band and keeps `grain_bridge` from each bridge.
+func _grain_field(k: int, j: int, sgn: int) -> Variant:
+	var key := Vector3i(k, j, sgn)
+	if _grain.has(key):
+		return _grain[key]
 	var cfg := valley
-	var bank := _bank_near(centre, float(cfg.crop_bank))
-	if bank.is_empty():
-		return []
-	var along: Vector2 = bank[1]
-	var length := r.randf_range(float(cfg.crop_length[0]), float(cfg.crop_length[1]))
-	var rows := r.randi_range(int(cfg.crop_rows[0]), int(cfg.crop_rows[1]))
-	var sides: Array = [bank[2]]
-	if r.randf() < float(cfg.crop_both):
-		sides.append(-bank[2])
-	var step := float(cfg.crop_step)
-	var lip: float = bank[3] + float(ravine_cfg.band) + 14.0
-	# The field slides along the bank to the place that leaves the most of it clear of the bridges' approaches.
-	var shift := 0.0
-	var fewest := 1 << 30
-	for k in 13:
-		var at: float = (k - 6) * 40.0
-		var cut := 0
-		var t := -length / 2.0
-		while t <= length / 2.0:
-			cut += 1 if _by_bridge(bank[0] + along * (at + t) + bank[2] * lip) else 0
-			t += step / 2.0
-		if cut < fewest or (cut == fewest and absf(at) < absf(shift)):
-			fewest = cut
-			shift = at
-	var out: Array = []
-	for side in sides:
-		for row in rows:
-			var t := -length / 2.0 + (step / 2.0 if row % 2 == 1 else 0.0)
-			while t <= length / 2.0:
-				out.append(["crops", bank[0] + along * (shift + t + r.randf_range(-4.0, 4.0)) + side * (lip + row * float(cfg.crop_row_gap) + r.randf_range(-3.0, 3.0)), 0.0])
-				t += step
+	var r := RandomNumberGenerator.new()
+	r.seed = hash([seed_value, "grain", k, j, sgn])
+	var line := _canal_line(k)
+	var lo := _bridge_along(k, j, line.z) + float(cfg.grain_bridge)
+	var hi := _bridge_along(k, j + 1, line.z) - float(cfg.grain_bridge)
+	var length := minf(r.randf_range(float(cfg.grain_length[0]), float(cfg.grain_length[1])), hi - lo)
+	var out: Variant = null
+	if r.randf() < float(cfg.grain_chance) and length >= float(cfg.grain_length[0]):
+		var depth := r.randf_range(float(cfg.grain_depth[0]), float(cfg.grain_depth[1]))
+		var near := line.y + float(canal.band) + float(cfg.grain_bank)
+		var u0 := line.x + near if sgn > 0 else line.x - near - depth
+		# The turned frame's y runs the opposite way to the canals' sideways measure.
+		var f := Rect2(r.randf_range(lo, hi - length), -u0 - depth, length, depth)
+		if _rect_gap(f, Rect2()) > clear_radius + 40.0:
+			out = f
+	_grain[key] = out
 	return out
+
+
+## Every grain field along the canals that reaches into the world rectangle and has not been cleared.
+func _grain_in(rect: Rect2) -> Array:
+	var out: Array = []
+	var along := _canal_along
+	var side := along.orthogonal()
+	var u0 := INF
+	var u1 := -INF
+	var s0 := INF
+	var s1 := -INF
+	for c in [rect.position, Vector2(rect.end.x, rect.position.y), Vector2(rect.position.x, rect.end.y), rect.end]:
+		u0 = minf(u0, c.dot(side))
+		u1 = maxf(u1, c.dot(side))
+		s0 = minf(s0, c.dot(along))
+		s1 = maxf(s1, c.dot(along))
+	var reach := float(canal.width[1]) / 2.0 + float(canal.band) + float(valley.grain_bank) + float(valley.grain_depth[1])
+	var bridge_mean := (float(canal.bridge_every[0]) + float(canal.bridge_every[1])) / 2.0
+	for k in range(floori((u0 - reach - _canal_shift) / _canal_apart()) - 1, ceili((u1 + reach - _canal_shift) / _canal_apart()) + 1):
+		var line := _canal_line(k)
+		if line.x < u0 - reach or line.x > u1 + reach:
+			continue
+		for j in range(floori(s0 / bridge_mean - line.z) - 2, ceili(s1 / bridge_mean - line.z) + 2):
+			for sgn in [-1, 1]:
+				var f: Variant = _grain_field(k, j, sgn)
+				if f != null and field_box(f).intersects(rect) and not _cleared(f):
+					out.append(f)
+	return out
+
+
+## Whether p lies in a grain field or within `margin` of one.
+func _in_grain(p: Vector2, margin: float) -> bool:
+	if canal.is_empty() or not valley.has("grain_chance") or empty:
+		return false
+	var at := p.rotated(-field_turn)
+	for f: Rect2 in _grain_in(Rect2(p, Vector2.ZERO).grow(margin)):
+		if f.grow(margin).has_point(at):
+			return true
+	return false
+
+
+## The world rectangle round a field whose rectangle is given in the frame turned through `field_turn`.
+func field_box(f: Rect2) -> Rect2:
+	if field_turn == 0.0:
+		return f
+	var box := Rect2(f.position.rotated(field_turn), Vector2.ZERO)
+	for c in [f.end, Vector2(f.position.x, f.end.y), Vector2(f.end.x, f.position.y)]:
+		box = box.expand(c.rotated(field_turn))
+	return box
 
 
 ## The nearest point on a canal within `reach` of p, as [point, along, the side p is on, half width], or [] for none.
@@ -1204,11 +1250,13 @@ func _wheat_field(r: RandomNumberGenerator, at: Vector2, size: Array) -> Array:
 	return parts
 
 
-## Every wheat field that reaches into the rectangle.
+## Every wheat field that reaches into the rectangle: Gaul's farmland fields, or the grain fields along a valley's canals.
 func fields_in(rect: Rect2) -> Array:
 	var out: Array = []
-	if field.is_empty() or empty:
+	if empty:
 		return out
+	if field.is_empty():
+		return _grain_in(rect) if not canal.is_empty() and valley.has("grain_chance") else out
 	var wide := rect.grow(REGION * 0.75)
 	for rx in range(floori(wide.position.x / REGION), floori(wide.end.x / REGION) + 1):
 		for ry in range(floori(wide.position.y / REGION), floori(wide.end.y / REGION) + 1):
@@ -1224,8 +1272,9 @@ func fields_in(rect: Rect2) -> Array:
 ## Whether a clearing laid after the field was made covers any of it.
 func _cleared(f: Rect2) -> bool:
 	for c in clearings:
-		var near := Vector2(clampf(c[0].x, f.position.x, f.end.x), clampf(c[0].y, f.position.y, f.end.y))
-		if near.distance_to(c[0]) < c[1]:
+		var at: Vector2 = c[0].rotated(-field_turn)
+		var near := Vector2(clampf(at.x, f.position.x, f.end.x), clampf(at.y, f.position.y, f.end.y))
+		if near.distance_to(at) < c[1]:
 			return true
 	return false
 

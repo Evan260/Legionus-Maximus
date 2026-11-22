@@ -8894,12 +8894,13 @@ func test_aegyptus_is_the_nile_valley_with_palms_reeds_ruins_and_canals(b: Dicti
 	var kinds := {}
 	for pr in t.props_in(area):
 		kinds[pr[0]] = kinds.get(pr[0], 0) + 1
-	for want in ["date_palm", "papyrus", "fallen_column", "obelisk", "crops"]:
+	for want in ["date_palm", "papyrus", "fallen_column", "obelisk"]:
 		check(kinds.has(want), "the valley holds %s (%s)" % [want, str(kinds.keys())])
-	for not_here in ["oak", "fir", "palm", "dune", "ruined_wall", "olive", "dry_grass"]:
+	check(not t.fields_in(area).is_empty(), "and fields of grain")
+	for not_here in ["oak", "fir", "palm", "dune", "ruined_wall", "olive", "dry_grass", "crops"]:
 		check(not kinds.has(not_here), "and no %s" % not_here)
 	check(Terrain.TREES.has("date_palm") and Terrain.SOLID.has("date_palm") and Terrain.SOLID.has("obelisk"), "date palms are solid trees that can be felled, and obelisks are solid")
-	check(not Terrain.SOLID.has("papyrus") and not Terrain.SOLID.has("crops"), "reeds and crops block nothing")
+	check(not Terrain.SOLID.has("papyrus"), "reeds block nothing")
 	var canals := t.ravines_in(area)
 	check(canals.size() >= 3 and canals.all(func(rv: Dictionary) -> bool: return rv.get("canal", false)), "the field is cut by irrigation canals and no gorges (%d)" % canals.size())
 
@@ -9071,45 +9072,74 @@ func test_nothing_solid_stands_in_a_canal_bridge_mouth(b: Dictionary) -> void:
 	check(n > 10 and blocked == 0, "no palm, stone or ruin stands at either end of a bridge (%d of %d)" % [blocked, n])
 
 
-func test_crop_fields_line_the_canal_banks(b: Dictionary) -> void:
+func test_grain_fields_line_the_canal_banks(b: Dictionary) -> void:
+	var band := float(b.canals.aegyptus.band)
+	var fray: float = load("res://scripts/world_view.gd").FIELD_FRAY
 	var cfg: Dictionary = b.valleys.aegyptus
-	var t := _nile_terrain(b, 2161)
 	var area := Rect2(-5000, -5000, 10000, 10000)
-	var crops: Array = t.props_in(area).filter(func(pr: Array) -> bool: return pr[0] == "crops").map(func(pr: Array) -> Vector2: return pr[1])
+	var count := 0
 	var by_water := true
-	for p in crops:
-		var e := t.ravine_edge(p, 600.0)
-		by_water = by_water and e >= float(b.canals.aegyptus.band) and e <= float(cfg.crop_reach)
-	# Crops with gaps of under two plants' spacing between them make one field.
-	var link := 2.0 * float(cfg.crop_step)
-	var seen := {}
-	var lengths: Array = []
-	for i in crops.size():
-		if seen.has(i):
-			continue
-		var group: Array = [i]
-		seen[i] = true
-		var k := 0
-		while k < group.size():
-			for j in crops.size():
-				if not seen.has(j) and crops[group[k]].distance_to(crops[j]) < link:
-					seen[j] = true
-					group.append(j)
-			k += 1
-		var span := 0.0
-		for g in group:
-			for h in group:
-				span = maxf(span, crops[g].distance_to(crops[h]))
-		lengths.append(span)
-	var big := lengths.filter(func(l: float) -> bool: return l >= float(cfg.crop_length[0]) * 0.6).size()
+	var dry := true
 	var clear := true
-	for br in t.bridges:
-		for p in crops:
-			clear = clear and (p.distance_to(br.pos) > 300.0 or absf((p - br.pos).dot(br.dir.orthogonal())) > br.half_w + 8.0)
-	check(lengths.size() >= 8, "crop fields are laid along the canals (%d)" % lengths.size())
-	check(by_water, "every crop grows just outside the bank's band and within %s px of the water" % str(cfg.crop_reach))
-	check(big >= lengths.size() * 0.75, "and most fields are long strips, not small patches (%d of %d)" % [big, lengths.size()])
-	check(clear, "and no crop grows across a bridge's approach")
+	var big := true
+	var breaks := true
+	var open := true
+	var tilted := false
+	for seed_value in [2161, 2162, 2163]:
+		var t := _nile_terrain(b, seed_value)
+		var fields := t.fields_in(area)
+		count += fields.size()
+		tilted = tilted or absf(t.field_turn) > 0.01
+		for f: Rect2 in fields:
+			big = big and f.size.x >= 200.0 and f.size.y >= float(cfg.grain_depth[0])
+			var near := INF
+			# The drawn wheat reaches FIELD_FRAY past the field, so that whole area is checked.
+			var drawn := f.grow(fray)
+			var x := drawn.position.x
+			while x <= drawn.end.x:
+				var y := drawn.position.y
+				while y <= drawn.end.y:
+					var p := Vector2(x, y).rotated(t.field_turn)
+					var e := t.ravine_edge(p, 900.0)
+					near = minf(near, e)
+					dry = dry and e >= band
+					clear = clear and not t._by_bridge(p)
+					open = open and p.length() > t.clear_radius
+					y += 16.0
+				x += 16.0
+			by_water = by_water and near <= band + fray + 40.0
+			for g: Rect2 in fields:
+				# Fields on one bank share the edge nearest the water, and leave open ground between them.
+				var same_bank := absf(g.position.y - f.position.y) < 1.0 or absf(g.end.y - f.end.y) < 1.0
+				if g != f and same_bank and g.position.x > f.position.x:
+					breaks = breaks and g.position.x - f.end.x >= 150.0
+		for pr in t.props_in(area):
+			for f: Rect2 in fields:
+				if pr[2] > 0.0 and f.grow(pr[2] + 16.0).has_point(pr[1].rotated(-t.field_turn)):
+					open = false
+	check(count >= 30, "large grain fields are laid along the canals (%d)" % count)
+	check(big, "and each is as big as a Gaulish wheat field")
+	check(tilted, "and they lie along the canals however these are tilted")
+	check(by_water, "every field lies just outside the bank's band")
+	check(dry, "and no wheat is drawn over the water or the bank's band")
+	check(clear, "and none reaches a bridge's approach")
+	check(breaks, "and the fields along one bank have breaks between them")
+	check(open, "and nothing solid stands in a field, nor any field by the start")
+
+
+func test_grain_fields_are_walked_through_and_kept_out_of_clearings(b: Dictionary) -> void:
+	var s := Sim.new(b, Content.with_all_art(), {"seed": 2171, "province": "aegyptus"})
+	var fields := s.terrain.fields_in(Rect2(-4000, -4000, 8000, 8000))
+	check(not fields.is_empty(), "Aegyptus has grain fields (%d)" % fields.size())
+	if fields.is_empty():
+		return
+	var f: Rect2 = fields[0]
+	var mid := f.get_center().rotated(s.terrain.field_turn)
+	s.terrain.refresh(mid)
+	check(s.terrain.fd_rect.is_empty() and not s.terrain.in_field(mid, 10.0), "the grain blocks nobody, as Gaul's wheat does")
+	check(s.terrain.push_out(mid, 10.0) == mid, "and a man standing in it is not pushed out")
+	s.terrain.add_clearing(mid, 120.0, [])
+	check(not s.terrain.fields_in(Rect2(-4000, -4000, 8000, 8000)).has(f), "a clearing laid over a field takes it away")
 
 
 func test_a_canal_holds_men_back_but_its_bridge_carries_them(b: Dictionary) -> void:

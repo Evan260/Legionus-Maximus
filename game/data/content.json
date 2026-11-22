@@ -2264,7 +2264,7 @@
     "papyrus",
     "fallen_column",
     "obelisk",
-    "crops"
+    "wheat"
    ],
    "ordinary": [
     "egyptian_spearman",
@@ -2282,7 +2282,6 @@
     "prop:papyrus",
     "prop:fallen_column",
     "prop:obelisk",
-    "prop:crops",
     "ground:aegyptus"
    ]
   },

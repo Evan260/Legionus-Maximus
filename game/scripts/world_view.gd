@@ -230,8 +230,8 @@ func _draw() -> void:
 					f = atlas.prop_frame(pr[0])
 					_prop_frames[pr[0]] = f
 				var at: Vector2 = pr[1]
-				if pr[0] == "dune" or pr[0] == "bog" or pr[0] == "heather" or pr[0] == "dry_grass" or pr[0] == "crops":
-					# Dunes, bog pools, heather, dry grass and crops are walked over, so they are drawn on the ground under everything that stands on them.
+				if pr[0] == "dune" or pr[0] == "bog" or pr[0] == "heather" or pr[0] == "dry_grass":
+					# Dunes, bog pools, heather and dry grass are walked over, so they are drawn on the ground under everything that stands on them.
 					_add(at.y - 60000.0, f[0], at - f[1], white)
 					continue
 				if not chops.is_empty() and chops.has(at) and sim.time - float(chops[at][1]) < shaking:
@@ -418,7 +418,7 @@ func _draw_floor() -> void:
 			_floor.draw_texture(ground, Vector2(gx * gw, gy * gh))
 
 
-## Gaul's wheat fields: the wheat tile repeated over each field, lined up with the world so neighbouring fields share their rows.
+## The wheat fields of Gaul and Aegyptus: the wheat tile repeated over each field, lined up with the world so neighbouring fields share their rows.
 ## The tile is laid a little past each field and wheat_field.gdshader thins it out towards a wavering edge.
 func _draw_fields() -> void:
 	if not sim:
@@ -434,12 +434,16 @@ func _draw_fields() -> void:
 			shapes.append(_field_shape(f, fields))
 	_wheat.material.set_shader_parameter("fields", shapes)
 	_wheat.material.set_shader_parameter("count", shapes.size())
+	_wheat.material.set_shader_parameter("turn", sim.terrain.field_turn)
+	_wheat.material.set_shader_parameter("reach", FIELD_FRAY)
+	var tint: Array = sim.terrain.valley.get("grain_tint", [1.0, 1.0, 1.0])
+	_wheat.material.set_shader_parameter("tint", Vector3(float(tint[0]), float(tint[1]), float(tint[2])))
 	if _wheat_tile == null:
 		# The tile has a texture of its own so it repeats across a whole field in one piece, with no seams where atlas pieces would meet.
 		var src: Rect2 = atlas.prop_frame("wheat_field")[0]
 		_wheat_tile = ImageTexture.create_from_image(atlas.texture.get_image().get_region(Rect2i(src)))
 	for f in fields:
-		var area: Rect2 = f.grow(FIELD_FRAY).intersection(view)
+		var area: Rect2 = sim.terrain.field_box(f.grow(FIELD_FRAY)).intersection(view)
 		if area.size.x > 0.0 and area.size.y > 0.0:
 			# The texture repeats from world (0, 0), so neighbouring fields share their rows.
 			_wheat.draw_texture_rect_region(_wheat_tile, area, area)
