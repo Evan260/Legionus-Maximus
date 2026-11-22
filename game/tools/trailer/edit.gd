@@ -74,10 +74,10 @@ const TRAILER := [
 	{"shot": "p_dacia", "from": 0.6, "beats": 2, "caption": "CONQUER 8 PROVINCES", "label": "DACIA"},
 	{"shot": "p_sarmatia", "from": 1.0, "beats": 2, "caption": "CONQUER 8 PROVINCES", "label": "SARMATIA"},
 	{"shot": "gods", "from": 0.9, "beats": 4},
-	{"shot": "reveal", "from": 2.0, "beats": 8, "flash": true},
+	{"shot": "reveal", "from": 2.0, "beats": 6, "flash": true},
 	{"shot": "chief", "from": 0.6, "beats": 6, "caption": "TOPPLE THEIR WARLORDS"},
-	# The VICTORY lands 4.0 seconds into the fort's recording, on the third beat of the shot.
-	{"shot": "fort", "from": 2.84, "beats": 6},
+	# The VICTORY lands on the cut and the victory screen comes up 6.2 seconds into the recording, on the shot's fifth beat.
+	{"shot": "fort", "from": 3.878, "beats": 8},
 	{"end": "endcard", "from": 1.0, "beats": 14},
 ]
 

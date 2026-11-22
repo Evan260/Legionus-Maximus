@@ -33,9 +33,9 @@ The top bar shows a run at that point of the story (level, clock, legion and kil
 | 10 | `ravine`: the legion shoves the berserker into a ravine, then wheels and marches along the lip | Germania | SHOVE THEM OFF CLIFFS | 4 |
 | 11 | `p_germania` to `p_sarmatia`: one quick cut in each province, the gold legion marching through a ring of the province's own barbarians: Germania's forest, Gaul's wheat, Britannia's stone circle, Hispania's olives, Aegyptus' palms, Parthia's war elephant, Dacia's falx charge in the snow and Sarmatia's kurgans, with the province named above the caption | all eight | CONQUER 8 PROVINCES | 2 each |
 | 12 | `gods`: the choice of gods over the great horde, Jupiter picked out, in the music's quiet bar | Germania | | 4 |
-| 13 | `reveal`: Jupiter's lightning on the great horde, on the music's return, opening on a flash | Germania | | 8 |
+| 13 | `reveal`: Jupiter's lightning on the great horde, on the music's return, opening on a flash | Germania | | 6 |
 | 14 | `chief`: the legion holds its line facing the war chief, who charges in with a crowd, fights its front rank and falls there | Germania | TOPPLE THEIR WARLORDS | 6 |
-| 15 | `fort`: the fort on the moor ringed by a horde, swept clear for the VICTORY on the shot's third beat, and the victory screen's rays | Britannia | | 6 |
+| 15 | `fort`: the fort on the moor ringed by a horde, the VICTORY landing on the cut, and the victory screen's rays from the shot's fifth beat | Britannia | | 8 |
 | 16 | `endcard`: the gold legion beside Gaul's wheat under the logo, the scroll and the store badges | Gaul | | 14 |
 
 ## How it is made
