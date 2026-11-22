@@ -47,6 +47,8 @@ var main: Node
 var ui: Ui
 var icons := {}
 var choice_rects: Array = []
+## The buttons under a choice on a phone, which stand in for its keys, as {id: rect}.
+var touch_buttons := {}
 
 
 ## The level-up icon of an id, loaded the first time it is drawn.
@@ -114,7 +116,11 @@ func _card() -> void:
 	var name_lines := mini(Ui.block(str(card.name).to_upper(), room, 2).lines, 2)
 	var h := 16.0 + (1.0 + name_lines) * Ui.leading() + (4.0 if big else 0.0)
 	var slide := Steamworks.card_slide()
-	var r := Rect2(lerpf(W + 2.0, W - 6.0 - w, slide), 44.0 if not big else 68.0, w, h)
+	var top := 44.0 if not big else 68.0
+	var pause: Dictionary = touch_layout().get("pause", {})
+	if not pause.is_empty():
+		top = maxf(top, pause.centre.y + pause.radius + 6.0)
+	var r := Rect2(lerpf(W + 2.0, W - 6.0 - Touch.inset_br.x - w, slide), top, w, h)
 	panel(r)
 	var wreath: Texture2D = LAUREL
 	draw_texture(wreath, (r.position + Vector2(18.0, h / 2.0) - wreath.get_size() / 2.0).round())
@@ -172,9 +178,28 @@ func _scene() -> void:
 		_choices(sim)
 
 
+## The top bar and the corners, drawn inside the part of the screen clear of a phone's rounded corners and camera.
 func _top_bar(sim: Sim) -> void:
-	var W := Ui.view.x
-	var H := Ui.view.y
+	var safe := Ui.view - Touch.inset_tl - Touch.inset_br
+	draw_set_transform(Touch.inset_tl)
+	_top_bar_in(sim, safe.x, safe.y)
+	draw_set_transform(Vector2.ZERO)
+
+
+## The touch buttons laid out this frame, or none off a phone.
+func touch_layout() -> Dictionary:
+	return main.touch_pad.layout if main.touch_pad != null else {}
+
+
+## Where the right-hand words of the top bar end, left of a phone's pause button.
+func _right_edge(W: float) -> float:
+	var pause: Dictionary = touch_layout().get("pause", {})
+	if pause.is_empty() or main.state != "play":
+		return W - 10.0
+	return minf(W - 10.0, pause.centre.x - pause.radius - 6.0 - Touch.inset_tl.x)
+
+
+func _top_bar_in(sim: Sim, W: float, H: float) -> void:
 	var big := Ui.scale > 1
 	draw_rect(Rect2(8, 6, W - 16, 7), INK)
 	var fill := (W - 18) * clampf(float(sim.xp) / sim.xp_next, 0.0, 1.0)
@@ -188,9 +213,10 @@ func _top_bar(sim: Sim) -> void:
 	plated_text((tr("Level %d") % sim.level).to_upper(), Vector2(10, y1))
 	if not (choosing and big):
 		plated_text("%02d:%02d" % [secs / 60, secs % 60], Vector2(0, y1), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W)
-	plated_text((tr("Legion %d") % (sim.soldiers.size() + 1)).to_upper(), Vector2(0, y1), CREAM, HORIZONTAL_ALIGNMENT_RIGHT, W - 10)
+	var right := _right_edge(W)
+	plated_text((tr("Legion %d") % (sim.soldiers.size() + 1)).to_upper(), Vector2(0, y1), CREAM, HORIZONTAL_ALIGNMENT_RIGHT, right)
 	if not choosing:
-		plated_text((tr("Kills %d") % sim.kills).to_upper(), Vector2(0, y2), CREAM, HORIZONTAL_ALIGNMENT_RIGHT, W - 10)
+		plated_text((tr("Kills %d") % sim.kills).to_upper(), Vector2(0, y2), CREAM, HORIZONTAL_ALIGNMENT_RIGHT, right)
 	# The pause and summary screens write their key hints along the bottom, so the bottom row is left to them.
 	if main.screens.has(main.state):
 		_chieftain_line(sim, W, y1, big)
@@ -204,12 +230,12 @@ func _top_bar(sim: Sim) -> void:
 	var charge := 1.0 if sim.testudo_left > 0.0 else sim.testudo_charge
 	draw_rect(Rect2(9, H - 8, 32 * charge, 2), GOLD if ready or sim.testudo_left > 0.0 else PARCH_DARK)
 	plated_text((tr("Testudo") if sim.testudo_left <= 0.0 else tr("Hold!")).to_upper(), Vector2(46, H - 6), GOLD_LIGHT if ready or sim.testudo_left > 0.0 else Color(0.7, 0.66, 0.6))
-	_timber(sim, H)
+	_timber(sim, W, H)
 	_favour(sim, W, H)
 	_timber_keys(sim, W, H)
 	if choosing:
 		return
-	_health(sim)
+	_health(sim, Vector2(W, H))
 	_chieftain_line(sim, W, y1, big)
 
 
@@ -229,7 +255,7 @@ func _chieftain_line(sim: Sim, W: float, y1: float, big: bool) -> void:
 
 
 ## The logs of timber the legion carries, above the testudo's name, gold once there are enough for a palisade, and the notice when there are not.
-func _timber(sim: Sim, H: float) -> void:
+func _timber(sim: Sim, W: float, H: float) -> void:
 	var atlas: Atlas = main.world.atlas
 	var cost := int(sim.b.palisade.cost)
 	var enough := sim.timber >= cost
@@ -251,14 +277,14 @@ func _timber(sim: Sim, H: float) -> void:
 	elif sim.palisade_refused_at >= 0.0 and sim.time - sim.palisade_refused_at < float(sim.b.palisade.notice_seconds):
 		line = tr("Not enough timber: %d needed") % cost
 	if line != "":
-		text(line.to_upper(), Vector2(0, Ui.view.y * 0.7), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x)
+		text(line.to_upper(), Vector2(0, H * 0.7), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
 	if sim.bridge_here and main.state == "play":
 		var hint := bridge_hint(sim.timber, bridge_cost)
-		var r: Rect2 = bottom_layout(Ui.view).bridge
+		var r: Rect2 = bottom_layout(Vector2(W, H)).bridge
 		var said := str(hint.text).to_upper()
 		var w := Ui.width_at(said, Ui.px)
-		draw_rect(Rect2((Ui.view.x - w) / 2.0 - 4.0, r.position.y - 1.0, w + 8.0, r.size.y + 2.0), Color(0.08, 0.05, 0.04, 0.55))
-		text(said, Vector2(0, r.position.y + Ui.px), GOLD_LIGHT if hint.enough else MUTED, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x)
+		draw_rect(Rect2((W - w) / 2.0 - 4.0, r.position.y - 1.0, w + 8.0, r.size.y + 2.0), Color(0.08, 0.05, 0.04, 0.55))
+		text(said, Vector2(0, r.position.y + Ui.px), GOLD_LIGHT if hint.enough else MUTED, HORIZONTAL_ALIGNMENT_CENTER, W)
 
 
 ## The hint at a ravine's lip: the key and the cost, or with too little timber the cost and what the legion has.
@@ -283,7 +309,8 @@ func _bridge_cost(at: Vector2, cost: int, enough: bool) -> void:
 
 ## The keys that spend timber, listed at the bottom right above the favour, each lit once the legion has its cost.
 func _timber_keys(sim: Sim, W: float, H: float) -> void:
-	if main.state != "play":
+	# A phone's buttons show what each work costs and whether there is timber enough.
+	if main.state != "play" or Touch.phone:
 		return
 	var y := H - 46.0
 	var lines := timber_keys(sim.b, sim.timber)
@@ -358,7 +385,7 @@ var _hit_at := -1e9
 
 
 ## The commander's health in a big bar along the bottom of the screen, with the numbers on it.
-func _health(sim: Sim) -> void:
+func _health(sim: Sim, safe: Vector2) -> void:
 	var c: Dictionary = sim.commander
 	# A clock behind the last blow is a new run's, so the last run's blow does not flash the bar.
 	if sim.time < _hit_at:
@@ -368,7 +395,7 @@ func _health(sim: Sim) -> void:
 	_last_hp = c.hp
 	var since := sim.time - _hit_at
 	var share := clampf(c.hp / maxf(1.0, c.max_hp), 0.0, 1.0)
-	var r: Rect2 = bottom_layout(Ui.view).health
+	var r: Rect2 = bottom_layout(safe).health
 	var low := share < 0.25
 	var flashing := since < 0.2
 	draw_rect(r.grow(1), RED if flashing or (low and fmod(sim.time, 0.8) < 0.4) else INK)
@@ -767,7 +794,13 @@ static func _name_key(kind: String) -> String:
 func _objective_arrows(sim: Sim, avoid: Array) -> void:
 	var view := Ui.view
 	var big := Ui.scale > 1
-	var top := 16.0 + 8.0 * Ui.scale + (22.0 if big else 11.0)
+	var top := 16.0 + 8.0 * Ui.scale + (22.0 if big else 11.0) + Touch.inset_tl.y
+	if Touch.phone:
+		var parts := bottom_layout(view - Touch.inset_tl - Touch.inset_br)
+		avoid = avoid + [Rect2(parts.testudo.position + Touch.inset_tl, parts.testudo.size), Rect2(parts.favour.position + Touch.inset_tl, parts.favour.size)]
+		var buttons := touch_layout()
+		for id in buttons:
+			avoid.append(Rect2(buttons[id].centre - Vector2.ONE * buttons[id].radius, Vector2.ONE * buttons[id].radius * 2.0).grow(3.0))
 	# The chieftain's name and health bar run under the clock, so the badges start below them.
 	if sim.horde.chieftain_index() >= 0:
 		top += 12.0
@@ -1058,6 +1091,10 @@ func _choices(sim: Sim) -> void:
 		wrap_text(_description(sim, id, praying), Vector2(box.position.x + DETAIL_PAD, y + Ui.leading() + 2.0), box.size.x - 2.0 * DETAIL_PAD, INK)
 		foot = box.end.y
 	var hint_y := foot + (20.0 if big else 16.0)
+	touch_buttons.clear()
+	if Touch.phone:
+		_touch_choice_buttons(sim, praying, foot + 8.0)
+		return
 	if praying:
 		_centred_hint(Controls.hint("gods"), hint_y, CREAM)
 		return
@@ -1069,6 +1106,39 @@ func _choices(sim: Sim) -> void:
 		extras.append(Controls.hint("banish", sim.banishes))
 	if not extras.is_empty():
 		_centred_hint("     ".join(extras), hint_y + (20.0 if big else 13.0), GOLD_LIGHT)
+
+
+## A row of buttons under a phone's choice: take or call the one picked out, then reroll and banish, or not now.
+func _touch_choice_buttons(sim: Sim, praying: bool, y: float) -> void:
+	var ids: Array = [["call", tr("call")], ["not_now", tr("not now")]] if praying else [["take", tr("take it")]]
+	if not praying and sim.rerolls > 0:
+		ids.append(["reroll", "%s (%d)" % [tr("reroll"), sim.rerolls]])
+	if not praying and sim.banishes > 0:
+		ids.append(["banish", "%s (%d)" % [tr("banish"), sim.banishes]])
+	var h := 30.0 if Ui.scale > 1 else 24.0
+	var gap := 8.0
+	var w := touch_button_width(ids.size())
+	var x0 := roundf((W - ids.size() * w - (ids.size() - 1) * gap) / 2.0)
+	for k in ids.size():
+		var r := Rect2(x0 + k * (w + gap), y, w, h)
+		touch_buttons[ids[k][0]] = r
+		if k == 0:
+			draw_rect(r.grow(3), GOLD)
+		panel(r, CREAM if k == 0 else PARCH)
+		ui.fit_text(self, str(ids[k][1]).to_upper(), w - 12.0, Vector2(r.position.x, r.position.y + h / 2.0 + Ui.px * 3 / 8), INK, HORIZONTAL_ALIGNMENT_CENTER, w)
+
+
+## The width of each of `n` buttons in the row under a phone's choice.
+static func touch_button_width(n: int) -> float:
+	return minf(170.0 if Ui.scale > 1 else 130.0, (W - 32.0 - (n - 1) * 8.0) / n)
+
+
+## The phone button under a choice at a point, or "".
+func touch_button_at(p: Vector2) -> String:
+	for id in touch_buttons:
+		if touch_buttons[id].has_point(p):
+			return id
+	return ""
 
 
 func _description(sim: Sim, id: String, praying: bool) -> String:

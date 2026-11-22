@@ -56,6 +56,7 @@ func _fit() -> void:
 	game.size = base_size(root.size)
 	size = game.size
 	scale = Vector2(root.size) / Vector2(game.size)
+	Touch.fit(root.size, game.size)
 	if is_whole(scale):
 		material = null
 		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST

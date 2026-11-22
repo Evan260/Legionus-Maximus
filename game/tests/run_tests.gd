@@ -3249,6 +3249,18 @@ func _cuts_in(loc: String, scale: int, c: Content, sim: Sim, cuts: Array) -> voi
 	_fit(cuts, loc, scale, "text size", tr_.call("Text size"), 440.0 - 12.0 - maxf(Ui.width_at(tr_.call("Large"), Ui.px), Ui.width_at(tr_.call("Normal"), Ui.px)) - 6.0)
 	_fit(cuts, loc, scale, "language label", tr_.call("Language"), 440.0 - 12.0 - 120.0)
 	_fit(cuts, loc, scale, "controls button", tr_.call("Keys and buttons"), 428.0)
+	# A phone's own labels: how to play by touch, the give-up prompt, the volumes beside wider bars, the choice and buy buttons.
+	var was_phone := Touch.phone
+	Touch.phone = true
+	for line in TitleScreen.how_to_play_lines(sim.b):
+		_fit(cuts, loc, scale, "how to play on a phone", line, TitleScreen.line_width())
+	Touch.phone = was_phone
+	_fit(cuts, loc, scale, "give-up prompt on a phone", tr_.call("Give up the run? Tap again to confirm"), 624.0)
+	for s in ["Master volume", "Music volume", "Effects volume"]:
+		_fit(cuts, loc, scale, "volume name on a phone", tr_.call(s), 440.0 - 6.0 - 12.0 - pct - SettingsScreen.PHONE_BAR_W - 6.0)
+	for s in [tr_.call("take it"), tr_.call("call"), tr_.call("not now"), tr_.call("reroll") + " (9)", tr_.call("banish") + " (9)"]:
+		_fit(cuts, loc, scale, "choice button on a phone", s.to_upper(), Hud.touch_button_width(3) - 12.0)
+	_fit(cuts, loc, scale, "buy button on a phone", tr_.call("buy a rank").to_upper(), Ui.label_room(Rect2(0, 0, 224, 30), "10000", false))
 	_fit(cuts, loc, scale, "back button", tr_.call("Back").to_upper(), 428.0)
 	var m := SettingsScreen.controls_metrics(608.0)
 	for a in Controls.ACTIONS:
@@ -10502,3 +10514,164 @@ func test_a_soldiers_mark_comes_off_whole(b: Dictionary) -> void:
 		var marked := Livery.mark(mod)
 		check(marked.r > Livery.MARK / 2.0, "the mark stands out from any tint (%s)" % mod)
 		check(Livery.unmark(marked).is_equal_approx(mod), "and comes off to the tint it was (%s)" % mod)
+
+
+func test_touch_stick_has_a_dead_zone_and_full_speed_near_the_rim(_b: Dictionary) -> void:
+	var r := 50.0
+	check(Touch.stick_vector(Vector2.ZERO, r) == Vector2.ZERO, "a thumb resting on the stick's centre marches nowhere")
+	check(Touch.stick_vector(Vector2(r * 0.12, 0), r) == Vector2.ZERO, "a small wobble inside the dead zone marches nowhere")
+	var slow := Touch.stick_vector(Vector2(0, r * 0.4), r)
+	check(slow.length() > 0.0 and slow.length() < 1.0, "past the dead zone the legion marches slowly (%.2f)" % slow.length())
+	check(slow.normalized().is_equal_approx(Vector2.DOWN), "and the way the thumb pushes")
+	var faster := Touch.stick_vector(Vector2(0, r * 0.6), r)
+	check(faster.length() > slow.length(), "further out it marches faster")
+	check(is_equal_approx(Touch.stick_vector(Vector2(r * 0.9, 0), r).length(), 1.0), "near the rim it marches at full speed")
+	check(is_equal_approx(Touch.stick_vector(Vector2(-r * 3.0, r * 3.0), r).length(), 1.0), "past the rim it never marches faster than full speed")
+	check(Touch.stick_vector(Vector2(-r, -r), r).normalized().is_equal_approx(Vector2(-1, -1).normalized()), "a slant marches on the slant")
+	check(Touch.stick_vector(Vector2(0, r * 0.4), r).length() > 0.15, "a push past the dead zone is enough to set the legion moving")
+
+
+func test_touch_stick_follows_a_finger_past_its_rim(_b: Dictionary) -> void:
+	var base := Vector2(100, 200)
+	check(Touch.stick_follow(base, base + Vector2(30, 0), 50.0) == base, "a finger inside the rim leaves the stick where it is")
+	var moved := Touch.stick_follow(base, base + Vector2(0, -80), 50.0)
+	check(moved.is_equal_approx(Vector2(100, 170)), "a finger past the rim drags the stick after it (%s)" % moved)
+	check(is_equal_approx(moved.distance_to(base + Vector2(0, -80)), 50.0), "keeping the finger on the rim")
+
+
+func test_touch_stick_takes_touches_on_the_left_of_the_screen(_b: Dictionary) -> void:
+	var view := Vector2(808, 360)
+	check(Touch.in_stick_zone(Vector2(60, 300), view), "a touch low on the left takes the stick")
+	check(Touch.in_stick_zone(Vector2(380, 80), view), "and one anywhere on the left part")
+	check(not Touch.in_stick_zone(Vector2(600, 300), view), "a touch on the right is left to the buttons")
+
+
+## The touch buttons laid out for a screen, as the HUD lays them: below the top bar and above the favour, inside the safe area.
+func _touch_layout(view: Vector2, tl: Vector2, br: Vector2, tip: float) -> Dictionary:
+	var parts := Hud.bottom_layout(view - tl - br)
+	return Touch.button_layout(view, tl, br, tip, tl.y + parts.favour.position.y, tl.y + 14.0)
+
+
+func test_touch_buttons_are_found_where_they_are_drawn(b: Dictionary) -> void:
+	var view := Vector2(808, 360)
+	var layout := _touch_layout(view, Vector2(13, 13), Vector2(13, 13), 39.0)
+	for id in Touch.ACTIONS:
+		check(layout.has(id), "there is a button for %s" % id)
+		if not layout.has(id):
+			continue
+		var c: Vector2 = layout[id].centre
+		var r: float = layout[id].radius
+		check(Touch.button_at(layout, c) == id, "a touch on the middle of %s lands on it" % id)
+		check(Touch.button_at(layout, c + Vector2(r * 0.9, 0).rotated(0.7)) == id, "and one near its edge")
+	check(Touch.button_at(layout, Vector2(120, 250)) == "", "a touch on the left lands on no button")
+	check(Touch.button_at(layout, view / 2.0) == "", "nor one on the legion")
+
+
+func test_touch_buttons_fit_the_right_thumb_and_clear_the_corners(b: Dictionary) -> void:
+	var before := Ui.scale
+	# Phones at 20:9 and 19.5:9 with a camera on either side, a 4:3 and a 16:10 tablet, at both text sizes.
+	var cases := [[Vector2(808, 360), Vector2(13, 13), Vector2(13, 13), 39.0], [Vector2(780, 360), Vector2(40, 13), Vector2(13, 13), 39.0],
+		[Vector2(808, 360), Vector2(13, 13), Vector2(40, 13), 39.0], [Vector2(640, 480), Vector2(6, 6), Vector2(6, 6), 22.0], [Vector2(640, 400), Vector2(7, 7), Vector2(7, 7), 19.0]]
+	for size in [1, 2]:
+		Ui.set_text_size(size, b)
+		for k in cases:
+			var view: Vector2 = k[0]
+			var tl: Vector2 = k[1]
+			var br: Vector2 = k[2]
+			var tip: float = k[3]
+			var layout := _touch_layout(view, tl, br, tip)
+			var parts := Hud.bottom_layout(view - tl - br)
+			var favour := Rect2(parts.favour.position + tl, parts.favour.size)
+			var testudo := Rect2(parts.testudo.position + tl, parts.testudo.size)
+			var safe := Rect2(tl, view - tl - br)
+			var what := "%s at text size %d" % [view, size]
+			for id in layout:
+				var box := Rect2(layout[id].centre - Vector2.ONE * layout[id].radius, Vector2.ONE * layout[id].radius * 2.0)
+				check(safe.encloses(box), "%s: %s stays in the safe area" % [what, id])
+				check(not box.intersects(favour) and not box.intersects(testudo), "%s: %s keeps clear of the favour and the testudo corners" % [what, id])
+				check(layout[id].radius * 2.0 >= tip - 0.01, "%s: %s is a fingertip across" % [what, id])
+				check(layout[id].centre.x > view.x * 0.6, "%s: %s is on the right, for the right thumb" % [what, id])
+				for other in layout:
+					if other != id:
+						var apart: float = layout[id].centre.distance_to(layout[other].centre)
+						check(apart >= layout[id].radius + layout[other].radius + 2.0, "%s: %s and %s do not touch" % [what, id, other])
+			check(layout.testudo.radius > layout.wall.radius, "%s: the testudo is the biggest button" % what)
+			check(layout.testudo.centre.y > layout.wall.centre.y and layout.testudo.centre.y > layout.bridge.centre.y, "%s: the testudo sits lowest, under the thumb" % what)
+			check(layout.pause.centre.y < view.y * 0.25, "%s: pause sits at the top" % what)
+	Ui.set_text_size(before, b)
+
+
+func test_touch_back_gesture_steps_back_one_place(_b: Dictionary) -> void:
+	check(Touch.back_step("play", false) == "pause", "in a run it pauses")
+	check(Touch.back_step("pause", false) == "back", "on the pause screen it goes back to the run")
+	check(Touch.back_step("pray", false) == "not_now", "the gods' choice closes for now")
+	check(Touch.back_step("choose", false) == "none", "a level-up waits for its choice")
+	for st in ["camp", "quartermaster", "tablinum", "map", "commanders", "settings", "saves", "over"]:
+		check(Touch.back_step(st, false) == "back", "%s steps back one place" % st)
+	check(Touch.back_step("over", true) == "skip", "the victory reveal skips to the summary")
+	check(Touch.back_step("title", false) == "background", "on the title it puts the game away")
+
+
+func test_touch_back_gesture_acts_once_though_android_reports_it_twice(_b: Dictionary) -> void:
+	check(Touch.back_counts(5000, -100000), "the first gesture counts")
+	check(not Touch.back_counts(5100, 5000), "a second report straight after is the same gesture")
+	check(Touch.back_counts(5000 + Touch.BACK_REPEAT_MS + 1, 5000), "a gesture a moment later counts again")
+
+
+func test_touch_sizes_come_from_the_screens_dpi(_b: Dictionary) -> void:
+	var tip := Touch.fingertip_for(420.0, 3.0)
+	check(tip > 38.0 and tip < 40.0, "7 mm on a 420 dpi phone drawn 3 times is about 39 game pixels (%.1f)" % tip)
+	check(is_equal_approx(Touch.fingertip_for(210.0, 1.5), tip), "the same at half the size and half the dpi")
+	check(Touch.fingertip_for(274.0, 4.0) < 20.0, "a tablet needs fewer game pixels")
+	check(is_equal_approx(Touch.preview_dpi(Vector2i(1212, 540)), 210.0), "the preview counts a 1212 by 540 window as half of a 2424 by 1080 phone")
+	check(is_equal_approx(Touch.preview_dpi(Vector2i(2424, 1080)), 420.0), "and a full-size window as the phone itself")
+	check(Touch.preview_dpi(Vector2i(1024, 768)) < 150.0, "a 4:3 window is a tablet held further off")
+	check(Touch.large_text(420.0, 3.0), "a phone draws large text")
+	check(not Touch.large_text(274.0, 4.0), "a tablet keeps the normal size")
+	check(not Touch.large_text(Touch.preview_dpi(Vector2i(1024, 768)), 1.6), "and so does the tablet preview")
+
+
+func test_touch_insets_clear_rounded_corners_and_the_camera(_b: Dictionary) -> void:
+	var whole: Array = Touch.insets_for(Vector2i(2424, 1080), Rect2i(0, 0, 2424, 1080), Vector2(3, 3))
+	check(whole[0] == whole[1] and whole[0].x >= 12.0 and whole[0].x <= 14.0, "rounded corners keep everything about 13 game pixels in (%s)" % [whole])
+	var cut: Array = Touch.insets_for(Vector2i(2424, 1080), Rect2i(120, 0, 2304, 1080), Vector2(3, 3))
+	check(is_equal_approx(cut[0].x, 40.0) and is_equal_approx(cut[1].x, whole[1].x), "a camera on the left moves the left side in past it (%s)" % [cut])
+
+
+func test_touch_tap_on_a_purchase_or_choice_first_picks_it_out(_b: Dictionary) -> void:
+	check(not Touch.tap_acts("quartermaster", "buy:damage", "buy:start_health"), "a tap on another upgrade shows it before buying")
+	check(Touch.tap_acts("quartermaster", "buy:damage", "buy:damage"), "a tap on the upgrade shown buys it")
+	check(not Touch.tap_acts("commanders", "see:centurion", "pick:tribune"), "a commander for sale is shown before he is bought")
+	check(not Touch.tap_acts("choose", "choice:1", "choice:0"), "a level-up choice is shown before it is taken")
+	check(Touch.tap_acts("choose", "choice:1", "choice:1"), "and taken by a tap on it once shown")
+	check(Touch.tap_acts("title", "settings", "continue"), "an ordinary button acts at once")
+	check(Touch.tap_acts("map", "prov:gaul", "prov:germania"), "and so does a province on the map")
+	check(Touch.is_tap(3.0, 8.0) and not Touch.is_tap(20.0, 8.0), "a finger that slid away is a drag, not a tap")
+
+
+func test_touch_phone_hints_and_options_name_no_keys(b: Dictionary) -> void:
+	var saved: Dictionary = Profile.settings
+	Profile.settings = {"bindings": {}}
+	Controls.install({})
+	Touch.phone = true
+	for kind in ["pick", "buy", "look", "volume", "level", "summary", "title", "gods", "victory", "pray", "bridge", "type"]:
+		var said := Controls.hint(kind)
+		for key in ["Space", "Escape", "Enter", "W A S D", "W / S"]:
+			check(not said.contains(key), "on a phone the %s hint names no key (%s)" % [kind, said])
+	for line in TitleScreen.how_to_play(b):
+		for key in ["Space", "Escape", "W A S D"]:
+			check(not str(line).contains(key), "on a phone how to play names no key (%s)" % line)
+	check(not Hud.bridge_hint(9, 8).text.contains(Controls.key_of("bridge") + " "), "the bridge hint names no key on a phone")
+	var demo := Game.demo_forced
+	Game.demo_forced = true
+	var shop := b.duplicate(true)
+	shop.demo.store_app_id = 123
+	check(not TitleScreen.buttons(shop).any(func(x: Array) -> bool: return x[0] == "wishlist"), "no Steam wishlist on a phone")
+	Game.demo_forced = demo
+	check(not SettingsScreen.toggles().any(func(t: Array) -> bool: return t[0] == "fullscreen"), "no full screen switch on a phone")
+	check(not SettingsScreen.rows().has("music_folder") and not SettingsScreen.rows().has("controls"), "nor the music folder or the key bindings")
+	Touch.phone = false
+	check(SettingsScreen.toggles().any(func(t: Array) -> bool: return t[0] == "fullscreen"), "a computer keeps its full screen switch")
+	check(SettingsScreen.rows().has("music_folder") and SettingsScreen.rows().has("controls"), "and its music folder and key bindings")
+	Controls.install({})
+	Profile.settings = saved

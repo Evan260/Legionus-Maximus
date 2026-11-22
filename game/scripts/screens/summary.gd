@@ -167,7 +167,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 		hint = tr("The full game continues past %d minutes") % (int(main.balance.demo.seconds) / 60)
 	if sim.demo_over:
 		title = tr("The demo ends here").to_upper()
-	var r := ui.frame(c, title, hint)
+	var r := ui.frame(c, title, hint, false)
 	if not modes.is_empty():
 		var room := r.size.x - 36.0 - ui.width_of(title)
 		ui.fit_text(c, " + ".join(modes), room, Vector2(0, r.position.y + 8 + 8 * s), Ui.INK, HORIZONTAL_ALIGNMENT_RIGHT, r.end.x - 12)
@@ -181,8 +181,11 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	for i in stats.size():
 		ui.fit_text(c, stats[i][0], left_w - ui.width_of("99999") - 8.0, Vector2(lx, top + i * srow), Ui.INK)
 		ui.text(c, stats[i][1], Vector2(0, top + i * srow), Ui.RED, HORIZONTAL_ALIGNMENT_RIGHT, lx + left_w)
-	_bars(c, ui, sim, Rect2(lx + left_w + 16.0, top, r.end.x - 12.0 - (lx + left_w + 16.0), brow * (BARS + 1)), brow)
-	var cap_y := top + brow * (BARS + 1) + 8.0
+	var bar_rows := BARS + 1
+	if Touch.phone:
+		bar_rows = maxi(stats.size(), top_sources(sim).size() + 1)
+	_bars(c, ui, sim, Rect2(lx + left_w + 16.0, top, r.end.x - 12.0 - (lx + left_w + 16.0), brow * bar_rows), brow)
+	var cap_y := maxf(top + brow * bar_rows, top + srow * (stats.size() - 1) + 4.0) + 8.0
 	var gained: Array = unlocks(main.profile_at_start, Profile.data, main.content, sim.province) if not main.profile_at_start.is_empty() else []
 	if not gained.is_empty():
 		var room := r.end.y - (30.0 if s > 1 else 22.0) - 14.0 - 6.0 - (40.0 if s == 1 else 0.0) - (cap_y - 2.0) - 8.0
@@ -195,7 +198,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	var bw := button_width()
 	ui.button(c, Rect2(r.end.x - 12.0 - 2.0 * bw - 8.0, r.end.y - h - 6.0, bw, h), "camp", tr("Camp").to_upper(), "", true, null, true)
 	ui.button(c, Rect2(r.end.x - 12.0 - bw, r.end.y - h - 6.0, bw, h), "title", tr("Title").to_upper(), "", true, null, true)
-	if sim.demo_over and int(main.balance.demo.store_app_id) > 0:
+	if sim.demo_over and int(main.balance.demo.store_app_id) > 0 and not Touch.phone:
 		var wide := wide_button_width()
 		ui.button(c, Rect2(r.end.x - 12.0 - 2.0 * bw - 16.0 - wide, r.end.y - h - 6.0, wide, h), "wishlist", tr("Wishlist").to_upper(), "", true, null, true)
 

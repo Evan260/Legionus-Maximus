@@ -4296,6 +4296,38 @@
       "ko": "록솔라니의 왕 라스파라가누스. 그는 군단 전역에 길을 표시하고, 갑옷을 입은 창병들이 줄을 따라 내려와 병사와 지휘관 모두를 공격한다; testudo 공격을 반으로 줄인다. 그는 한쪽 초원에 불을 붙이고, 불길이 표시된 땅을 따라 군단을 향해 번져 나가라. 다치면 더 빨리 싸웁니다.",
       "zh_CN": "拉斯帕拉加努斯，罗克索拉尼之王。他在军团中划出一条通道，一排穿甲的枪骑兵沿着通道扫过，击中士兵和指挥官; testudo 将攻击减半。他点燃了一侧的草原，火焰沿着标记的地面蔓延向军团，所以赶紧撤离。受伤时他战斗更快。",
       "zh_TW": "拉斯帕拉加努斯，羅克索拉尼之王。他在軍團中劃出一條路線，一排穿甲的長矛騎兵沿著路線掃過，攻擊士兵與指揮官; testudo 將攻擊減半。他點燃一側草原，火焰沿著標記的地面蔓延至軍團，所以快撤離。受傷時他會戰鬥得更快。"
+    },
+    "Drag on the left of the screen to march": {
+      "en": "Drag on the left of the screen to march",
+      "fr": "Faites glisser le doigt à gauche de l’écran pour marcher",
+      "de": "Zum Marschieren links auf dem Bildschirm ziehen",
+      "es": "Arrastra en la parte izquierda de la pantalla para marchar",
+      "it": "Trascina sulla parte sinistra dello schermo per marciare",
+      "pt_BR": "Arraste no lado esquerdo da tela para marchar",
+      "pl": "Przeciągnij palcem po lewej stronie ekranu, by maszerować",
+      "tr": "Yürümek için ekranın sol tarafında sürükle",
+      "ru": "Чтобы идти маршем, веди пальцем по левой части экрана",
+      "uk": "Щоб іти маршем, веди пальцем по лівій частині екрана",
+      "ja": "画面の左側をドラッグして行軍",
+      "ko": "화면 왼쪽을 드래그해 행군",
+      "zh_CN": "在屏幕左侧拖动以行军",
+      "zh_TW": "在螢幕左側拖曳以行軍"
+    },
+    "Give up the run? Tap again to confirm": {
+      "en": "Give up the run? Tap again to confirm",
+      "fr": "Abandonner l’expédition ? Touchez encore pour confirmer",
+      "de": "Feldzug aufgeben? Zum Bestätigen noch einmal tippen",
+      "es": "¿Abandonar la campaña? Toca otra vez para confirmar",
+      "it": "Abbandonare la campagna? Tocca di nuovo per confermare",
+      "pt_BR": "Desistir da campanha? Toque de novo para confirmar",
+      "pl": "Porzucić wyprawę? Stuknij jeszcze raz, by potwierdzić",
+      "tr": "Seferi bırakmak mı? Onaylamak için tekrar dokun",
+      "ru": "Прервать поход? Коснись ещё раз для подтверждения",
+      "uk": "Перервати похід? Торкнись ще раз для підтвердження",
+      "ja": "遠征をあきらめる？もう一度タップで確定",
+      "ko": "원정을 포기할까요? 확인하려면 한 번 더 탭",
+      "zh_CN": "放弃这次远征？再点一次确认",
+      "zh_TW": "放棄這次遠征？再點一次確認"
     }
   }
 }

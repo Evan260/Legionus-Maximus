@@ -4,6 +4,10 @@ extends RefCounted
 
 var main: Node
 var scroll := 0
+var _visible := 1
+var _count := 0
+var _step := 44.0
+var _seen_focus := ""
 
 
 func _init(owner_node: Node) -> void:
@@ -18,6 +22,14 @@ func activate(id: String) -> void:
 	elif id.begins_with("see:") and Profile.buy_commander(id.trim_prefix("see:"), main.content):
 		main.ui.focus = "pick:" + id.trim_prefix("see:")
 		activate(main.ui.focus)
+
+
+func row_step() -> float:
+	return _step
+
+
+func scroll_by(rows: int) -> void:
+	scroll = clampi(scroll + rows, 0, maxi(0, _count - _visible))
 
 
 ## The tag of a locked commander: how he is earned, and his price when he can be bought.
@@ -52,7 +64,14 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	var step := h + 4.0
 	var visible := int((r.size.y - 36.0) / step)
 	var focused := ids.find(ui.focus.get_slice(":", 1))
-	scroll = Ui.scroll_for(maxi(focused, 0), ids.size(), visible, scroll)
+	_visible = visible
+	_count = ids.size()
+	_step = step
+	# The list follows the keys' focus, and is otherwise left where a finger scrolled it.
+	if ui.focus != _seen_focus or not Touch.phone:
+		_seen_focus = ui.focus
+		scroll = Ui.scroll_for(maxi(focused, 0), ids.size(), visible, scroll)
+	scroll_by(0)
 	_scroll_marks(c, r, scroll > 0, scroll + visible < ids.size())
 	for i in ids.size():
 		var id: String = ids[i]
@@ -63,7 +82,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 		var price := Profile.commander_price(info)
 		var affordable := not open and price > 0 and price <= int(Profile.data.denarii)
 		if i < scroll or i >= scroll + visible:
-			ui.register(rect, button_id, open or affordable)
+			ui.register(rect, button_id, open or affordable, false)
 			continue
 		ui.button(c, rect, button_id, "", "", open or affordable)
 		var tone := Ui.INK if open else Ui.MUTED

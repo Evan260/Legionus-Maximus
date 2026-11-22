@@ -26,11 +26,24 @@ func activate(id: String) -> void:
 			typed = ""
 			# The question opens on Cancel, so a second press of the confirm key never deletes a game.
 			main.ui.focus = "no"
+			_keyboard(true)
+		"field":
+			_keyboard(true)
 		"no":
 			back()
 		"yes":
 			if word_typed():
 				_delete(confirming)
+
+
+## Shows or hides a phone's own keyboard for the word.
+func _keyboard(up: bool) -> void:
+	if not Touch.phone or not DisplayServer.has_feature(DisplayServer.FEATURE_VIRTUAL_KEYBOARD):
+		return
+	if up:
+		DisplayServer.virtual_keyboard_show(typed, Rect2(), DisplayServer.KEYBOARD_TYPE_DEFAULT, 20)
+	else:
+		DisplayServer.virtual_keyboard_hide()
 
 
 ## Whether the word that deletes a game has been typed; the English word works in every language too, for a keyboard that cannot easily type the translated one.
@@ -64,11 +77,13 @@ func back() -> bool:
 		return false
 	main.ui.focus = "delete:%d" % confirming
 	confirming = 0
+	_keyboard(false)
 	return true
 
 
 func _delete(n: int) -> void:
 	confirming = 0
+	_keyboard(false)
 	Profile.delete_slot(n)
 	# With the open game deleted, Continue goes on to the game saved last of those left.
 	if Profile.slot == 0 and Profile.load_slot(Profile.latest_slot()):
@@ -136,6 +151,9 @@ func _draw_question(c: CanvasItem, ui: Ui) -> void:
 	said.append(tr("It will be gone for good. Type \"%s\" to delete it.") % tr("delete"))
 	var width := r.size.x - 80.0
 	var bh := 24.0 if Ui.scale == 1 else 30.0
+	if Touch.phone:
+		_draw_touch_question(c, ui, r, said, bh)
+		return
 	var y := r.get_center().y - ((said.size() + 1) * Ui.leading() + 30.0 + 2.0 * bh) / 2.0 + Ui.px
 	ui.text(c, (tr("Delete slot %d?") % confirming).to_upper(), Vector2(r.position.x, y), Ui.BROWN, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
 	y += 6.0
@@ -146,6 +164,30 @@ func _draw_question(c: CanvasItem, ui: Ui) -> void:
 	var cx := r.get_center().x
 	var field := Rect2(cx - bw - 6.0, y + 12.0, 2.0 * bw + 12.0, bh)
 	# A sunken box with a blinking cursor, so it reads as the place to type and not as another button.
+	_field(c, ui, field)
+	y += bh + 6.0
+	ui.button(c, Rect2(cx - bw - 6.0, y + 12.0, bw, bh), "yes", tr("Delete").to_upper(), "", word_typed(), null, true)
+	ui.button(c, Rect2(cx + 6.0, y + 12.0, bw, bh), "no", tr("Cancel").to_upper(), "", true, null, true)
+
+
+## A phone's question, high in the frame with the word's box and both buttons on one row, above the keyboard.
+func _draw_touch_question(c: CanvasItem, ui: Ui, r: Rect2, said: Array, bh: float) -> void:
+	var y := r.position.y + Ui.below_title() + Ui.px
+	ui.text(c, (tr("Delete slot %d?") % confirming).to_upper(), Vector2(r.position.x, y), Ui.BROWN, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
+	for i in said.size():
+		y += Ui.leading()
+		ui.fit_text(c, said[i], r.size.x - 24.0, Vector2(r.position.x, y), Ui.RED if i == said.size() - 1 else Ui.INK, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
+	var bw := 120.0 if Ui.scale > 1 else 100.0
+	var top := y + 10.0
+	var field := Rect2(r.position.x + 12.0, top, r.size.x - 24.0 - 2.0 * bw - 16.0, bh)
+	ui.register(field, "field")
+	_field(c, ui, field)
+	ui.button(c, Rect2(field.end.x + 8.0, top, bw, bh), "yes", tr("Delete").to_upper(), "", word_typed(), null, true)
+	ui.button(c, Rect2(field.end.x + 16.0 + bw, top, bw, bh), "no", tr("Cancel").to_upper(), "", true, null, true)
+
+
+## The sunken box the word is typed into, with a blinking cursor, so it reads as the place to type and not as another button.
+func _field(c: CanvasItem, ui: Ui, field: Rect2) -> void:
 	c.draw_rect(field.grow(1), Ui.INK)
 	c.draw_rect(field, Ui.CREAM)
 	c.draw_rect(Rect2(field.position, Vector2(field.size.x, 2)), Ui.PARCH_DARK)
@@ -158,6 +200,3 @@ func _draw_question(c: CanvasItem, ui: Ui) -> void:
 	if int(Time.get_ticks_msec() / 500) % 2 == 0:
 		var x := at.x + (Ui.width_at(typed.to_upper(), Ui.px) + 2.0 if typed != "" else 0.0)
 		c.draw_rect(Rect2(x, field.position.y + 5.0, 2.0, field.size.y - 10.0), Ui.INK)
-	y += bh + 6.0
-	ui.button(c, Rect2(cx - bw - 6.0, y + 12.0, bw, bh), "yes", tr("Delete").to_upper(), "", word_typed(), null, true)
-	ui.button(c, Rect2(cx + 6.0, y + 12.0, bw, bh), "no", tr("Cancel").to_upper(), "", true, null, true)

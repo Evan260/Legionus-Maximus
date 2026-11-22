@@ -12,6 +12,9 @@ const SILHOUETTE := Color(0.14, 0.1, 0.08)
 
 var main: Node
 var scroll := 0
+var _visible := 1
+var _count := 0
+var _seen_focus := ""
 
 
 func _init(owner_node: Node) -> void:
@@ -20,6 +23,14 @@ func _init(owner_node: Node) -> void:
 
 func activate(_id: String) -> void:
 	pass
+
+
+func row_step() -> float:
+	return STEP
+
+
+func scroll_by(rows: int) -> void:
+	scroll = clampi(scroll + rows, 0, maxi(0, _count - _visible))
 
 
 ## Every entry that is drawn, as [id, group, entry].
@@ -49,7 +60,13 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 		for i in rows[k]:
 			if "e:" + list[i][0] == ui.focus:
 				focus_row = k
-	scroll = Ui.scroll_for(focus_row, rows.size(), visible, scroll)
+	_visible = visible
+	_count = rows.size()
+	# The grid follows the keys' focus, and is otherwise left where a finger scrolled it.
+	if ui.focus != _seen_focus or not Touch.phone:
+		_seen_focus = ui.focus
+		scroll = Ui.scroll_for(focus_row, rows.size(), visible, scroll)
+	scroll_by(0)
 	var row_y := origin.y
 	var lifted := rows_height(rows, list, scroll)
 	for k in rows.size():
@@ -60,11 +77,13 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 			var e: Array = list[rows[k][col]]
 			var rect := Rect2(origin.x + col * STEP, row_y - lifted, CELL, CELL)
 			if not shown:
-				ui.register(rect, "e:" + e[0])
+				ui.register(rect, "e:" + e[0], true, false)
 				continue
 			ui.button(c, rect, "e:" + e[0], "", "", true, null, true)
 			_picture(c, ui, e[0], e[2], Profile.data.seen.has(e[0]), rect.grow(-3))
 		row_y += STEP
+	if Touch.phone:
+		CommandersScreen._scroll_marks(c, Rect2(origin.x, origin.y - 24.0, COLS * STEP - 4.0, r.end.y - origin.y + 24.0), scroll > 0, scroll + visible < rows.size())
 	var box := Rect2(r.position.x + 12 + COLS * STEP + 4, origin.y, r.size.x - 24 - COLS * STEP - 4, r.end.y - 6.0 - origin.y)
 	ui.panel(c, box, Ui.CREAM)
 	for e in list:

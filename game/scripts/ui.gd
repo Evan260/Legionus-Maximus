@@ -32,6 +32,7 @@ var focus := ""
 ## Where a key moves focus from a button when the screen sets it, in place of the nearest button that way.
 var links := {}
 var _next: Array = []
+var _after: Array = []
 var _next_links := {}
 var _icons := {}
 
@@ -166,12 +167,13 @@ static func scroll_for(index: int, count: int, visible: int, current: int) -> in
 
 func begin() -> void:
 	_next = []
+	_after = []
 	_next_links = {}
 
 
 ## Ends a frame; focus falls back to the first button when its own has gone.
 func end() -> void:
-	items = _next
+	items = _next + _after
 	links = _next_links
 	if not items.is_empty() and not has_item(focus):
 		focus = items[0].id
@@ -258,12 +260,22 @@ static func below_title() -> float:
 	return 20.0 + 8.0 * scale
 
 
-## A dimmed backdrop, a big panel, a title and a footer of key hints.
-func frame(c: CanvasItem, title: String, hint: String) -> Rect2:
+## A dimmed backdrop, a big panel, a title and a footer of key hints; a phone has a back button by the title instead of hints.
+func frame(c: CanvasItem, title: String, hint: String, back := true) -> Rect2:
 	veil(c, 0.5)
-	var r := Rect2(16, 12, W - 32, H - 40)
+	var r := Rect2(16, 12, W - 32, H - (26 if Touch.phone else 40))
 	panel(c, r)
-	text(c, title, Vector2(r.position.x + 12, r.position.y + 8 + 8 * scale), BROWN)
+	var tx := r.position.x + 12
+	if Touch.phone and back and corner_room():
+		corner_back(c)
+	elif Touch.phone and back:
+		var side := 14.0 + 4.0 * scale
+		var b := Rect2(r.position.x + 5, r.position.y + 4, side + 4.0, side)
+		back_button(c, b, Rect2(-offset, b.end + offset + Vector2(4, 3)))
+		tx = b.end.x + 8.0
+	text(c, title, Vector2(tx, r.position.y + 8 + 8 * scale), BROWN)
+	if hint == "":
+		return r
 	# A long hint steps down to the smallest size, and only then loses its first parts until the rest fits the screen.
 	var parts: Array = hint.split("     ")
 	var size := fit_size("     ".join(parts), W - 16.0)
@@ -273,8 +285,39 @@ func frame(c: CanvasItem, title: String, hint: String) -> Rect2:
 	return r
 
 
-func register(r: Rect2, id: String, enabled := true) -> void:
-	_next.append({"id": id, "rect": r, "on": enabled})
+## Adds a button to this frame's list; one scrolled out of sight is kept for the keys to reach but is not `hit` by a tap.
+func register(r: Rect2, id: String, enabled := true, hit := true) -> void:
+	_next.append({"id": id, "rect": r, "on": enabled, "hit": hit})
+
+
+## A small button with a leftward arrow that steps back one screen, taking taps anywhere in `reach`.
+func back_button(c: CanvasItem, r: Rect2, reach: Rect2) -> void:
+	# It goes after the screen's own buttons, so a screen still opens with its first button picked out.
+	_after.append({"id": "touch_back", "rect": reach, "on": true, "hit": true})
+	if focus == "touch_back":
+		c.draw_rect(r.grow(2), GOLD)
+	panel(c, r, CREAM if focus == "touch_back" else PARCH)
+	var mid := r.get_center()
+	var k := maxf(3.0, roundf(r.size.y * 0.22))
+	var arrow := PackedVector2Array([mid + Vector2(k * 0.6, -k), mid + Vector2(-k * 0.6, 0), mid + Vector2(k * 0.6, k)])
+	c.draw_polyline(arrow, INK, 2.0 if r.size.y < 22.0 else 3.0)
+
+
+## The back button in the corner of the whole window, clear of a phone's corners.
+func corner_back(c: CanvasItem) -> void:
+	var b := corner_back_rect()
+	back_button(c, b, b.grow(6))
+
+
+static func corner_back_rect() -> Rect2:
+	var side := maxf(14.0 + 4.0 * scale, minf(Touch.fingertip * 0.75, 30.0))
+	return Rect2(-offset + Touch.inset_tl + Vector2(6, 6), Vector2(side + 4.0, side))
+
+
+## Whether the window's corner has room for the back button beside or above the frame, as a wide phone or a squarer tablet has.
+static func corner_room() -> bool:
+	var b := corner_back_rect()
+	return b.end.x + 4.0 <= 16.0 or b.end.y + 4.0 <= 12.0
 
 
 ## A button: a panel with a label on the left, an optional value on the right and an optional icon. Focus gets a gold frame.
@@ -361,7 +404,7 @@ func move(dir: Vector2) -> void:
 ## The id of the button under a point, or "".
 func at(p: Vector2) -> String:
 	for it in items:
-		if it.rect.has_point(p):
+		if it.get("hit", true) and it.rect.has_point(p):
 			return it.id
 	return ""
 

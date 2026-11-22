@@ -8,14 +8,38 @@ const VOLUME_NAMES := {"master": "Master volume", "music": "Music volume", "effe
 const BUSES := {"master": "Master", "music": "Music", "effects": "Effects"}
 const TOGGLES := [["fullscreen", "Full screen"], ["shake", "Screen shake"], ["numbers", "Damage numbers"], ["blood", "Blood"]]
 
+## A volume bar's width, wider on a phone so a finger can set it.
+const BAR_W := 80.0
+const PHONE_BAR_W := 120.0
+
 var main: Node
 var page := "main"
+## Each volume bar drawn this frame, by its setting.
+var _bars := {}
 # The slot being rebound as {"action", "kind", "slot"}, empty when none is.
 var waiting := {}
 
 
 func _init(owner_node: Node) -> void:
 	main = owner_node
+
+
+## The switches offered: a phone always fills its screen, so it has no full screen switch.
+static func toggles() -> Array:
+	return TOGGLES.filter(func(t: Array) -> bool: return not (Touch.phone and t[0] == "fullscreen"))
+
+
+## The rows of the main page, top to bottom; a phone keeps no music folder the player can reach and has no keys to bind.
+static func rows() -> Array:
+	var out: Array = VOLUMES.duplicate()
+	if not Touch.phone:
+		out.append("music_folder")
+	out.append_array(toggles().map(func(t: Array) -> String: return t[0]))
+	out.append_array(["text_size", "language"])
+	if not Touch.phone:
+		out.append("controls")
+	out.append("back")
+	return out
 
 
 func enter() -> void:
@@ -136,39 +160,60 @@ func _draw_main(c: CanvasItem, ui: Ui) -> void:
 	var w := 440.0
 	var x := (Ui.W - w) / 2.0
 	var y := r.position.y + Ui.below_title() + 4.0
-	# Volumes, the music folder, the switches, text size, language, keys and back all fit inside the frame.
-	var rows := VOLUMES.size() + TOGGLES.size() + 5
-	var fit := floorf((r.end.y - 6.0 - y) / rows)
+	var list := rows()
+	# Every row fits inside the frame, and on a phone the rows grow into the room a computer's own rows take.
+	var fit := floorf((r.end.y - 6.0 - y) / list.size())
 	if fit < step:
 		h -= step - fit
 		step = fit
-	for key in VOLUMES:
+	elif Touch.phone:
+		step = minf(fit, h + 6.0)
+		h = step - 2.0
+	_bars.clear()
+	for key in list:
 		var rect := Rect2(x, y, w, h)
-		var v := float(Profile.setting(key))
-		var pct := "%d%%" % roundi(v * 100.0)
-		var bar_w := 80.0
-		var bx := rect.end.x - 12.0 - ui.width_of("100%") - bar_w
-		ui.button(c, rect, key, tr(VOLUME_NAMES[key]), pct, true, null, false, Ui.RED, rect.end.x - bx - ui.width_of(pct) - 6.0)
-		c.draw_rect(Rect2(bx - 1, rect.position.y + h / 2 - 3, bar_w + 2, 7), Ui.INK)
-		c.draw_rect(Rect2(bx, rect.position.y + h / 2 - 2, bar_w, 5), Ui.PARCH_DARK)
-		c.draw_rect(Rect2(bx, rect.position.y + h / 2 - 2, bar_w * v, 5), Ui.GOLD)
 		y += step
-	ui.button(c, Rect2(x, y, w, h), "music_folder", tr("Your own music"), tr("Open folder"))
-	y += step
-	for t in TOGGLES:
-		ui.button(c, Rect2(x, y, w, h), t[0], tr(t[1]), tr("On") if bool(Profile.setting(t[0])) else tr("Off"))
-		y += step
-	ui.button(c, Rect2(x, y, w, h), "text_size", tr("Text size"), tr("Large") if int(Profile.setting("text_size")) == 2 else tr("Normal"))
-	y += step
-	var lang := tr("Automatic") if Profile.setting("language") == "" else str(Lang.NATIVE_NAMES.get(Profile.setting("language"), ""))
-	Ui.draw_in("" if Profile.setting("language") == "" else str(Profile.setting("language")))
-	ui.button(c, Rect2(x, y, w, h), "language", "", lang)
-	Ui.draw_in("")
-	ui.text(c, tr("Language"), Vector2(x + 6.0, y + h / 2.0 + Ui.px * 3 / 8), Ui.INK)
-	y += step
-	ui.button(c, Rect2(x, y, w, h), "controls", tr("Keys and buttons"), "")
-	y += step
-	ui.button(c, Rect2(x, y, w, h), "back", tr("Back").to_upper(), "", true, null, true)
+		if key in VOLUMES:
+			var v := float(Profile.setting(key))
+			var pct := "%d%%" % roundi(v * 100.0)
+			var bar_w := PHONE_BAR_W if Touch.phone else BAR_W
+			var bx := rect.end.x - 12.0 - ui.width_of("100%") - bar_w
+			_bars[key] = Rect2(bx, rect.position.y, bar_w, h)
+			ui.button(c, rect, key, tr(VOLUME_NAMES[key]), pct, true, null, false, Ui.RED, rect.end.x - bx - ui.width_of(pct) - 6.0)
+			c.draw_rect(Rect2(bx - 1, rect.position.y + h / 2 - 3, bar_w + 2, 7), Ui.INK)
+			c.draw_rect(Rect2(bx, rect.position.y + h / 2 - 2, bar_w, 5), Ui.PARCH_DARK)
+			c.draw_rect(Rect2(bx, rect.position.y + h / 2 - 2, bar_w * v, 5), Ui.GOLD)
+			continue
+		match key:
+			"music_folder":
+				ui.button(c, rect, "music_folder", tr("Your own music"), tr("Open folder"))
+			"text_size":
+				ui.button(c, rect, "text_size", tr("Text size"), tr("Large") if int(Profile.setting("text_size")) == 2 else tr("Normal"))
+			"language":
+				var lang := tr("Automatic") if Profile.setting("language") == "" else str(Lang.NATIVE_NAMES.get(Profile.setting("language"), ""))
+				Ui.draw_in("" if Profile.setting("language") == "" else str(Profile.setting("language")))
+				ui.button(c, rect, "language", "", lang)
+				Ui.draw_in("")
+				ui.text(c, tr("Language"), Vector2(x + 6.0, rect.position.y + h / 2.0 + Ui.px * 3 / 8), Ui.INK)
+			"controls":
+				ui.button(c, rect, "controls", tr("Keys and buttons"), "")
+			"back":
+				ui.button(c, rect, "back", tr("Back").to_upper(), "", true, null, true)
+			_:
+				for t in TOGGLES:
+					if t[0] == key:
+						ui.button(c, rect, key, tr(t[1]), tr("On") if bool(Profile.setting(key)) else tr("Off"))
+
+
+## A tap on a volume's bar sets the volume where the finger lands; true when the tap was used.
+func tap_at(id: String, at: Vector2) -> bool:
+	if page != "main" or not _bars.has(id):
+		return false
+	var bar: Rect2 = _bars[id]
+	if at.x < bar.position.x - 8.0 or at.x > bar.end.x + 8.0:
+		return false
+	_put(id, clampf(snappedf((at.x - bar.position.x) / bar.size.x, 0.1), 0.0, 1.0))
+	return true
 
 
 ## The height of each row on the key page and the step between rows, so every action and the buttons below fit the room.

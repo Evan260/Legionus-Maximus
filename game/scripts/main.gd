@@ -46,6 +46,7 @@ extends Node
 ##   --max-state        open every province, mode and commander with a million denarii, without reading or touching the real save
 ##   --trailer-shot=NAME  stage a trailer shot with tools/trailer/shots.gd
 ##   --no-save          leave the real save unread and untouched, as every flag above also does
+##   --phone            show the phone's layout and touch controls, with the mouse as a finger (--phone-insets=L,T,R,B for a camera)
 
 var balance: Dictionary
 var content: Content
@@ -74,6 +75,14 @@ var win_at := -1.0
 var god_at := -1.0
 # When the look started by --boss-act=die cuts the chieftain down, on the real clock.
 var slay_at := -1.0
+## The run's touch controls on a phone, or null.
+var touch_pad: TouchPad = null
+## When the last back gesture came, on the real clock in milliseconds.
+var _back_at := -100000
+## Each finger on a screen by its touch index, as {from, moved, pulled, state}, so a finger lifted where it landed is a tap.
+var _fingers := {}
+## Whether the phone's text size has been settled, which waits for the screen's size to be known.
+var _text_sized := false
 const RUN_SETUP := {"province": "germania", "commander": "tribune", "difficulty": "medium", "endless": false, "decimatio": false}
 var run_setup: Dictionary = RUN_SETUP.duplicate()
 
@@ -113,6 +122,11 @@ func _ready() -> void:
 		world.livery_force = Vector2i(int(tiers[0]), int(tiers[1] if tiers.size() > 1 else tiers[0]))
 	hud.main = self
 	hud.ui = ui
+	if Touch.phone:
+		touch_pad = TouchPad.new()
+		touch_pad.main = self
+		$UI.add_child(touch_pad)
+		Input.emulate_touch_from_mouse = Touch.preview
 	screens = {"camp": CampScreen.new(self), "quartermaster": QuartermasterScreen.new(self), "tablinum": TablinumScreen.new(self),
 		"map": MapScreen.new(self), "commanders": CommandersScreen.new(self), "title": TitleScreen.new(self), "pause": PauseScreen.new(self),
 		"settings": SettingsScreen.new(self), "over": SummaryScreen.new(self), "saves": SavesScreen.new(self)}
@@ -449,7 +463,7 @@ func apply_settings() -> void:
 	var cfg := Profile.settings_of(Profile.settings)
 	SettingsScreen.apply_audio(cfg)
 	var want := DisplayServer.WINDOW_MODE_FULLSCREEN if cfg.fullscreen else DisplayServer.WINDOW_MODE_WINDOWED
-	if DisplayServer.window_get_mode() != want:
+	if DisplayServer.window_get_mode() != want and not Touch.phone:
 		DisplayServer.window_set_mode(want)
 	Ui.set_text_size(int(cfg.text_size), balance)
 	world.shake_on = cfg.shake
@@ -600,6 +614,12 @@ func _setup_input() -> void:
 
 func _process(dt: float) -> void:
 	clock += dt
+	if touch_pad != null and not _text_sized and Touch.fingertip > 0.0:
+		_text_sized = true
+		# A phone starts on large text when the normal size would be too small to read, until the player picks a size.
+		if Touch.wants_large and not Profile.settings.has("text_size"):
+			Profile.settings.text_size = 2
+			apply_settings()
 	Steamworks.blocked = state in Steamworks.HIDING_STATES
 	_steam_update(dt)
 	if shot_at >= 0.0 and clock >= shot_at:
@@ -609,7 +629,7 @@ func _process(dt: float) -> void:
 		print("FPS %d with %d barbarians" % [Engine.get_frames_per_second(), sim.horde.e_pos.size()])
 		get_tree().quit()
 		return
-	if Input.is_action_just_pressed("fullscreen"):
+	if Input.is_action_just_pressed("fullscreen") and not Touch.phone:
 		var full := DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
 		Profile.settings.fullscreen = not full
 		apply_settings()
@@ -618,7 +638,7 @@ func _process(dt: float) -> void:
 		"title", "camp", "quartermaster", "tablinum", "map", "commanders", "pause", "settings", "over", "saves":
 			_screen_input(dt)
 		"play":
-			if Input.is_action_just_pressed("pause"):
+			if Input.is_action_just_pressed("pause") or _pad("pause"):
 				_pause()
 				return
 			if god_at >= 0.0 and clock >= god_at:
@@ -634,13 +654,15 @@ func _process(dt: float) -> void:
 			if win_at >= 0.0 and sim.time >= win_at:
 				win_at = -1.0
 				sim.win(sim.commander.pos)
-			if Input.is_action_just_pressed("pray") and sim.triumph_left <= 0.0:
+			if (Input.is_action_just_pressed("pray") or _pad("pray")) and sim.triumph_left <= 0.0:
 				_open_gods()
 				if state != "play":
 					return
 			var move := Input.get_vector("left", "right", "up", "down")
-			var testudo := Input.is_action_just_pressed("testudo")
-			var build := Input.is_action_just_pressed("build")
+			if touch_pad != null and touch_pad.move() != Vector2.ZERO:
+				move = touch_pad.move()
+			var testudo := Input.is_action_just_pressed("testudo") or _pad("testudo")
+			var build := Input.is_action_just_pressed("build") or _pad("build")
 			if args.has("autoplay"):
 				if march_to_fort and sim.commander.pos.y <= sim.objectives.fort.centre.y + 20.0:
 					look_march = Vector2.ZERO
@@ -649,9 +671,9 @@ func _process(dt: float) -> void:
 				build = sim.timber >= int(balance.palisade.cost) and look_march == Vector2.INF
 			if build:
 				sim.build_palisade()
-			if Input.is_action_just_pressed("wall"):
+			if Input.is_action_just_pressed("wall") or _pad("wall"):
 				sim.build_wall()
-			if Input.is_action_just_pressed("bridge"):
+			if Input.is_action_just_pressed("bridge") or _pad("bridge"):
 				sim.build_bridge()
 			sim.update(sim.slowed(minf(dt, 1.0 / 30.0)), move, testudo)
 			Audio.drain(sim)
@@ -663,8 +685,7 @@ func _process(dt: float) -> void:
 			if args.has("autoplay") and clock - opened_at > 0.5 and args.get("god", "") != "choose":
 				_call_god(0)
 			elif Input.is_action_just_pressed("back") or Input.is_action_just_pressed("pray"):
-				Audio.play("back")
-				state = "play"
+				_not_now()
 			elif Input.is_action_just_pressed("up") or Input.is_action_just_pressed("left"):
 				selected = posmod(selected - 1, choices.size())
 			elif Input.is_action_just_pressed("down") or Input.is_action_just_pressed("right"):
@@ -682,16 +703,38 @@ func _process(dt: float) -> void:
 			elif Input.is_action_just_pressed("confirm"):
 				if Game.confirm_allowed(state, opened_at, clock, balance):
 					_take(selected)
-			elif Input.is_action_just_pressed("reroll") and sim.rerolls > 0:
-				choices = Upgrades.reroll(sim, choices)
-				selected = Upgrades.keep_in(selected, choices)
-			elif Input.is_action_just_pressed("banish") and sim.banishes > 0:
-				choices = Upgrades.banish(sim, choices[selected], choices)
-				selected = Upgrades.keep_in(selected, choices)
-				if choices.is_empty():
-					sim.pending_levels = 0
-					sim.free_choices = 0
-					state = "play"
+			elif Input.is_action_just_pressed("reroll"):
+				_reroll()
+			elif Input.is_action_just_pressed("banish"):
+				_banish()
+
+
+## Whether a touch button was pressed this frame.
+func _pad(id: String) -> bool:
+	return touch_pad != null and touch_pad.take(id)
+
+
+func _reroll() -> void:
+	if sim.rerolls > 0:
+		choices = Upgrades.reroll(sim, choices)
+		selected = Upgrades.keep_in(selected, choices)
+
+
+func _banish() -> void:
+	if sim.banishes <= 0:
+		return
+	choices = Upgrades.banish(sim, choices[selected], choices)
+	selected = Upgrades.keep_in(selected, choices)
+	if choices.is_empty():
+		sim.pending_levels = 0
+		sim.free_choices = 0
+		state = "play"
+
+
+## Leaves the gods' choice for later, with the favour kept.
+func _not_now() -> void:
+	Audio.play("back")
+	state = "play"
 
 
 ## Earns achievements the run meets while it is on, and tells Steam where the player is.
@@ -743,8 +786,39 @@ func _pause() -> void:
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and Game.pauses_on_focus_loss(state, args.has("autoplay") or args.has("skip")):
+	if what in [NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_APPLICATION_PAUSED] and Game.pauses_on_focus_loss(state, args.has("autoplay") or args.has("skip")):
 		_pause()
+	if not Touch.phone:
+		return
+	match what:
+		NOTIFICATION_WM_GO_BACK_REQUEST:
+			if Touch.back_counts(Time.get_ticks_msec(), _back_at):
+				_back_at = Time.get_ticks_msec()
+				_go_back()
+		# A phone may close a game it has put away without warning, so the game is saved and silenced at once.
+		NOTIFICATION_APPLICATION_PAUSED, NOTIFICATION_APPLICATION_FOCUS_OUT:
+			Profile.save()
+			Profile.save_settings()
+			AudioServer.set_bus_mute(0, true)
+		NOTIFICATION_APPLICATION_RESUMED, NOTIFICATION_APPLICATION_FOCUS_IN:
+			SettingsScreen.apply_audio(Profile.settings_of(Profile.settings))
+
+
+## The phone's back gesture: one step back from where the player is, and from the title the game is put away.
+func _go_back() -> void:
+	match Touch.back_step(state, state == "over" and screens.over.revealing()):
+		"pause":
+			_pause()
+		"not_now":
+			_not_now()
+		"skip":
+			screens.over.skip()
+		"back":
+			_back()
+		"background":
+			Profile.save()
+			if Engine.has_singleton("AndroidRuntime"):
+				Engine.get_singleton("AndroidRuntime").getActivity().moveTaskToBack(true)
 
 
 func _back() -> void:
@@ -771,6 +845,9 @@ func _back() -> void:
 
 
 func _activate(id: String) -> void:
+	if id == "touch_back":
+		_back()
+		return
 	if not ui.is_enabled(id):
 		# A locked province on the map answers with the back sound, so the press is heard while the panel says what opens it.
 		if state == "map" and id.begins_with("prov:"):
@@ -844,6 +921,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		swallow_input = true
 		get_viewport().set_input_as_handled()
 		return
+	# A phone works its screens by taps, and the mouse events a touch also makes would act twice.
+	if Touch.phone:
+		if event is InputEventScreenTouch or event is InputEventScreenDrag:
+			_touch_input(event)
+		if event is InputEventMouse:
+			return
 	# The press itself says where it landed; the last known mouse position can lag behind a click that came without a move first.
 	var at := Vector2.INF
 	if event is InputEventMouse:
@@ -874,6 +957,88 @@ func _unhandled_input(event: InputEvent) -> void:
 				_call_god(i)
 			else:
 				_take(i)
+
+
+## Follows each finger on a screen: a finger lifted where it landed taps, and one dragged up or down scrolls a list.
+func _touch_input(event: InputEvent) -> void:
+	var at: Vector2 = hud.make_input_local(event).position - Ui.offset
+	if event is InputEventScreenTouch:
+		if event.pressed:
+			_fingers[event.index] = {"from": at, "moved": 0.0, "pulled": 0.0, "state": state}
+		elif _fingers.has(event.index):
+			var f: Dictionary = _fingers[event.index]
+			_fingers.erase(event.index)
+			# A finger that opened a screen or a choice as it pressed does not also tap what opened under it.
+			if f.state == state and Touch.is_tap(f.moved, Touch.slop):
+				_tap(f.from)
+		return
+	if not _fingers.has(event.index):
+		return
+	var f: Dictionary = _fingers[event.index]
+	f.moved = maxf(f.moved, at.distance_to(f.from))
+	if f.state != state or not screens.has(state) or not screens[state].has_method("scroll_by") or Touch.is_tap(f.moved, Touch.slop):
+		return
+	f.pulled += event.relative.y
+	var step: float = screens[state].row_step()
+	while absf(f.pulled) >= step:
+		var rows := -1 if f.pulled > 0.0 else 1
+		screens[state].scroll_by(rows)
+		f.pulled += step * rows
+
+
+## A tap on a screen: a button acts, or a purchase or choice is first picked out to be read.
+func _tap(at: Vector2) -> void:
+	if state == "choose" or state == "pray":
+		_tap_choice(at)
+		return
+	if not screens.has(state):
+		return
+	if state == "over" and screens.over.revealing():
+		if Game.confirm_allowed(state, opened_at, clock, balance):
+			screens.over.skip()
+		return
+	var id := ui.at(at)
+	if id == "":
+		return
+	if screens[state].has_method("tap_at") and screens[state].tap_at(id, at):
+		ui.focus = id
+		Audio.play("click")
+		return
+	var acts := Touch.tap_acts(state, id, ui.focus)
+	ui.focus = id
+	if acts:
+		_activate(id)
+	else:
+		Audio.play("click")
+
+
+## A tap on the level-up or the gods' choice: a row is picked out, then taken by a second tap or the button under the rows.
+func _tap_choice(at: Vector2) -> void:
+	var button: String = hud.touch_button_at(at)
+	var ready := Game.confirm_allowed(state, opened_at, clock, balance)
+	match button:
+		"take", "call":
+			if ready:
+				_call_god(selected) if state == "pray" else _take(selected)
+			return
+		"reroll":
+			_reroll()
+			return
+		"banish":
+			_banish()
+			return
+		"not_now":
+			_not_now()
+			return
+	var i: int = hud.choice_at(at)
+	if i < 0:
+		return
+	if Touch.tap_acts(state, "choice:%d" % i, "choice:%d" % selected):
+		if ready:
+			_call_god(i) if state == "pray" else _take(i)
+	else:
+		selected = i
+		Audio.play("click")
 
 
 func _bench() -> void:

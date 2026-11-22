@@ -195,6 +195,8 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	_panel(c, ui, selected)
 	_header(c, ui)
 	_links(ui, ids)
+	if Touch.phone:
+		ui.corner_back(c)
 
 
 ## The road from Rome through every province: solid where the legion has marched, dashes beyond, moving towards the next to win.
@@ -399,6 +401,8 @@ func _road_marks(ids: Array) -> Array:
 ## The key hints on a dark strip, so they read over the painted map.
 func _header(c: CanvasItem, ui: Ui) -> void:
 	var hint := Controls.hint("pick")
+	if hint == "":
+		return
 	var size := Ui.fit_size(hint, Ui.W - 16.0)
 	c.draw_rect(Rect2(0, Ui.H - Ui.lead_for(size) - 6.0, Ui.W, Ui.lead_for(size) + 6.0), SHADE)
 	ui.text(c, hint, Vector2(0, Ui.H - 6), Ui.CREAM, HORIZONTAL_ALIGNMENT_CENTER, Ui.W, true, size)

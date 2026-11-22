@@ -41,6 +41,8 @@ static func arch_clearing() -> Array:
 func draw(c: CanvasItem, ui: Ui) -> void:
 	var big := Ui.scale > 1
 	_monument(c, ARCH_FOOT - Vector2(0, 0 if not big else 6))
+	if Touch.phone:
+		ui.corner_back(c)
 	var plate := Color(0.12, 0.08, 0.06, 0.78)
 	var title := tr("The camp").to_upper()
 	var tw := Ui.width_at(title, Ui.px)

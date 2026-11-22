@@ -154,6 +154,8 @@ static func part(keys: String, word: String) -> String:
 
 ## The key hint at the foot of a screen, naming the player's current keys; `count` is the rerolls or banishes left.
 static func hint(kind: String, count := 0) -> String:
+	if Touch.phone:
+		return TranslationServer.translate("Lay a bridge") if kind == "bridge" else ""
 	var both := func(action: String) -> String: return shown(action)
 	var sides := key_of("left") + " / " + key_of("right")
 	# The level-up and the gods' choice are rows, worked up and down.

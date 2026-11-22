@@ -37,13 +37,15 @@ static func buttons(balance: Dictionary) -> Array:
 	if range(1, Profile.SLOTS + 1).any(Profile.slot_taken):
 		out.append(["load", TranslationServer.translate("Load"), true])
 	out.append(["settings", TranslationServer.translate("Settings"), true])
-	if Game.is_demo() and int(balance.demo.store_app_id) > 0:
+	if Game.is_demo() and int(balance.demo.store_app_id) > 0 and not Touch.phone:
 		out.append(["wishlist", TranslationServer.translate("Wishlist on Steam"), true])
 	return out
 
 
 ## The how-to-play lines: each key the player has bound and what it does, then how the run is won.
 static func how_to_play(balance: Dictionary) -> Array:
+	if Touch.phone:
+		return _touch_how_to_play(balance)
 	var key := func(action: String) -> String: return Controls.key_of(action) + "  "
 	return [
 		Controls.march_keys() + "  " + TranslationServer.translate("march"),
@@ -56,6 +58,21 @@ static func how_to_play(balance: Dictionary) -> Array:
 		TranslationServer.translate("Your soldiers fight on their own."),
 		Game.goal_text(balance),
 	]
+
+
+## The how-to-play lines for a touch screen, which name the buttons' actions with no keys.
+static func _touch_how_to_play(balance: Dictionary) -> Array:
+	var lines: Array = [
+		TranslationServer.translate("Drag on the left of the screen to march"),
+		TranslationServer.translate("testudo: 80% less harm, stops boss charges"),
+		TranslationServer.translate("palisade: %d timber from felled trees") % int(balance.palisade.cost),
+		TranslationServer.translate("wall behind the legion: %d timber, the enemy slowly breaks it") % int(balance.wall.cost),
+		TranslationServer.translate("bridge over a ravine: %d timber") % int(balance.bridge.cost),
+		TranslationServer.translate("call the gods when the wreath is full"),
+		TranslationServer.translate("Your soldiers fight on their own."),
+		Game.goal_text(balance),
+	]
+	return lines.map(func(s: String) -> String: return s.left(1).to_upper() + s.substr(1))
 
 
 ## The how-to-play lines as drawn at a size (the text size when 0): one too long for the box goes on two lines rather than shrinking alone.
