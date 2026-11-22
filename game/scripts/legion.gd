@@ -347,7 +347,7 @@ func _fort_block(places: Array, fort: Dictionary) -> Array:
 static func _in_yard(p: Vector2, fort: Dictionary) -> bool:
 	var off: Vector2 = p - fort.centre
 	var half: float = fort.half
-	if absf(off.x) >= half or off.y >= half:
+	if absf(off.x) >= half or absf(off.y) >= half:
 		return false
 	return not (absf(off.x) <= float(fort.gate_half) and off.y > half - GATE_DEPTH)
 

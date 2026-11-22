@@ -4300,6 +4300,31 @@ func _fort_sim(b: Dictionary, seed_value: int) -> Sim:
 	return s
 
 
+func test_the_legion_marching_past_the_north_of_the_fort_stays_with_its_commander(b: Dictionary) -> void:
+	var s := _fort_sim(b, 400)
+	var fort: Dictionary = s.objectives.fort
+	var half := float(fort.half)
+	while s.soldiers.size() < 40:
+		s.legion.add(["legionary", "legionary", "archer"][s.soldiers.size() % 3])
+	# The legion marches west to east just beyond the fort's north wall, inside the band of its east and west walls.
+	s.commander.pos = fort.centre + Vector2(-half * 2.0, -half - 90.0)
+	s.facing_angle = 0.0
+	s.legion.place_all(s.facing_angle)
+	s.terrain.refresh(s.commander.pos)
+	for k in 8 * 30:
+		s.commander.hp = s.commander.max_hp
+		s.update(1.0 / 30.0, Vector2(0.6, 0), false)
+	var strays := 0
+	var in_yard := 0
+	for so in s.soldiers:
+		if so.pos.distance_to(s.commander.pos) > s.legion_reach + 40.0:
+			strays += 1
+		if s.objectives.in_fort(so.pos, s):
+			in_yard += 1
+	check(not s.objectives.in_fort(s.commander.pos, s), "the commander never went into the fort")
+	check(strays == 0 and in_yard == 0, "no soldier is led off into the fort while the legion passes its north wall (%d strayed, %d inside)" % [strays, in_yard])
+
+
 func test_the_fort_is_a_walled_square_with_its_gate_towards_the_legion(b: Dictionary) -> void:
 	var cfg: Dictionary = b.fort
 	var s := _fort_sim(b, 400)
