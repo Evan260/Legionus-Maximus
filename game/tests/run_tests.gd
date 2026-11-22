@@ -2908,8 +2908,83 @@ func test_no_card_draws_over_the_choice_or_the_summary(b: Dictionary) -> void:
 	Steamworks.card = {}
 
 
+func test_the_build_panel_lists_the_legions_soldiers_arms_and_drills(b: Dictionary) -> void:
+	var s := Sim.new(b, Content.with_all_art(), {"seed": 3})
+	s.legion.add("ballista")
+	s.legion.add("archer")
+	s.ranks["pilum"] = 2
+	s.ranks["hooked_pila"] = 1
+	s.ranks["march"] = 1
+	var sections: Array = Hud.build_sections(s)
+	var by := {}
+	for sec in sections:
+		by[sec[0]] = sec[1]
+	var soldiers: Array = by.get("soldiers", [])
+	var counted := {}
+	for e in soldiers:
+		counted[e[0]] = e[1]
+	for id in s.content.recruits:
+		check(counted.get(id, 0) == s.count(id), "the panel counts the %s as the legion does (%d, %d)" % [id, counted.get(id, 0), s.count(id)])
+	check(not counted.has("cavalry"), "a soldier the legion has none of is left out")
+	check(by.get("arms", []) == [["pilum", 2, 5], ["hooked_pila", 1, 1]], "the arms show their rank and most ranks, the forged ones after (%s)" % [by.get("arms", [])])
+	check(by.get("drills", []) == [["march", 1, 5]], "the drills show their rank and most ranks (%s)" % [by.get("drills", [])])
+	check(sections.map(func(sec): return sec[0]) == ["soldiers", "arms", "drills"], "soldiers come first, then arms, then drills")
 
-const LANGUAGES := ["en", "fr", "de", "es", "it", "pt_BR", "pl", "tr", "ru", "uk", "ja", "ko", "zh_CN", "zh_TW"]
+
+func test_the_build_panel_fits_beside_three_cards_in_every_language(b: Dictionary) -> void:
+	var before: String = Lang.code
+	var before_scale := Ui.scale
+	var words := Content.load_all(Content.available_art())
+	var s := Sim.new(b, words, {"seed": 3})
+	# The most a legion can show: every kind of soldier, every arm and forged arm and every drill; counts are given room for three figures.
+	for id in words.recruits:
+		s.legion.add(id)
+	for kind in ["arms", "forged", "drills"]:
+		for id in words.get(kind):
+			s.ranks[id] = int(words.get(kind)[id].max)
+	var problems := []
+	for loc in LANGUAGES:
+		Lang.apply(loc, false)
+		words.localize()
+		for scale in [1, 2]:
+			Ui.set_text_size(scale, b)
+			# The pause screen shows the panel at both text sizes, clear of its buttons.
+			if Hud.BUILD.end.x >= (Ui.W - PauseScreen.button_width()) / 2.0:
+				problems.append("%s x%d the panel reaches the pause buttons" % [loc, scale])
+			for it in Hud.build_items(s, Hud.BUILD):
+				if not Hud.BUILD.encloses(it[1]):
+					problems.append("%s x%d %s at %s spills out of the panel" % [loc, scale, it[2], it[1]])
+		Ui.set_text_size(1, b)
+		var cards: Array = Hud.card_rects(3, false, Hud.shows_build(3, false, false))
+		for r in cards:
+			if r.intersects(Hud.BUILD):
+				problems.append("%s card %s overlaps the panel" % [loc, r])
+			if r.size.x < 148.0 or r.end.x > Ui.W - 8.0:
+				problems.append("%s card %s is too narrow or off the screen" % [loc, r])
+		# Every card's words still fit at the narrower width: the name in two lines and the description above the card's foot.
+		var r0: Rect2 = cards[0]
+		var bw := r0.size.x
+		for id in words.recruits.keys() + words.arms.keys() + words.forged.keys() + words.drills.keys():
+			var info: Dictionary = words.upgrade(id)
+			var names: int = mini(Ui.block(str(info.name).to_upper(), bw - 8.0, 2).lines, 2)
+			for t in [str(info.get("text", "")), str(info.get("more", ""))]:
+				if t == "":
+					continue
+				var lines: int = Ui.lines_of(t, bw - 18.0).size()
+				var last: float = Hud.card_text_top(false, names) + (lines - 1) * Ui.leading()
+				if last > r0.size.y - 3.0:
+					problems.append("%s %s's text runs %d px past its card" % [loc, id, last - r0.size.y + 3.0])
+	Lang.apply(before, false)
+	words.localize()
+	Ui.set_text_size(before_scale, b)
+	for p in problems.slice(0, 12):
+		print("  ", p)
+	check(problems.is_empty(), "the panel fits at both text sizes, and beside three narrower cards at the normal size, in every language (%d problems)" % problems.size())
+	check(not Hud.shows_build(4, false, false) and not Hud.shows_build(3, false, true) and not Hud.shows_build(3, true, false), "four cards, large text and the gods' choice keep the whole width")
+
+
+
+const LANGUAGES :=["en", "fr", "de", "es", "it", "pt_BR", "pl", "tr", "ru", "uk", "ja", "ko", "zh_CN", "zh_TW"]
 
 
 func _sheet() -> Dictionary:

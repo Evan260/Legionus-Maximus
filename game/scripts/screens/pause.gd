@@ -29,10 +29,17 @@ func activate(id: String) -> void:
 			main._finish_run()
 
 
+static func button_width() -> float:
+	return 260.0 if Ui.scale > 1 else 180.0
+
+
 func draw(c: CanvasItem, ui: Ui) -> void:
 	Ui.veil(c, 0.45)
 	var h := 32.0 if Ui.scale > 1 else 22.0
-	var w := 260.0 if Ui.scale > 1 else 180.0
+	var w := PauseScreen.button_width()
+	# The give-up question is written right across the screen, so the build panel makes way for it.
+	if not confirming and c is Hud:
+		c.draw_build(main.sim, Hud.BUILD)
 	var top := Ui.H / 2 - (3 * h + 2 * 8) / 2 - 8
 	ui.text(c, tr("Paused").to_upper(), Vector2(0, top - 8), Ui.CREAM, HORIZONTAL_ALIGNMENT_CENTER, Ui.W, true)
 	ui.button(c, Rect2(Ui.W / 2 - w / 2, top, w, h), "resume", tr("Resume").to_upper(), "", true, null, true)

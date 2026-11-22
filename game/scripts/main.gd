@@ -154,6 +154,8 @@ func _ready() -> void:
 		Steamworks.show_card(args.card)
 	if args.has("hold-choice"):
 		sim.gain(sim.xp_next - sim.xp)
+	if args.get("screen", "") == "pause" and state == "play":
+		_pause()
 	if args.has("boss") and sim != null:
 		_bring_boss(str(args.boss), str(args.get("boss-act", "")))
 	if args.has("god"):

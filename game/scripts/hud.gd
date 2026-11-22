@@ -19,6 +19,11 @@ const MUTED := Color(0.7, 0.66, 0.6)
 const EDGE := 26.0
 ## How far above its foot an objective's name is written when it is on screen, clear of its sprite.
 const LABEL_RISE := {"camp": 56.0, "column": 50.0, "grove": 40.0, "fort": 76.0}
+## The panel of the legion's build on the left of the level-up and pause screens, its inner margin and the side of an icon in it.
+const BUILD := Rect2(12, 44, 140, 236)
+const BUILD_PAD := 4.0
+const BUILD_ICON := 16.0
+const PIP_DARK := Color(0.32, 0.26, 0.2)
 
 var main: Node
 var ui: Ui
@@ -854,33 +859,133 @@ static func _free_spot(r: Rect2, placed: Array, view: Vector2, top: float, low :
 	return r
 
 
+## The level-up cards for n choices, narrowed to sit beside the build panel when it is shown.
+static func card_rects(n: int, big: bool, beside_build: bool) -> Array:
+	var gap := 8.0 if n > 3 else 12.0
+	var left := BUILD.end.x + 8.0 if beside_build else 12.0
+	var room := W - 12.0 - left
+	var bw := minf(176.0 if not big else 200.0, (room - (n - 1) * gap) / n)
+	var x0 := left + (room - n * bw - (n - 1) * gap) / 2.0
+	var top := 44.0 if big else 100.0
+	var card_h := 236.0 if big else 178.0
+	var out: Array = []
+	for i in n:
+		out.append(Rect2(x0 + i * (bw + gap), top, bw, card_h))
+	return out
+
+
+## The build panel has room beside three cards at the normal text size; four cards or large text need the whole width, and the gods' choice is not about the build.
+static func shows_build(n: int, praying: bool, big: bool) -> bool:
+	return n <= 3 and not praying and not big
+
+
+## How far below a card's top the first line of its description is written, after a name of `name_lines` lines.
+static func card_text_top(big: bool, name_lines: int) -> float:
+	var step := 20.0 if big else 11.0
+	return (62.0 if big else 86.0) + 3.0 * step + 6.0 + (name_lines - 1) * step
+
+
+## The legion's build as [part, [[id, count or rank, most ranks], ...]]: its soldiers, then its arms with the forged ones after, then its drills, leaving out an empty part.
+static func build_sections(sim: Sim) -> Array:
+	var soldiers: Array = []
+	for id in sim.content.recruits:
+		if sim.count(id) > 0:
+			soldiers.append([id, sim.count(id), 0])
+	var arms: Array = []
+	for kind in ["arms", "forged"]:
+		for id in sim.content.get(kind):
+			if sim.rank(id) > 0:
+				arms.append([id, sim.rank(id), int(sim.content.get(kind)[id].max)])
+	var drills: Array = []
+	for id in sim.content.drills:
+		if sim.rank(id) > 0:
+			drills.append([id, sim.rank(id), int(sim.content.drills[id].max)])
+	var out: Array = []
+	for part in [["soldiers", soldiers], ["arms", arms], ["drills", drills]]:
+		if not part[1].is_empty():
+			out.append(part)
+	return out
+
+
+## Where each piece of the build panel goes inside `r`, as [kind, rect, id, number, most]: a soldier's icon with his count beside it, an arm or drill's icon with its rank in pips beneath, and a line between the parts.
+static func build_items(sim: Sim, r: Rect2) -> Array:
+	var items: Array = []
+	var x0 := r.position.x + BUILD_PAD
+	var inner := r.size.x - 2.0 * BUILD_PAD
+	var y := r.position.y + BUILD_PAD
+	for sec in build_sections(sim):
+		if not items.is_empty():
+			items.append(["line", Rect2(x0, y + 1.0, inner, 1.0), "", 0, 0])
+			y += 4.0
+		var soldiers: bool = sec[0] == "soldiers"
+		var cell := Vector2(BUILD_ICON + 2.0 + Ui.width_at("999", Ui.px) + 4.0, maxf(BUILD_ICON, Ui.leading()) + 2.0) if soldiers else Vector2(BUILD_ICON + 4.0, BUILD_ICON + 5.0)
+		var per_row := maxi(1, floori((inner + 4.0) / cell.x))
+		var list: Array = sec[1]
+		for k in list.size():
+			var e: Array = list[k]
+			var at := Vector2(x0 + (k % per_row) * cell.x, y + (k / per_row) * cell.y)
+			items.append(["soldier" if soldiers else "rank", Rect2(at, cell - Vector2(4.0, 2.0)), e[0], e[1], e[2]])
+		y += ceili(float(list.size()) / per_row) * cell.y
+	return items
+
+
+## The legion's soldiers, arms and drills on a dark plate, so a choice can be made knowing what the legion already has.
+func draw_build(sim: Sim, r: Rect2) -> void:
+	var items := build_items(sim, r)
+	# The plate is only as tall as what is on it, so a young legion's panel is not a tall empty box.
+	var foot := r.position.y + BUILD_PAD + BUILD_ICON
+	for it in items:
+		foot = maxf(foot, it[1].end.y)
+	var plate := Rect2(r.position, Vector2(r.size.x, minf(r.size.y, foot + BUILD_PAD - r.position.y)))
+	draw_rect(plate, Color(0.08, 0.05, 0.04, 0.7))
+	draw_rect(plate, Color(GOLD, 0.6), false, 1.0)
+	for it in items:
+		var at: Vector2 = it[1].position
+		if it[0] == "line":
+			draw_rect(it[1], Color(GOLD, 0.45))
+			continue
+		var icon := icon_of(it[2])
+		if icon != null:
+			draw_texture_rect(icon, Rect2(at, Vector2(BUILD_ICON, BUILD_ICON)), false)
+		if it[0] == "soldier":
+			text(str(it[3]), Vector2(at.x + BUILD_ICON + 2.0, at.y + (BUILD_ICON + Ui.px) / 2.0), CREAM)
+			continue
+		for k in int(it[4]):
+			draw_rect(Rect2(at.x + k * 3.0, at.y + BUILD_ICON + 1.0, 2.0, 2.0), GOLD if k < int(it[3]) else PIP_DARK)
+
+
 func _choices(sim: Sim) -> void:
 	if main.choices.is_empty():
 		return
 	var big := Ui.scale > 1
 	draw_set_transform(Ui.offset)
 	Ui.veil(self, 0.5)
+	var praying: bool = main.state == "pray"
+	var n: int = main.choices.size()
+	var build := shows_build(n, praying, big)
+	var cards := card_rects(n, big, build)
+	if build:
+		draw_build(sim, BUILD)
+	# The heading is centred over the cards, which sit to the right of the build panel when it is shown.
+	var span_x: float = cards[0].position.x
+	var span: float = cards[-1].end.x - span_x
 	# With large text the heading takes the clock's place in the top bar, which already says the level.
 	var head_y := 16.0 + 8.0 * Ui.scale if big else 74.0
-	var praying: bool = main.state == "pray"
 	if praying:
 		ui.fit_text(self, tr("The gods hear you").to_upper(), 300.0 if big else W - 16.0, Vector2(0, head_y), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W, true)
 	elif not big or sim.pending_levels == 0:
-		ui.fit_text(self, (tr("Level %d") % sim.level if sim.pending_levels > 0 else tr("Supplies")).to_upper(), 300.0 if big else W - 16.0, Vector2(0, head_y), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W, true)
+		var head_x := 0.0 if big else span_x
+		var head_w := W if big else span
+		ui.fit_text(self, (tr("Level %d") % sim.level if sim.pending_levels > 0 else tr("Supplies")).to_upper(), 300.0 if big else head_w, Vector2(head_x, head_y), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, head_w, true)
 	if not big:
-		text(tr("Call one") if praying else tr("Choose one"), Vector2(0, 86), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W)
+		text(tr("Call one") if praying else tr("Choose one"), Vector2(span_x, 86), CREAM, HORIZONTAL_ALIGNMENT_CENTER, span)
 	choice_rects.clear()
-	var n: int = main.choices.size()
-	var gap := 8.0 if n > 3 else 12.0
-	var bw := minf(176.0 if not big else 200.0, (W - 24.0 - (n - 1) * gap) / n)
-	var x0 := (W - n * bw - (n - 1) * gap) / 2.0
-	var top := 44.0 if big else 100.0
-	var card_h := 236.0 if big else 170.0
+	var bw: float = cards[0].size.x
 	var icon_px := 40.0 if big else 64.0
 	var step := 20.0 if big else 11.0
 	for i in n:
 		var id: String = main.choices[i]
-		var r := Rect2(x0 + i * (bw + gap), top, bw, card_h)
+		var r: Rect2 = cards[i]
 		choice_rects.append(r)
 		var picked: bool = i == main.selected
 		if picked:
@@ -901,7 +1006,7 @@ func _choices(sim: Sim) -> void:
 			continue
 		text(Upgrades.level_text(sim, id), Vector2(r.position.x, y + 2 * step + 2 + extra_y), RED, HORIZONTAL_ALIGNMENT_CENTER, bw, false)
 		wrap_text(Upgrades.describe(sim, id), Vector2(r.position.x + 9, y + 3 * step + 6 + extra_y), bw - 18, INK)
-	var hint_y := top + card_h + (20.0 if big else 16.0)
+	var hint_y: float = cards[0].end.y + (20.0 if big else 16.0)
 	if praying:
 		ui.fit_text(self, Controls.hint("gods"), W - 16.0, Vector2(0, hint_y), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W, true)
 		return
