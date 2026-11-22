@@ -2949,7 +2949,50 @@ func test_the_build_panel_lists_every_soldier_arm_and_drill_even_at_none(b: Dict
 	check(drills.has(["march", 1, 5]) and drills.has(["lorica", 0, 5]), "with its rank and most ranks")
 
 
-func test_the_build_panel_fits_beside_three_cards_in_every_language(b: Dictionary) -> void:
+func test_the_level_up_choices_stack_down_the_middle_of_the_screen(b: Dictionary) -> void:
+	var before_scale := Ui.scale
+	var problems := []
+	for scale in [1, 2]:
+		Ui.set_text_size(scale, b)
+		var big: bool = scale > 1
+		for n in [3, 4]:
+			var rows: Array = Hud.choice_rows(n, big)
+			if rows.size() != n:
+				problems.append("x%d %d choices give %d rows" % [scale, n, rows.size()])
+				continue
+			for i in n:
+				var r: Rect2 = rows[i]
+				if absf(r.get_center().x - Ui.W / 2.0) > 0.5:
+					problems.append("x%d %d choices: row %d is not centred on the screen (%s)" % [scale, n, i, r])
+				if not Rect2(4, 4, Ui.W - 8, Ui.H - 8).encloses(r):
+					problems.append("x%d %d choices: row %d %s is off the screen" % [scale, n, i, r])
+				if i > 0 and r.position.y < rows[i - 1].end.y + 3.0:
+					problems.append("x%d %d choices: row %d touches the one above" % [scale, n, i])
+			var foot: float = rows[-1].end.y
+			if big:
+				if Hud.shows_build(false, true):
+					problems.append("x2 the panel shows beside the large rows")
+				var d := Hud.detail_rect(n)
+				if d.position.y <= foot or absf(d.get_center().x - Ui.W / 2.0) > 0.5:
+					problems.append("x2 %d choices: the description box %s is not centred under the rows" % [n, d])
+				foot = d.end.y
+			else:
+				var panel := Hud.build_rect(n)
+				if panel.position.y != rows[0].position.y or panel.end.y != rows[-1].end.y:
+					problems.append("x1 %d choices: the panel %s is not level with the rows" % [n, panel])
+				if panel.end.x + 12.0 > rows[0].position.x:
+					problems.append("x1 %d choices: the panel reaches the rows" % n)
+			# The key hints go under the rows, above the corners of the screen where the testudo and favour sit.
+			if foot + (40.0 if big else 29.0) > Ui.H - 4.0:
+				problems.append("x%d %d choices: no room left for the key hints under the rows" % [scale, n])
+	Ui.set_text_size(before_scale, b)
+	for p in problems:
+		print("  ", p)
+	check(problems.is_empty(), "the choices stack down the middle at both text sizes, three or four of them (%d problems)" % problems.size())
+	check(Hud.shows_build(false, false) and not Hud.shows_build(true, false), "the panel shows beside a level-up's rows but not the gods'")
+
+
+func test_every_choice_fits_its_row_in_every_language(b: Dictionary) -> void:
 	var before: String = Lang.code
 	var before_scale := Ui.scale
 	var words := Content.load_all(Content.available_art())
@@ -2960,53 +3003,50 @@ func test_the_build_panel_fits_beside_three_cards_in_every_language(b: Dictionar
 	for kind in ["arms", "forged", "drills"]:
 		for id in words.get(kind):
 			s.ranks[id] = int(words.get(kind)[id].max)
+	var ids: Array = words.recruits.keys() + words.arms.keys() + words.forged.keys() + words.drills.keys()
 	var problems := []
 	for loc in LANGUAGES:
 		Lang.apply(loc, false)
 		words.localize()
 		for scale in [1, 2]:
 			Ui.set_text_size(scale, b)
-			# The pause screen shows the panel at both text sizes, clear of its buttons.
-			var room := Hud.build_rect()
-			if room.end.x >= (Ui.W - PauseScreen.button_width()) / 2.0:
-				problems.append("%s x%d the panel reaches the pause buttons" % [loc, scale])
-			for it in Hud.build_items(s, room):
-				if not room.encloses(it[1]):
-					problems.append("%s x%d %s at %s spills out of the panel" % [loc, scale, it[2], it[1]])
-		Ui.set_text_size(1, b)
-		var cards: Array = Hud.card_rects(3, false, Hud.shows_build(3, false, false))
-		var panel := Hud.build_rect()
-		if panel.position.y != cards[0].position.y or panel.end.y != cards[0].end.y:
-			problems.append("%s the panel %s is not level with the cards %s" % [loc, panel, cards[0]])
-		for r in cards:
-			if r.intersects(panel.grow(8.0)):
-				problems.append("%s card %s is closer to the panel than the gap between cards" % [loc, r])
-			if r.size.x < 148.0 or r.end.x > Ui.W - 8.0:
-				problems.append("%s card %s is too narrow or off the screen" % [loc, r])
-		# Every card's words still fit at the narrower width: the name in two lines and the description above the card's foot.
-		var r0: Rect2 = cards[0]
-		var bw := r0.size.x
-		for id in words.recruits.keys() + words.arms.keys() + words.forged.keys() + words.drills.keys():
-			var info: Dictionary = words.upgrade(id)
-			var names: int = mini(Ui.block(str(info.name).to_upper(), bw - 8.0, 2).lines, 2)
-			for t in [str(info.get("text", "")), str(info.get("more", ""))]:
-				if t == "":
-					continue
-				var lines: int = Ui.lines_of(t, bw - 18.0).size()
-				var last: float = Hud.card_text_top(false, names) + (lines - 1) * Ui.leading()
-				if last > r0.size.y - 3.0:
-					problems.append("%s %s's text runs %d px past its card" % [loc, id, last - r0.size.y + 3.0])
+			var big: bool = scale > 1
+			# The pause screen shows the panel at both text sizes, clear of its buttons, and the level-up beside three or four rows.
+			var rooms: Array = [Hud.build_rect()] + ([] if big else [Hud.build_rect(3), Hud.build_rect(4)])
+			for room in rooms:
+				if room.end.x >= (Ui.W - PauseScreen.button_width()) / 2.0:
+					problems.append("%s x%d the panel reaches the pause buttons" % [loc, scale])
+				for it in Hud.build_items(s, room):
+					if not room.encloses(it[1]):
+						problems.append("%s x%d %s at %s spills out of the panel %s" % [loc, scale, it[2], it[1], room])
+			for n in [3, 4]:
+				var r: Rect2 = Hud.choice_rows(n, big)[0]
+				var head := Hud.row_text(r, big)
+				var lines := Hud.detail_lines() if big else Hud.row_lines(r)
+				var width := Hud.detail_rect(n).size.x - 2.0 * Hud.DETAIL_PAD if big else head.size.x
+				var entries: Array = []
+				for id in ids:
+					var info: Dictionary = words.upgrade(id)
+					for tx in [str(info.get("text", "")), str(info.get("more", ""))]:
+						if tx != "":
+							entries.append([id, str(info.name).to_upper(), Upgrades.level_text(s, id), tx])
+				for id in words.gods:
+					entries.append([id, str(words.gods[id].name).to_upper(), TranslationServer.translate("God").to_upper(), str(words.gods[id].text)])
+				for e in entries:
+					if Ui.width_at(e[1], Ui.px) + 8.0 + Ui.width_at(e[2], Ui.px) > head.size.x:
+						problems.append("%s x%d %d rows: %s's name and '%s' do not fit one line" % [loc, scale, n, e[0], e[2]])
+					var need: int = Ui.lines_of(e[3], width).size()
+					if need > lines:
+						problems.append("%s x%d %d rows: %s's text takes %d lines, room for %d" % [loc, scale, n, e[0], need, lines])
 	Lang.apply(before, false)
 	words.localize()
 	Ui.set_text_size(before_scale, b)
 	for p in problems.slice(0, 12):
 		print("  ", p)
-	check(problems.is_empty(), "the panel fits at both text sizes, and beside three narrower cards at the normal size, in every language (%d problems)" % problems.size())
-	check(not Hud.shows_build(4, false, false) and not Hud.shows_build(3, false, true) and not Hud.shows_build(3, true, false), "four cards, large text and the gods' choice keep the whole width")
+	check(problems.is_empty(), "every choice's name, level and text fit its row in every language, at both text sizes, three or four rows (%d problems)" % problems.size())
 
 
-
-const LANGUAGES :=["en", "fr", "de", "es", "it", "pt_BR", "pl", "tr", "ru", "uk", "ja", "ko", "zh_CN", "zh_TW"]
+const LANGUAGES := ["en", "fr", "de", "es", "it", "pt_BR", "pl", "tr", "ru", "uk", "ja", "ko", "zh_CN", "zh_TW"]
 
 
 func _sheet() -> Dictionary:
@@ -3245,23 +3285,19 @@ func _cuts_in(loc: String, scale: int, c: Content, sim: Sim, cuts: Array) -> voi
 	var plate_w := 200.0 if not big else 260.0
 	for s in [tr_.call("Win in %s to open") % _longest(provinces), tr_.call("March here"), tr_.call("Marching here"), tr_.call("Won"), tr_.call("Hard won"), tr_.call("Not ready yet")]:
 		_fit(cuts, loc, scale, "map plate", s, plate_w)
-	# Level-up cards: three or four across.
-	for n in [3, 4]:
-		var gap := 8.0 if n > 3 else 12.0
-		var bw := minf(200.0 if big else 176.0, (616.0 - (n - 1) * gap) / n)
-		for id in c.recruits.keys() + c.arms.keys() + c.forged.keys() + c.drills.keys():
-			_lines(cuts, loc, scale, "card name (%d across)" % n, str(c.upgrade(id).name).to_upper(), bw - 8.0, 2)
-			_fit(cuts, loc, scale, "card level (%d across)" % n, Upgrades.level_text(sim, id), bw - 8.0)
-		for g in ["Recruit", "Arms", "Forged", "Drill"]:
-			_fit(cuts, loc, scale, "card group (%d across)" % n, tr_.call(g).to_upper(), bw - 8.0)
-	# God cards, the favour hint beside its meter and the god's name written across the screen at three times the size.
-	var god_w := minf(200.0 if big else 176.0, (616.0 - 2 * 12.0) / 3)
+	# The level-up and gods' rows, whose names and levels share one line, and the god's name written across the screen at three times the size.
 	_fit(cuts, loc, scale, "god heading", tr_.call("The gods hear you").to_upper(), 624.0)
-	_fit(cuts, loc, scale, "god group", tr_.call("God").to_upper(), god_w - 8.0)
 	_fit(cuts, loc, scale, "favour hint", Controls.hint("pray").to_upper(), 624.0 * 0.45)
+	for n in [3, 4]:
+		var head := Hud.row_text(Hud.choice_rows(n, big)[0], big)
+		for id in c.recruits.keys() + c.arms.keys() + c.forged.keys() + c.drills.keys():
+			_fit(cuts, loc, scale, "row name and level (%d rows)" % n, str(c.upgrade(id).name).to_upper() + "  " + Upgrades.level_text(sim, id), head.size.x)
+		for id in c.gods:
+			_fit(cuts, loc, scale, "god row (%d rows)" % n, str(c.gods[id].name).to_upper() + "  " + tr_.call("God").to_upper(), head.size.x)
+	if big:
+		for g in ["Recruit", "Arms", "Forged", "Drill", "God"]:
+			_fit(cuts, loc, scale, "group in the description box", tr_.call(g).to_upper(), Hud.detail_rect(3).size.x - 2.0 * Hud.DETAIL_PAD)
 	for id in c.gods:
-		_lines(cuts, loc, scale, "god name", str(c.gods[id].name).to_upper(), god_w - 8.0, 1)
-		_lines(cuts, loc, scale, "god text", str(c.gods[id].text), god_w - 18.0, 6 if big else 5)
 		if Ui.width_at(str(c.gods[id].name).to_upper(), Ui.px * 3) > 624.0:
 			cuts.append("%s x%d god banner %s does not fit" % [loc, scale, id])
 	# Achievement cards.
@@ -3289,12 +3325,12 @@ func test_confirm_waits_after_a_choice_or_the_summary_opens(b: Dictionary) -> vo
 func test_hints_name_the_players_own_keys(_b: Dictionary) -> void:
 	var saved: Dictionary = Profile.settings
 	Profile.settings = {"bindings": {}}
-	check(Controls.hint("level") == "A / D  choose     Space  take it", "the default level-up hint is unchanged (%s)" % Controls.hint("level"))
-	Controls.rebind(Profile.settings.bindings, "left", "keys", 0, KEY_J)
+	check(Controls.hint("level") == "W / S  choose     Space  take it", "the level-up hint names the keys that move up and down its rows (%s)" % Controls.hint("level"))
+	Controls.rebind(Profile.settings.bindings, "up", "keys", 0, KEY_J)
 	Controls.rebind(Profile.settings.bindings, "confirm", "keys", 0, KEY_E)
-	check(Controls.hint("level") == "J / D  choose     E  take it", "the level-up hint shows the rebound keys")
+	check(Controls.hint("level") == "J / S  choose     E  take it", "the level-up hint shows the rebound keys")
 	check(Controls.hint("summary").begins_with("E  choose"), "the summary hint shows the rebound confirm key (%s)" % Controls.hint("summary"))
-	check(Controls.hint("pick").begins_with("W J S D  move"), "the move hint shows the rebound march keys")
+	check(Controls.hint("pick").begins_with("J A S D  move"), "the move hint shows the rebound march keys")
 	Controls.install({})
 	Profile.settings = saved
 

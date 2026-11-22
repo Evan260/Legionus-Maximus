@@ -156,6 +156,8 @@ static func part(keys: String, word: String) -> String:
 static func hint(kind: String, count := 0) -> String:
 	var both := func(action: String) -> String: return shown(action)
 	var sides := key_of("left") + " / " + key_of("right")
+	# The level-up and the gods' choice are rows, worked up and down.
+	var rows := key_of("up") + " / " + key_of("down")
 	var parts: Array = []
 	match kind:
 		"pick":
@@ -173,7 +175,7 @@ static func hint(kind: String, count := 0) -> String:
 		"type":
 			parts = [part(key_name(KEY_ENTER), "delete"), part(key_name(KEY_ESCAPE), "cancel")]
 		"level":
-			parts = [part(sides, "choose"), part(key_of("confirm"), "take it")]
+			parts = [part(rows, "choose"), part(key_of("confirm"), "take it")]
 		"reroll":
 			parts = [part(both.call("reroll"), "reroll") + " (%d)" % count]
 		"banish":
@@ -189,5 +191,5 @@ static func hint(kind: String, count := 0) -> String:
 		"bridge":
 			parts = [part(both.call("bridge"), "bridge")]
 		"gods":
-			parts = [part(sides, "choose"), part(key_of("confirm"), "call"), part(key_of("back"), "not now")]
+			parts = [part(rows, "choose"), part(key_of("confirm"), "call"), part(key_of("back"), "not now")]
 	return "     ".join(parts)

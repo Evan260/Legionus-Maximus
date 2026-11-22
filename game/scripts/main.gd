@@ -665,9 +665,9 @@ func _process(dt: float) -> void:
 			elif Input.is_action_just_pressed("back") or Input.is_action_just_pressed("pray"):
 				Audio.play("back")
 				state = "play"
-			elif Input.is_action_just_pressed("left"):
+			elif Input.is_action_just_pressed("up") or Input.is_action_just_pressed("left"):
 				selected = posmod(selected - 1, choices.size())
-			elif Input.is_action_just_pressed("right"):
+			elif Input.is_action_just_pressed("down") or Input.is_action_just_pressed("right"):
 				selected = posmod(selected + 1, choices.size())
 			elif Input.is_action_just_pressed("confirm"):
 				if Game.confirm_allowed(state, opened_at, clock, balance):
@@ -675,9 +675,9 @@ func _process(dt: float) -> void:
 		"choose":
 			if args.has("autoplay") and clock > 0.5 and not args.has("hold-choice"):
 				_take(0)
-			elif Input.is_action_just_pressed("left"):
+			elif Input.is_action_just_pressed("up") or Input.is_action_just_pressed("left"):
 				selected = posmod(selected - 1, choices.size())
-			elif Input.is_action_just_pressed("right"):
+			elif Input.is_action_just_pressed("down") or Input.is_action_just_pressed("right"):
 				selected = posmod(selected + 1, choices.size())
 			elif Input.is_action_just_pressed("confirm"):
 				if Game.confirm_allowed(state, opened_at, clock, balance):

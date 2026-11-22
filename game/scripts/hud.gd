@@ -19,16 +19,26 @@ const MUTED := Color(0.7, 0.66, 0.6)
 const EDGE := 26.0
 ## How far above its foot an objective's name is written when it is on screen, clear of its sprite.
 const LABEL_RISE := {"camp": 56.0, "column": 50.0, "grove": 40.0, "fort": 76.0}
-## The build panel on the left of the level-up and pause screens: its left edge, its width, the gap before the cards, its inner margin and the side of an icon in it.
+## The build panel on the left of the level-up and pause screens: its left edge, its width, its inner margin and the side of an icon in it.
 const BUILD_X := 12.0
 const BUILD_W := 132.0
-const BUILD_GAP := 16.0
 const BUILD_PAD := 4.0
 const BUILD_ICON := 16.0
 const PIP_DARK := Color(0.32, 0.26, 0.2)
-## The level-up cards' top and height at the normal text size; the build panel beside them matches both.
-const CARD_TOP := 92.0
-const CARD_H := 196.0
+## The level-up's rows at the normal text size: their width, the gap between them, the top of the first, and the height of each when there are three, which is the build panel's, or four.
+const ROW_W := 320.0
+const ROW_GAP := 5.0
+const ROW_TOP := 72.0
+const ROW_H3 := 62.0
+const ROW_H4 := 56.0
+const ROW_ICON := 32.0
+## Large text: the rows run the width of the screen with only the name and level, and the box under them holds the description of the one picked out.
+const BIG_ROW_W := 616.0
+const BIG_ROW_H := 28.0
+const BIG_ROW_TOP := 44.0
+const BIG_ROW_ICON := 24.0
+const DETAIL_H := 94.0
+const DETAIL_PAD := 8.0
 
 var main: Node
 var ui: Ui
@@ -864,35 +874,61 @@ static func _free_spot(r: Rect2, placed: Array, view: Vector2, top: float, low :
 	return r
 
 
-## The level-up cards for n choices, narrowed to sit beside the build panel when it is shown.
-static func card_rects(n: int, big: bool, beside_build: bool) -> Array:
-	var gap := 8.0 if n > 3 else 12.0
-	var left := BUILD_X + BUILD_W + BUILD_GAP if beside_build else 12.0
-	var room := W - 12.0 - left
-	var bw := minf(176.0 if not big else 200.0, (room - (n - 1) * gap) / n)
-	var x0 := left + (room - n * bw - (n - 1) * gap) / 2.0
-	var top := 44.0 if big else CARD_TOP
-	var card_h := 236.0 if big else CARD_H
+## The choices as rows stacked down the middle of the screen, as their rects.
+static func choice_rows(n: int, big: bool) -> Array:
+	var w := BIG_ROW_W if big else ROW_W
+	var h := BIG_ROW_H if big else (ROW_H3 if n <= 3 else ROW_H4)
+	var gap := 4.0 if big else ROW_GAP
+	var top := BIG_ROW_TOP if big else ROW_TOP
 	var out: Array = []
 	for i in n:
-		out.append(Rect2(x0 + i * (bw + gap), top, bw, card_h))
+		out.append(Rect2((W - w) / 2.0, top + i * (h + gap), w, h))
 	return out
 
 
-## The build panel's room: level with the cards at the normal text size, and taller in large text, where it shows only on the pause screen.
-static func build_rect() -> Rect2:
-	return Rect2(BUILD_X, 44.0, BUILD_W, 236.0) if Ui.scale > 1 else Rect2(BUILD_X, CARD_TOP, BUILD_W, CARD_H)
+## Where a row's name, level and, at the normal text size, description are written: right of its icon, inside its margin.
+static func row_text(r: Rect2, big: bool) -> Rect2:
+	var left := 6.0 + BIG_ROW_ICON + 8.0 if big else 8.0 + ROW_ICON + 8.0
+	return Rect2(r.position.x + left, r.position.y, r.size.x - left - 8.0, r.size.y)
 
 
-## The build panel has room beside three cards at the normal text size; four cards or large text need the whole width, and the gods' choice is not about the build.
-static func shows_build(n: int, praying: bool, big: bool) -> bool:
-	return n <= 3 and not praying and not big
+## The baseline of a row's name and level, and of the first line of its description under them.
+static func row_name_y(r: Rect2, big: bool) -> float:
+	return r.position.y + (r.size.y + Ui.px) / 2.0 if big else r.position.y + 4.0 + Ui.px
 
 
-## How far below a card's top the first line of its description is written, after a name of `name_lines` lines.
-static func card_text_top(big: bool, name_lines: int) -> float:
-	var step := 20.0 if big else 11.0
-	return (62.0 if big else 86.0) + 3.0 * step + 6.0 + (name_lines - 1) * step
+static func row_text_y(r: Rect2) -> float:
+	return row_name_y(r, false) + Ui.leading() + 2.0
+
+
+## How many lines of description a row holds at the normal text size, the last one clear of its foot.
+static func row_lines(r: Rect2) -> int:
+	return floori((r.end.y - 4.0 - row_text_y(r)) / Ui.leading()) + 1
+
+
+## The box under the large rows that holds the group and description of the one picked out.
+static func detail_rect(n: int) -> Rect2:
+	var foot: float = choice_rows(n, true)[-1].end.y
+	return Rect2((W - BIG_ROW_W) / 2.0, foot + 8.0, BIG_ROW_W, DETAIL_H)
+
+
+## How many lines of description the large text's box holds under its group's name.
+static func detail_lines() -> int:
+	var first := DETAIL_PAD + Ui.px + Ui.leading() + 2.0
+	return floori((DETAIL_H - DETAIL_PAD - first) / Ui.leading()) + 1
+
+
+## The build panel's room: level with the rows of n choices at the normal text size, and taller in large text, where it shows only on the pause screen.
+static func build_rect(n := 3) -> Rect2:
+	if Ui.scale > 1:
+		return Rect2(BUILD_X, 44.0, BUILD_W, 236.0)
+	var rows := choice_rows(n, false)
+	return Rect2(BUILD_X, rows[0].position.y, BUILD_W, rows[-1].end.y - rows[0].position.y)
+
+
+## The build panel sits beside a level-up's rows at the normal text size; large text needs the whole width, and the gods' choice is not about the build.
+static func shows_build(praying: bool, big: bool) -> bool:
+	return not praying and not big
 
 
 ## The legion's build as [part, [[id, count or rank, most ranks], ...]]: every kind of soldier, then every arm with the forged ones after, then every drill, with none for one not yet taken.
@@ -961,30 +997,21 @@ func _choices(sim: Sim) -> void:
 	Ui.veil(self, 0.5)
 	var praying: bool = main.state == "pray"
 	var n: int = main.choices.size()
-	var build := shows_build(n, praying, big)
-	var cards := card_rects(n, big, build)
-	if build:
-		draw_build(sim, build_rect())
-	# The heading is centred over the cards, which sit to the right of the build panel when it is shown.
-	var span_x: float = cards[0].position.x
-	var span: float = cards[-1].end.x - span_x
+	var rows := choice_rows(n, big)
+	if shows_build(praying, big):
+		draw_build(sim, build_rect(n))
 	# With large text the heading takes the clock's place in the top bar, which already says the level.
-	var head_y := 16.0 + 8.0 * Ui.scale if big else 66.0
+	var head_y := 16.0 + 8.0 * Ui.scale if big else ROW_TOP - 22.0
 	if praying:
 		ui.fit_text(self, tr("The gods hear you").to_upper(), 300.0 if big else W - 16.0, Vector2(0, head_y), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W, true)
 	elif not big or sim.pending_levels == 0:
-		var head_x := 0.0 if big else span_x
-		var head_w := W if big else span
-		ui.fit_text(self, (tr("Level %d") % sim.level if sim.pending_levels > 0 else tr("Supplies")).to_upper(), 300.0 if big else head_w, Vector2(head_x, head_y), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, head_w, true)
+		ui.fit_text(self, (tr("Level %d") % sim.level if sim.pending_levels > 0 else tr("Supplies")).to_upper(), 300.0 if big else W - 16.0, Vector2(0, head_y), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W, true)
 	if not big:
-		text(tr("Call one") if praying else tr("Choose one"), Vector2(span_x, 78), CREAM, HORIZONTAL_ALIGNMENT_CENTER, span)
+		text(tr("Call one") if praying else tr("Choose one"), Vector2(0, ROW_TOP - 10.0), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W)
 	choice_rects.clear()
-	var bw: float = cards[0].size.x
-	var icon_px := 40.0 if big else 64.0
-	var step := 20.0 if big else 11.0
 	for i in n:
 		var id: String = main.choices[i]
-		var r: Rect2 = cards[i]
+		var r: Rect2 = rows[i]
 		choice_rects.append(r)
 		var picked: bool = i == main.selected
 		if picked:
@@ -992,38 +1019,49 @@ func _choices(sim: Sim) -> void:
 		panel(r, CREAM if picked else PARCH)
 		var info: Dictionary = sim.content.gods[id] if praying else sim.content.upgrade(id)
 		var icon := icon_of(id)
+		var side := BIG_ROW_ICON if big else ROW_ICON
 		if icon != null:
-			draw_texture_rect(icon, Rect2(r.position.x + bw / 2 - icon_px / 2, r.position.y + 8, icon_px, icon_px), false)
-		var y := r.position.y + (icon_px + 22.0 if big else 86.0)
-		ui.fit_text(self, (tr("God") if praying else tr(sim.content.group_of(id))).to_upper(), bw - 8, Vector2(r.position.x, y), Color(0.5, 0.36, 0.22), HORIZONTAL_ALIGNMENT_CENTER, bw)
-		# A long name takes two lines, and the level and description move down by the extra one.
-		var shown := mini(Ui.block(info.name.to_upper(), bw - 8, 2).lines, 2)
-		ui.wrap_fit(self, info.name.to_upper(), Vector2(r.position.x, y + step + 1), bw - 8, INK, 2, HORIZONTAL_ALIGNMENT_CENTER, bw)
-		var extra_y := (shown - 1) * step
-		if praying:
-			wrap_text(info.text, Vector2(r.position.x + 9, y + 2 * step + 6 + extra_y), bw - 18, INK)
-			continue
-		text(Upgrades.level_text(sim, id), Vector2(r.position.x, y + 2 * step + 2 + extra_y), RED, HORIZONTAL_ALIGNMENT_CENTER, bw, false)
-		wrap_text(Upgrades.describe(sim, id), Vector2(r.position.x + 9, y + 3 * step + 6 + extra_y), bw - 18, INK)
-	var hint_y: float = cards[0].end.y + (20.0 if big else 16.0)
+			draw_texture_rect(icon, Rect2(r.position.x + (6.0 if big else 8.0), roundf(r.get_center().y - side / 2.0), side, side), false)
+		var area := row_text(r, big)
+		var words := _description(sim, id, praying)
+		# A short description leaves lines empty, so the name and text sit in the middle of the row beside the icon.
+		var spare := 0.0 if big else maxf(0.0, (row_lines(r) - Ui.lines_of(words, area.size.x).size()) * Ui.leading() / 2.0)
+		var name_y := row_name_y(r, big) + roundf(spare)
+		text(str(info.name).to_upper(), Vector2(area.position.x, name_y), INK, HORIZONTAL_ALIGNMENT_LEFT, -1, false)
+		var right := tr("God").to_upper() if praying else Upgrades.level_text(sim, id)
+		text(right, Vector2(area.position.x, name_y), BROWN_TEXT if praying else RED, HORIZONTAL_ALIGNMENT_RIGHT, area.size.x, false)
+		if not big:
+			wrap_text(words, Vector2(area.position.x, row_text_y(r) + roundf(spare)), area.size.x, INK)
+	var foot: float = rows[-1].end.y
+	if big:
+		var box := detail_rect(n)
+		panel(box)
+		var id: String = main.choices[clampi(main.selected, 0, n - 1)]
+		var group := tr("God") if praying else tr(sim.content.group_of(id))
+		var y := box.position.y + DETAIL_PAD + Ui.px
+		text(group.to_upper(), Vector2(box.position.x + DETAIL_PAD, y), BROWN_TEXT, HORIZONTAL_ALIGNMENT_LEFT, -1, false)
+		wrap_text(_description(sim, id, praying), Vector2(box.position.x + DETAIL_PAD, y + Ui.leading() + 2.0), box.size.x - 2.0 * DETAIL_PAD, INK)
+		foot = box.end.y
+	var hint_y := foot + (20.0 if big else 16.0)
 	if praying:
-		_under_cards(Controls.hint("gods"), span_x, span, hint_y, CREAM)
+		_centred_hint(Controls.hint("gods"), hint_y, CREAM)
 		return
-	_under_cards(Controls.hint("level"), span_x, span, hint_y, CREAM)
+	_centred_hint(Controls.hint("level"), hint_y, CREAM)
 	var extras: Array = []
 	if sim.rerolls > 0:
 		extras.append(Controls.hint("reroll", sim.rerolls))
 	if sim.banishes > 0:
 		extras.append(Controls.hint("banish", sim.banishes))
 	if not extras.is_empty():
-		_under_cards("     ".join(extras), span_x, span, hint_y + (20.0 if big else 13.0), GOLD_LIGHT)
+		_centred_hint("     ".join(extras), hint_y + (20.0 if big else 13.0), GOLD_LIGHT)
 
 
-## A line of key hints centred under the cards, slid along when it is wider than they are so it stays on the screen.
-func _under_cards(s: String, span_x: float, span: float, y: float, col: Color) -> void:
-	var w := minf(Ui.width_at(s, Ui.fit_size(s, W - 16.0)), W - 16.0)
-	var x := clampf(span_x + (span - w) / 2.0, 8.0, W - 8.0 - w)
-	ui.fit_text(self, s, W - 16.0, Vector2(x, y), col, HORIZONTAL_ALIGNMENT_CENTER, w, true)
+func _description(sim: Sim, id: String, praying: bool) -> String:
+	return str(sim.content.gods[id].text) if praying else Upgrades.describe(sim, id)
+
+
+func _centred_hint(s: String, y: float, col: Color) -> void:
+	ui.fit_text(self, s, W - 16.0, Vector2(0, y), col, HORIZONTAL_ALIGNMENT_CENTER, W, true)
 
 
 func choice_at(p: Vector2) -> int:
