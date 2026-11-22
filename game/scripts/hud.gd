@@ -19,11 +19,16 @@ const MUTED := Color(0.7, 0.66, 0.6)
 const EDGE := 26.0
 ## How far above its foot an objective's name is written when it is on screen, clear of its sprite.
 const LABEL_RISE := {"camp": 56.0, "column": 50.0, "grove": 40.0, "fort": 76.0}
-## The panel of the legion's build on the left of the level-up and pause screens, its inner margin and the side of an icon in it.
-const BUILD := Rect2(12, 44, 140, 236)
+## The build panel on the left of the level-up and pause screens: its left edge, its width, the gap before the cards, its inner margin and the side of an icon in it.
+const BUILD_X := 12.0
+const BUILD_W := 132.0
+const BUILD_GAP := 16.0
 const BUILD_PAD := 4.0
 const BUILD_ICON := 16.0
 const PIP_DARK := Color(0.32, 0.26, 0.2)
+## The level-up cards' top and height at the normal text size; the build panel beside them matches both.
+const CARD_TOP := 92.0
+const CARD_H := 196.0
 
 var main: Node
 var ui: Ui
@@ -862,16 +867,21 @@ static func _free_spot(r: Rect2, placed: Array, view: Vector2, top: float, low :
 ## The level-up cards for n choices, narrowed to sit beside the build panel when it is shown.
 static func card_rects(n: int, big: bool, beside_build: bool) -> Array:
 	var gap := 8.0 if n > 3 else 12.0
-	var left := BUILD.end.x + 8.0 if beside_build else 12.0
+	var left := BUILD_X + BUILD_W + BUILD_GAP if beside_build else 12.0
 	var room := W - 12.0 - left
 	var bw := minf(176.0 if not big else 200.0, (room - (n - 1) * gap) / n)
 	var x0 := left + (room - n * bw - (n - 1) * gap) / 2.0
-	var top := 44.0 if big else 100.0
-	var card_h := 236.0 if big else 178.0
+	var top := 44.0 if big else CARD_TOP
+	var card_h := 236.0 if big else CARD_H
 	var out: Array = []
 	for i in n:
 		out.append(Rect2(x0 + i * (bw + gap), top, bw, card_h))
 	return out
+
+
+## The build panel's room: level with the cards at the normal text size, and taller in large text, where it shows only on the pause screen.
+static func build_rect() -> Rect2:
+	return Rect2(BUILD_X, 44.0, BUILD_W, 236.0) if Ui.scale > 1 else Rect2(BUILD_X, CARD_TOP, BUILD_W, CARD_H)
 
 
 ## The build panel has room beside three cards at the normal text size; four cards or large text need the whole width, and the gods' choice is not about the build.
@@ -924,15 +934,9 @@ static func build_items(sim: Sim, r: Rect2) -> Array:
 
 ## The legion's soldiers, arms and drills on a dark plate, so a choice can be made knowing what the legion already has.
 func draw_build(sim: Sim, r: Rect2) -> void:
-	var items := build_items(sim, r)
-	# The plate ends below its last row rather than at the foot of the room it is given.
-	var foot := r.position.y + BUILD_PAD + BUILD_ICON
-	for it in items:
-		foot = maxf(foot, it[1].end.y)
-	var plate := Rect2(r.position, Vector2(r.size.x, minf(r.size.y, foot + BUILD_PAD - r.position.y)))
-	draw_rect(plate, Color(0.08, 0.05, 0.04, 0.7))
-	draw_rect(plate, Color(GOLD, 0.6), false, 1.0)
-	for it in items:
+	draw_rect(r, Color(0.08, 0.05, 0.04, 0.7))
+	draw_rect(r, Color(GOLD, 0.6), false, 1.0)
+	for it in build_items(sim, r):
 		var at: Vector2 = it[1].position
 		if it[0] == "line":
 			draw_rect(it[1], Color(GOLD, 0.45))
@@ -960,12 +964,12 @@ func _choices(sim: Sim) -> void:
 	var build := shows_build(n, praying, big)
 	var cards := card_rects(n, big, build)
 	if build:
-		draw_build(sim, BUILD)
+		draw_build(sim, build_rect())
 	# The heading is centred over the cards, which sit to the right of the build panel when it is shown.
 	var span_x: float = cards[0].position.x
 	var span: float = cards[-1].end.x - span_x
 	# With large text the heading takes the clock's place in the top bar, which already says the level.
-	var head_y := 16.0 + 8.0 * Ui.scale if big else 74.0
+	var head_y := 16.0 + 8.0 * Ui.scale if big else 66.0
 	if praying:
 		ui.fit_text(self, tr("The gods hear you").to_upper(), 300.0 if big else W - 16.0, Vector2(0, head_y), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W, true)
 	elif not big or sim.pending_levels == 0:
@@ -973,7 +977,7 @@ func _choices(sim: Sim) -> void:
 		var head_w := W if big else span
 		ui.fit_text(self, (tr("Level %d") % sim.level if sim.pending_levels > 0 else tr("Supplies")).to_upper(), 300.0 if big else head_w, Vector2(head_x, head_y), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, head_w, true)
 	if not big:
-		text(tr("Call one") if praying else tr("Choose one"), Vector2(span_x, 86), CREAM, HORIZONTAL_ALIGNMENT_CENTER, span)
+		text(tr("Call one") if praying else tr("Choose one"), Vector2(span_x, 78), CREAM, HORIZONTAL_ALIGNMENT_CENTER, span)
 	choice_rects.clear()
 	var bw: float = cards[0].size.x
 	var icon_px := 40.0 if big else 64.0
@@ -1003,16 +1007,23 @@ func _choices(sim: Sim) -> void:
 		wrap_text(Upgrades.describe(sim, id), Vector2(r.position.x + 9, y + 3 * step + 6 + extra_y), bw - 18, INK)
 	var hint_y: float = cards[0].end.y + (20.0 if big else 16.0)
 	if praying:
-		ui.fit_text(self, Controls.hint("gods"), W - 16.0, Vector2(0, hint_y), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W, true)
+		_under_cards(Controls.hint("gods"), span_x, span, hint_y, CREAM)
 		return
-	ui.fit_text(self, Controls.hint("level"), W - 16.0, Vector2(0, hint_y), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W, true)
+	_under_cards(Controls.hint("level"), span_x, span, hint_y, CREAM)
 	var extras: Array = []
 	if sim.rerolls > 0:
 		extras.append(Controls.hint("reroll", sim.rerolls))
 	if sim.banishes > 0:
 		extras.append(Controls.hint("banish", sim.banishes))
 	if not extras.is_empty():
-		ui.fit_text(self, "     ".join(extras), W - 16.0, Vector2(0, hint_y + (20.0 if big else 13.0)), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W, true)
+		_under_cards("     ".join(extras), span_x, span, hint_y + (20.0 if big else 13.0), GOLD_LIGHT)
+
+
+## A line of key hints centred under the cards, slid along when it is wider than they are so it stays on the screen.
+func _under_cards(s: String, span_x: float, span: float, y: float, col: Color) -> void:
+	var w := minf(Ui.width_at(s, Ui.fit_size(s, W - 16.0)), W - 16.0)
+	var x := clampf(span_x + (span - w) / 2.0, 8.0, W - 8.0 - w)
+	ui.fit_text(self, s, W - 16.0, Vector2(x, y), col, HORIZONTAL_ALIGNMENT_CENTER, w, true)
 
 
 func choice_at(p: Vector2) -> int:

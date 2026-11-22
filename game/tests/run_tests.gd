@@ -2908,6 +2908,23 @@ func test_no_card_draws_over_the_choice_or_the_summary(b: Dictionary) -> void:
 	Steamworks.card = {}
 
 
+func test_only_a_prop_tall_enough_to_hide_the_commander_turns_see_through(_b: Dictionary) -> void:
+	var view: GDScript = load("res://scripts/world_view.gd")
+	var cam := Vector2(100, 100)
+	# Each prop stands just in front of the commander, its picture over his feet.
+	var cases := {"rock": Vector2(25, 23), "stone_wall": Vector2(60, 19), "oak": Vector2(70, 87), "obelisk": Vector2(24, 71), "log": Vector2(55, 29)}
+	var seen := {}
+	for kind in cases:
+		var size: Vector2 = cases[kind]
+		var foot := cam + Vector2(0, 6)
+		seen[kind] = view.hides_commander(kind, kind == "oak", Rect2(foot - Vector2(size.x / 2.0, size.y), size), foot.y, cam)
+	check(not seen.rock and not seen.stone_wall, "a rock and a low wall, no taller than the commander, stay solid (%s)" % [seen])
+	check(seen.oak and seen.obelisk, "a tree and an obelisk in front of him turn see-through")
+	check(not seen.log, "a log lying on the ground stays solid")
+	var behind := cam - Vector2(0, 6)
+	check(not view.hides_commander("oak", true, Rect2(behind - Vector2(35, 87), Vector2(70, 87)), behind.y, cam), "a tree behind him stays solid")
+
+
 func test_the_build_panel_lists_every_soldier_arm_and_drill_even_at_none(b: Dictionary) -> void:
 	var s := Sim.new(b, Content.with_all_art(), {"seed": 3})
 	s.legion.add("ballista")
@@ -2950,16 +2967,20 @@ func test_the_build_panel_fits_beside_three_cards_in_every_language(b: Dictionar
 		for scale in [1, 2]:
 			Ui.set_text_size(scale, b)
 			# The pause screen shows the panel at both text sizes, clear of its buttons.
-			if Hud.BUILD.end.x >= (Ui.W - PauseScreen.button_width()) / 2.0:
+			var room := Hud.build_rect()
+			if room.end.x >= (Ui.W - PauseScreen.button_width()) / 2.0:
 				problems.append("%s x%d the panel reaches the pause buttons" % [loc, scale])
-			for it in Hud.build_items(s, Hud.BUILD):
-				if not Hud.BUILD.encloses(it[1]):
+			for it in Hud.build_items(s, room):
+				if not room.encloses(it[1]):
 					problems.append("%s x%d %s at %s spills out of the panel" % [loc, scale, it[2], it[1]])
 		Ui.set_text_size(1, b)
 		var cards: Array = Hud.card_rects(3, false, Hud.shows_build(3, false, false))
+		var panel := Hud.build_rect()
+		if panel.position.y != cards[0].position.y or panel.end.y != cards[0].end.y:
+			problems.append("%s the panel %s is not level with the cards %s" % [loc, panel, cards[0]])
 		for r in cards:
-			if r.intersects(Hud.BUILD):
-				problems.append("%s card %s overlaps the panel" % [loc, r])
+			if r.intersects(panel.grow(8.0)):
+				problems.append("%s card %s is closer to the panel than the gap between cards" % [loc, r])
 			if r.size.x < 148.0 or r.end.x > Ui.W - 8.0:
 				problems.append("%s card %s is too narrow or off the screen" % [loc, r])
 		# Every card's words still fit at the narrower width: the name in two lines and the description above the card's foot.

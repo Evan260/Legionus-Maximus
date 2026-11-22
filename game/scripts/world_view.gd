@@ -249,9 +249,7 @@ func _draw() -> void:
 					at += Vector2(roundf(sin(sim.time * 45.0 + at.x) * 1.2), 0)
 				var mod := white
 				# A tree standing in front of the commander is seen through, so he is not lost once the legion cuts into a ridge.
-				# Only the middle of the picture counts, since the empty margins round a canopy hide nothing.
-				# A log lies low on the ground and hides nobody, so it stays solid.
-				if (pr[2] > 0.0 or Terrain.SOLID.has(pr[0]) or pr[0] == "papyrus" or pr[0] == "feather_grass") and pr[0] != "log" and at.y > cam.y and _solid_part(Rect2(at - f[1], f[0].size)).intersects(him):
+				if hides_commander(pr[0], pr[2] > 0.0, Rect2(at - f[1], f[0].size), at.y, cam):
 					mod = see_through
 				# The gate fades only half way, so the fort still reads while the commander walks under it.
 				elif pr[0] == "fort_gate" and at.y > cam.y and Rect2(at - f[1], f[0].size).intersects(him):
@@ -1024,6 +1022,18 @@ func _add_flames(view: Rect2) -> void:
 
 ## One flame of the atlas's flickering sheet at `ground` + `at`, sorted just in front of the thing standing at `ground`.
 ## The part of a tree's picture that is canopy and trunk: a fifth in from each side and a tenth down from the top.
+## Whether a prop drawn at `drawn`, its foot at `foot_y`, stands in front of the commander and is tall enough to hide him.
+static func hides_commander(kind: String, tree: bool, drawn: Rect2, foot_y: float, cam: Vector2) -> bool:
+	var him := Rect2(cam - Vector2(5, 26), Vector2(10, 26))
+	# A log lies low on the ground, and a rock or a wall no taller than the commander leaves him in sight, so they stay solid.
+	if kind == "log" or drawn.size.y <= him.size.y:
+		return false
+	if not (tree or Terrain.SOLID.has(kind) or kind == "papyrus" or kind == "feather_grass"):
+		return false
+	# Only the middle of the picture counts, since the empty margins round a canopy hide nothing.
+	return foot_y > cam.y and _solid_part(drawn).intersects(him)
+
+
 static func _solid_part(r: Rect2) -> Rect2:
 	return Rect2(r.position + Vector2(r.size.x * 0.2, r.size.y * 0.1), Vector2(r.size.x * 0.6, r.size.y * 0.9))
 

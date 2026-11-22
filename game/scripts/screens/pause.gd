@@ -39,7 +39,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	var w := PauseScreen.button_width()
 	# The give-up question is written right across the screen, so the build panel makes way for it.
 	if not confirming and c is Hud:
-		c.draw_build(main.sim, Hud.BUILD)
+		c.draw_build(main.sim, Hud.build_rect())
 	var top := Ui.H / 2 - (3 * h + 2 * 8) / 2 - 8
 	ui.text(c, tr("Paused").to_upper(), Vector2(0, top - 8), Ui.CREAM, HORIZONTAL_ALIGNMENT_CENTER, Ui.W, true)
 	ui.button(c, Rect2(Ui.W / 2 - w / 2, top, w, h), "resume", tr("Resume").to_upper(), "", true, null, true)
