@@ -1411,6 +1411,24 @@ func test_torches_burn_what_they_pass(b: Dictionary) -> void:
 	check(s.arms.torch_points(s).size() == 4, "rank 3 carries four torches")
 
 
+func test_torches_circle_the_formation_not_its_farthest_man(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 1530)
+	s.ranks["torches"] = 1
+	for k in 20:
+		s.add_soldier("legionary")
+	s.add_soldier("cavalry")
+	s.legion.place_all(s.facing_angle)
+	s._rebuild_grids()
+	var ring := func() -> float: return (s.arms.torch_points(s)[0] - s.commander.pos).length()
+	var rest: float = ring.call()
+	check(rest > float(b.torches.radius), "a legion of twenty-odd men is wider than the torches' least ring (%.0f)" % rest)
+	var rider: Dictionary = s.soldiers[-1]
+	rider.pos = s.commander.pos + Vector2(0, 200)
+	rider.sortie = 1
+	s._rebuild_grids()
+	check(is_equal_approx(ring.call(), rest), "a rider out on a sortie leaves the ring where it was (%.0f, at rest %.0f)" % [ring.call(), rest])
+
+
 func test_eagle_flash_strikes_everyone_around(b: Dictionary) -> void:
 	var s := _arms_sim(b, 43, {"eagle": 1})
 	for i in 5:

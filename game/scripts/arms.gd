@@ -53,7 +53,7 @@ func ground_zones() -> Array:
 	return out
 
 
-## Where each torch is now, circling the formation.
+## Where each torch is now, circling the formation's places, so a rider out on a sortie or a column filing over a bridge leaves the ring where it is.
 func torch_points(sim: Sim) -> Array:
 	var out: Array = []
 	var r := sim.rank("torches")
@@ -61,7 +61,7 @@ func torch_points(sim: Sim) -> Array:
 		return out
 	var cfg: Dictionary = sim.b.torches
 	var n := int(lv(cfg, "count", r))
-	var ring := maxf(float(cfg.radius) * _flame(sim), sim.legion_reach - 6.0)
+	var ring := maxf(float(cfg.radius) * _flame(sim), sim.legion.formation_radius() + 18.0)
 	for i in n:
 		out.append(sim.commander.pos + Vector2.from_angle(torch_angle + i * TAU / n) * ring)
 	return out

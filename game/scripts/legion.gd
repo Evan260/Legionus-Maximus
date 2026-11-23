@@ -28,6 +28,9 @@ var _form_places: Array = []
 # The soldiers' indices in row-major order of the places they were last sorted for, front row first and left to right.
 var _order: Array = []
 var _order_of: Array = []
+# The places formation_radius() last measured, and how far the farthest of them lies from the commander.
+var _radius_of: Array = []
+var _radius := 0.0
 ## How far in from the fort's gate the towers reach, so a man is only in the yard once past them.
 const GATE_DEPTH := 30.0
 # The commander and soldiers below full health this update, in roll order, gathered for the medici; only they can be the worst hurt.
@@ -152,6 +155,17 @@ func formation() -> Array:
 	_form_roll = soldiers.duplicate()
 	_form_places = out
 	return out
+
+
+## How far from the commander the farthest place in the formation lies, wherever the men stand now.
+func formation_radius() -> float:
+	var places := formation()
+	if not is_same(_radius_of, places):
+		_radius_of = places
+		_radius = 0.0
+		for p in places:
+			_radius = maxf(_radius, p.length())
+	return _radius
 
 
 func _block(n: int, start: float, way: float) -> Array:
