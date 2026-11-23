@@ -95,6 +95,9 @@ var ravine_edge: Texture2D
 var ice: Texture2D
 # The water of every canal, repeated across the world like the ice and drifting along the canals through water.gdshader on its own layer.
 var water: Texture2D
+# How far the canal water has slid, in texture widths, kept below one here since the shader's own clock jumps back each hour.
+var _water_shift := Vector2.ZERO
+var _water_drift := Vector2.ZERO
 # Seconds the legion has been cheering, kept here so it runs on once the run is over and the sim stops.
 var _cheer_t := 0.0
 var _water := Node2D.new()
@@ -202,6 +205,8 @@ func _process(dt: float) -> void:
 			sim.shake_pixels = 0
 		sim.gods.quake = maxf(0.0, sim.gods.quake - dt)
 		position = (half_view(get_viewport_rect().size) - eye()).round() + jolt
+		_water_shift = Vector2(fposmod(_water_shift.x + _water_drift.x * dt, 1.0), fposmod(_water_shift.y + _water_drift.y * dt, 1.0))
+		_water.material.set_shader_parameter("shift", _water_shift)
 		queue_redraw()
 		_floor.queue_redraw()
 		_wheat.queue_redraw()
@@ -1906,7 +1911,7 @@ func _draw_water() -> void:
 			RenderingServer.canvas_item_add_triangle_array(item, w[0], w[1], w[2], w[3], PackedInt32Array(), PackedFloat32Array(), water.get_rid())
 	if flow != Vector2.ZERO:
 		var tex := Vector2(water.get_width(), water.get_height())
-		_water.material.set_shader_parameter("drift", flow * float(sim.terrain.canal.drift) / tex)
+		_water_drift = flow * float(sim.terrain.canal.drift) / tex
 
 
 ## One straight canal piece as two water triangles, laid in world space so neighbouring pieces line up, with the way it flows.
