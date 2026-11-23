@@ -132,12 +132,6 @@ static func _free_for(saved: Dictionary, action: String, kind: String, code: int
 	return true
 
 
-## The saved bindings with the defaults of one action put back.
-static func reset(saved: Dictionary, action: String) -> void:
-	saved.erase(action)
-	install(saved)
-
-
 ## A physical key's name as its cap reads on the player's own keyboard layout, so an AZERTY keyboard's Z is not called W.
 static func key_name(code: int) -> String:
 	if KEY_NAMES.has(code):

@@ -135,22 +135,6 @@ static func lines_of(s: String, width: float, size := 0) -> Array:
 	return out
 
 
-## Items joined by a separator into lines no wider than the width at the text size.
-static func pack(items: Array, sep: String, width: float) -> Array:
-	var out: Array = []
-	var line := ""
-	for item in items:
-		var trial: String = str(item) if line == "" else line + sep + str(item)
-		if line != "" and width_at(trial, px) > width:
-			out.append(line)
-			line = str(item)
-		else:
-			line = trial
-	if line != "":
-		out.append(line)
-	return out
-
-
 ## How a paragraph is laid out in at most `max_lines` lines: the size it is drawn at (the smallest when the text size
 ## needs more lines) and the lines it takes at that size.
 static func block(s: String, width: float, max_lines: int) -> Dictionary:
