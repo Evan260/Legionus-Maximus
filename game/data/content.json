@@ -689,8 +689,8 @@
    "lob": {
     "every": 4.5,
     "flight": 1.2,
-    "radius": 28,
-    "damage": 18
+    "radius": 22,
+    "damage": 17
    },
    "mend": {
     "every": 12.0,
