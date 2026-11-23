@@ -133,13 +133,15 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 		if info.is_empty():
 			ui.fit_text(c, tr("This game could not be read."), room, Vector2(x0, y + Ui.leading()), Ui.RED)
 		else:
-			ui.fit_text(c, played_on(float(info.saved_at)), room - Ui.width_at(name, Ui.px) - 16.0, Vector2(0, y), Ui.MUTED, HORIZONTAL_ALIGNMENT_RIGHT, x0 + room)
+			var newer: bool = info.get("newer", false)
+			var when := tr("Saved by a newer version") if newer else played_on(float(info.saved_at))
+			ui.fit_text(c, when, room - Ui.width_at(name, Ui.px) - 16.0, Vector2(0, y), Ui.RED if newer else Ui.MUTED, HORIZONTAL_ALIGNMENT_RIGHT, x0 + room)
 			var lines := summary(info, main.content, main.balance)
 			for i in lines.size():
 				ui.fit_text(c, lines[i], room, Vector2(x0, y + (i + 1) * Ui.leading()), Ui.INK)
 		var x := row.end.x - bw - 8.0
 		var mid := row.get_center().y
-		ui.button(c, Rect2(x, mid - bh - 2.0, bw, bh), "play:%d" % n, tr("Play").to_upper(), "", not info.is_empty(), null, true)
+		ui.button(c, Rect2(x, mid - bh - 2.0, bw, bh), "play:%d" % n, tr("Play").to_upper(), "", not info.is_empty() and not info.get("newer", false), null, true)
 		ui.button(c, Rect2(x, mid + 2.0, bw, bh), "delete:%d" % n, tr("Delete").to_upper(), "", true, null, true)
 
 

@@ -2617,6 +2617,60 @@ func test_a_broken_save_falls_back_to_its_newest_readable_backup(_b: Dictionary)
 	_cleanup_profile_files()
 
 
+func test_a_save_from_a_newer_version_is_shown_but_never_played_or_saved_over(_b: Dictionary) -> void:
+	_cleanup_profile_files()
+	var newer := JSON.stringify({"version": ProfileScript.VERSION + 1, "saved_at": Time.get_unix_time_from_system() + 1000.0, "denarii": 500,
+		"records": {"germania": {"won": true}}}, "\t")
+	_write_raw(TEST_SAVES.path_join("save_1.json"), newer)
+	var p := _fresh_profile()
+	p.slot = 0
+	check(not p.load_slot(1) and p.slot == 0 and p.data == ProfileScript.defaults(), "a save from a newer version is not opened")
+	var info: Dictionary = p.slot_info(1)
+	check(info.get("newer", false) and int(info.get("denarii", -1)) == 500 and info.get("won", []) == ["germania"], "but the load list still shows it (%s)" % str(info))
+	check(p.slot_taken(1) and p.free_slot() == 2, "and a new game never goes over it")
+	p.slot = 1
+	p.data.denarii = 3
+	check(not p.save(), "saving into its slot is refused")
+	check(FileAccess.get_file_as_string(p.path_for(1)) == newer and _test_files() == ["save_1.json"], "leaving the newer save as it was (%s)" % str(_test_files()))
+	var start := _fresh_profile()
+	start.slot = 0
+	start.start_up()
+	check(start.slot == 0, "starting the game opens no game when only a newer one is saved")
+	p.slot = 2
+	p.data.denarii = 8
+	p.save()
+	var again := _fresh_profile()
+	again.slot = 0
+	again.start_up()
+	check(again.slot == 2 and int(again.data.denarii) == 8, "and otherwise opens the game saved last of those it can play")
+	for q in [p, start, again]:
+		q.free()
+	_cleanup_profile_files()
+
+
+func test_saving_keeps_what_this_version_does_not_know(_b: Dictionary) -> void:
+	_cleanup_profile_files()
+	_write_raw(TEST_SAVES.path_join("save_1.json"), JSON.stringify({"version": ProfileScript.VERSION, "saved_at": 1.0, "denarii": 5, "banner": "red",
+		"totals": {"kills": 3, "chests": 9}, "unlocked": {"commanders": ["tribune"], "provinces": ["germania"], "modes": ["rush"]},
+		"records": {"germania": {"won": true, "best_time": 800.0, "longest": 800.0, "streak": 4, "times": {"nightmare": {"win": 700.0}, "medium": {"win": 800.0, "rush": 300.0}}}}}))
+	var p := _fresh_profile()
+	p.slot = 0
+	check(p.load_slot(1), "the save loads")
+	p.data.denarii = 9
+	p.data.totals.kills = 10
+	check(p.save(), "and saves")
+	var out: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(p.path_for(1)))
+	check(int(out.denarii) == 9 and int(out.totals.kills) == 10, "with what this game changed")
+	check(out.get("banner") == "red" and int(out.totals.get("chests", 0)) == 9 and out.unlocked.get("modes") == ["rush"], "keeping the fields it does not know (%s)" % str(out))
+	var rec: Dictionary = out.records.germania
+	check(int(rec.get("streak", 0)) == 4 and is_equal_approx(float(rec.times.nightmare.win), 700.0) and is_equal_approx(float(rec.times.medium.rush), 300.0), "down to a record's own fields and times")
+	p.new_game()
+	var fresh: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(p.path_for(2)))
+	check(not fresh.has("banner") and not fresh.totals.has("chests"), "a new game in another slot carries none of them")
+	p.free()
+	_cleanup_profile_files()
+
+
 func test_settings_are_shared_by_every_slot(_b: Dictionary) -> void:
 	_cleanup_profile_files()
 	var p := _fresh_profile()

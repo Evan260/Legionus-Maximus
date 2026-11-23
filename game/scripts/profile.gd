@@ -30,6 +30,8 @@ var slot := 0
 var data := {}
 ## The player's settings as saved; `setting()` gives the default of any not saved.
 var settings := {}
+## Each loaded slot's save as read, by slot, laid under the game when it is saved so the fields this build does not know are kept.
+var _kept := {}
 
 
 func _init() -> void:
@@ -99,10 +101,10 @@ func settings_path() -> String:
 ## Saves the game being played in its slot: written to a temporary file and read back before it replaces the save, with the
 ## older saves kept as rolling backups. Does nothing when disabled or before a game is chosen.
 func save() -> bool:
-	if disabled or slot < 1 or slot > SLOTS:
+	if disabled or slot < 1 or slot > SLOTS or made_by_newer(_newest(slot)):
 		return false
 	var path := path_for(slot)
-	var out := data.duplicate(true)
+	var out := laid_over(_kept.get(slot, {}), data.duplicate(true))
 	out.version = VERSION
 	out.saved_at = Time.get_unix_time_from_system()
 	var tmp := path + ".tmp"
@@ -112,17 +114,32 @@ func save() -> bool:
 	return _move(tmp, path)
 
 
-## Loads a slot from its save, or from the newest backup that can be read when it cannot. False when none can.
+## Loads a slot from its save, or from the newest backup that can be read when it cannot. False when none can, or when a newer
+## version of the game made it, since this build would lose what it does not understand.
 func load_slot(n: int) -> bool:
 	if n < 1 or n > SLOTS:
 		return false
+	var d := _newest(n)
+	if d.is_empty() or made_by_newer(d):
+		return false
+	data = merge_saved(d)
+	_kept[n] = d
+	slot = n
+	return true
+
+
+## A slot's save as read from the best file it can be loaded from, or empty when none can be read.
+func _newest(n: int) -> Dictionary:
 	for path in _load_order(n):
 		var d := _read(path)
 		if not d.is_empty():
-			data = merge_saved(d)
-			slot = n
-			return true
-	return false
+			return d
+	return {}
+
+
+## Whether a save was written by a newer version of the game than this one.
+static func made_by_newer(saved: Dictionary) -> bool:
+	return _is_number(saved.get("version")) and int(saved.version) > VERSION
 
 
 ## Starts a new game in the first free slot and saves it there. Returns the slot, or 0 when all three are taken and nothing changes.
@@ -131,6 +148,7 @@ func new_game() -> int:
 	if n == 0:
 		return 0
 	data = defaults()
+	_kept.erase(n)
 	slot = n
 	save()
 	return n
@@ -156,31 +174,31 @@ func delete_slot(n: int) -> void:
 	for path in _candidates(n) + [path_for(n) + ".tmp"]:
 		if FileAccess.file_exists(path):
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	_kept.erase(n)
 	if slot == n:
 		slot = 0
 		data = defaults()
 
 
-## What the load list shows of a slot: the provinces won, the denarii, the runs and when it was saved, or empty when nothing of it can be read.
+## What the load list shows of a slot: the provinces won, the denarii, the runs, when it was saved and whether a newer version of the
+## game made it, or empty when nothing of it can be read.
 func slot_info(n: int) -> Dictionary:
-	for path in _load_order(n):
-		var d := _read(path)
-		if d.is_empty():
-			continue
-		var game := merge_saved(d)
-		var won: Array = game.records.keys().filter(func(p: String) -> bool: return bool(game.records[p].won))
-		var at: Variant = d.get("saved_at", 0.0)
-		return {"won": won, "denarii": int(game.denarii), "runs": int(game.totals.runs), "saved_at": float(at) if _is_number(at) else 0.0}
-	return {}
+	var d := _newest(n)
+	if d.is_empty():
+		return {}
+	var game := merge_saved(d)
+	var won: Array = game.records.keys().filter(func(p: String) -> bool: return bool(game.records[p].won))
+	var at: Variant = d.get("saved_at", 0.0)
+	return {"won": won, "denarii": int(game.denarii), "runs": int(game.totals.runs), "saved_at": float(at) if _is_number(at) else 0.0, "newer": made_by_newer(d)}
 
 
-## The slot saved most recently, or 0 when there are no games.
+## The slot saved most recently of those this build can play, or 0 when there are none.
 func latest_slot() -> int:
 	var best := 0
 	var when := -1.0
 	for n in range(1, SLOTS + 1):
 		var info := slot_info(n)
-		if not info.is_empty() and float(info.saved_at) >= when:
+		if not info.is_empty() and not info.newer and float(info.saved_at) >= when:
 			when = float(info.saved_at)
 			best = n
 	return best
@@ -236,6 +254,14 @@ func migrate_old_profile() -> bool:
 
 static func _is_number(v: Variant) -> bool:
 	return v is int or v is float
+
+
+## `over` laid over `under`: dictionaries in both are merged key by key, and any other value in `over` replaces the one in `under`.
+static func laid_over(under: Dictionary, over: Dictionary) -> Dictionary:
+	var out := under.duplicate(true)
+	for key in over:
+		out[key] = laid_over(out[key], over[key]) if out.get(key) is Dictionary and over[key] is Dictionary else over[key]
+	return out
 
 
 ## The defaults with every readable, correctly typed value from `saved` laid over them.
