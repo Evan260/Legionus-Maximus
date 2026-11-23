@@ -5,6 +5,9 @@ extends Node
 const HIDING_STATES := ["choose", "pray", "supply", "over", "pause", "settings"]
 const STORE_URL := "https://store.steampowered.com/app/%d"
 
+## Sent when the player opens the Steam overlay, which draws over the game while its window keeps the focus.
+signal overlay_opened
+
 var steam: Object = null
 var balance: Dictionary
 var content: Content
@@ -28,6 +31,7 @@ func _ready() -> void:
 	# Status 0 is a running Steam client that owns the game; any other leaves everything in the profile.
 	if int(started.get("status", -1)) == 0:
 		steam = found
+		steam.connect("overlay_toggled", _overlay_toggled)
 		sync()
 	else:
 		print_verbose("Steam is not available: ", started.get("verbal", ""))
@@ -65,6 +69,11 @@ func card_slide() -> float:
 
 func running() -> bool:
 	return steam != null
+
+
+func _overlay_toggled(active: bool, _user_initiated := false, _app_id := 0) -> void:
+	if active:
+		overlay_opened.emit()
 
 
 ## Sends every earned achievement to Steam, so ones earned before it was running still count.

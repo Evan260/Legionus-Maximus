@@ -3260,6 +3260,16 @@ func test_achievements_unlock_from_the_run(b: Dictionary) -> void:
 	Profile.data = saved
 
 
+func test_opening_the_steam_overlay_is_passed_on(_b: Dictionary) -> void:
+	var opened := [0]
+	var count := func() -> void: opened[0] += 1
+	Steamworks.overlay_opened.connect(count)
+	Steamworks._overlay_toggled(true, true, 0)
+	check(opened[0] == 1, "opening the overlay is passed on, so the run can pause")
+	Steamworks._overlay_toggled(false, true, 0)
+	check(opened[0] == 1, "closing it is not")
+	Steamworks.overlay_opened.disconnect(count)
+
 func test_presence_names_the_province_minute_and_legion(b: Dictionary) -> void:
 	var march: Dictionary = Steamworks.presence_of("Germania", 4, 12)
 	check(march == {"steam_display": "#Status_Marching", "province": "Germania", "minute": "4", "legion": "12"}, "marching presence")

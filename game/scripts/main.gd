@@ -121,6 +121,7 @@ func _ready() -> void:
 		_bench()
 		return
 	_setup_input()
+	Steamworks.overlay_opened.connect(_overlay_opened)
 	world.atlas = Atlas.new()
 	if args.has("livery"):
 		var tiers: PackedStringArray = str(args.livery).split(",")
@@ -818,6 +819,12 @@ func _pause() -> void:
 	state = "pause"
 	screens.pause.confirming = false
 	ui.focus = "resume"
+
+
+## The Steam overlay leaves the window focused, so opening it pauses the run as losing the focus does.
+func _overlay_opened() -> void:
+	if Game.pauses_on_focus_loss(state, args.has("autoplay") or args.has("skip")):
+		_pause()
 
 
 func _notification(what: int) -> void:
