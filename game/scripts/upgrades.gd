@@ -36,6 +36,8 @@ static func _offerable(sim: Sim, kind: String, id: String) -> bool:
 		return sim.rank(id) < int(info.max) and _pair_done(sim, info)
 	if id == "fire_arrows" and sim.count("archer") == 0:
 		return false
+	if id == "better_bows" and sim.count("archer") + sim.count("ballista") == 0:
+		return false
 	return sim.rank(id) < int(info.get("max", 0))
 
 

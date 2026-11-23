@@ -272,6 +272,15 @@ func test_burning_arrows_need_archers(b: Dictionary) -> void:
 	check(Upgrades.available(s).has("fire_arrows"), "offered once archers join")
 
 
+func test_better_bows_need_missile_troops(b: Dictionary) -> void:
+	var s := Sim.new(b, content, {"seed": 9})
+	check(not Upgrades.available(s).has("better_bows"), "no better bows without archers or ballistae")
+	Upgrades.apply(s, "ballista")
+	check(Upgrades.available(s).has("better_bows"), "offered once a ballista joins")
+	var archers := Sim.new(b, content, {"seed": 9, "commander": "archer_captain"})
+	check(Upgrades.available(archers).has("better_bows"), "and to the archer captain from the start")
+
+
 func test_offers_are_three_different_choices(b: Dictionary) -> void:
 	var s := Sim.new(b, content, {"seed": 10})
 	for i in 20:
