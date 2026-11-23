@@ -228,18 +228,20 @@ func _init(balance: Dictionary, game_content: Content, options := {}) -> void:
 	decimate_next = float(b.decimatio.every)
 	_next_sample = float(b.history_every)
 	_build_sources()
-	var kit_types: Array = []
+	# Decimatio fills the legion with the kit's line troops, so a commander's single specialist stays one man.
+	var line_types: Array = []
 	for key in kit.starts:
 		if key.begins_with("arm:"):
 			ranks[key.trim_prefix("arm:")] = int(kit.starts[key])
 		else:
-			kit_types.append(key)
+			if int(content.recruits[key].per_pick) > 1:
+				line_types.append(key)
 			for i in int(kit.starts[key]):
 				add_soldier(key)
 	if decimatio:
 		var i := 0
 		while soldiers.size() < int(b.decimatio.start_soldiers):
-			add_soldier(kit_types[i % kit_types.size()] if not kit_types.is_empty() else "legionary")
+			add_soldier(line_types[i % line_types.size()] if not line_types.is_empty() else "legionary")
 			i += 1
 	for i in int(bonus_amount("start_soldiers")):
 		add_soldier("legionary")

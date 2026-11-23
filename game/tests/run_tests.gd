@@ -2126,6 +2126,10 @@ func test_decimatio_takes_one_in_ten(b: Dictionary) -> void:
 	check(tiny.soldiers.size() == 9, "nine soldiers lose none")
 	var archers := _mode_sim(b, {"seed": 115, "decimatio": true, "commander": "archer_captain"})
 	check(archers.soldiers.size() == 30 and archers.count("archer") > 3 and archers.count("legionary") == 0, "the archer captain's legion is archers")
+	var legate := _mode_sim(b, {"seed": 116, "decimatio": true, "commander": "legate"})
+	check(legate.soldiers.size() == 30 and legate.count("standard_bearer") == 1 and legate.count("legionary") == 29, "the legate keeps his one standard bearer and fills the rest with legionaries (%d bearers)" % legate.count("standard_bearer"))
+	var old := _mode_sim(b, {"seed": 117, "decimatio": true, "commander": "old_centurion"})
+	check(old.count("centurion") == 1 and old.count("legionary") == 29, "the old centurion keeps his one centurion (%d)" % old.count("centurion"))
 
 
 func test_hard_mode_pays_more(b: Dictionary) -> void:
