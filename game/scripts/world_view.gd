@@ -1348,7 +1348,7 @@ func _add_burning_hut(at: Vector2, kind: String, f: Array) -> void:
 	var ruin := _prop("hut_ruin")
 	_add(at.y - 60000.0, ruin[0], at - ruin[1], Color(1, 1, 1, clampf(since / cave, 0.0, 1.0)))
 	var frame_alpha := clampf((float(cfg.burn_seconds) - t) / 1.5, 0.0, 1.0)
-	if since >= cave:
+	if Objectives.hut_stage(cfg, i, t) != "collapsing":
 		_add(at.y, f[0], at - f[1], Color(1, 1, 1, frame_alpha))
 		return
 	var k := since / cave
@@ -1364,13 +1364,14 @@ func _add_burning_hut(at: Vector2, kind: String, f: Array) -> void:
 func _add_hut_flames(hut: Vector2, i: int, t: float) -> void:
 	var cfg: Dictionary = sim.b.objectives.camp
 	var fall := Objectives.fall_at(cfg, i)
-	if t >= fall:
+	var stage := Objectives.hut_stage(cfg, i, t)
+	if stage != "catching" and stage != "blazing":
 		var fade := clampf((float(cfg.burn_seconds) - t) / 3.0, 0.0, 1.0) * clampf((t - fall) / 0.3, 0.0, 1.0)
 		for n in HUT_EMBER_FIRES.size():
 			_add_flame(hut, HUT_EMBER_FIRES[n], i, n, fade, 0.5)
-		var k := (t - fall) / float(cfg.burn.cave)
-		if k < 1.0:
+		if stage == "collapsing":
 			# The roof's fires fall in with it and die down.
+			var k := (t - fall) / float(cfg.burn.cave)
 			for n in 3:
 				_add_flame(hut, HUT_FIRES[n] * Vector2(1.0 + 0.12 * k, 1.0 - 0.8 * k), i, n, 1.0 - k * k, lerpf(1.25, 0.5, k))
 		return
@@ -1405,11 +1406,12 @@ func _draw_camp_fire(view: Rect2) -> void:
 		for i in o.huts.size():
 			var h: Vector2 = o.huts[i]
 			var fall := Objectives.fall_at(cfg, i)
-			var standing := t < fall
+			var stage := Objectives.hut_stage(cfg, i, t)
+			var standing := stage == "catching" or stage == "blazing"
 			var heat := clampf((t - Objectives.catch_at(cfg, i)) / 2.0, 0.0, 1.0) if standing else 0.45 * clampf((end - t) / 3.0, 0.0, 1.0)
 			_draw_hut_smoke(h, i, heat, standing)
 			_draw_hut_embers(h, i, heat if standing else heat * 0.4)
-			if t >= fall and t - fall < 1.0:
+			if not standing and t - fall < 1.0:
 				_draw_hut_burst(h, i, t - fall)
 
 
