@@ -1657,13 +1657,13 @@ func set_fire(ci: int, sim: Sim) -> void:
 	sim.event("bellow", e_pos[ci])
 
 
-## Whether p lies in the band the king marked for burning.
-func in_fire_band(p: Vector2) -> bool:
+## Whether p lies in the band the king marked for burning, between `span.x` and `span.y` px across it from its starting edge; anywhere in it by default.
+func in_fire_band(p: Vector2, span := Vector2(0.0, INF)) -> bool:
 	if steppe_fire.is_empty():
 		return false
 	var off: Vector2 = p - steppe_fire.pos
 	var along: float = off.dot(steppe_fire.dir)
-	return along >= 0.0 and along <= steppe_fire.depth and absf(off.dot(steppe_fire.dir.orthogonal())) <= steppe_fire.half_len
+	return along >= span.x and along <= minf(span.y, steppe_fire.depth) and absf(off.dot(steppe_fire.dir.orthogonal())) <= steppe_fire.half_len
 
 
 ## How far across the band the fire has spread, and how far behind it the grass has burnt out, in px from its starting edge.
@@ -1691,11 +1691,8 @@ func _fire_on(dt: float, sim: Sim) -> void:
 		return
 	var span := fire_span()
 	var guard := sim.frenzy_guard()
-	var side: Vector2 = steppe_fire.dir.orthogonal()
 	for u in sim.units:
-		var off: Vector2 = u.pos - steppe_fire.pos
-		var along: float = off.dot(steppe_fire.dir)
-		if along >= span.x and along <= span.y and absf(off.dot(side)) <= steppe_fire.half_len:
+		if in_fire_band(u.pos, span):
 			u.hp -= steppe_fire.dps * dt * guard * sim.front_guard(u)
 	sim.legion.remove_fallen(sim)
 
