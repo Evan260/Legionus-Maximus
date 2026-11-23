@@ -3395,7 +3395,9 @@ func _sheet() -> Dictionary:
 func _percent_codes(s: String) -> Array:
 	var out := []
 	for m in RegEx.create_from_string("%[-0-9.]*[sdifxXcv%]").search_all(s):
-		out.append(m.get_string())
+		# A literal percent sign takes no value, so a language may put it before the number, as Turkish does.
+		if m.get_string() != "%%":
+			out.append(m.get_string())
 	return out
 
 
