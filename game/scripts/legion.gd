@@ -29,6 +29,9 @@ var _form_places: Array = []
 # The soldiers' indices in row-major order of the places they were last sorted for, front row first and left to right.
 var _order: Array = []
 var _order_of: Array = []
+# The places the cover was last paired for, and the updates since, so follow() pairs it anew only every few updates or when the roll changes.
+var _guard_of: Array = []
+var _guard_age := 0
 # The places formation_radius() last measured, and how far the farthest of them lies from the commander.
 var _radius_of: Array = []
 var _radius := 0.0
@@ -228,7 +231,10 @@ func follow(dt: float, sim: Sim) -> void:
 					way = f
 			s.pos += way * minf(d, step)
 		s.facing = to.normalized() if d > 3.0 else commander.facing
-	assign_guards()
+	# A man moves only a pixel or two an update, so the cover is paired anew every fourth update, or at once when the roll changes.
+	_guard_age += 1
+	if _guard_age >= 4 or not is_same(places, _guard_of):
+		assign_guards()
 
 
 ## Where the men head instead of their formation places, one place on the field each, or [] for the formation: a block filling the fort while the commander is inside it, or rows that fit a bridge's deck or the fort's gate while the legion crosses or comes up to one.
@@ -403,6 +409,8 @@ func _row_major(places: Array) -> Array:
 
 ## Men in the rear and middle are covered by the nearest front-rank soldier within reach.
 func assign_guards() -> void:
+	_guard_of = formation()
+	_guard_age = 0
 	var fronts: Array = []
 	for s in soldiers:
 		if s.place == "front":
@@ -416,10 +424,10 @@ func assign_guards() -> void:
 		s.guard = null
 		if s.place != "rear" and s.place != "middle":
 			continue
-		var best := reach
+		var best := reach * reach
 		var p: Vector2 = s.pos
 		for k in at.size():
-			var d: float = (at[k] - p).length()
+			var d: float = (at[k] - p).length_squared()
 			if d < best:
 				best = d
 				s.guard = fronts[k]
