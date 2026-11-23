@@ -1781,7 +1781,7 @@ func _draw_gods(top_left: Vector2, screen: Vector2) -> void:
 			draw_polyline(pts, Color(0.2, 0.13, 0.07, 0.7 * (1.0 - k * 0.5)), 2.0)
 	if gods.burn_left > 0.0:
 		var heat := clampf(gods.burn_left / 1.0, 0.0, 1.0) * 0.16
-		draw_rect(Rect2(top_left, screen), Color(1.0, 0.35, 0.05, heat))
+		draw_rect(whole, Color(1.0, 0.35, 0.05, heat))
 	for m in gods.meteors:
 		if m.t < 0.0:
 			continue
@@ -1798,8 +1798,8 @@ func _draw_gods(top_left: Vector2, screen: Vector2) -> void:
 		var pulse := 0.5 + 0.5 * sin(sim.time * 7.0)
 		draw_arc(sim.commander.pos, sim.legion_reach + 4.0 + 3.0 * pulse, 0.0, TAU, 64, Color(0.95, 0.2, 0.08, 0.7 * fade), 4.0)
 		draw_arc(sim.commander.pos, sim.legion_reach + 4.0 + 3.0 * pulse, 0.0, TAU, 64, Color(1.0, 0.8, 0.3, 0.9 * fade), 1.0)
-		# A red edge round the screen keeps the frenzy in sight wherever the eye is.
-		var edge := Rect2(top_left, screen)
+		# A red edge round the screen keeps the frenzy in sight wherever the eye is, laid on the screen as it shakes.
+		var edge := Rect2(-position, screen)
 		for band in 4:
 			var w := 6.0 + band * 6.0
 			var col := Color(0.8, 0.08, 0.04, (0.22 - band * 0.05) * fade * (0.7 + 0.3 * pulse))
@@ -1820,8 +1820,8 @@ func _draw_gods(top_left: Vector2, screen: Vector2) -> void:
 		var units: Array = [sim.commander] + sim.soldiers
 		for n in mini(units.size(), 60):
 			var p: Vector2 = units[n].pos
-			draw_rect(Rect2(p.x - 3.0, top_left.y, 6.0, p.y - top_left.y), Color(1.0, 0.92, 0.55, 0.22 * k))
-			draw_rect(Rect2(p.x - 1.0, top_left.y, 2.0, p.y - top_left.y), Color(1.0, 1.0, 0.85, 0.4 * k))
+			draw_rect(Rect2(p.x - 3.0, whole.position.y, 6.0, p.y - whole.position.y), Color(1.0, 0.92, 0.55, 0.22 * k))
+			draw_rect(Rect2(p.x - 1.0, whole.position.y, 2.0, p.y - whole.position.y), Color(1.0, 1.0, 0.85, 0.4 * k))
 	var bolt_life := float(g.jupiter.bolt_seconds)
 	for bolt in gods.bolts:
 		var a := 1.0 - float(bolt.t) / bolt_life
