@@ -752,6 +752,7 @@ func update(dt: float, sim: Sim) -> void:
 	if _salvo_fired > 0:
 		sim.event("arrow", commander.pos)
 	_chieftain_after(sim)
+	_keep_chief_out(sim)
 	_bosses_after()
 	_foe_lobs(dt, sim)
 	_marks(dt, sim)
@@ -1775,6 +1776,27 @@ func slam(ci: int, sim: Sim) -> bool:
 
 
 ## Keeps the chieftain where he stands while he winds up, and throws aside the soldiers his charge runs into.
+## The fort is the legion's to hold, so a chieftain shoved or charging through its gate is put back outside the nearest wall.
+func _keep_chief_out(sim: Sim) -> void:
+	var ci := chieftain_index()
+	var fort: Dictionary = sim.objectives.fort
+	if ci < 0 or fort.is_empty() or not Legion._in_yard(e_pos[ci], fort):
+		return
+	var off: Vector2 = e_pos[ci] - fort.centre
+	var half := float(fort.half) + k_radius[e_kind[ci]] + 2.0
+	var p := e_pos[ci]
+	# Out through whichever wall is nearest, the gate's side counting like the others.
+	var to_side := half - absf(off.x)
+	var to_end := half - absf(off.y)
+	if to_side < to_end:
+		p.x = fort.centre.x + signf(off.x if off.x != 0.0 else 1.0) * half
+	else:
+		p.y = fort.centre.y + signf(off.y if off.y != 0.0 else 1.0) * half
+	e_pos[ci] = p
+	if chief_hold > 0.0:
+		hold_pos = p
+
+
 func _chieftain_after(sim: Sim) -> void:
 	var ci := chieftain_index()
 	if ci < 0:

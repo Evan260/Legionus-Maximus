@@ -4840,6 +4840,20 @@ func test_the_legion_marching_past_the_north_of_the_fort_stays_with_its_commande
 	check(strays == 0 and in_yard == 0, "no soldier is led off into the fort while the legion passes its north wall (%d strayed, %d inside)" % [strays, in_yard])
 
 
+func test_the_chieftain_is_never_inside_the_fort(b: Dictionary) -> void:
+	var s := _fort_sim(b, 400)
+	var fort: Dictionary = s.objectives.fort
+	var ci := s.horde.spawn_chieftain(fort.centre + Vector2(10, 20))
+	var id: int = s.horde.e_id[ci]
+	s.update(1.0 / 30.0, Vector2.ZERO, false)
+	var j := s.horde.e_id.find(id)
+	check(j >= 0 and not Legion._in_yard(s.horde.e_pos[j], fort), "a chieftain shoved through the gate is put back outside the walls (%s)" % [s.horde.e_pos[j] - fort.centre if j >= 0 else "gone"])
+	# Through the gate itself he may stand, since that is outside the yard.
+	s.horde.e_pos[j] = fort.pos + Vector2(0, 40)
+	s.update(1.0 / 30.0, Vector2.ZERO, false)
+	check(s.horde.e_pos[s.horde.e_id.find(id)].distance_to(fort.pos + Vector2(0, 40)) < 30.0, "a chieftain outside the gate is left where he is")
+
+
 func test_the_fort_is_a_walled_square_with_its_gate_towards_the_legion(b: Dictionary) -> void:
 	var cfg: Dictionary = b.fort
 	var s := _fort_sim(b, 400)
