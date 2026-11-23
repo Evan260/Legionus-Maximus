@@ -3401,15 +3401,32 @@ func _spear_target(p: Vector2, hit_radius: float, sim: Sim) -> int:
 func spawn_cart() -> void:
 	var cfg: Dictionary = b.cart
 	var owner_sim: Sim = sim_ref.get_ref() if sim_ref != null else null
-	var at := Vector2.ZERO
-	# A cart in a wood or over a gorge could never be reached, so it is placed again until it stands on open ground.
+	var r := float(cfg.radius)
+	var reach: float = owner_sim.legion_reach if owner_sim != null else 0.0
+	var half: Vector2 = view / 2.0 - Vector2(r, r) * 2.0
+	var at := Vector2.INF
+	var last: Vector2 = commander.pos
+	var clearest := -1.0
+	# A cart in a wood or over a gorge could never be reached and one among the men is taken at once, so the open spot of a few tries farthest from them is kept.
 	for k in 24:
-		at = commander.pos + Vector2.from_angle(rng.randf() * TAU) * Vector2(1.6, 1.0) * rng.randf_range(float(cfg.near), float(cfg.far))
+		var off := Vector2.from_angle(rng.randf() * TAU) * (Vector2(1.6, 1.0) * rng.randf_range(float(cfg.near), float(cfg.far)) + Vector2.ONE * reach)
+		last = commander.pos + off.clamp(-half, half)
 		if owner_sim == null:
+			at = last
 			break
-		at = owner_sim.terrain.push_out(at, float(cfg.radius))
-		if owner_sim.terrain.is_open(at) and owner_sim.terrain.ravine_edge(at) >= float(cfg.radius):
+		last = owner_sim.terrain.push_out(last, r)
+		if not owner_sim.terrain.is_open(last) or owner_sim.terrain.ravine_edge(last) < r:
+			continue
+		var gap := INF
+		for u in owner_sim.units:
+			gap = minf(gap, u.pos.distance_to(last))
+		if gap > clearest:
+			clearest = gap
+			at = last
+		if gap >= float(cfg.near):
 			break
+	if at == Vector2.INF:
+		at = last
 	carts.append({"pos": at, "t": 0.0})
 	if owner_sim != null and not cart_tip_shown:
 		cart_tip_shown = true

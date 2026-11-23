@@ -581,6 +581,35 @@ func test_a_supply_cart_stands_still(b: Dictionary) -> void:
 	check(not s.horde.carts.is_empty() and s.horde.carts[0].pos == at, "and does not move")
 
 
+func test_a_supply_cart_stands_on_screen_clear_of_a_big_legion(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 137, Content.with_all_art())
+	for k in 100:
+		s.add_soldier("legionary")
+	s.legion.place_all(s.facing_angle)
+	s._rebuild_grids()
+	var r := float(b.cart.radius)
+	var touched := 0
+	var beyond := 0
+	var seen := 0
+	var n := 200
+	for k in n:
+		s.horde.carts.clear()
+		s.horde.spawn_cart()
+		var at: Vector2 = s.horde.carts[0].pos
+		var off: Vector2 = at - s.commander.pos
+		if absf(off.x) <= Horde.view.x / 2.0 and absf(off.y) <= Horde.view.y / 2.0:
+			seen += 1
+		var gap := INF
+		for u in s.units:
+			gap = minf(gap, u.pos.distance_to(at))
+		if gap < r:
+			touched += 1
+		if gap >= r * 2.0:
+			beyond += 1
+	check(seen == n, "every cart stands on the screen (%d of %d)" % [seen, n])
+	check(touched == 0 and beyond >= n * 0.9, "beyond a hundred men's ranks rather than among them (%d touching, %d clear of the ranks)" % [touched, beyond])
+
+
 func test_a_soldier_picks_up_a_chest(b: Dictionary) -> void:
 	var s := _quiet_sim(b, 134, Content.with_all_art())
 	s.commander.hp = 1e9
