@@ -199,7 +199,7 @@ func _process(dt: float) -> void:
 		if sim.shake <= 0.0:
 			sim.shake_pixels = 0
 		sim.gods.quake = maxf(0.0, sim.gods.quake - dt)
-		position = (get_viewport_rect().size / 2.0 - eye()).round() + jolt
+		position = (half_view(get_viewport_rect().size) - eye()).round() + jolt
 		queue_redraw()
 		_floor.queue_redraw()
 		_wheat.queue_redraw()
@@ -208,6 +208,16 @@ func _process(dt: float) -> void:
 
 func eye() -> Vector2:
 	return eye_at if sim == eye_sim else sim.commander.pos
+
+
+## Half the view, in whole pixels, so on a view of odd size the camera's rounding still cancels a marching man's.
+static func half_view(size: Vector2) -> Vector2:
+	return (size / 2.0).floor()
+
+
+## The world's point at the top left of the screen, before any shake.
+func _top_left() -> Vector2:
+	return eye() - half_view(get_viewport_rect().size)
 
 
 ## A sprite's place in the drawing order, from its depth measured from the camera so the key stays positive however far the legion marches.
@@ -308,7 +318,7 @@ func _draw() -> void:
 	var cam := eye()
 	_cam = cam
 	var screen := get_viewport_rect().size
-	var top_left := cam - screen / 2.0
+	var top_left := cam - half_view(screen)
 	_draw_ravines(view_for(top_left).grow(80.0))
 	_draw_scorch(view_for(top_left))
 	var livery := livery_force if livery_force.x >= 0 else Livery.tiers(sim)
@@ -548,7 +558,7 @@ func _draw_floor() -> void:
 	if not sim:
 		return
 	var screen := get_viewport_rect().size
-	var top_left: Vector2 = eye() - screen / 2.0
+	var top_left := _top_left()
 	if sim.province != _ground_of:
 		_ground_of = sim.province
 		ground = load(Content.ground_path(_ground_of))
@@ -671,7 +681,7 @@ func _paint_drift(foot: Vector2i, foot_row: int, sand: Array, shade: Color, cfg:
 func _draw_fields() -> void:
 	if not sim:
 		return
-	var view := view_for(eye() - get_viewport_rect().size / 2.0)
+	var view := view_for(_top_left())
 	var fields := sim.terrain.fields_in(view.grow(FIELD_FRAY * 4.0))
 	if fields.is_empty() or not atlas.props.has("wheat_field"):
 		return
@@ -1677,8 +1687,7 @@ func _draw_effects() -> void:
 			var green := Color(0.5, 1.0, 0.55, 1.0 - k)
 			draw_rect(Rect2(h + Vector2(1, 0), Vector2(1, 3)), green)
 			draw_rect(Rect2(h + Vector2(0, 1), Vector2(3, 1)), green)
-	var screen := get_viewport_rect().size
-	var seen := Rect2(eye() - screen / 2.0, screen).grow(40.0)
+	var seen := Rect2(_top_left(), get_viewport_rect().size).grow(40.0)
 	for i in sim.horde.e_pos.size():
 		if not seen.has_point(sim.horde.e_pos[i]):
 			continue
@@ -1875,7 +1884,7 @@ func _draw_ravines(view: Rect2) -> void:
 func _draw_water() -> void:
 	if not sim or sim.terrain.canal.is_empty():
 		return
-	var view := view_for(eye() - get_viewport_rect().size / 2.0)
+	var view := view_for(_top_left())
 	var item := _water.get_canvas_item()
 	var flow := Vector2.ZERO
 	for rv in sim.terrain.ravines_in(view):

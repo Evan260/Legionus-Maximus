@@ -219,6 +219,17 @@ func test_a_big_shadow_is_drawn_at_its_own_size(_b: Dictionary) -> void:
 	check(view.shadow_image(16).get_size() == Vector2i(16, 6), "a small one keeps 16 by 6")
 
 
+func test_the_legion_holds_still_on_screen_in_a_view_of_odd_size(_b: Dictionary) -> void:
+	var view: GDScript = load("res://scripts/world_view.gd")
+	for size in [Vector2(853, 360), Vector2(640, 479), Vector2(640, 360)]:
+		var seen := {}
+		for k in 11:
+			var cam := Vector2(100.03 + k * 0.1, 50.03 + k * 0.1)
+			# The world view sits at its half size less the camera, and a marching man is rounded against the camera.
+			seen[((view.half_view(size) - cam).round() + cam.round())] = true
+		check(seen.size() == 1, "the commander keeps one place on a %s view as the camera moves through a pixel (%s)" % [size, seen.keys()])
+
+
 func test_every_shadow_is_drawn_from_one_sheet(_b: Dictionary) -> void:
 	var view: GDScript = load("res://scripts/world_view.gd")
 	var widths := [16, 29, 48]
