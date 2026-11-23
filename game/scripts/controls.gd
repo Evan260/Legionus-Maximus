@@ -23,6 +23,8 @@ const KEY_NAMES := {KEY_UP: "Up", KEY_DOWN: "Down", KEY_LEFT: "Left", KEY_RIGHT:
 # Actions read on the same screen: on the field, on the menus, at a level-up, on the pause screen and at the gods' choice. No key or button stands for two actions of one group.
 const GROUPS := [["up", "down", "left", "right", "testudo", "build", "wall", "bridge", "pray", "pause"], ["up", "down", "left", "right", "confirm", "back"],
 	["up", "down", "left", "right", "confirm", "reroll", "banish"], ["confirm", "pause"], ["confirm", "pray"]]
+# The display servers that know the keyboard's layout; elsewhere a key keeps its US name.
+const LAYOUT_SERVERS := ["Windows", "macOS", "X11", "Wayland"]
 # The words of the key hints, each translated on its own so no translation has to keep a key in its place.
 const HINT_WORDS := ["move", "choose", "back", "buy a rank", "take it", "call", "not now", "reroll", "banish",
 	"call the gods", "bridge", "palisade", "wall", "cancel", "delete", "change a key or button", "change a volume", "continue"]
@@ -136,10 +138,12 @@ static func reset(saved: Dictionary, action: String) -> void:
 	install(saved)
 
 
+## A physical key's name as its cap reads on the player's own keyboard layout, so an AZERTY keyboard's Z is not called W.
 static func key_name(code: int) -> String:
 	if KEY_NAMES.has(code):
 		return TranslationServer.translate(KEY_NAMES[code])
-	var s := OS.get_keycode_string(code)
+	var label := DisplayServer.keyboard_get_label_from_physical(code) if DisplayServer.get_name() in LAYOUT_SERVERS else KEY_NONE
+	var s := OS.get_keycode_string(label if label != KEY_NONE else code)
 	return s if s != "" else "?"
 
 
