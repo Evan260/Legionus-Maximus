@@ -10162,6 +10162,24 @@ func _won_sim(b: Dictionary, seed_value: int, options := {}) -> Sim:
 	return s
 
 
+func test_the_triumph_clears_the_hordes_missiles_and_marks(b: Dictionary) -> void:
+	var s := _won_sim(b, 1651)
+	var h := s.horde
+	var c: Vector2 = s.commander.pos
+	h._throw(c + Vector2(200, 0), Vector2.LEFT, 5.0)
+	h.foe_lobs.append({"from": c + Vector2(300, 0), "to": c, "t": 0.0, "dur": 5.0, "radius": 30.0, "dmg": 5.0})
+	h.marks.append({"kind": "curse", "id": -1, "pos": c, "t": 0.0, "dur": 5.0, "radius": 40.0, "seconds": 3.0, "slow": 0.3})
+	h.storms.append({"pos": c, "radius": 40.0, "t": 0.0, "life": 5.0, "slow": 0.2, "dps": 1.0})
+	h.lassos.append({"id": -1, "unit": s.commander, "t": 0.0, "dur": 1.0})
+	h.steppe_fire = {"pos": c, "t": 5.0, "lit": true}
+	h.flood = {"pos": c, "t": 5.0, "open": true}
+	h.curse_left = 3.0
+	s.win(c)
+	_step_dt(s, 0.5)
+	check(h.sp_pos.is_empty() and h.foe_lobs.is_empty() and h.marks.is_empty() and h.storms.is_empty() and h.lassos.is_empty(), "the triumph clears the horde's missiles and marked rings")
+	check(h.steppe_fire.is_empty() and h.flood.is_empty() and h.curse_left <= 0.0, "and its burning grass, water and curse")
+
+
 func test_a_win_ends_in_a_triumph(b: Dictionary) -> void:
 	var cfg: Dictionary = b.triumph
 	var s := _won_sim(b, 1650)

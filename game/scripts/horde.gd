@@ -3483,6 +3483,32 @@ func _chests(sim: Sim) -> void:
 	chests = keep
 
 
+## Ends the horde's missiles, marked rings and lasting spells with the battle, since the horde does not move again during the triumph.
+func stand_down() -> void:
+	sp_pos.clear()
+	sp_vel.clear()
+	sp_dmg.clear()
+	sp_life.clear()
+	sp_kind.clear()
+	foe_lobs = []
+	marks = []
+	storms = []
+	lassos = []
+	_end_wave()
+	flood = {}
+	steppe_fire = {}
+	arrow_storm = {}
+	sweep = {}
+	leap = {}
+	drive = {}
+	charge_warn = 0.0
+	charging = false
+	curse_left = 0.0
+	blast_left = 0.0
+	frost_slow = 0.0
+	flood_slow = 0.0
+
+
 func nearest(p: Vector2, reach: float) -> int:
 	var c := cidx(p)
 	if c < 0:

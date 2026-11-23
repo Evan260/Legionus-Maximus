@@ -1057,6 +1057,7 @@ func win(pos: Vector2) -> void:
 	triumph_left = float(b.triumph.seconds)
 	triumph_t = 0.0
 	_clear_at = -1.0
+	horde.stand_down()
 	if endless and endless_since < 0.0:
 		endless_since = time
 
