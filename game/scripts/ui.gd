@@ -262,10 +262,15 @@ static func below_title() -> float:
 	return 20.0 + 8.0 * scale
 
 
+## The big panel of a screen's frame, taller on a phone, which has no key hints under it.
+static func frame_rect() -> Rect2:
+	return Rect2(16, 12, W - 32, H - (26 if Touch.phone else 40))
+
+
 ## A dimmed backdrop, a big panel, a title and a footer of key hints; a phone has a back button by the title instead of hints.
 func frame(c: CanvasItem, title: String, hint: String, back := true) -> Rect2:
 	veil(c, 0.5)
-	var r := Rect2(16, 12, W - 32, H - (26 if Touch.phone else 40))
+	var r := frame_rect()
 	panel(c, r)
 	var tx := r.position.x + 12
 	if Touch.phone and back and corner_room():

@@ -87,20 +87,30 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 			_picture(c, ui, e[0], e[2], Profile.data.seen.has(e[0]), rect.grow(-3))
 		row_y += STEP
 	CommandersScreen._scroll_marks(c, Rect2(origin.x, origin.y - 24.0, COLS * STEP - 4.0, r.end.y - origin.y + 24.0), scroll > 0, scroll + visible < rows.size())
-	var box := Rect2(r.position.x + 12 + COLS * STEP + 4, origin.y, r.size.x - 24 - COLS * STEP - 4, r.end.y - 6.0 - origin.y)
+	var box := box_of(r)
 	ui.panel(c, box, Ui.CREAM)
 	for e in list:
 		if "e:" + e[0] == ui.focus:
 			var known: bool = Profile.data.seen.has(e[0])
 			var x := box.position.x + 8
-			var y := box.position.y + 8.0 + 8.0 * Ui.scale
-			y = ui.wrap(c, (e[2].name if known else tr("Not found yet")).to_upper(), Vector2(x, y), box.size.x - 16, Ui.INK if known else Ui.MUTED)
+			var name: String = (e[2].name if known else tr("Not found yet")).to_upper()
+			var y := ui.wrap(c, name, Vector2(x, box.position.y + 8.0 + 8.0 * Ui.scale), box.size.x - 16, Ui.INK if known else Ui.MUTED)
 			ui.text(c, tr(e[1]), Vector2(x, y), Ui.BROWN)
-			y += Ui.leading() + 6.0
-			if known:
-				ui.wrap(c, e[2].history, Vector2(x, y), box.size.x - 16, Ui.INK)
-			else:
-				ui.wrap(c, tr("Meet it in a run to learn its history."), Vector2(x, y), box.size.x - 16, Ui.MUTED)
+			var below := history_room(box, name)
+			var words: String = e[2].history if known else tr("Meet it in a run to learn its history.")
+			ui.wrap_fit(c, words, Vector2(x, below.y), box.size.x - 16, Ui.INK if known else Ui.MUTED, below.lines)
+
+
+## The box beside the grid that tells of the entry in focus, inside the frame `r`.
+static func box_of(r: Rect2) -> Rect2:
+	var top := r.position.y + Ui.below_title()
+	return Rect2(r.position.x + 12 + COLS * STEP + 4, top, r.size.x - 24 - COLS * STEP - 4, r.end.y - 6.0 - top)
+
+
+## Where a found entry's history starts in the box, under its name wrapped to the box and its group, and how many lines it has room for.
+static func history_room(box: Rect2, name: String) -> Dictionary:
+	var y := box.position.y + 8.0 + 8.0 * Ui.scale + Ui.lines_of(name, box.size.x - 16).size() * Ui.leading() + Ui.leading() + 6.0
+	return {"y": y, "lines": maxi(1, floori((box.end.y - 4.0 - y) / Ui.leading()) + 1)}
 
 
 ## The entries cut into rows of the grid, as lists of indices, each group starting a row of its own.

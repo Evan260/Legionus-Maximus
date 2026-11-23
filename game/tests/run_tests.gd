@@ -4412,6 +4412,13 @@ func _cuts_in(loc: String, scale: int, c: Content, sim: Sim, cuts: Array) -> voi
 	_title_cuts(cuts, loc, scale, "how to play on a gamepad", sim.b)
 	Controls.pad_in_use = false
 	_fit(cuts, loc, scale, "give-up prompt", tr_.call("Give up the run? %s again to confirm") % "Q", 624.0)
+	# Every history in the tablinum's box, under its name and group.
+	var tab_box := TablinumScreen.box_of(Ui.frame_rect())
+	for kind in ["recruits", "arms", "forged", "enemies", "gods"]:
+		for id in c.get(kind):
+			var entry: Dictionary = c.get(kind)[id]
+			var room := TablinumScreen.history_room(tab_box, str(entry.name).to_upper())
+			_lines(cuts, loc, scale, "tablinum history " + id, str(entry.get("history", "")), tab_box.size.x - 16.0, room.lines)
 	for kind in ["pick", "buy", "look", "summary", "level", "gods"]:
 		_fit(cuts, loc, scale, "key hint " + kind, Controls.hint(kind), 624.0)
 	_fit(cuts, loc, scale, "level-up extras", Controls.hint("reroll", 9) + "     " + Controls.hint("banish", 9), 624.0)
