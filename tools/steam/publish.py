@@ -43,6 +43,18 @@ def wsl(*args):
     return subprocess.run(["wsl.exe", "--", *args], capture_output=True, text=True, encoding="utf-8", errors="replace")
 
 
+def store_id_problem(target_name, config):
+    """Why the build cannot go up to this target yet, or "": the demo's Wishlist button needs the game's App ID in balance.json."""
+    if target_name != "demo":
+        return ""
+    store = int(json.loads((ROOT / "game" / "data" / "balance.json").read_text(encoding="utf-8"))["demo"]["store_app_id"])
+    game = int(config["targets"]["game"]["app_id"])
+    if game > 0 and store == game:
+        return ""
+    return ("the demo's Wishlist button needs the game's App ID: set the game's app_id in tools/steam/steam.json and "
+            "demo.store_app_id in game/data/balance.json to the same number")
+
+
 def vdf(target, depots, note, content, output):
     mapped = "\n".join(
         f'''\t\t"{depot}"
@@ -83,10 +95,9 @@ def main():
             fail(f"set the {args.target} app id and depot ids in {CONFIG} first (see the Release section of CLAUDE.md)")
         depots = dict(target["depots"])
         print("note: no Steam ids yet, so the dry run builds every platform")
-    store = int(json.loads((ROOT / "game" / "data" / "balance.json").read_text(encoding="utf-8"))["demo"]["store_app_id"])
-    if args.target == "demo" and not args.dry_run and store != config["targets"]["game"]["app_id"]:
-        fail("the demo's Wishlist button needs the game's App ID: set demo.store_app_id in game/data/balance.json to "
-             f"{config['targets']['game']['app_id']}, the game's app_id in {CONFIG}")
+    problem = store_id_problem(args.target, config)
+    if problem and not args.dry_run:
+        fail(problem)
     if not config["account"] and not args.dry_run:
         fail(f"set the Steam account that uploads builds in {CONFIG} first")
     home = wsl("sh", "-c", "echo $HOME").stdout.strip()

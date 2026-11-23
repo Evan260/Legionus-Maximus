@@ -27,10 +27,14 @@ sys.path.insert(0, "tools/steam")
 import publish
 
 name, work, label = sys.argv[1:]
-target = json.loads(open("tools/steam/steam.json", encoding="utf-8").read())["targets"][name]
+config = json.loads(open("tools/steam/steam.json", encoding="utf-8").read())
+target = config["targets"][name]
 depots = [platform for platform, depot in target["depots"].items() if depot]
 if not target["app_id"] or not depots:
     sys.exit(f"Set the {name} app id and depot ids in tools/steam/steam.json first (the Release section of CLAUDE.md)")
+problem = publish.store_id_problem(name, config)
+if problem:
+    sys.exit(problem)
 if target["branch"] != "testing":
     sys.exit("A build only goes live on the testing branch; set its branch to testing in tools/steam/steam.json")
 note = f"{label} built on GitHub".replace('"', "'")
