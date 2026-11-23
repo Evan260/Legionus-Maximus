@@ -1867,9 +1867,12 @@ func _chieftain_after(sim: Sim) -> void:
 
 ## Turns an enemy to face `dir`; one locked in melee holds his facing a moment, so a man hemmed in on every side does not spin from foe to foe.
 func _turn(i: int, dir: Vector2) -> void:
+	if e_fighting[i] == 0:
+		e_face[i] = dir
+		return
 	var way := Sim.dir_index(dir)
 	if way != Sim.dir_index(e_face[i]):
-		if e_fighting[i] == 1 and time - e_turned[i] < TURN_HOLD:
+		if time - e_turned[i] < TURN_HOLD:
 			return
 		e_turned[i] = time
 	e_face[i] = dir
