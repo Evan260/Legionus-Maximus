@@ -96,7 +96,7 @@ func _draw() -> void:
 				var ready := sim.testudo_charge >= 1.0 and not up
 				if ready or up:
 					_glow(c, r, sim.time)
-				_disc(c, r, ready or up, held.has(id))
+				disc(self, c, r, ready or up, held.has(id))
 				_ring(c, r, 1.0 if up else sim.testudo_charge, ready or up)
 				_icon(TESTUDO_ICON, c, r * 1.3, ready or up)
 			"pray":
@@ -104,23 +104,21 @@ func _draw() -> void:
 				var share := clampf(float(sim.gods.favour) / maxf(1.0, sim.gods.need(sim.b)), 0.0, 1.0)
 				if full:
 					_glow(c, r, sim.time)
-				_disc(c, r, full, held.has(id))
+				disc(self, c, r, full, held.has(id))
 				_ring(c, r, share, full)
 				_icon(LAUREL_ICON, c + Vector2(0, -1), r * 1.45, full)
 			"build", "wall", "bridge":
 				var cost := int(sim.b[{"build": "palisade", "wall": "wall", "bridge": "bridge"}[id]].cost)
 				var enough := sim.timber >= cost
-				_disc(c, r, enough, held.has(id))
+				disc(self, c, r, enough, held.has(id))
 				var size := Ui.px if r >= 16.0 else Ui.small_px()
-				_picture(id, c + Vector2(0, -r * 0.2), r, enough)
+				picture(self, id, c + Vector2(0, -r * 0.2), r, enough)
 				var label := str(cost)
 				var w := Ui.width_at(label, size)
 				draw_string(Ui.font(), Vector2(roundf(c.x - w / 2.0), roundf(c.y + r * 0.78)), label, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Ui.INK)
 			"pause":
-				_disc(c, r, true, held.has(id))
-				var bar := Vector2(maxf(2.0, roundf(r * 0.22)), roundf(r * 0.8))
-				for side in [-1.0, 1.0]:
-					draw_rect(Rect2((c + Vector2(side * bar.x * 1.1 - bar.x / 2.0, -bar.y / 2.0)).round(), bar), Ui.INK)
+				disc(self, c, r, true, held.has(id))
+				picture(self, id, c, r, true)
 
 
 ## The stick while a thumb is on it, and a faint one where the left thumb rests at the start of a run, to show where to steer.
@@ -142,11 +140,11 @@ func _draw_stick(sim: Sim) -> void:
 
 
 ## A button's parchment face in an ink rim, faded while it cannot be used and brighter while a finger is on it.
-func _disc(c: Vector2, r: float, lit: bool, pressed: bool) -> void:
-	draw_circle(c + Vector2(1, 2), r + 1.0, Color(0, 0, 0, 0.35))
-	draw_circle(c, r + 1.0, Ui.INK)
-	draw_circle(c, r, FACE_HELD if pressed else (FACE if lit else FACE_DIM))
-	draw_arc(c, r - 2.5, 0.0, TAU, 40, Ui.PARCH_DARK, 1.0)
+static func disc(ci: CanvasItem, c: Vector2, r: float, lit: bool, pressed: bool) -> void:
+	ci.draw_circle(c + Vector2(1, 2), r + 1.0, Color(0, 0, 0, 0.35))
+	ci.draw_circle(c, r + 1.0, Ui.INK)
+	ci.draw_circle(c, r, FACE_HELD if pressed else (FACE if lit else FACE_DIM))
+	ci.draw_arc(c, r - 2.5, 0.0, TAU, 40, Ui.PARCH_DARK, 1.0)
 
 
 ## A charge filling clockwise round the rim from the top, over a dark track, gold once full.
@@ -167,8 +165,8 @@ func _icon(tex: Texture2D, c: Vector2, side: float, lit: bool) -> void:
 	draw_texture_rect(tex, Rect2((c - s / 2.0).round(), s), false, Color.WHITE if lit else Color(0.6, 0.58, 0.55))
 
 
-## A drawn sign for each timber work: a few pointed stakes for the palisade, a railed row of them for the wall, planks for the bridge.
-func _picture(id: String, c: Vector2, r: float, lit: bool) -> void:
+## A drawn sign for each timber work: a few pointed stakes for the palisade, a railed row of them for the wall, planks for the bridge; and the pause's two bars.
+static func picture(ci: CanvasItem, id: String, c: Vector2, r: float, lit: bool) -> void:
 	var wood := WOOD if lit else WOOD.darkened(0.3)
 	var k := maxf(1.0, roundf(r / 10.0))
 	match id:
@@ -179,28 +177,32 @@ func _picture(id: String, c: Vector2, r: float, lit: bool) -> void:
 			var x0 := roundf(c.x - (n * step - k) / 2.0)
 			var foot := roundf(c.y + 4.0 * k)
 			if id == "wall":
-				draw_rect(Rect2(x0 - 2.0, foot - 4.0 * k - 1.0, n * step - k + 4.0, k + 2.0), Ui.INK)
+				ci.draw_rect(Rect2(x0 - 2.0, foot - 4.0 * k - 1.0, n * step - k + 4.0, k + 2.0), Ui.INK)
 			for i in n:
 				var tall := (9.0 if i == 1 else 7.5) * k if id == "build" else 7.0 * k
-				_stake(Vector2(x0 + i * step, foot - tall), w, tall, wood)
+				_stake(ci, Vector2(x0 + i * step, foot - tall), w, tall, wood)
 			if id == "wall":
-				draw_rect(Rect2(x0 - 1.0, foot - 4.0 * k, n * step - k + 2.0, k), wood.darkened(0.25))
+				ci.draw_rect(Rect2(x0 - 1.0, foot - 4.0 * k, n * step - k + 2.0, k), wood.darkened(0.25))
 		"bridge":
 			var w := 12.0 * k
 			var top := roundf(c.y - 3.5 * k)
 			var x := roundf(c.x - w / 2.0)
-			draw_rect(Rect2(x - 1.0, top - 1.0, w + 2.0, 7.0 * k + 2.0), Ui.INK)
+			ci.draw_rect(Rect2(x - 1.0, top - 1.0, w + 2.0, 7.0 * k + 2.0), Ui.INK)
 			for n in 4:
-				draw_rect(Rect2(x + n * 3.0 * k, top, 2.0 * k, 7.0 * k), wood)
-			draw_rect(Rect2(x, top + k, w, k), wood.lightened(0.3))
-			draw_rect(Rect2(x, top + 5.0 * k, w, k), wood.darkened(0.3))
+				ci.draw_rect(Rect2(x + n * 3.0 * k, top, 2.0 * k, 7.0 * k), wood)
+			ci.draw_rect(Rect2(x, top + k, w, k), wood.lightened(0.3))
+			ci.draw_rect(Rect2(x, top + 5.0 * k, w, k), wood.darkened(0.3))
+		"pause":
+			var bar := Vector2(maxf(2.0, roundf(r * 0.22)), roundf(r * 0.8))
+			for side in [-1.0, 1.0]:
+				ci.draw_rect(Rect2((c + Vector2(side * bar.x * 1.1 - bar.x / 2.0, -bar.y / 2.0)).round(), bar), Ui.INK)
 
 
 ## One sharpened stake standing at `at`, its top left corner, in an ink outline with a lit left edge.
-func _stake(at: Vector2, w: float, tall: float, wood: Color) -> void:
+static func _stake(ci: CanvasItem, at: Vector2, w: float, tall: float, wood: Color) -> void:
 	var tip := ceilf(w / 2.0)
 	var shape := PackedVector2Array([at + Vector2(0, tip), at + Vector2(w / 2.0, 0), at + Vector2(w, tip), at + Vector2(w, tall), at + Vector2(0, tall)])
 	var outline := PackedVector2Array([at + Vector2(-1, tip), at + Vector2(w / 2.0, -1.5), at + Vector2(w + 1, tip), at + Vector2(w + 1, tall + 1), at + Vector2(-1, tall + 1)])
-	draw_colored_polygon(outline, Ui.INK)
-	draw_colored_polygon(shape, wood)
-	draw_rect(Rect2(at + Vector2(0, tip), Vector2(maxf(1.0, w / 3.0), tall - tip)), wood.lightened(0.3))
+	ci.draw_colored_polygon(outline, Ui.INK)
+	ci.draw_colored_polygon(shape, wood)
+	ci.draw_rect(Rect2(at + Vector2(0, tip), Vector2(maxf(1.0, w / 3.0), tall - tip)), wood.lightened(0.3))

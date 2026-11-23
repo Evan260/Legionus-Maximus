@@ -22,6 +22,9 @@ var ground: Texture2D
 var _ground_of := "germania"
 var shadow: Texture2D
 var shake_on := true
+## Where the camera looks while `eye_sim` is the field shown, in place of the commander; the title drifts it across the province.
+var eye_at := Vector2.ZERO
+var eye_sim: Sim
 var digits: Texture2D
 var _cam := Vector2.ZERO
 var _shake_rng := RandomNumberGenerator.new()
@@ -142,11 +145,15 @@ func _process(dt: float) -> void:
 		if sim.shake <= 0.0:
 			sim.shake_pixels = 0
 		sim.gods.quake = maxf(0.0, sim.gods.quake - dt)
-		position = (get_viewport_rect().size / 2.0 - sim.commander.pos).round() + jolt
+		position = (get_viewport_rect().size / 2.0 - eye()).round() + jolt
 		queue_redraw()
 		_floor.queue_redraw()
 		_wheat.queue_redraw()
 		_water.queue_redraw()
+
+
+func eye() -> Vector2:
+	return eye_at if sim == eye_sim else sim.commander.pos
 
 
 ## A sprite's place in the drawing order, from its depth measured from the camera so the key stays positive however far the legion marches.
@@ -233,7 +240,7 @@ func _snap(p: Vector2) -> Vector2:
 func _draw() -> void:
 	if not sim:
 		return
-	var cam: Vector2 = sim.commander.pos
+	var cam := eye()
 	_cam = cam
 	var screen := get_viewport_rect().size
 	var top_left := cam - screen / 2.0
@@ -261,7 +268,7 @@ func _draw() -> void:
 
 	# Half see-through, so the tree still reads as a tree over the commander.
 	var see_through := Color(1, 1, 1, 0.5)
-	var him := Rect2(cam - Vector2(5, 26), Vector2(10, 26))
+	var him := Rect2(sim.commander.pos - Vector2(5, 26), Vector2(10, 26))
 	var chops: Dictionary = sim.terrain.chops
 	var shaking := float(sim.b.felling.shake_seconds)
 	var fields: Array = sim.terrain.fields_in(view) if _wheat_tile != null else []
@@ -287,10 +294,10 @@ func _draw() -> void:
 					at += Vector2(roundf(sin(sim.time * 45.0 + at.x) * 1.2), 0)
 				var mod := white
 				# A tree standing in front of the commander is seen through, so he is not lost once the legion cuts into a ridge.
-				if hides_commander(pr[0], pr[2] > 0.0, Rect2(at - f[1], f[0].size), at.y, cam):
+				if hides_commander(pr[0], pr[2] > 0.0, Rect2(at - f[1], f[0].size), at.y, sim.commander.pos):
 					mod = see_through
 				# The gate fades only half way, so the fort still reads while the commander walks under it.
-				elif pr[0] == "fort_gate" and at.y > cam.y and Rect2(at - f[1], f[0].size).intersects(him):
+				elif pr[0] == "fort_gate" and at.y > sim.commander.pos.y and Rect2(at - f[1], f[0].size).intersects(him):
 					mod = Color(1, 1, 1, 0.55)
 				if pr[0] == "feather_grass":
 					_add_swaying(pr[1], f, mod)
@@ -434,7 +441,8 @@ func _draw() -> void:
 	_draw_objective_marks(view)
 	_draw_numbers()
 	_draw_torches()
-	_draw_bars()
+	if sim != eye_sim:
+		_draw_bars()
 	_draw_felling()
 	_draw_gods(top_left, screen)
 
@@ -454,7 +462,7 @@ func _draw_floor() -> void:
 	if not sim:
 		return
 	var screen := get_viewport_rect().size
-	var top_left: Vector2 = sim.commander.pos - screen / 2.0
+	var top_left: Vector2 = eye() - screen / 2.0
 	if sim.province != _ground_of:
 		_ground_of = sim.province
 		ground = load(Content.ground_path(_ground_of))
@@ -472,8 +480,7 @@ func _draw_floor() -> void:
 func _draw_fields() -> void:
 	if not sim:
 		return
-	var cam: Vector2 = sim.commander.pos
-	var view := view_for(cam - get_viewport_rect().size / 2.0)
+	var view := view_for(eye() - get_viewport_rect().size / 2.0)
 	var fields := sim.terrain.fields_in(view.grow(FIELD_FRAY * 4.0))
 	if fields.is_empty() or not atlas.props.has("wheat_field"):
 		return
@@ -1321,7 +1328,7 @@ func _draw_effects() -> void:
 			draw_rect(Rect2(h + Vector2(1, 0), Vector2(1, 3)), green)
 			draw_rect(Rect2(h + Vector2(0, 1), Vector2(3, 1)), green)
 	var screen := get_viewport_rect().size
-	var seen := Rect2(sim.commander.pos - screen / 2.0, screen).grow(40.0)
+	var seen := Rect2(eye() - screen / 2.0, screen).grow(40.0)
 	for i in sim.horde.e_pos.size():
 		if not seen.has_point(sim.horde.e_pos[i]):
 			continue
@@ -1516,7 +1523,7 @@ func _draw_ravines(view: Rect2) -> void:
 func _draw_water() -> void:
 	if not sim or sim.terrain.canal.is_empty():
 		return
-	var view := view_for(sim.commander.pos - get_viewport_rect().size / 2.0)
+	var view := view_for(eye() - get_viewport_rect().size / 2.0)
 	var item := _water.get_canvas_item()
 	var flow := Vector2.ZERO
 	for rv in sim.terrain.ravines_in(view):

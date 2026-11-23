@@ -1,14 +1,35 @@
 class_name TitleScreen
 extends RefCounted
-## The title: the logo, how to play, and the buttons that continue the game, start a new one, load one or open the settings.
+## The title: the logo, the controls, and the buttons that continue the game, start a new one, load one or open the settings,
+## over the province's field drifting slowly by while the legion marches across it.
+
+const LOGO := preload("res://assets/logo.png")
+# The painted icon beside each control; the wall, the bridge and the pause are drawn as the touch buttons draw them.
+const ICONS := {"march": "march", "testudo": "testudo", "build": "stakes", "pray": "laurel", "fight": "gladius"}
+# How fast the camera drifts over the field and the column marches, in pixels a second.
+const DRIFT := 6.0
+const PACE := 16.0
+const COLUMN_GAP := 16.0
+# A far-off bird's pixels with its wings raised and lowered.
+const BIRD_UP := [Vector2(-4, -3), Vector2(-3, -2), Vector2(-2, -1), Vector2(-1, 0), Vector2(0, 0), Vector2(0, 1), Vector2(1, 0), Vector2(2, -1), Vector2(3, -2), Vector2(4, -3)]
+const BIRD_DOWN := [Vector2(-4, 1), Vector2(-3, 0), Vector2(-2, -1), Vector2(-1, 0), Vector2(0, 0), Vector2(0, 1), Vector2(1, 0), Vector2(2, -1), Vector2(3, 0), Vector2(4, 1)]
 
 var main: Node
-var logo: Texture2D
+# The field the drift began on, the seconds shown of it, the clock when last drawn, where the camera looks and how far the column has gone.
+var _field: Sim
+var _t := 0.0
+var _last := 0.0
+var _eye := Vector2.ZERO
+var _gone := 0.0
+# The pass the column is on and how far above the foot of the screen it marches on that pass.
+var _pass := -1
+var _lift := 16.0
+# Where the buttons end, which the column keeps below.
+var _buttons_end := Ui.H
 
 
 func _init(owner_node: Node) -> void:
 	main = owner_node
-	logo = load("res://assets/logo.png")
 
 
 func activate(id: String) -> void:
@@ -42,80 +63,162 @@ static func buttons(balance: Dictionary) -> Array:
 	return out
 
 
-## The how-to-play lines: each key the player has bound and what it does, then how the run is won.
-static func how_to_play(balance: Dictionary) -> Array:
-	if Touch.phone:
-		return _touch_how_to_play(balance)
-	var key := func(action: String) -> String: return Controls.key_of(action) + "  "
+## The controls the title shows, in reading order, each {id, caps, label}: the keys or pad buttons from the player's bindings,
+## the four marching keys as a cluster, and none on a phone, whose buttons show their pictures instead.
+static func controls() -> Array:
+	var cap := func(action: String) -> Array: return [] if Touch.phone else [Controls.shown(action)]
+	var march: Array = []
+	if not Touch.phone:
+		march = [Controls.pad_name(JOY_BUTTON_LEFT_STICK)] if Controls.pad_in_use else ["up", "left", "down", "right"].map(Controls.key_of)
 	return [
-		Controls.march_keys() + "  " + TranslationServer.translate("march"),
-		key.call("testudo") + TranslationServer.translate("testudo: 80% less harm, stops boss charges"),
-		key.call("build") + TranslationServer.translate("palisade: %d timber from felled trees") % int(balance.palisade.cost),
-		key.call("wall") + TranslationServer.translate("wall behind the legion: %d timber, the enemy slowly breaks it") % int(balance.wall.cost),
-		key.call("bridge") + TranslationServer.translate("bridge over a ravine: %d timber") % int(balance.bridge.cost),
-		key.call("pray") + TranslationServer.translate("call the gods when the wreath is full"),
-		key.call("pause") + TranslationServer.translate("pause"),
-		TranslationServer.translate("Your soldiers fight on their own."),
-		Game.goal_text(balance),
+		{"id": "march", "caps": march, "label": TranslationServer.translate("Drag to march") if Touch.phone else TranslationServer.translate("Move")},
+		{"id": "fight", "caps": [], "label": TranslationServer.translate("Soldiers fight on their own")},
+		{"id": "testudo", "caps": cap.call("testudo"), "label": TranslationServer.translate("Testudo")},
+		{"id": "build", "caps": cap.call("build"), "label": TranslationServer.translate("Palisade")},
+		{"id": "wall", "caps": cap.call("wall"), "label": TranslationServer.translate("Wall")},
+		{"id": "bridge", "caps": cap.call("bridge"), "label": TranslationServer.translate("Bridge")},
+		{"id": "pray", "caps": cap.call("pray"), "label": TranslationServer.translate("Call the gods")},
+		{"id": "pause", "caps": cap.call("pause"), "label": TranslationServer.translate("Pause")},
 	]
 
 
-## The how-to-play lines for a touch screen, which name the buttons' actions with no keys.
-static func _touch_how_to_play(balance: Dictionary) -> Array:
-	var lines: Array = [
-		TranslationServer.translate("Drag on the left of the screen to march"),
-		TranslationServer.translate("testudo: 80% less harm, stops boss charges"),
-		TranslationServer.translate("palisade: %d timber from felled trees") % int(balance.palisade.cost),
-		TranslationServer.translate("wall behind the legion: %d timber, the enemy slowly breaks it") % int(balance.wall.cost),
-		TranslationServer.translate("bridge over a ravine: %d timber") % int(balance.bridge.cost),
-		TranslationServer.translate("call the gods when the wreath is full"),
-		TranslationServer.translate("Your soldiers fight on their own."),
-		Game.goal_text(balance),
-	]
-	return lines.map(func(s: String) -> String: return s.left(1).to_upper() + s.substr(1))
+static func logo_top() -> float:
+	return 6.0 if Ui.scale > 1 else 26.0
 
 
-## The how-to-play lines as drawn at a size (the text size when 0): one too long for the box goes on two lines rather than shrinking alone.
-static func how_to_play_lines(balance: Dictionary, size := 0) -> Array:
-	var sz := size if size > 0 else Ui.px
+## The lowest the controls' box may end and still leave room for the buttons under it.
+static func box_limit() -> float:
+	# Large text sets the buttons side by side, normal text two to a row in up to three rows.
+	return Ui.H - 30.0 if Ui.scale > 1 else Ui.H - 96.0
+
+
+## Where the controls go: the box under the logo, each control's cell with its caps, icon and label, and the goal under them.
+## Normal text sets three columns and large text two, each as wide as its widest control, spread out when the goal needs more room
+## and squeezed to the screen when they need more; the first row is tall enough for the marching keys and a label on two lines.
+static func grid(balance: Dictionary) -> Dictionary:
+	var k := float(Ui.scale)
+	var cols := 2 if Ui.scale > 1 else 3
+	var pad := 3.0 + 2.0 * k
+	var gap := 2.0 * k
+	var space := 3.0 * k
+	var col_gap := 12.0 * k
+	var ch := float(Ui.px) + 3.0 * k + 1.0
+	var side := 16.0 if Ui.scale == 1 else 24.0
+	# The drawn wall is a little wider than an icon.
+	var slot := maxf(side, 14.0 * k + 4.0)
+	var r := 7.0 * k
+	var lead := Ui.lead_for(Ui.px)
+	var list := controls()
+	var groups: Array = []
+	for e in list:
+		groups.append(_group(e.caps, ch, k) if not Touch.phone else {"caps": [], "size": Vector2(r * 2.0 + 2.0, r * 2.0 + 2.0)})
+	var rows := ceili(list.size() / float(cols))
+	var row_h: Array = []
+	for row in rows:
+		var h := maxf(ch * 2.0 + k, lead * 2.0) if row == 0 else (side if not Touch.phone else r * 2.0 + 2.0)
+		for i in range(row * cols, mini(list.size(), (row + 1) * cols)):
+			h = maxf(h, groups[i].size.y)
+		row_h.append(h)
+	var key_w: Array = []
+	var col_w: Array = []
+	for col in cols:
+		var keys := 0.0
+		var words := 0.0
+		for i in range(col, list.size(), cols):
+			keys = maxf(keys, groups[i].size.x)
+			words = maxf(words, _two_line_width(list[i].label) if i < cols else Ui.width_at(list[i].label, Ui.px))
+		key_w.append(keys)
+		col_w.append(keys + space + (0.0 if Touch.phone else slot + space) + ceilf(words) + 1.0)
+	var room := Ui.W - 40.0
+	var goal := Game.goal_text(balance)
+	var natural: float = col_w.reduce(func(a: float, b: float) -> float: return a + b, 0.0) + col_gap * (cols - 1) + pad * 2.0
+	var width := minf(maxf(natural, Ui.width_at(goal, Ui.px) + pad * 2.0 + 16.0), room)
+	for col in cols:
+		col_w[col] = floorf(col_w[col] + (width - natural) / cols) if natural <= room else floorf((room - pad * 2.0 - col_gap * (cols - 1)) / cols)
+	var box := Rect2(roundf((Ui.W - width) / 2.0), logo_top() + LOGO.get_height() + 3.0, width, 0.0)
+	var cells: Array = []
+	var y := box.position.y + pad
+	for row in rows:
+		var x := box.position.x + pad
+		for col in cols:
+			var i: int = row * cols + col
+			if i >= list.size():
+				break
+			var e: Dictionary = list[i]
+			var rect := Rect2(x, y, col_w[col], row_h[row])
+			x += col_w[col] + col_gap
+			var mid := roundf(rect.get_center().y)
+			var cell := {"id": e.id, "label": e.label, "rect": rect, "lines": maxi(1, floori(rect.size.y / lead)), "caps": []}
+			var key_end: float = rect.position.x + key_w[col]
+			var g: Dictionary = groups[i]
+			var at := Vector2(key_end - g.size.x, roundf(mid - g.size.y / 2.0))
+			for cap in g.caps:
+				cell.caps.append([Rect2(cap[0].position + at, cap[0].size), cap[1]])
+			var label_x := key_end + space
+			if Touch.phone:
+				cell.disc = [Vector2(rect.position.x + r + 1.0, mid), r]
+			else:
+				cell.icon = Rect2(key_end + space + (slot - side) / 2.0, mid - side / 2.0, side, side)
+				label_x = key_end + space + slot + space
+			cell.label_x = label_x
+			# A label on two lines is broken where its lines come out even, not wherever the first one fills.
+			cell.room = rect.end.x - label_x if cell.lines < 2 else minf(rect.end.x - label_x, _two_line_width(e.label))
+			cells.append(cell)
+		y += row_h[row] + gap
+	var size := Ui.px
+	for cell in cells:
+		size = mini(size, Ui.block(cell.label, cell.room, cell.lines).size)
+	var goal_width := box.size.x - pad * 2.0
+	var goal_size: int = Ui.block(goal, goal_width, 2).size
+	var goal_lines := Ui.lines_of(goal, goal_width, goal_size)
+	box.size.y = y - box.position.y + 1.0 + gap + goal_lines.size() * Ui.lead_for(goal_size) + pad - 2.0
+	return {"box": box, "cells": cells, "size": size, "rule_y": y, "goal": goal_lines, "goal_size": goal_size, "goal_y": y + 1.0 + gap, "goal_width": goal_width}
+
+
+## The narrowest a label of three words or more (six letters in Chinese and Japanese) can be set on two lines; a shorter one stays on one.
+static func _two_line_width(s: String) -> float:
+	var han := Lang.is_han() and not s.is_valid_ascii_identifier()
+	var parts: Array = Array(s.split("")) if han else Array(s.split(" "))
+	var sep := "" if han else " "
+	var best := Ui.width_at(s, Ui.px)
+	if parts.size() < (6 if han else 3):
+		return best + 2.0
+	for i in range(1, parts.size()):
+		best = minf(best, maxf(Ui.width_at(sep.join(parts.slice(0, i)), Ui.px), Ui.width_at(sep.join(parts.slice(i)), Ui.px)))
+	return best + 2.0
+
+
+## A control's keys laid out from the top left: the four marching keys as an upturned T, else one cap.
+static func _group(caps: Array, ch: float, k: float) -> Dictionary:
+	var widths := caps.map(func(s: String) -> float: return maxf(ch, roundf(Ui.width_at(s, Ui.px)) + 6.0 * k))
 	var out: Array = []
-	for line in how_to_play(balance):
-		if Ui.width_at(line, sz) > line_width():
-			out.append_array(Ui.lines_of(line, line_width(), sz))
-		else:
-			out.append(line)
-	return out
-
-
-## The width the how-to-play lines have inside their box.
-static func line_width() -> float:
-	return (Ui.W - 40.0 if Ui.scale > 1 else 360.0) - 12.0
+	if caps.size() == 4:
+		var x := 0.0
+		for i in [1, 2, 3]:
+			out.append([Rect2(x, ch + k, widths[i], ch), caps[i]])
+			x += widths[i] + k
+		var under: Rect2 = out[1][0]
+		out.push_front([Rect2(roundf(under.get_center().x - widths[0] / 2.0), 0.0, widths[0], ch), caps[0]])
+	elif caps.size() == 1:
+		out.append([Rect2(0.0, 0.0, widths[0], ch), caps[0]])
+	if out.is_empty():
+		return {"caps": out, "size": Vector2.ZERO}
+	var bounds: Rect2 = out[0][0]
+	for cap in out:
+		bounds = bounds.merge(cap[0])
+	for cap in out:
+		cap[0].position -= bounds.position
+	return {"caps": out, "size": bounds.size}
 
 
 func draw(c: CanvasItem, ui: Ui) -> void:
 	var big := Ui.scale > 1
-	var logo_pos := Vector2((Ui.W - logo.get_width()) / 2.0, 6.0 if big else 26.0)
-	c.draw_texture(logo, logo_pos)
-	if Game.is_demo():
-		var tag := Rect2(logo_pos.x + logo.get_width() - 56.0, logo_pos.y + logo.get_height() - 8.0, 56.0, 8.0 + 8.0 * Ui.scale)
-		ui.panel(c, tag)
-		ui.text(c, tr("Demo").to_upper(), Vector2(tag.position.x, tag.end.y - 4.0 - Ui.px * 3 / 8), Ui.RED, HORIZONTAL_ALIGNMENT_CENTER, tag.size.x)
-	var size := Ui.px
-	var lines := how_to_play_lines(main.balance)
-	var top := logo_pos.y + logo.get_height() + 3.0
-	# Large text in a wordy language steps the how-to-play box down to the smallest size, so the buttons below stay on the screen.
-	if big and top + lines.size() * Ui.leading() + 10.0 + 6.0 + 30.0 > Ui.H - 2.0:
-		size = Ui.small_px()
-		lines = how_to_play_lines(main.balance, size)
-	var step := Ui.lead_for(size) + (0.0 if big else 1.0)
-	var box := Rect2(20.0 if big else Ui.W / 2 - 180, top, Ui.W - 40.0 if big else 360.0, lines.size() * step + 10.0)
-	ui.panel(c, box)
-	for i in lines.size():
-		ui.fit_text(c, lines[i], line_width(), Vector2(box.position.x, box.position.y + 5.0 + size + i * step), Ui.INK, HORIZONTAL_ALIGNMENT_CENTER, box.size.x, false, size)
+	var g := grid(main.balance)
+	var box: Rect2 = g.box
 	var ids := buttons(main.balance)
 	var rects: Array = []
 	if big:
-		# Large text sets the buttons side by side under the taller how-to-play box.
+		# Large text sets the buttons side by side under the taller box.
 		var bw := minf(200.0, (Ui.W - 40.0 - (ids.size() - 1) * 10.0) / ids.size())
 		var x0 := (Ui.W - ids.size() * bw - (ids.size() - 1) * 10.0) / 2.0
 		var y := box.end.y + 6.0
@@ -127,10 +230,191 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 			var alone: bool = i == ids.size() - 1 and i % 2 == 0
 			var x := Ui.W / 2 - 85.0 if alone else Ui.W / 2 - 175.0 + (i % 2) * 180.0
 			rects.append(Rect2(x, box.end.y + 10.0 + (i / 2) * 30.0, 170.0, 24.0))
+	_buttons_end = rects[-1].end.y
+	var t := _animate()
+	_clouds(c, t)
+	_birds(c, t)
+	var logo_pos := Vector2((Ui.W - LOGO.get_width()) / 2.0, logo_top())
+	c.draw_texture(LOGO, logo_pos)
+	if Game.is_demo():
+		var tag := Rect2(logo_pos.x + LOGO.get_width() - 56.0, logo_pos.y + LOGO.get_height() - 8.0, 56.0, 8.0 + 8.0 * Ui.scale)
+		ui.panel(c, tag)
+		ui.text(c, tr("Demo").to_upper(), Vector2(tag.position.x, tag.end.y - 4.0 - Ui.px * 3 / 8), Ui.RED, HORIZONTAL_ALIGNMENT_CENTER, tag.size.x)
+	_draw_controls(c, ui, g)
 	for i in ids.size():
 		ui.button(c, rects[i], ids[i][0], str(ids[i][1]).to_upper(), "", ids[i][2], null, true)
 	if ui.focus == "new" and not ui.is_enabled("new"):
 		_full_note(c, ui, rects[ids.map(func(b: Array) -> String: return b[0]).find("new")])
+
+
+## The box of controls: each one's keys, icon and label, a rule, and the goal of the run under them.
+func _draw_controls(c: CanvasItem, ui: Ui, g: Dictionary) -> void:
+	var box: Rect2 = g.box
+	ui.panel(c, box)
+	var size: int = g.size
+	var lead := Ui.lead_for(size)
+	for cell in g.cells:
+		for cap in cell.caps:
+			_keycap(c, ui, cap[0], cap[1])
+		if cell.has("disc"):
+			_touch_button(c, ui, cell.id, cell.disc[0], cell.disc[1])
+		else:
+			_icon(c, ui, cell.id, cell.icon)
+		var lines := Ui.lines_of(cell.label, cell.room, size)
+		if lines.size() > cell.lines:
+			lines = lines.slice(0, cell.lines - 1) + [ui.clip(" ".join(lines.slice(cell.lines - 1)), cell.room, size)]
+		var mid: float = cell.rect.get_center().y
+		for i in lines.size():
+			var y := roundf(mid - (lines.size() - 1) * lead / 2.0 + i * lead + size * 3 / 8.0)
+			ui.text(c, lines[i], Vector2(cell.label_x, y), Ui.INK, HORIZONTAL_ALIGNMENT_LEFT, -1.0, false, size)
+	var rule_y: float = g.rule_y
+	c.draw_rect(Rect2(box.position.x + 8.0, rule_y, box.size.x - 16.0, 1.0), Ui.PARCH_DARK)
+	var goal_size: int = g.goal_size
+	for i in g.goal.size():
+		var y: float = g.goal_y + goal_size + i * Ui.lead_for(goal_size) - 1.0
+		ui.text(c, g.goal[i], Vector2(box.position.x, y), Ui.BROWN, HORIZONTAL_ALIGNMENT_CENTER, box.size.x, false, goal_size)
+
+
+## A key drawn as a small raised cap: its name on a pale face over a darker lip, in an ink outline.
+func _keycap(c: CanvasItem, ui: Ui, r: Rect2, name: String) -> void:
+	var lip := float(Ui.scale) + 1.0
+	c.draw_rect(r.grow(1.0), Ui.INK)
+	c.draw_rect(r, Ui.BROWN)
+	var face := Rect2(r.position, Vector2(r.size.x, r.size.y - lip))
+	c.draw_rect(face, Ui.CREAM)
+	c.draw_rect(Rect2(face.position.x, face.end.y - 1.0, face.size.x, 1.0), Ui.PARCH_DARK)
+	ui.text(c, name, Vector2(r.position.x, roundf(face.get_center().y + Ui.px * 3 / 8.0)), Ui.INK, HORIZONTAL_ALIGNMENT_CENTER, r.size.x, false, Ui.px)
+
+
+func _icon(c: CanvasItem, ui: Ui, id: String, r: Rect2) -> void:
+	if ICONS.has(id):
+		c.draw_texture_rect(ui.icon(ICONS[id]), r, false)
+	else:
+		TouchPad.picture(c, id, r.get_center(), 10.0 * Ui.scale, true)
+
+
+## A control as a phone shows it: the stick for the march, the gladius alone for the fighting, and the round buttons of a run.
+func _touch_button(c: CanvasItem, ui: Ui, id: String, at: Vector2, r: float) -> void:
+	match id:
+		"march":
+			c.draw_circle(at, r, Color(0.08, 0.05, 0.04, 0.3))
+			c.draw_arc(at, r, 0.0, TAU, 32, Ui.BROWN, 1.0)
+			c.draw_circle(at + Vector2(r * 0.3, -r * 0.2), r * 0.42 + 1.0, Ui.INK)
+			c.draw_circle(at + Vector2(r * 0.3, -r * 0.2), r * 0.42, Ui.CREAM)
+		"fight":
+			c.draw_texture_rect(ui.icon(ICONS[id]), Rect2((at - Vector2(r, r)).round(), Vector2(r, r) * 2.0), false)
+		"testudo", "pray":
+			TouchPad.disc(c, at, r, true, false)
+			var s := roundf(r * (1.3 if id == "testudo" else 1.45))
+			c.draw_texture_rect(ui.icon(ICONS[id]), Rect2((at - Vector2(s, s) / 2.0).round(), Vector2(s, s)), false)
+		_:
+			TouchPad.disc(c, at, r, true, false)
+			TouchPad.picture(c, id, at, r, true)
+
+
+## Moves the field behind the title on: the camera drifts across the province unless the player has turned screen shake off,
+## the grass sways, and the legion marches in a column along the foot of the screen. Returns the seconds shown so far.
+func _animate() -> float:
+	var world: Node = main.world
+	var sim: Sim = world.sim
+	if sim == null:
+		return 0.0
+	if sim != _field:
+		_field = sim
+		_t = 0.0
+		_last = main.clock
+		_eye = sim.commander.pos
+		_gone = Ui.view.x / 2.0 + 40.0
+		_pass = -1
+	# Time spent in the settings does not count, so the field does not leap on the way back.
+	var dt := minf(main.clock - _last, 0.1)
+	_last = main.clock
+	_t += dt
+	sim.time = _t
+	var drift := DRIFT if bool(Profile.setting("shake")) else 0.0
+	_eye.x += drift * dt
+	_gone += (PACE + drift) * dt
+	world.eye_sim = sim
+	world.eye_at = _eye
+	_march(sim, _eye, _t, drift)
+	return _t
+
+
+## The legion in a column marching left under the buttons, coming round again once the last man has passed,
+## each time along the line with the fewest trees and rocks in its way, and staying away while every line crosses a ravine.
+func _march(sim: Sim, eye: Vector2, t: float, drift: float) -> void:
+	var men: Array = [sim.commander] + sim.soldiers
+	var span := Ui.view.x + 80.0 + men.size() * COLUMN_GAP
+	var pass_n := floori(_gone / span)
+	var head := eye.x + Ui.view.x / 2.0 + 40.0 - fposmod(_gone, span)
+	var foot := eye.y + Ui.view.y / 2.0
+	if pass_n != _pass:
+		_pass = pass_n
+		var room := Ui.view.y - (_buttons_end + Ui.offset.y) - 34.0
+		_lift = _open_line(sim.terrain, head - PACE * span / (PACE + drift) - 20.0, head + men.size() * COLUMN_GAP + 20.0, foot, room)
+	for i in men.size():
+		var u: Dictionary = men[i]
+		u.pos = Vector2(head + i * COLUMN_GAP, foot - _lift if _lift >= 0.0 else foot + 200.0)
+		u.facing = Vector2.LEFT
+		u.moving = true
+		u.anim = t * 8.0
+
+
+## How far above `foot` the column marches between `from` and `to`, at most `highest`: the lowest of a few lines with
+## the fewest props on it or just in front of it, or -1 when every line crosses a ravine or a canal or there is no room under the buttons.
+static func _open_line(terrain: Terrain, from: float, to: float, foot: float, highest: float) -> float:
+	var best := -1.0
+	var fewest := 50
+	var lift := 14.0
+	while lift <= highest:
+		var band := Rect2(from, foot - lift - 10.0, to - from, 44.0)
+		var n := 0
+		for pr in terrain.props_in(band):
+			if pr[0] != "" and band.has_point(pr[1]) and not pr[0] in ["dune", "bog", "heather", "dry_grass"]:
+				n += 1
+		if not terrain.ravines_in(band).is_empty():
+			n += 50
+		if n < fewest:
+			fewest = n
+			best = lift
+		lift += 16.0
+	return best
+
+
+## Cloud shadows passing slowly over the field, each a few faint overlapping rounds so its middle is darkest.
+func _clouds(c: CanvasItem, t: float) -> void:
+	var area := Rect2(-Ui.offset, Ui.view)
+	for n in 3:
+		var w := 200.0 + 60.0 * n
+		var x := area.position.x - w / 2.0 + fposmod(t * (3.0 + 1.5 * n) + n * 290.0, area.size.x + w)
+		var y := area.position.y + area.size.y * float([0.12, 0.92, 0.6][n])
+		for j in 6:
+			var a := float(j) * 1.7 + n
+			var p := Vector2(x + cos(a) * w * 0.26, y + sin(a * 1.3) * w * 0.1).round()
+			c.draw_circle(p, roundf(w * (0.14 + 0.04 * (j % 3))), Color(0.04, 0.05, 0.1, 0.09))
+
+
+## Now and then three birds fly up across the screen in a loose line, flapping, with their shadows on the ground below them.
+func _birds(c: CanvasItem, t: float) -> void:
+	var area := Rect2(-Ui.offset, Ui.view)
+	var every := 24.0
+	var flight := 14.0
+	var pass_n := floori(t / every)
+	var s := t - pass_n * every - 3.0
+	if s < 0.0 or s > flight:
+		return
+	var y0 := area.position.y + area.size.y * (0.75 + 0.2 * fposmod(sin(pass_n * 12.9898 + 1.0) * 43758.5453, 1.0))
+	var speed := (area.size.x + 100.0) / flight
+	for b in 3:
+		var p := Vector2(area.position.x - 50.0 + s * speed - b * 11.0, y0 + b * 6.0 - s * speed * 0.35).round()
+		var up := (int(t * 7.0) + b) % 2 == 0
+		_bird(c, p + Vector2(16, 30), up, Color(0, 0, 0, 0.22))
+		_bird(c, p, up, Ui.CREAM)
+
+
+func _bird(c: CanvasItem, p: Vector2, up: bool, col: Color) -> void:
+	for dot in (BIRD_UP if up else BIRD_DOWN):
+		c.draw_rect(Rect2(p + dot, Vector2.ONE), col)
 
 
 ## The note over a refused New game: every slot holds a game, and one has to be deleted first.

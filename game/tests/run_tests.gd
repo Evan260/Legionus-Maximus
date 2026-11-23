@@ -3518,8 +3518,10 @@ func _cuts_in(loc: String, scale: int, c: Content, sim: Sim, cuts: Array) -> voi
 	# The key hints at the foot of a screen, which lose their first parts when they do not fit.
 	for kind in ["volume", "keys", "press", "title"]:
 		_fit(cuts, loc, scale, "key hint " + kind, Controls.hint(kind), 624.0)
-	for line in TitleScreen.how_to_play_lines(sim.b):
-		_fit(cuts, loc, scale, "how to play", line, TitleScreen.line_width())
+	_title_cuts(cuts, loc, scale, "how to play", sim.b)
+	Controls.pad_in_use = true
+	_title_cuts(cuts, loc, scale, "how to play on a gamepad", sim.b)
+	Controls.pad_in_use = false
 	_fit(cuts, loc, scale, "give-up prompt", tr_.call("Give up the run? %s again to confirm") % "Q", 624.0)
 	for kind in ["pick", "buy", "look", "summary", "level", "gods"]:
 		_fit(cuts, loc, scale, "key hint " + kind, Controls.hint(kind), 624.0)
@@ -3572,8 +3574,7 @@ func _cuts_in(loc: String, scale: int, c: Content, sim: Sim, cuts: Array) -> voi
 	# A phone's own labels: how to play by touch, the give-up prompt, the volumes beside wider bars, the choice and buy buttons.
 	var was_phone := Touch.phone
 	Touch.phone = true
-	for line in TitleScreen.how_to_play_lines(sim.b):
-		_fit(cuts, loc, scale, "how to play on a phone", line, TitleScreen.line_width())
+	_title_cuts(cuts, loc, scale, "how to play on a phone", sim.b)
 	Touch.phone = was_phone
 	_fit(cuts, loc, scale, "give-up prompt on a phone", tr_.call("Give up the run? Tap again to confirm"), 624.0)
 	for s in ["Master volume", "Music volume", "Effects volume"]:
@@ -3767,6 +3768,62 @@ func test_a_word_too_long_for_a_line_is_broken(b: Dictionary) -> void:
 	check("".join(lines).replace("-", "").replace(" ", "") == "DieLegionderBÜRGERSOLDATENVERSAMMLUNGkam", "no letter is lost")
 	check(lines.any(func(l: String) -> bool: return l.ends_with("-")), "the broken word carries a hyphen")
 	Lang.apply(before, false)
+
+
+## The title's controls: every label in its cell, the goal in its two lines, and the box above the buttons.
+func _title_cuts(cuts: Array, loc: String, scale: int, what: String, b: Dictionary) -> void:
+	var g := TitleScreen.grid(b)
+	for cell in g.cells:
+		_lines(cuts, loc, scale, what, cell.label, cell.room, cell.lines)
+	_lines(cuts, loc, scale, what + " goal", Game.goal_text(b), g.goal_width, 2)
+	if g.box.end.y > TitleScreen.box_limit():
+		cuts.append("%s x%d %s: the box ends at %d, under the buttons' room" % [loc, scale, what, g.box.end.y])
+
+
+func test_title_controls_follow_the_bindings_and_the_gamepad(b: Dictionary) -> void:
+	var saved: Dictionary = Profile.settings
+	var pad := Controls.pad_in_use
+	Profile.settings = {"bindings": {}}
+	Controls.install({})
+	Controls.pad_in_use = false
+	var caps := func(id: String) -> Array: return TitleScreen.controls().filter(func(e: Dictionary) -> bool: return e.id == id)[0].caps
+	check(caps.call("march") == ["W", "A", "S", "D"], "the march shows the four keys as a cluster (%s)" % [caps.call("march")])
+	check(caps.call("testudo") == [Controls.key_name(KEY_SPACE)] and caps.call("pause") == [Controls.key_name(KEY_ESCAPE)], "the testudo and pause show Space and Escape")
+	check(caps.call("build") == ["E"] and caps.call("wall") == ["F"] and caps.call("bridge") == ["C"] and caps.call("pray") == ["G"], "the timber works and the gods show their keys")
+	check(caps.call("fight").is_empty(), "the soldiers' fighting needs no key")
+	Controls.rebind(Profile.settings.bindings, "testudo", "keys", 0, KEY_T)
+	Controls.rebind(Profile.settings.bindings, "up", "keys", 0, KEY_I)
+	check(caps.call("testudo") == ["T"] and caps.call("march")[0] == "I", "a rebound key shows on the title (%s, %s)" % [caps.call("testudo"), caps.call("march")])
+	Controls.pad_in_use = true
+	check(caps.call("testudo") == ["A"] and caps.call("pray") == ["Y"] and caps.call("pause") == ["Start"], "a gamepad shows its buttons")
+	check(caps.call("march") == [Controls.pad_name(JOY_BUTTON_LEFT_STICK)], "and the stick for the march")
+	Touch.phone = true
+	check(TitleScreen.controls().all(func(e: Dictionary) -> bool: return e.caps.is_empty()), "a phone shows its buttons' pictures, no keys")
+	check(TitleScreen.controls().size() == 8 and TitleScreen.controls().all(func(e: Dictionary) -> bool: return str(e.label) != ""), "every control has a label")
+	Touch.phone = false
+	Controls.pad_in_use = pad
+	Profile.settings = saved
+	Controls.install(saved.get("bindings", {}))
+
+
+func test_title_how_to_play_is_a_short_grid(b: Dictionary) -> void:
+	var before := Ui.scale
+	Ui.set_text_size(1, b)
+	var g := TitleScreen.grid(b)
+	check(g.box.size.y < 90.0, "the how-to-play box is shorter than the nine lines it was (%d)" % g.box.size.y)
+	for scale in [1, 2]:
+		Ui.set_text_size(scale, b)
+		for phone in [false, true]:
+			Touch.phone = phone
+			g = TitleScreen.grid(b)
+			check(g.box.end.y <= TitleScreen.box_limit(), "the box leaves room for the buttons (x%d, phone %s, ends %d)" % [scale, phone, g.box.end.y])
+			for i in g.cells.size():
+				var r: Rect2 = g.cells[i].rect
+				check(g.box.encloses(r), "cell %d is inside the box (x%d, phone %s)" % [i, scale, phone])
+				for j in i:
+					check(not r.intersects(g.cells[j].rect), "cells %d and %d do not overlap (x%d, phone %s)" % [j, i, scale, phone])
+	Touch.phone = false
+	Ui.set_text_size(before, b)
 
 
 func test_title_goal_comes_from_the_balance(b: Dictionary) -> void:
@@ -11129,9 +11186,8 @@ func test_touch_phone_hints_and_options_name_no_keys(b: Dictionary) -> void:
 		var said := Controls.hint(kind)
 		for key in ["Space", "Escape", "Enter", "W A S D", "W / S"]:
 			check(not said.contains(key), "on a phone the %s hint names no key (%s)" % [kind, said])
-	for line in TitleScreen.how_to_play(b):
-		for key in ["Space", "Escape", "W A S D"]:
-			check(not str(line).contains(key), "on a phone how to play names no key (%s)" % line)
+	for e in TitleScreen.controls():
+		check(e.caps.is_empty(), "on a phone how to play shows no key (%s)" % e.label)
 	check(not Hud.bridge_hint(9, 8).text.contains(Controls.key_of("bridge") + " "), "the bridge hint names no key on a phone")
 	var demo := Game.demo_forced
 	Game.demo_forced = true
