@@ -73,9 +73,6 @@ var g_start: PackedInt32Array:
 var g_items: PackedInt32Array:
 	get:
 		return horde.g_items
-var chieftain_id: int:
-	get:
-		return horde.chieftain_id
 
 ## What the sound reads: {kind, pos} and, for counted kinds, how many (n). The reader clears the list.
 var events: Array = []
@@ -330,10 +327,6 @@ func max_hp_of(type: String) -> float:
 
 func add_soldier(type: String) -> void:
 	legion.add(type)
-
-
-func slot_of(soldier: Dictionary) -> Vector2:
-	return legion.slot_of(soldier, facing_angle)
 
 
 ## The commander's own march before any upgrade, which the pace of the barbarians on foot is measured against.

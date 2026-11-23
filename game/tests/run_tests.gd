@@ -67,7 +67,7 @@ func test_soldiers_reach_their_places_after_marching(b: Dictionary) -> void:
 	for i in 180:
 		s.update(1.0 / 60.0, Vector2.RIGHT, false)
 	for so in s.soldiers:
-		var want: Vector2 = s.commander.pos + s.slot_of(so)
+		var want: Vector2 = s.commander.pos + s.legion.slot_of(so, s.facing_angle)
 		check(so.pos.distance_to(want) < 6.0, "%s near its place" % so.type)
 
 
@@ -1048,7 +1048,7 @@ func test_cavalry_rides_out_and_back(b: Dictionary) -> void:
 		s.commander.hp = 1e9
 	check(went > 20.0, "he rode out (%.0f)" % went)
 	check(s.kills >= 1 or s.horde.e_hp[0] < s.horde.e_max[0], "and struck")
-	check(cav.pos.distance_to(s.commander.pos + s.slot_of(cav)) < 8.0, "and is back in his place")
+	check(cav.pos.distance_to(s.commander.pos + s.legion.slot_of(cav, s.facing_angle)) < 8.0, "and is back in his place")
 
 
 func test_cavalry_strikes_a_big_enemy_instead_of_pushing_him(b: Dictionary) -> void:
