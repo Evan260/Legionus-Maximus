@@ -12567,6 +12567,27 @@ func test_a_mouse_click_waits_for_the_confirm_delay(b: Dictionary) -> void:
 	_free_main(m)
 
 
+func test_the_mouse_wheel_scrolls_the_tablinum_and_the_commanders(b: Dictionary) -> void:
+	var m := _bare_main(b)
+	m.screens = {"tablinum": TablinumScreen.new(m), "commanders": CommandersScreen.new(m)}
+	for id in ["tablinum", "commanders"]:
+		var screen = m.screens[id]
+		m.state = id
+		screen._count = 12
+		screen._visible = 6
+		screen.follow("e:first", 0)
+		_mouse_click(m, Vector2(100, 100), MOUSE_BUTTON_WHEEL_DOWN)
+		_mouse_click(m, Vector2(100, 100), MOUSE_BUTTON_WHEEL_DOWN)
+		check(screen.scroll == 2, "%s: the wheel scrolls down a row a turn (%d)" % [id, screen.scroll])
+		screen.follow("e:first", 0)
+		check(screen.scroll == 2, "%s: the list stays where the wheel left it while the focus stays put" % id)
+		_mouse_click(m, Vector2(100, 100), MOUSE_BUTTON_WHEEL_UP)
+		check(screen.scroll == 1, "%s: and up a row a turn" % id)
+		screen.follow("e:last", 11)
+		check(screen.scroll == 6, "%s: a new focus is brought on screen (%d)" % [id, screen.scroll])
+	_free_main(m)
+
+
 func test_touch_phone_hints_and_options_name_no_keys(b: Dictionary) -> void:
 	var saved: Dictionary = Profile.settings
 	Profile.settings = {"bindings": {}}

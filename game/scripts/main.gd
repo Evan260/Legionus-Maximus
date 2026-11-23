@@ -1023,6 +1023,9 @@ func _pointer(event: InputEvent, at: Vector2) -> void:
 				screens.settings.slide(_sliding, at)
 				return
 			ui.hover(at)
+		elif event is InputEventMouseButton and event.pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
+			if screens[state].has_method("scroll_by"):
+				screens[state].scroll_by(-1 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1)
 		elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
 			_sliding = ""
 		elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:

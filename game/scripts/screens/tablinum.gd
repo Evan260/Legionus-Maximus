@@ -33,6 +33,14 @@ func scroll_by(rows: int) -> void:
 	scroll = clampi(scroll + rows, 0, maxi(0, _count - _visible))
 
 
+## Brings the focus on screen when it moves to `row`, and otherwise leaves the list where the wheel or a finger scrolled it.
+func follow(focus: String, row: int) -> void:
+	if focus != _seen_focus:
+		_seen_focus = focus
+		scroll = Ui.scroll_for(row, _count, _visible, scroll)
+	scroll_by(0)
+
+
 ## Every entry that is drawn, as [id, group, entry].
 func entries() -> Array:
 	var out: Array = []
@@ -62,11 +70,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 				focus_row = k
 	_visible = visible
 	_count = rows.size()
-	# The grid follows the keys' focus, and is otherwise left where a finger scrolled it.
-	if ui.focus != _seen_focus or not Touch.phone:
-		_seen_focus = ui.focus
-		scroll = Ui.scroll_for(focus_row, rows.size(), visible, scroll)
-	scroll_by(0)
+	follow(ui.focus, focus_row)
 	var row_y := origin.y
 	var lifted := rows_height(rows, list, scroll)
 	for k in rows.size():
@@ -82,8 +86,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 			ui.button(c, rect, "e:" + e[0], "", "", true, null, true)
 			_picture(c, ui, e[0], e[2], Profile.data.seen.has(e[0]), rect.grow(-3))
 		row_y += STEP
-	if Touch.phone:
-		CommandersScreen._scroll_marks(c, Rect2(origin.x, origin.y - 24.0, COLS * STEP - 4.0, r.end.y - origin.y + 24.0), scroll > 0, scroll + visible < rows.size())
+	CommandersScreen._scroll_marks(c, Rect2(origin.x, origin.y - 24.0, COLS * STEP - 4.0, r.end.y - origin.y + 24.0), scroll > 0, scroll + visible < rows.size())
 	var box := Rect2(r.position.x + 12 + COLS * STEP + 4, origin.y, r.size.x - 24 - COLS * STEP - 4, r.end.y - 6.0 - origin.y)
 	ui.panel(c, box, Ui.CREAM)
 	for e in list:

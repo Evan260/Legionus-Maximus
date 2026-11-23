@@ -32,6 +32,14 @@ func scroll_by(rows: int) -> void:
 	scroll = clampi(scroll + rows, 0, maxi(0, _count - _visible))
 
 
+## Brings the focus on screen when it moves to `row`, and otherwise leaves the list where the wheel or a finger scrolled it.
+func follow(focus: String, row: int) -> void:
+	if focus != _seen_focus:
+		_seen_focus = focus
+		scroll = Ui.scroll_for(row, _count, _visible, scroll)
+	scroll_by(0)
+
+
 ## The tag of a locked commander: how he is earned, and his price when he can be bought.
 static func locked_tag(info: Dictionary, content: Content) -> String:
 	var how := Profile.unlock_text(info, content)
@@ -67,11 +75,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	_visible = visible
 	_count = ids.size()
 	_step = step
-	# The list follows the keys' focus, and is otherwise left where a finger scrolled it.
-	if ui.focus != _seen_focus or not Touch.phone:
-		_seen_focus = ui.focus
-		scroll = Ui.scroll_for(maxi(focused, 0), ids.size(), visible, scroll)
-	scroll_by(0)
+	follow(ui.focus, maxi(focused, 0))
 	_scroll_marks(c, r, scroll > 0, scroll + visible < ids.size())
 	for i in ids.size():
 		var id: String = ids[i]
