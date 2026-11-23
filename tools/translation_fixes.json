@@ -5180,6 +5180,21 @@
       "it": "Rifornimenti",
       "tr": "İkmal",
       "ja": "補給"
+    },
+    "Raise the testudo!": {
+      "fr": "Levez le testudo !",
+      "de": "Bildet das Testudo!",
+      "es": "¡Formad el testudo!",
+      "it": "Formate il testudo!",
+      "pt_BR": "Formem o testudo!",
+      "pl": "Formujcie testudo!",
+      "tr": "Testudo düzenine geçin!",
+      "ru": "Встаньте в Testudo!",
+      "uk": "Станьте в Testudo!",
+      "ja": "Testudoを組め！",
+      "ko": "Testudo를 펼쳐라!",
+      "zh_CN": "结成 Testudo！",
+      "zh_TW": "結成 Testudo！"
     }
   }
 }

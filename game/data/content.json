@@ -603,9 +603,9 @@
    "text": "He runs round to the rear, charges, and spins his axes in a ring. Wounded, he flies into a rage.",
    "history": "Tacitus tells of the Harii, who painted their bodies black and attacked at night to terrify the foe.",
    "behaviour": "flanker",
-   "hp": 5040,
+   "hp": 2300,
    "speed": 50,
-   "dps": 18,
+   "dps": 12,
    "radius": 15,
    "coins": 0,
    "art": [
@@ -625,15 +625,15 @@
     "arrive": 0.5
    },
    "whirlwind": {
-    "every": 7.0,
+    "every": 9.0,
     "windup": 1.0,
-    "radius": 45,
-    "damage_mult": 3.6,
+    "radius": 40,
+    "damage_mult": 2.15,
     "retry": 0.3
    },
    "rage": {
     "below": 0.5,
-    "mult": 1.4
+    "mult": 1.25
    }
   },
   "war_band_leader": {
@@ -641,9 +641,9 @@
    "text": "The leader of a raiding band, who never walks alone. He raises his shield to the legion, urges his warriors on faster and calls his band to him.",
    "history": "Germanic warriors fought in family groups behind a chosen leader, who shared the spoils.",
    "behaviour": "melee",
-   "hp": 6000,
+   "hp": 2000,
    "speed": 42,
-   "dps": 16,
+   "dps": 11,
    "radius": 15,
    "coins": 0,
    "art": [
@@ -673,7 +673,7 @@
    "text": "He stands back and hurls burning pots into the thickest ranks. He heals the warriors round him, curses the legion and vanishes in smoke when soldiers reach him.",
    "history": "Germanic priests marched to war alongside the tribes and read the omens before a battle.",
    "behaviour": "lobber",
-   "hp": 4560,
+   "hp": 2000,
    "speed": 38,
    "dps": 0,
    "radius": 14,
@@ -704,9 +704,9 @@
     "range": 260
    },
    "blink": {
-    "every": 6.0,
+    "every": 15.0,
     "near": 40,
-    "distance": 150
+    "distance": 100
    }
   },
   "chieftain": {
@@ -867,9 +867,9 @@
    "text": "Blades whirl on its wheels. It marks a lane and drives down it at full gallop, cutting every soldier it passes, then turns and comes again.",
    "history": "Later writers told of British chariots with scythes on their wheels, though Caesar never mentions them.",
    "behaviour": "melee",
-   "hp": 6200,
+   "hp": 2800,
    "speed": 52,
-   "dps": 24,
+   "dps": 12,
    "radius": 20,
    "coins": 0,
    "art": [
@@ -882,7 +882,7 @@
     "width": 64,
     "length": 440,
     "seconds": 0.8,
-    "damage_mult": 0.7,
+    "damage_mult": 1.4,
     "throw": 10,
     "blade": 14,
     "passes": 2,
@@ -895,7 +895,7 @@
    "text": "An old priest of the oak groves. He calls fire down from the sky in a line of marked rings across the legion, and his chant heals the warriors round him and sends them running in.",
    "history": "The druids were priests, judges and teachers, and Rome attacked their island stronghold at Mona.",
    "behaviour": "lobber",
-   "hp": 5200,
+   "hp": 2150,
    "speed": 36,
    "dps": 0,
    "radius": 14,
@@ -1061,9 +1061,9 @@
    "text": "He raises his falcata and shouts, and the warriors round him get their second wind and run at the legion.",
    "history": "The Celtiberians of Numantia held out against Rome for twenty years, until the town fell in 133 BC.",
    "behaviour": "melee",
-   "hp": 5600,
+   "hp": 2700,
    "speed": 42,
-   "dps": 24,
+   "dps": 12,
    "radius": 15,
    "coins": 0,
    "art": [
@@ -1082,9 +1082,9 @@
    "text": "He marks a lane and leads a short ambush charge down it, and the warriors round him charge with him, cutting down the soldiers in their path.",
    "history": "Lusitanian raiders struck fast and were gone into the hills before a legion could form up.",
    "behaviour": "melee",
-   "hp": 5600,
+   "hp": 2750,
    "speed": 48,
-   "dps": 24,
+   "dps": 12,
    "radius": 15,
    "coins": 0,
    "art": [
@@ -1098,7 +1098,7 @@
     "width": 44,
     "length": 220,
     "seconds": 0.5,
-    "damage_mult": 0.7,
+    "damage_mult": 1.5,
     "throw": 20,
     "band_radius": 130,
     "band_rush": 2.2
@@ -1262,7 +1262,7 @@
    "text": "He raises his crocodile staff and blesses the warriors round him: for a few seconds their skin is as hard as a crocodile's hide, and blows hurt them less.",
    "history": "Sobek, the crocodile god of the Nile, was said to give strength and to guard against the dangers of the river.",
    "behaviour": "lobber",
-   "hp": 5000,
+   "hp": 2950,
    "speed": 38,
    "dps": 0,
    "radius": 14,
@@ -1284,9 +1284,9 @@
    "text": "He marks a lane and leads a charge down it with camel riders in a wedge behind him, riding down the soldiers in their path.",
    "history": "Camel riders from the desert served the kings of Egypt as scouts and raiders.",
    "behaviour": "melee",
-   "hp": 6000,
+   "hp": 2600,
    "speed": 50,
-   "dps": 26,
+   "dps": 13,
    "radius": 16,
    "coins": 0,
    "art": [
@@ -1300,7 +1300,7 @@
     "width": 70,
     "length": 300,
     "seconds": 0.7,
-    "damage_mult": 0.8,
+    "damage_mult": 1.6,
     "throw": 24,
     "riders": 3,
     "kind": "camel_rider",
@@ -1452,9 +1452,9 @@
    "history": "Rome took the draco, a dragon-headed windsock, from the Sarmatians, and its cavalry carried it for centuries.",
    "behaviour": "melee",
    "mounted": true,
-   "hp": 5200,
+   "hp": 2650,
    "speed": 48,
-   "dps": 24,
+   "dps": 12,
    "radius": 15,
    "coins": 0,
    "art": [
@@ -1474,9 +1474,9 @@
    "text": "A heavy wagon drawn by oxen, with archers shooting from behind its wicker sides. It is slow and well armoured, arrows glance off it, and it rolls on through any warriors in its way.",
    "history": "The Sarmatians lived in wagons covered with felt and moved their homes with the grass.",
    "behaviour": "melee",
-   "hp": 9000,
+   "hp": 1900,
    "speed": 24,
-   "dps": 20,
+   "dps": 14,
    "radius": 30,
    "coins": 0,
    "art": [
@@ -1635,9 +1635,9 @@
    "text": "He calls out the commander to a ring. Fight him inside it and he falls faster; walk away and he and the warriors round him grow fiercer.",
    "history": "Celtic champions fought in front of the line, and challenged enemy heroes to single combat.",
    "behaviour": "melee",
-   "hp": 5600,
+   "hp": 2700,
    "speed": 48,
-   "dps": 26,
+   "dps": 11,
    "radius": 15,
    "coins": 0,
    "art": [
@@ -1664,7 +1664,7 @@
    "text": "His carnyx speeds and heals the warriors round him, and its blast pushes the ranks back and slows their blows. He runs from soldiers who reach him.",
    "history": "The carnyx, a tall bronze horn with an animal head, was meant to terrify the foe.",
    "behaviour": "lobber",
-   "hp": 4800,
+   "hp": 2200,
    "speed": 38,
    "dps": 0,
    "radius": 14,
@@ -1692,7 +1692,7 @@
    "flee": {
     "near": 60,
     "seconds": 1.6,
-    "speed_mult": 1.4
+    "speed_mult": 1.2
    }
   },
   "gaul_king": {
@@ -1839,9 +1839,9 @@
    "text": "He marks a lane and charges down it, and the warriors round him charge with him, cutting down and scattering the soldiers in their path.",
    "history": "After meeting the falx, Roman soldiers added extra armour to their arms and helmets.",
    "behaviour": "melee",
-   "hp": 5800,
+   "hp": 2750,
    "speed": 46,
-   "dps": 26,
+   "dps": 13,
    "radius": 15,
    "coins": 0,
    "art": [
@@ -1855,7 +1855,7 @@
     "width": 44,
     "length": 260,
     "seconds": 0.55,
-    "damage_mult": 0.7,
+    "damage_mult": 1.4,
     "throw": 22,
     "band_radius": 130,
     "band_rush": 2.2
@@ -1866,7 +1866,7 @@
    "text": "A priest of Zalmoxis. He calls a blizzard down on the legion: a ring marks where it will fall, and inside the storm the legion marches slowly and freezes. He keeps his distance.",
    "history": "Dacian priests had great power at the court, and the king took their advice on war.",
    "behaviour": "lobber",
-   "hp": 4800,
+   "hp": 2050,
    "speed": 36,
    "dps": 0,
    "radius": 14,
@@ -2036,9 +2036,9 @@
    "text": "He marks a lane and leads a wedge of cataphracts down it at full gallop, riding down the soldiers in its path. The wedge stays on the field when the charge is spent.",
    "history": "At Carrhae, horse archers wore the Romans down while cataphract charges kept them packed together.",
    "behaviour": "melee",
-   "hp": 6400,
+   "hp": 2150,
    "speed": 50,
-   "dps": 26,
+   "dps": 13,
    "radius": 16,
    "coins": 0,
    "art": [
@@ -2052,7 +2052,7 @@
     "width": 70,
     "length": 320,
     "seconds": 0.7,
-    "damage_mult": 0.8,
+    "damage_mult": 1.6,
     "throw": 24,
     "riders": 4,
     "kind": "cataphract",
@@ -2065,9 +2065,9 @@
    "text": "A great beast with archers in a tower on its back, shooting all the while. It marks a line and tramples down it, throwing soldiers aside, and takes a long time to bring down.",
    "history": "Hellenistic and Indian kings used war elephants to scare horses and to break the ranks of foot soldiers.",
    "behaviour": "melee",
-   "hp": 11000,
+   "hp": 3300,
    "speed": 34,
-   "dps": 24,
+   "dps": 20,
    "radius": 38,
    "coins": 0,
    "art": [
@@ -2081,7 +2081,7 @@
     "width": 80,
     "length": 300,
     "seconds": 1.1,
-    "damage_mult": 1.0,
+    "damage_mult": 2.0,
     "throw": 34,
     "shake": 0.45
    },

@@ -155,7 +155,7 @@
     "aegyptus": {"health": 1.15, "damage": 1.2, "elites": 1.0},
     "sarmatia": {"health": 1.4, "damage": 1.5, "elites": 1.1}
   },
-  "bosses": {"first": 90, "every": 45, "count_start": 1, "count_growth": 0.00213, "count_max": 3, "max_alive": 3, "max_alive_start": 1, "max_alive_growth": 0.00333, "health_growth": 0.00111, "early_mult": 0.25, "early_pace": 0.25, "early_until": 180, "early_health": 0.25, "early_health_until": 450},
+  "bosses": {"first": 90, "every": 45, "count_start": 1, "count_growth": 0.00213, "count_max": 3, "max_alive": 3, "max_alive_start": 1, "max_alive_growth": 0.00333, "health_growth": 0.0008, "early_mult": 0.25, "early_pace": 0.25, "early_until": 180, "early_health": 0.25, "early_health_until": 360, "testudo_notice": 2.0},
   "ranged": {"kite_out": 30, "every": 1.8, "throws": 3, "spear_speed": 120, "arrow_mult": 1.6, "spear_life": 3.0, "spear_radius": 3},
   "charger": {"every": 4.0, "speed_mult": 3.0, "seconds": 0.6, "burst_seconds": 1.0, "min_distance": 60, "max_distance": 260},
   "chest": {"radius": 14},

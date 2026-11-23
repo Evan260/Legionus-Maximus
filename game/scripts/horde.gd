@@ -2112,7 +2112,7 @@ func sky_fire(i: int, cfg: Dictionary, sim: Sim) -> void:
 	var n := int(cfg.count)
 	for k in n:
 		var at: Vector2 = commander.pos + dir * float(cfg.step) * (k - (n - 1) / 2.0)
-		foe_lobs.append({"from": at, "to": at, "t": 0.0, "dur": float(cfg.delay) + float(cfg.stagger) * k, "radius": float(cfg.radius), "dmg": float(cfg.damage) * e_power[i], "sky": true})
+		foe_lobs.append({"from": at, "to": at, "t": 0.0, "dur": float(cfg.delay) + float(cfg.stagger) * k, "radius": float(cfg.radius), "dmg": float(cfg.damage) * e_power[i], "sky": true, "ward": true})
 	e_strike[i] = time
 	e_face[i] = dir
 	sim.event("curse", p)
@@ -2376,12 +2376,20 @@ func _whirl(i: int, cfg: Dictionary, sim: Sim) -> float:
 	for u in sim.units:
 		if (u.pos - p).length_squared() < reach:
 			var dur := float(cfg.windup)
-			foe_lobs.append({"from": p, "to": p, "t": 0.0, "dur": dur, "radius": r, "dmg": k_dps[e_kind[i]] * float(cfg.damage_mult) * e_power[i], "slam": true, "whirl": true})
+			foe_lobs.append({"from": p, "to": p, "t": 0.0, "dur": dur, "radius": r, "dmg": k_dps[e_kind[i]] * float(cfg.damage_mult) * e_power[i], "slam": true, "whirl": true, "ward": true})
 			_hold_boss(boss[e_id[i]], p, dur)
 			e_strike[i] = time + dur - Atlas.ATTACK_FRAMES / Atlas.ATTACK_FPS
 			sim.event("whirl", p)
+			_testudo_notice(sim)
 			return float(cfg.every)
 	return float(cfg.retry)
+
+
+## Tells the player to raise the testudo, unless another notice is still showing.
+func _testudo_notice(sim: Sim) -> void:
+	var note: Dictionary = sim.objectives.notice
+	if note.is_empty() or note.get("kind", "") == "testudo" or time - float(note.at) >= float(note.get("seconds", b.objectives.notice_seconds)):
+		sim.objectives.notice = {"kind": "testudo", "at": time, "seconds": float(b.bosses.testudo_notice)}
 
 
 ## The war priest vanishes from a soldier at his elbow and comes out further from the legion; false when nobody is that close.
@@ -2534,7 +2542,7 @@ func _lob_at_ranks(i: int, sim: Sim) -> float:
 		if near > most:
 			most = near
 			best = u.pos
-	foe_lobs.append({"from": e_pos[i], "to": best, "t": 0.0, "dur": float(cfg.flight), "radius": float(cfg.radius), "dmg": float(cfg.damage) * e_power[i]})
+	foe_lobs.append({"from": e_pos[i], "to": best, "t": 0.0, "dur": float(cfg.flight), "radius": float(cfg.radius), "dmg": float(cfg.damage) * e_power[i], "ward": true})
 	e_strike[i] = time
 	sim.event("potthrow", e_pos[i])
 	if best != e_pos[i]:
@@ -2552,6 +2560,8 @@ func _foe_lobs(dt: float, sim: Sim) -> void:
 		if l.t < l.dur:
 			flying.append(l)
 			continue
+		# An elite's marked blow breaks on the raised shields.
+		var cut: float = 0.0 if l.get("ward", false) and sim.testudo_left > 0.0 else shield
 		for u in sim.units:
 			if (u.pos - l.to).length() < l.radius + Sim.UNIT_RADIUS:
 				# The rings of one fall or volley overlap, so each soldier is struck by only one of them.
@@ -2559,7 +2569,7 @@ func _foe_lobs(dt: float, sim: Sim) -> void:
 					if u.get("rocked", -1) == l.volley_id:
 						continue
 					u.rocked = l.volley_id
-				u.hp -= l.dmg * shield
+				u.hp -= l.dmg * cut
 				u.flash = 0.12
 		if l.get("sky", false):
 			sim.event("boom", l.to)

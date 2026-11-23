@@ -5446,12 +5446,11 @@ func test_the_bosses_are_drawn_big(_b: Dictionary) -> void:
 
 func test_bosses_are_much_tougher(_b: Dictionary) -> void:
 	var e: Dictionary = content.enemies
-	for id in ["berserker", "war_band_leader", "war_priest"]:
-		check(float(e[id].hp) >= 4500.0 and float(e[id].hp) <= 6000.0, "the %s has 4500 to 6000 health (%d)" % [id, int(e[id].hp)])
 	check(float(e.chieftain.hp) >= 23000.0 and float(e.chieftain.hp) <= 25000.0, "the chieftain has 23000 to 25000 health (%d)" % int(e.chieftain.hp))
 	for id in e:
 		if e[id].get("elite", false):
-			check(float(e[id].hp) >= 4500.0, "every elite has at least 4500 health (%s %d)" % [id, int(e[id].hp)])
+			check(float(e[id].hp) >= 1800.0 and float(e[id].hp) <= 3500.0, "every elite has 1800 to 3500 health, many times an ordinary's (%s %d)" % [id, int(e[id].hp)])
+			check(float(e[id].hp) >= float(e.barbarian_club.hp) * 40.0, "and over forty times a clubman's (%s)" % id)
 		if e[id].get("chieftain", false):
 			check(float(e[id].hp) >= 23000.0, "every chieftain has at least 23000 health (%s %d)" % [id, int(e[id].hp)])
 
@@ -5556,6 +5555,36 @@ func test_the_berserker_whirls_after_a_red_ring(b: Dictionary) -> void:
 	check(far.hp == 1e6, "and misses a Roman outside it")
 
 
+func test_the_testudo_turns_the_elites_marked_blows(b: Dictionary) -> void:
+	var made := _boss_sim(b, 712, "berserker", Vector2(200, 0))
+	var s: Sim = made[0]
+	var st: Dictionary = made[2]
+	var near: Dictionary = s.soldiers[0]
+	near.pos = s.horde.e_pos[made[1]] + Vector2(10, 0)
+	near.hp = 1e6
+	near.max_hp = 1e6
+	s.objectives.notice = {}
+	st.whirl_cd = 0.0
+	s._rebuild_grids()
+	s.horde._bosses(1.0 / 60.0, s)
+	check(s.objectives.notice.get("kind", "") == "testudo", "the berserker's red ring brings a notice to raise the testudo")
+	check(Hud.notice_line("testudo", s) == TranslationServer.translate("Raise the testudo!"), "which says so")
+	s.testudo_left = 1.0
+	for l in s.horde.foe_lobs:
+		l.t = l.dur
+	s.horde._foe_lobs(0.01, s)
+	check(near.hp == 1e6, "under the testudo his whirl does no harm")
+	var druid := _boss_sim(b, 713, "druid", Vector2(100, 0))
+	var ds: Sim = druid[0]
+	ds.horde.sky_fire(druid[1], content.enemies.druid.sky_fire, ds)
+	ds.testudo_left = 1.0
+	var before: float = ds.commander.hp
+	for l in ds.horde.foe_lobs:
+		l.t = l.dur
+	ds.horde._foe_lobs(0.01, ds)
+	check(ds.commander.hp == before, "nor does a druid's fire from the sky")
+
+
 func test_the_berserker_rages_when_wounded(b: Dictionary) -> void:
 	var made := _boss_sim(b, 711, "berserker", Vector2(300, 0))
 	var s: Sim = made[0]
@@ -5571,7 +5600,7 @@ func test_the_berserker_rages_when_wounded(b: Dictionary) -> void:
 	s._rebuild_grids()
 	s.horde._move(0.1, s)
 	var moved := (s.horde.e_pos[i] - p0).length()
-	check(moved > float(content.enemies.berserker.speed) * 0.1 * 1.2, "and runs faster (%.1f px)" % moved)
+	check(moved > float(content.enemies.berserker.speed) * float(b.enemy_speed_mult) * 0.1 * 1.15, "and runs faster (%.1f px)" % moved)
 
 
 func test_the_war_band_leader_raises_his_shield(b: Dictionary) -> void:
@@ -5758,7 +5787,7 @@ func test_early_bosses_come_weaker(b: Dictionary) -> void:
 	check(is_equal_approx(s.horde.e_power[first], float(cfg.early_mult) * lvl * float(content.enemies.berserker.rage.mult)), "his rage builds on it")
 
 
-func test_bosses_at_full_strength_cut_down_a_legionary(b: Dictionary) -> void:
+func test_bosses_at_full_strength_wound_a_legionary_and_chieftains_cut_one_down(b: Dictionary) -> void:
 	var qm: Dictionary = content.quartermaster
 	var two_thirds := func(id: String) -> float: return roundi(int(qm[id].ranks) * 2.0 / 3.0) * float(qm[id].per_rank)
 	var s := _quiet_sim(b, 723, Content.with_all_art())
@@ -5766,8 +5795,19 @@ func test_bosses_at_full_strength_cut_down_a_legionary(b: Dictionary) -> void:
 	s.horde.time = float(b.bosses.early_until)
 	check(s.horde.early_boss_mult() == 1.0, "by %d s bosses hit at full strength" % int(b.bosses.early_until))
 	check(float(b.bosses.early_until) <= 180.0, "which is no later than three minutes in")
-	var berserker: Dictionary = content.enemies.berserker
-	check(float(berserker.dps) * float(berserker.whirlwind.damage_mult) >= hp, "a berserker's whirl fells a well-armoured legionary (%.0f against %.0f)" % [float(berserker.dps) * float(berserker.whirlwind.damage_mult), hp])
+	var bare := s.legion.max_hp_of("legionary")
+	for province in content.provinces:
+		var power := float(b.difficulty.get(province, {}).get("elites", 1.0))
+		for id in content.provinces[province].elites:
+			var info: Dictionary = content.enemies[id]
+			for key in ["whirlwind", "onrush", "wedge", "trample", "scythe"]:
+				if info.has(key):
+					check(float(info.dps) * float(info[key].damage_mult) * power < bare, "one %s's %s wounds a fresh legionary but leaves him standing (%.0f against %.0f)" % [id, key, float(info.dps) * float(info[key].damage_mult) * power, bare])
+			for key in ["lob", "sky_fire", "blast"]:
+				if info.has(key):
+					check(float(info[key].damage) * power < bare, "and so does a %s's %s" % [id, key])
+	var whirl := float(content.enemies.berserker.dps) * float(content.enemies.berserker.whirlwind.damage_mult)
+	check(whirl >= bare * 0.4, "a berserker's whirl still takes a good part of a legionary's health (%.0f of %.0f)" % [whirl, bare])
 	for id in ["chieftain", "gaul_king"]:
 		var info: Dictionary = content.enemies[id]
 		var atk: Dictionary = info.attacks
@@ -5775,6 +5815,75 @@ func test_bosses_at_full_strength_cut_down_a_legionary(b: Dictionary) -> void:
 		check(float(info.dps) * float(atk.charge.burst_mult) >= hp, "and so does his charge")
 		if atk.has("slam"):
 			check(float(info.dps) * float(atk.slam.damage_mult) >= hp, "and his slam")
+
+
+## 30 legionaries and 8 archers with no upgrades march at one elite spawned 90 px ahead `at` seconds into the run, the testudo raised
+## whenever a blow is marked and `testudo` is set; returns whether he fell, how long it took and how many soldiers he cost.
+func _elite_fight(b: Dictionary, province: String, kind: String, at: float, testudo: bool, most := 45.0) -> Dictionary:
+	var s := Sim.new(b, Content.with_all_art(), {"seed": 1, "province": province})
+	s.terrain.clear()
+	s.b = b.duplicate()
+	s.b.spawn_per_second_start = 0.0
+	s.b.spawn_per_second_growth = 0.0
+	s.b.pursuit = {}
+	s.horde.next_surge = 1e9
+	s.horde.next_band = 1e9
+	s.horde.next_cart = 1e9
+	s.horde.next_boss = 1e9
+	s.time = at
+	s.horde.time = at
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	s.soldiers.clear()
+	for k in 30:
+		s.add_soldier("legionary")
+	for k in 8:
+		s.add_soldier("archer")
+	s.legion.place_all(s.facing_angle)
+	var id := s.horde.e_id[s.horde.spawn(kind, s.commander.pos + Vector2.from_angle(s.facing_angle) * 90.0, true)]
+	var dt := 1.0 / 30.0
+	var t := 0.0
+	while t < most and s.horde.e_id.has(id):
+		var to: Vector2 = s.horde.e_pos[s.horde.e_id.find(id)] - s.commander.pos
+		s.update(dt, to.normalized() if to.length() > 20.0 else Vector2.ZERO, testudo and s.testudo_charge >= 1.0 and _blow_marked(s))
+		t += dt
+	return {"fell": not s.horde.e_id.has(id), "seconds": t, "lost": 38 - s.soldiers.size()}
+
+
+func _blow_marked(s: Sim) -> bool:
+	if not s.horde.foe_lobs.is_empty() or not s.horde.marks.is_empty():
+		return true
+	for id in s.horde.boss:
+		if float(s.horde.boss[id].rush_warn) > 0.0:
+			return true
+	return false
+
+
+func test_a_legion_that_engages_an_elite_beats_him_soon(b: Dictionary) -> void:
+	var total_shielded := 0
+	var total_bare := 0
+	for province in content.provinces:
+		for kind in content.provinces[province].elites:
+			var shielded := _elite_fight(b, province, kind, 600.0, true)
+			check(shielded.fell and shielded.seconds <= 32.0, "30 legionaries and 8 archers cut down a %s at 10 minutes within about 30 s (%s, %.0f s)" % [kind, "fell" if shielded.fell else "alive", shielded.seconds])
+			check(int(shielded.lost) <= 5, "and under the testudo he costs them at most 5 men (%s %d)" % [kind, int(shielded.lost)])
+			var info: Dictionary = content.enemies[kind]
+			if ["whirlwind", "lob", "sky_fire", "onrush", "wedge", "trample", "scythe"].any(func(key: String) -> bool: return info.has(key)):
+				var bare := _elite_fight(b, province, kind, 600.0, false)
+				total_shielded += int(shielded.lost)
+				total_bare += int(bare.lost)
+				check(bare.fell and int(bare.lost) <= 15, "without it he still falls and takes no more than 15 (%s %s, %d)" % [kind, "fell" if bare.fell else "alive", int(bare.lost)])
+	check(total_bare > total_shielded + 5, "the testudo saves men against the elites' big blows (%d lost without, %d with)" % [total_bare, total_shielded])
+
+
+func test_elites_at_ten_minutes_are_not_much_tougher_than_at_five(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 724, Content.with_all_art())
+	s.horde.time = 300.0
+	var five := s.horde.spawn("berserker", Vector2(300, 0), true)
+	s.horde.time = 600.0
+	var ten := s.horde.spawn("berserker", Vector2(-300, 0), true)
+	var ratio := s.horde.e_max[ten] / s.horde.e_max[five]
+	check(ratio <= 1.6, "an elite at 10 minutes has at most 1.6 times the health of one at 5 (%.2f)" % ratio)
 
 
 func test_few_bosses_at_once_early_on(b: Dictionary) -> void:
@@ -6437,6 +6546,8 @@ func test_a_gods_burn_is_not_carried_on_by_a_later_fire(b: Dictionary) -> void:
 		for follow in ["fire_arrows", "torches", "scorch"]:
 			var s := _god_sim(b, 1601, 0)
 			s.soldiers.clear()
+			# An elite who comes at ten minutes has his full health, so a small fire is a small share of it.
+			s.horde.time = 600.0
 			var i := s.horde.spawn(kind, Vector2(150, 0), kind != "chieftain")
 			var id := s.horde.e_id[i]
 			var max_hp: float = s.horde.e_max[i]
