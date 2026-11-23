@@ -186,16 +186,27 @@ func latest_slot() -> int:
 	return best
 
 
+## Reads the settings from their file, or from the temporary file or the backup a save left when the file is missing or damaged.
 func load_settings() -> void:
-	settings = merge_settings(_read_json(settings_path()))
+	settings = {}
+	for path in [settings_path(), settings_path() + ".tmp", settings_path() + ".bak"]:
+		var saved: Variant = _parse_json(path)
+		if saved is Dictionary:
+			settings = merge_settings(saved)
+			return
 
 
-## Writes the settings through a temporary file. Does nothing when disabled.
+## Writes the settings through a temporary file, keeping the last readable ones as a backup. Does nothing when disabled.
 func save_settings() -> bool:
 	if disabled:
 		return false
 	var path := settings_path()
-	return _write(path + ".tmp", JSON.stringify(settings, "\t")) and _move(path + ".tmp", path)
+	if not _write(path + ".tmp", JSON.stringify(settings, "\t")):
+		return false
+	# A failed move on Windows can delete the old file before the new one takes its place.
+	if _parse_json(path) is Dictionary:
+		DirAccess.copy_absolute(ProjectSettings.globalize_path(path), ProjectSettings.globalize_path(path + ".bak"))
+	return _move(path + ".tmp", path)
 
 
 ## Moves the old single profile into slot 1 and the settings file, keeping it whole beside them as profile.json.migrated.
@@ -353,12 +364,16 @@ static func times_of(rec: Dictionary) -> Dictionary:
 
 
 func _read_json(path: String) -> Dictionary:
+	var parsed: Variant = _parse_json(path)
+	return parsed if parsed is Dictionary else {}
+
+
+## A file's JSON, or null when it is missing or damaged.
+func _parse_json(path: String) -> Variant:
 	if not reads() or not FileAccess.file_exists(path):
-		return {}
+		return null
 	var json := JSON.new()
-	if json.parse(FileAccess.get_file_as_string(path)) != OK or not json.data is Dictionary:
-		return {}
-	return json.data
+	return json.data if json.parse(FileAccess.get_file_as_string(path)) == OK else null
 
 
 ## A save's contents, or empty when the file is missing, damaged or not a save.

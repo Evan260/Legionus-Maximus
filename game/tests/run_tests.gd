@@ -2641,6 +2641,33 @@ func test_settings_are_shared_by_every_slot(_b: Dictionary) -> void:
 	_cleanup_profile_files()
 
 
+func test_settings_are_read_from_their_temporary_file_or_backup(_b: Dictionary) -> void:
+	_cleanup_profile_files()
+	var p := _fresh_profile()
+	var path: String = p.settings_path()
+	p.settings = {"language": "de", "music": 0.2}
+	p.save_settings()
+	p.settings = {"language": "fr", "music": 0.4}
+	check(p.save_settings(), "the settings save twice")
+	check(FileAccess.file_exists(path + ".bak"), "the settings saved before are kept as a backup")
+	# A move that fails after deleting its destination leaves only the temporary file.
+	DirAccess.rename_absolute(ProjectSettings.globalize_path(path), ProjectSettings.globalize_path(path + ".tmp"))
+	var cut := _fresh_profile()
+	cut.load_settings()
+	check(cut.setting("language") == "fr" and is_equal_approx(float(cut.setting("music")), 0.4), "with only the temporary file left, its settings are read")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path + ".tmp"))
+	_write_raw(path, "{ broken")
+	var broken := _fresh_profile()
+	broken.load_settings()
+	check(broken.setting("language") == "de" and is_equal_approx(float(broken.setting("music")), 0.2), "a damaged settings file gives the backup's settings")
+	_write_raw(path, "{}")
+	var plain := _fresh_profile()
+	plain.load_settings()
+	check(plain.settings.is_empty(), "a readable file with nothing changed is read as it is")
+	for q in [p, cut, broken, plain]:
+		q.free()
+	_cleanup_profile_files()
+
 func test_the_old_profile_moves_into_slot_one_and_the_settings_file(_b: Dictionary) -> void:
 	_cleanup_profile_files()
 	var old := JSON.stringify({"denarii": 4321, "ranks": {"damage": 3}, "unlocked": {"commanders": ["tribune", "engineer"], "provinces": ["germania", "gaul", "britannia"]},
