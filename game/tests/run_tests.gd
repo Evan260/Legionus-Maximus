@@ -2156,6 +2156,95 @@ func test_denarii_are_banked_after_a_run(b: Dictionary) -> void:
 	_cleanup_profile_files()
 
 
+## A finished run in Germania of `seconds`, won or not, with its difficulty and modes.
+func _finished(b: Dictionary, c: Content, seconds: float, won: bool, options: Dictionary) -> Sim:
+	options.seed = 140
+	var s := Sim.new(b, c, options)
+	s.time = seconds
+	s.over = true
+	s.victory = won
+	return s
+
+
+func test_a_win_is_recorded_under_its_difficulty_and_mode_only(b: Dictionary) -> void:
+	var p := _fresh_profile()
+	var all := Content.with_all_art()
+	p.record_run(_finished(b, all, 900.0, true, {"difficulty": "easy"}))
+	var others := []
+	for d in Sim.DIFFICULTIES:
+		for m in ProfileScript.TIME_MODES:
+			if p.mode_time("germania", d, m) > 0.0 and not (d == "easy" and m == "win"):
+				others.append("%s %s" % [d, m])
+	check(is_equal_approx(p.mode_time("germania", "easy", "win"), 900.0) and others.is_empty(), "an Easy win is Easy's best time and nothing else's (%s)" % str(others))
+	p.record_run(_finished(b, all, 1000.0, true, {"difficulty": "hard", "decimatio": true}))
+	check(is_equal_approx(p.mode_time("germania", "hard", "decimatio"), 1000.0) and p.mode_time("germania", "hard", "win") <= 0.0, "a Hard win with Decimatio is Hard's Decimatio time, not its plain one")
+	check(p.record_of("germania").won and p.record_of("germania").hard_won, "and still counts as won and hard won")
+	p.free()
+	_cleanup_profile_files()
+
+
+func test_a_slower_win_keeps_the_faster_time(b: Dictionary) -> void:
+	var p := _fresh_profile()
+	var all := Content.with_all_art()
+	p.record_run(_finished(b, all, 900.0, true, {"difficulty": "medium"}))
+	p.record_run(_finished(b, all, 1000.0, true, {"difficulty": "medium"}))
+	check(is_equal_approx(p.mode_time("germania", "medium", "win"), 900.0), "a slower win leaves the best time")
+	p.record_run(_finished(b, all, 800.0, true, {"difficulty": "medium"}))
+	check(is_equal_approx(p.mode_time("germania", "medium", "win"), 800.0), "a faster one replaces it")
+	p.record_run(_finished(b, all, 700.0, false, {"difficulty": "medium"}))
+	check(is_equal_approx(p.mode_time("germania", "medium", "win"), 800.0), "a lost run is no best time")
+	p.free()
+	_cleanup_profile_files()
+
+
+func test_endless_keeps_the_longest_run_of_each_difficulty(b: Dictionary) -> void:
+	var p := _fresh_profile()
+	var all := Content.with_all_art()
+	p.record_run(_finished(b, all, 1200.0, false, {"difficulty": "hard", "endless": true}))
+	p.record_run(_finished(b, all, 1100.0, false, {"difficulty": "hard", "endless": true}))
+	check(is_equal_approx(p.mode_time("germania", "hard", "endless"), 1200.0), "a shorter endless run leaves the longest")
+	var won := _finished(b, all, 1500.0, true, {"difficulty": "hard", "endless": true})
+	won.endless_since = 950.0
+	p.record_run(won)
+	check(is_equal_approx(p.mode_time("germania", "hard", "endless"), 1500.0), "a longer one replaces it")
+	check(is_equal_approx(p.mode_time("germania", "hard", "win"), 950.0), "and its win counts as the time the chieftain's fort was held")
+	check(p.mode_time("germania", "medium", "endless") <= 0.0 and p.mode_time("germania", "easy", "endless") <= 0.0, "the other difficulties keep none")
+	p.free()
+	_cleanup_profile_files()
+
+
+func test_an_old_save_keeps_its_record_as_a_medium_one(b: Dictionary) -> void:
+	var p := _fresh_profile()
+	p.data = ProfileScript.merge_saved({"unlocked": {"commanders": ["tribune"], "provinces": ["germania"]},
+		"records": {"germania": {"best_time": 800.0, "longest": 1300.0, "won": true, "hard_won": true, "endless_best": 1300.0}}})
+	p.open_won_provinces(content)
+	check(p.record_of("germania").won and p.record_of("germania").hard_won and p.province_unlocked("gaul"), "an old win still counts as won and hard won")
+	check(is_equal_approx(p.mode_time("germania", "medium", "win"), 800.0) and is_equal_approx(p.mode_time("germania", "medium", "endless"), 1300.0), "its times count under Medium")
+	check(p.mode_time("germania", "easy", "win") <= 0.0 and p.mode_time("germania", "hard", "win") <= 0.0 and p.mode_time("germania", "medium", "decimatio") <= 0.0, "and nowhere else")
+	p.record_run(_finished(b, Content.with_all_art(), 700.0, true, {"difficulty": "easy"}))
+	check(is_equal_approx(p.mode_time("germania", "medium", "win"), 800.0) and is_equal_approx(p.mode_time("germania", "easy", "win"), 700.0), "a new Easy win leaves the old time under Medium")
+	var raw := _fresh_profile()
+	raw.data.records["germania"] = {"best_time": 900.0, "longest": 900.0, "won": true, "hard_won": false}
+	check(is_equal_approx(raw.mode_time("germania", "medium", "win"), 900.0), "a record written without times reads the same way")
+	raw.free()
+	p.free()
+	_cleanup_profile_files()
+
+
+func test_the_map_panel_lists_each_modes_time(b: Dictionary) -> void:
+	var host := _map_host(content, b, "germania")
+	var map := MapScreen.new(host)
+	var saved: Dictionary = Profile.data
+	Profile.data = Profile.defaults()
+	Profile.data.records["germania"] = ProfileScript.merge_saved({"records": {"germania": {"won": true,
+		"times": {"easy": {"win": 900.0}, "medium": {"endless": 1500.0}, "hard": {"decimatio": 1000.0}}}}}).records.germania
+	var rows := map.record_rows("germania")
+	check(rows.map(func(r: Array) -> Array: return r.slice(1)) == [["15:00", "-", "-"], ["-", "-", "25:00"], ["-", "16:40", "-"]], "a row per difficulty with its win, Decimatio and Endless times (%s)" % str(rows))
+	check(rows.map(func(r: Array) -> String: return r[0]) == MapScreen.LEVELS.map(func(l: Array) -> String: return TranslationServer.translate(l[1])), "named Easy, Medium and Hard")
+	Profile.data = saved
+	host.free()
+
+
 func test_winning_germania_unlocks_the_archer_captain(b: Dictionary) -> void:
 	var p := _fresh_profile()
 	var all := Content.with_all_art()
@@ -3515,9 +3604,6 @@ func _cuts_in(loc: String, scale: int, c: Content, sim: Sim, cuts: Array) -> voi
 		_lines(cuts, loc, scale, "quartermaster text", info.text, 568.0, 2)
 	# Map and commanders.
 	var map_text := 568.0
-	var results: Array = [tr_.call("Best time %s") % "99:59", tr_.call("Not won yet"), tr_.call("Hard not won"), tr_.call("Endless %s") % "99:59"]
-	if Ui.pack(results, "  " if big else "     ", map_text).size() > 2:
-		cuts.append("%s x%d map results take more than two lines" % [loc, scale])
 	for id in c.provinces:
 		_lines(cuts, loc, scale, "province text", c.provinces[id].text, map_text, 2)
 	for id in c.commanders:
@@ -3534,6 +3620,18 @@ func _cuts_in(loc: String, scale: int, c: Content, sim: Sim, cuts: Array) -> voi
 		_fit(cuts, loc, scale, "difficulty button", levels[k], level_w[k] - 4.0)
 		if Ui.width_at(levels[k], Ui.px) > level_w[k] - 4.0:
 			cuts.append("%s x%d difficulty button '%s' is drawn smaller than the text size" % [loc, scale, levels[k]])
+	var columns := MapScreen.table_columns(panel_w)
+	for k in MapScreen.TIMES.size():
+		if MapScreen.full_table():
+			_fit(cuts, loc, scale, "record column", tr_.call(MapScreen.TIMES[k][1]), columns[k + 1])
+			_fit(cuts, loc, scale, "record time", "99:59", columns[k + 1])
+		else:
+			_fit(cuts, loc, scale, "record line", tr_.call(MapScreen.TIMES[k][1]), MapScreen.time_label_room(panel_w))
+	if MapScreen.full_table():
+		if columns.reduce(func(sum: float, n: float) -> float: return sum + n, 0.0) > panel_w + 0.5:
+			cuts.append("%s x%d record table needs %d of %d" % [loc, scale, columns.reduce(func(sum: float, n: float) -> float: return sum + n, 0.0), panel_w])
+		for s in levels:
+			_fit(cuts, loc, scale, "record row", s, columns[0] - 4.0)
 	_lines(cuts, loc, scale, "map note", tr_.call("Win here to open Endless and Decimatio"), panel_w, 2)
 	_fit(cuts, loc, scale, "marching here", tr_.call("Marching here").to_upper(), 300.0)
 	# The line under each province's name on the map, in its plate.
