@@ -4,6 +4,8 @@ extends RefCounted
 
 # A ground zone is named for its kind; fire is the burning ground the fire pots leave.
 const ZONE_WEAPON := {"fire": "fire_pots", "oil": "oil_jars"}
+## How wide a hound is, for the trees, walls and ravines that hold him back.
+const DOG_RADIUS := 5.0
 
 var zones: Array = []
 var lobs: Array = []
@@ -340,10 +342,13 @@ func _war_dogs(dt: float, sim: Sim) -> void:
 		# The horde's arrays are reordered when an enemy dies, so the target is checked by its id.
 		if ti >= 0 and (ti >= sim.horde.e_id.size() or sim.horde.e_id[ti] != d.tid or sim.horde.e_hp[ti] <= 0.0):
 			ti = -1
+		# A hound hunts only on his own side of a ravine.
+		if ti >= 0 and sim.terrain.crosses_ravine(d.pos, sim.horde.e_pos[ti]):
+			ti = -1
 		if ti < 0 and d.look <= 0.0:
 			d.look = float(cfg.look_every)
 			ti = sim.nearest_enemy(d.pos, float(cfg.search))
-			if ti >= 0 and sim.horde.e_pos[ti].distance_to(cpos) > float(cfg.leash):
+			if ti >= 0 and (sim.horde.e_pos[ti].distance_to(cpos) > float(cfg.leash) or sim.terrain.crosses_ravine(d.pos, sim.horde.e_pos[ti])):
 				ti = -1
 			if ti >= 0:
 				d.tid = sim.horde.e_id[ti]
@@ -363,8 +368,14 @@ func _war_dogs(dt: float, sim: Sim) -> void:
 					d.face = to / dist
 				sim.hit(ti, dmg, 0.0, "war_dogs", d.pos)
 		elif dist > 2.0:
-			d.pos += to / dist * minf(dist, speed * dt)
-			d.face = to / dist
+			var way := to / dist
+			# A hound whose place lies across a ravine follows the route map round it, as the men do.
+			if ti < 0 and sim.terrain.crosses_ravine(d.pos, goal):
+				var f := sim.terrain.flow_at(d.pos)
+				if f != Vector2.ZERO:
+					way = f
+			d.pos = sim.terrain.push_out(d.pos + way * minf(dist, speed * dt), DOG_RADIUS)
+			d.face = way
 		d.cd = maxf(d.cd, 0.0)
 
 

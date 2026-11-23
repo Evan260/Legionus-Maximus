@@ -1468,6 +1468,33 @@ func test_war_dogs_run_down_a_straggler(b: Dictionary) -> void:
 	check(s.arms.dogs.size() == 2, "rank 2 keeps two dogs")
 
 
+func test_war_dogs_keep_out_of_ravines(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 1540)
+	s.soldiers.clear()
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	s.ranks["war_dogs"] = 1
+	_gorge(s, -160, 160, 70, 25)
+	var i := s.horde.spawn("barbarian_club", s.commander.pos + Vector2(0, 130))
+	s.horde.e_stun[i] = 1e9
+	s.horde.e_hp[i] = 1e9
+	var dry := true
+	for k in 180:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+		dry = dry and not s.terrain.over_ravine(s.arms.dogs[0].pos)
+	check(dry, "a hound never runs over the drop")
+	check(s.damage_by_source.get("war_dogs", 0.0) == 0.0, "nor bites a barbarian across it")
+	s.horde.remove_at(0)
+	var dog: Dictionary = s.arms.dogs[0]
+	dog.pos = s.commander.pos + Vector2(0, 130)
+	dog.idx = -1
+	dry = true
+	for k in 480:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+		dry = dry and not s.terrain.over_ravine(dog.pos)
+	check(dry and dog.pos.distance_to(s.commander.pos) < 40.0, "a hound across a ravine comes home round it (%.0f px off)" % dog.pos.distance_to(s.commander.pos))
+
+
 func test_oil_slows_enemies_on_it(b: Dictionary) -> void:
 	var s := _arms_sim(b, 46, {})
 	s.arms.add_zone("oil", Vector2(60, 0), 30.0, 5.0, 0.0, {"slow": 0.5})
