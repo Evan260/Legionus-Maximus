@@ -113,6 +113,13 @@ func met(info: Dictionary, sim: Sim, banked: bool) -> bool:
 			return int(Profile.data.totals.kills) + (0 if banked else sim.kills) >= int(target)
 		"legion":
 			return maxi(sim.peak_soldiers, sim.soldiers.size()) + 1 >= int(target)
+		"maxed":
+			var group: Dictionary = sim.content.get(str(info.group))
+			var done := 0
+			for id in group:
+				if sim.rank(id) >= int(group[id].max):
+					done += 1
+			return not group.is_empty() and done >= int(info.get("target", group.size()))
 	return false
 
 

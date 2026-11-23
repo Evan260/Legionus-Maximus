@@ -62,6 +62,9 @@ ART = {
     "legion_25": ("legion", 2, 3, "25"),
     "legion_50": ("legion", 3, 4, "50"),
     "legion_100": ("legion", 4, 5, "100"),
+    "arms_8": ("icons", ["pilum", "scorpio", "onager", "fire_arrows", "caltrops", "eagle"], 3, "8", True),
+    "forge_all": ("forge_set", ["hooked_pila", "greek_fire", "siege_train", "hunting_horn", "burning_eagle", "fortified_camp"], 3),
+    "drills_all": ("icons", ["shield_wall", "gladius", "lorica", "testudo", "march", "discipline"], 3, "15", False),
 }
 
 
@@ -73,6 +76,13 @@ def sprite(name):
 
 def icon(name):
     return Image.open(GAME / "assets" / "icons" / f"{name}.png").convert("RGBA")
+
+
+def small(name, size):
+    """An icon shrunk to a size, its edge kept hard so it stays pixel art."""
+    img = icon(name).resize((size, size), Image.LANCZOS)
+    img.putalpha(img.getchannel("A").point(lambda a: 255 if a >= 128 else 0))
+    return img
 
 
 def fit(img, height):
@@ -178,6 +188,36 @@ def forge(img, name):
         d.rectangle((x, y, x + 1, y + 1), fill=GOLD_LIGHT)
 
 
+def icons(img, names, cols, text, embers):
+    """Icons in rows under a count, on small ember glows or on the bare parchment."""
+    size, gap = 16, 2
+    rows = (len(names) + cols - 1) // cols
+    left = 32 - (cols * size + (cols - 1) * gap) // 2
+    top = 37 - (rows * size + (rows - 1) * gap) // 2
+    for n, name in enumerate(names):
+        r, c = divmod(n, cols)
+        x, y = left + c * (size + gap), top + r * (size + gap)
+        if embers:
+            glow(img, (x + size / 2 - 0.5, y + size / 2 - 0.5), size * 0.56)
+        img.alpha_composite(small(name, size), (x, y))
+    number(img, text, (32, 6))
+
+
+def forge_set(img, names, cols):
+    """Forged icons in rows on one big ember glow, with the forge's sparks."""
+    glow(img, (32, 32), 27)
+    size, gap = 17, 1
+    rows = (len(names) + cols - 1) // cols
+    left = 32 - (cols * size + (cols - 1) * gap) // 2
+    top = 32 - (rows * size + (rows - 1) * gap) // 2
+    for n, name in enumerate(names):
+        r, c = divmod(n, cols)
+        img.alpha_composite(small(name, size), (left + c * (size + gap), top + r * (size + gap)))
+    d = ImageDraw.Draw(img)
+    for x, y in ((9, 12), (52, 10), (12, 50), (51, 52), (5, 30), (57, 31)):
+        d.rectangle((x, y, x + 1, y + 1), fill=GOLD_LIGHT)
+
+
 def crowd(img, names, text):
     n = len(names)
     rows = [names] if n <= 3 else [names[:3], names[3:]]
@@ -215,6 +255,10 @@ def build(ach_id):
         forge(img, spec[1])
     elif kind == "crowd":
         crowd(img, spec[1], spec[2])
+    elif kind == "icons":
+        icons(img, spec[1], spec[2], spec[3], spec[4])
+    elif kind == "forge_set":
+        forge_set(img, spec[1], spec[2])
     else:
         legion(img, spec[1], spec[2], spec[3])
     # Whatever reaches past the stripe is cut off, so the frame stays whole.

@@ -2895,6 +2895,25 @@
    "text": "Lead 100 soldiers at once.",
    "kind": "legion",
    "target": 100
+  },
+  "arms_8": {
+   "name": "Eight arms mastered",
+   "text": "Bring eight arms to their highest level in one run.",
+   "kind": "maxed",
+   "group": "arms",
+   "target": 8
+  },
+  "forge_all": {
+   "name": "Forged in fire",
+   "text": "Forge all six forged arms in one run.",
+   "kind": "maxed",
+   "group": "forged"
+  },
+  "drills_all": {
+   "name": "Master of drills",
+   "text": "Bring every drill to its highest level in one run.",
+   "kind": "maxed",
+   "group": "drills"
   }
  },
  "gods": {

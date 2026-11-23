@@ -25,3 +25,6 @@
 | `legion_25` | Legion of 25 | Lead 25 soldiers at once. | no |
 | `legion_50` | Legion of 50 | Lead 50 soldiers at once. | no |
 | `legion_100` | Legion of 100 | Lead 100 soldiers at once. | no |
+| `arms_8` | Eight arms mastered | Bring eight arms to their highest level in one run. | no |
+| `forge_all` | Forged in fire | Forge all six forged arms in one run. | no |
+| `drills_all` | Master of drills | Bring every drill to its highest level in one run. | no |

@@ -3058,6 +3058,39 @@ func test_winning_as_a_commander_is_earned(b: Dictionary) -> void:
 	Profile.data = saved
 
 
+func test_last_rank_achievements_are_earned_when_the_last_one_is_reached(b: Dictionary) -> void:
+	var saved: Dictionary = Profile.data
+	for case in [["arms_8", "arms"], ["forge_all", "forged"], ["drills_all", "drills"]]:
+		Profile.data = Profile.defaults()
+		Steamworks.queue.clear()
+		var info: Dictionary = content.achievements.get(case[0], {})
+		check(info.get("kind", "") == "maxed" and info.get("group", "") == case[1], "%s counts %s at their last rank" % case)
+		var need: int = int(info.get("target", content.get(case[1]).size()))
+		check(case[0] == "arms_8" or need == content.get(case[1]).size(), "%s asks for every one of the %s" % case)
+		var s := Sim.new(b, content, {"seed": 33})
+		var ids: Array = content.get(case[1]).keys()
+		for i in need - 1:
+			s.ranks[ids[i]] = int(content.get(case[1])[ids[i]].max)
+		var last: String = ids[need - 1]
+		s.ranks[last] = int(content.get(case[1])[last].max) - 1
+		for other in ids.slice(need):
+			s.ranks[other] = int(content.get(case[1])[other].max) - 1
+		check(not case[0] in Steamworks.check(s), "%s is not earned one rank short" % case[0])
+		s.ranks[last] = int(content.get(case[1])[last].max)
+		check(case[0] in Steamworks.check(s), "%s is earned when the last one reaches its last rank" % case[0])
+		check(Steamworks.queue.any(func(c: Dictionary) -> bool: return c.id == case[0]), "%s slides in as a card" % case[0])
+	Steamworks.queue.clear()
+	Profile.data = saved
+
+
+func test_every_achievement_has_its_steam_icons_and_row(_b: Dictionary) -> void:
+	var dir := ProjectSettings.globalize_path("res://").path_join("../store/achievements")
+	var table := FileAccess.get_file_as_string(dir.path_join("achievements.md"))
+	for id in content.achievements:
+		check(FileAccess.file_exists(dir.path_join(id + ".jpg")) and FileAccess.file_exists(dir.path_join(id + "_locked.jpg")), "%s has its earned and locked icons" % id)
+		check(table.contains("| `%s` | %s | %s |" % [id, content.achievements[id].name, content.achievements[id].text]), "%s has its row in achievements.md" % id)
+
+
 class FakeSteam:
 	extends RefCounted
 	var sent: Array = []
