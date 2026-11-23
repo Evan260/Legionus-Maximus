@@ -298,12 +298,13 @@ func legion_health() -> Dictionary:
 	return {"wounded": wounded, "share": share, "commander": own}
 
 
-## The supply a bot or an autoplay takes: healing for a legion below half health, otherwise the free level-up.
+## The supply a bot or an autoplay takes: healing for a legion or a commander below half health, otherwise the free level-up.
 func bot_supply() -> String:
 	var offers := supply_offers()
 	if offers.is_empty():
 		return ""
-	if offers.has("heal") and legion_health().share < 50:
+	var h := legion_health()
+	if offers.has("heal") and (h.share < 50 or h.commander < 50):
 		return "heal"
 	return "free_choice" if offers.has("free_choice") else str(offers[0])
 

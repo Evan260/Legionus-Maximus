@@ -1654,6 +1654,8 @@ func test_each_supply_cart_choice_gives_its_reward(b: Dictionary) -> void:
 	check(s.soldiers[0].hp == s.soldiers[0].max_hp and s.commander.hp == s.commander.max_hp, "the heal choice heals the legion and the commander")
 	s.add_supply(1)
 	check(s.bot_supply() == "free_choice", "a bot takes the level-up while the legion is well")
+	s.commander.hp = s.commander.max_hp * 0.15
+	check(s.bot_supply() == "heal", "and heals a commander below half health beside a healthy legion")
 
 
 func test_a_supply_cart_with_the_bonus_is_chosen_from_twice(b: Dictionary) -> void:
