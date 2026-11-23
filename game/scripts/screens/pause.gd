@@ -46,6 +46,8 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	ui.button(c, Rect2(Ui.W / 2 - w / 2, top + h + 8, w, h), "settings", tr("Settings").to_upper(), "", true, null, true)
 	ui.button(c, Rect2(Ui.W / 2 - w / 2, top + 2 * (h + 8), w, h), "giveup", tr("Give up the run").to_upper(), "", true, null, true)
 	ui.fit_text(c, Controls.hint("pick"), Ui.W - 16.0, Vector2(0, Ui.H - 10), Ui.CREAM, HORIZONTAL_ALIGNMENT_CENTER, Ui.W, true)
+	if not confirming:
+		ui.fit_text(c, Hud.run_line(main.sim), Ui.W - 16.0, Vector2(0, top + 3 * (h + 8) + 8), Ui.CREAM, HORIZONTAL_ALIGNMENT_CENTER, Ui.W, true)
 	if confirming:
 		var ask := tr("Give up the run? Tap again to confirm") if Touch.phone else tr("Give up the run? %s again to confirm") % Controls.key_of("confirm")
 		ui.fit_text(c, ask, Ui.W - 16.0, Vector2(0, top + 3 * (h + 8) + 8), Ui.GOLD, HORIZONTAL_ALIGNMENT_CENTER, Ui.W, true)

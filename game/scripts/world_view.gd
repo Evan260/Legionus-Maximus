@@ -410,13 +410,14 @@ func _draw() -> void:
 	_add_chests_and_carts(view)
 	_add_objectives(view)
 	_add_flames(view)
+	_add_coins(view)
 	_keys.sort()
 	var tex := atlas.texture
-	# Stains and coins go over the ground pictures, such as dunes and heather, and under everything that stands.
+	# Stains and the coins' shadows go over the ground pictures, such as dunes and heather, and under everything that stands.
 	var standing := _keys.bsearch(STANDING_KEY)
 	_draw_sorted(tex, 0, standing)
 	_draw_stains(view)
-	_draw_coins(view)
+	_draw_coin_shadows(view)
 	_draw_sorted(tex, standing, _keys.size())
 	_draw_death_bits()
 
@@ -956,13 +957,25 @@ func _draw_torches() -> void:
 		draw_rect(Rect2(p + Vector2(-1, -9 - flick), Vector2(2, 4)), Color(1.0, 0.92, 0.55))
 
 
-func _draw_coins(view: Rect2) -> void:
+func _draw_coin_shadows(view: Rect2) -> void:
+	if not atlas.props.has("coin"):
+		return
+	var size: Vector2 = atlas.prop_frame("coin")[0].size
+	for i in sim.c_pos.size():
+		var p: Vector2 = sim.c_pos[i]
+		if view.has_point(p):
+			var at := (p - size / 2.0 + Vector2(0, -2.0)).round()
+			draw_rect(Rect2(at + Vector2(1, size.y - 1), Vector2(size.x - 2, 2)), Color(0.05, 0.04, 0.02, 0.35))
+
+
+## Each coin among the sorted sprites at its own depth, so a rock or a man in front of it covers it and it lies over the ones behind.
+func _add_coins(view: Rect2) -> void:
 	# A denarius is drawn as a full coin sprite with a dark rim, bobbing and glinting, so it stands out from the grass.
 	if not atlas.props.has("coin"):
 		return
 	var f := atlas.prop_frame("coin")
-	var tex := atlas.texture
-	var size: Vector2 = f[0].size
+	var rect: Rect2 = f[0]
+	var size: Vector2 = rect.size
 	var gold := Color(1.35, 1.12, 0.5)
 	var rim := Color(0.18, 0.1, 0.04, 0.85)
 	for i in sim.c_pos.size():
@@ -971,14 +984,11 @@ func _draw_coins(view: Rect2) -> void:
 			continue
 		var bob := roundf(sin(sim.time * 4.0 + i * 1.7) * 1.0)
 		var at := (p - size / 2.0 + Vector2(0, bob - 2.0)).round()
-		draw_rect(Rect2(at + Vector2(1, size.y - 1), Vector2(size.x - 2, 2)), Color(0.05, 0.04, 0.02, 0.35))
-		draw_texture_rect_region(tex, Rect2(at + Vector2(-1, 0), size), f[0], rim)
-		draw_texture_rect_region(tex, Rect2(at + Vector2(1, 0), size), f[0], rim)
-		draw_texture_rect_region(tex, Rect2(at + Vector2(0, -1), size), f[0], rim)
-		draw_texture_rect_region(tex, Rect2(at + Vector2(0, 1), size), f[0], rim)
-		draw_texture_rect_region(tex, Rect2(at, size), f[0], gold)
+		for off in [Vector2(-1, 0), Vector2(1, 0), Vector2(0, -1), Vector2(0, 1)]:
+			_add(p.y, rect, at + off, rim)
+		_add(p.y, rect, at, gold)
 		if int(sim.time * 5.0 + i * 3) % 11 == 0:
-			draw_rect(Rect2(at + Vector2(3, 2), Vector2(2, 2)), Color(1, 1, 0.92))
+			_add(p.y, Rect2(rect.position + Vector2(3, 2), Vector2(2, 2)), at + Vector2(3, 2), Color(3, 3, 2.8))
 
 
 ## Chests left by elites and supply carts, when their art is drawn.
