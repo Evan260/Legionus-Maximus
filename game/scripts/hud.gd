@@ -972,6 +972,11 @@ static func big_layout(n: int, view: Vector2, tl: Vector2, br: Vector2, phone: b
 	else:
 		out.hint_y = corner_top - 6.0
 		foot = out.hint_y - Ui.px - 6.0
+		# The mouse's reroll and banish buttons sit low between the corners, under the key hint.
+		var bh := 24.0
+		var room := minf(cx - left.end.x, right.position.x - cx) - 8.0
+		var bw := minf(BIG_BUTTON_W, floorf(room - 4.0))
+		out.buttons = Rect2(cx - bw / 2.0, safe.end.y - 4.0 - bh, bw, bh)
 	var room := foot - top
 	var rh := minf(BIG_ROW_H, floorf((room - (n - 1) * BIG_ROW_GAP) / n))
 	var rw := minf(BIG_ROW_W, safe.size.x - 16.0)
@@ -1181,7 +1186,9 @@ func _choices(sim: Sim) -> void:
 		return
 	var level := Controls.hint("level")
 	var extras: Array = []
-	if not (side_panel or supply):
+	if big and not supply:
+		_big_choice_buttons(sim)
+	elif not (side_panel or supply):
 		if sim.rerolls > 0:
 			extras.append(Controls.hint("reroll", sim.rerolls))
 		if sim.banishes > 0:
@@ -1203,17 +1210,48 @@ func _touch_choice_buttons(sim: Sim, praying: bool, one: Rect2) -> void:
 		ids.append(["reroll", "%s (%d)" % [tr("reroll"), sim.rerolls]])
 	if levelling and sim.banishes > 0:
 		ids.append(["banish", "%s (%d)" % [tr("banish"), sim.banishes]])
-	var gap := 8.0
 	var w := one.size.x
 	var h := one.size.y
-	var x0 := roundf(one.get_center().x - (ids.size() * w + (ids.size() - 1) * gap) / 2.0)
+	var row := button_row(ids.map(func(pair: Array) -> String: return pair[0]), one)
 	for k in ids.size():
-		var r := Rect2(x0 + k * (w + gap), one.position.y, w, h)
+		var r: Rect2 = row[ids[k][0]]
 		touch_buttons[ids[k][0]] = r
 		if k == 0:
 			draw_rect(r.grow(3), GOLD)
 		panel(r, CREAM if k == 0 else PARCH)
 		ui.fit_text(self, str(ids[k][1]).to_upper(), w - 12.0, Vector2(r.position.x, r.position.y + h / 2.0 + Ui.px * 3 / 8), INK, HORIZONTAL_ALIGNMENT_CENTER, w)
+
+
+## A row of buttons, one for each id, each the size of `one` and the row centred where `one` is, as {id: rect}.
+static func button_row(ids: Array, one: Rect2) -> Dictionary:
+	var gap := 8.0
+	var x0 := roundf(one.get_center().x - (ids.size() * one.size.x + (ids.size() - 1) * gap) / 2.0)
+	var out := {}
+	for k in ids.size():
+		out[ids[k]] = Rect2(x0 + k * (one.size.x + gap), one.position.y, one.size.x, one.size.y)
+	return out
+
+
+## The reroll and banish buttons under large rows on a computer, for the ones with a use left, as {id: rect}.
+static func big_choice_buttons(sim: Sim) -> Dictionary:
+	var ids: Array = []
+	if sim.rerolls > 0:
+		ids.append("reroll")
+	if sim.banishes > 0:
+		ids.append("banish")
+	return button_row(ids, big_layout(3, Ui.view, Touch.inset_tl, Touch.inset_br, false, 0.0).buttons)
+
+
+## The reroll and banish buttons under large rows on a computer, labelled with their keys as the choice panel's are.
+func _big_choice_buttons(sim: Sim) -> void:
+	var buttons := big_choice_buttons(sim)
+	var over := get_local_mouse_position() - Ui.offset
+	for id in buttons:
+		var r: Rect2 = buttons[id]
+		if r.has_point(over):
+			draw_rect(r.grow(2), GOLD)
+		panel(r, PARCH)
+		ui.fit_text(self, choice_button_label(sim, id), r.size.x - 12.0, Vector2(r.position.x, r.position.y + r.size.y / 2.0 + Ui.px * 3 / 8), INK, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
 
 
 ## The width of each of `n` buttons in the row under a phone's choice at the normal text size.

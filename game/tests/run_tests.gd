@@ -12593,6 +12593,39 @@ func test_banishing_with_the_mouse_banishes_the_row_clicked(b: Dictionary) -> vo
 	Ui.set_text_size(before, b)
 
 
+func test_large_text_on_a_computer_rerolls_and_banishes_with_the_mouse(b: Dictionary) -> void:
+	var before := Ui.scale
+	var before_view := Ui.view
+	Ui.set_text_size(2, b)
+	Ui.fit_view(Vector2(640, 360))
+	var lay := Hud.big_layout(3, Ui.view, Vector2.ZERO, Vector2.ZERO, false, 0.0)
+	var m := _bare_main(b, lay.rows)
+	m.sim = _quiet_sim(b, 4404)
+	m.sim.rerolls = 1
+	m.sim.banishes = 1
+	m.sim.gain(m.sim.xp_next - m.sim.xp)
+	m._open_choices()
+	m.clock = 5.0
+	var buttons: Dictionary = Hud.big_choice_buttons(m.sim)
+	check(buttons.has("reroll") and buttons.has("banish"), "large rows on a computer have reroll and banish buttons (%s)" % [buttons.keys()])
+	for id in buttons:
+		var r: Rect2 = buttons[id]
+		check(r.position.y > lay.hint_y and r.end.y <= Ui.H, "the %s button %s sits under the key hint, on the screen" % [id, r])
+		for c in lay.corners:
+			check(not r.intersects(c), "the %s button %s clears the corner %s" % [id, r, c])
+	var first: Array = m.choices.duplicate()
+	_mouse_click(m, buttons.reroll.get_center())
+	check(m.sim.rerolls == 0 and m.choices != first, "a click on the reroll button rerolls")
+	_mouse_click(m, lay.rows[2].get_center())
+	var want: String = m.choices[2]
+	_mouse_click(m, Hud.big_choice_buttons(m.sim).banish.get_center())
+	check(m.sim.banished == [want], "a click on the banish button banishes the row clicked (%s)" % [m.sim.banished])
+	check(Hud.big_choice_buttons(m.sim).is_empty(), "with none left there are no buttons")
+	_free_main(m)
+	Ui.fit_view(before_view)
+	Ui.set_text_size(before, b)
+
+
 func test_a_mouse_click_waits_for_the_confirm_delay(b: Dictionary) -> void:
 	var rows := Hud.choice_rows(3, false)
 	var m := _bare_main(b, rows)

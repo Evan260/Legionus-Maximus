@@ -1052,16 +1052,23 @@ func _pointer(event: InputEvent, at: Vector2) -> void:
 		_click_choice(at)
 
 
-## A click on a choice: the panel's reroll or banish button, or a row, which the pointer passing over never picks out, so a banish hits the row clicked.
+## A click on a choice: a reroll or banish button, or a row, which the pointer passing over never picks out, so a banish hits the row clicked.
 func _click_choice(at: Vector2) -> void:
+	var button := ""
 	if state == "choose" and Hud.shows_choice_panel(false, Ui.scale > 1):
-		match Hud.choice_button_at(sim, at):
-			"reroll":
-				_reroll()
-				return
-			"banish":
-				_banish()
-				return
+		button = Hud.choice_button_at(sim, at)
+	elif state == "choose" and Ui.scale > 1:
+		var buttons := Hud.big_choice_buttons(sim)
+		for id in buttons:
+			if buttons[id].has_point(at):
+				button = id
+	match button:
+		"reroll":
+			_reroll()
+			return
+		"banish":
+			_banish()
+			return
 	var i: int = hud.choice_at(at)
 	if i >= 0:
 		_pick_row(i)
