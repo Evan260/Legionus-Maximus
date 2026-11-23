@@ -920,14 +920,14 @@ func _legion_attacks(dt: float) -> void:
 	legion.update(dt, self)
 
 
-## A missile in flight; extra can set knock, bounces, bounce_reach, explode and life.
+## A missile in flight; extra can set explode, pin, life and src.
 func shoot(kind: String, from: Vector2, to: Vector2, spd: float, dmg: float, pierce: int, burn: float = 0.0, extra: Dictionary = {}) -> void:
 	var dir := (to - from).normalized()
 	var counted := COUNTED.find(kind)
 	if counted >= 0:
 		tally(counted, from)
 	var shot := {"kind": kind, "pos": from + dir * 6.0, "vel": dir * spd, "dmg": dmg, "pierce": pierce,
-		"burn": burn, "life": 1.4, "hit": {}, "knock": 0.0, "bounces": 0, "bounce_reach": 0.0, "explode": 0.0, "pin": 0.0, "src": kind}
+		"burn": burn, "life": 1.4, "hit": {}, "explode": 0.0, "pin": 0.0, "src": kind}
 	shot.merge(extra, true)
 	shots.append(shot)
 
@@ -957,13 +957,9 @@ func _move_shots(dt: float) -> void:
 						hit(j, s.dmg * (1.0 - armour), s.burn, s.src, s.pos - s.vel.normalized() * 30.0)
 						if s.pin > 0.0:
 							horde.e_stun[j] = maxf(horde.e_stun[j], s.pin)
-						if s.knock > 0.0:
-							horde.e_pos[j] += (horde.e_pos[j] - s.pos).normalized() * s.knock
 						s.hit[horde.e_id[j]] = true
 						s.pierce -= 1
 						if s.pierce < 0:
-							if s.bounces > 0 and _bounce(s, j):
-								continue
 							spent = true
 							break
 		if not spent and s.life > 0.0:
@@ -971,26 +967,6 @@ func _move_shots(dt: float) -> void:
 		elif s.explode > 0.0:
 			_explode(s.pos, s.explode, s.dmg, s.src)
 	shots = keep
-
-
-## Turns a spent stone toward the nearest enemy it has not struck; false when none is near.
-func _bounce(s: Dictionary, from_enemy: int) -> bool:
-	var best := -1
-	var best_d := INF
-	for j in enemies_near(horde.e_pos[from_enemy], s.bounce_reach):
-		if s.hit.has(horde.e_id[j]):
-			continue
-		var d := (horde.e_pos[j] - horde.e_pos[from_enemy]).length_squared()
-		if d < best_d:
-			best_d = d
-			best = j
-	if best < 0:
-		return false
-	s.bounces -= 1
-	s.pierce = 0
-	s.pos = horde.e_pos[from_enemy]
-	s.vel = (horde.e_pos[best] - s.pos).normalized() * s.vel.length()
-	return true
 
 
 func _explode(p: Vector2, radius: float, dmg: float, src: String) -> void:

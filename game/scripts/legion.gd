@@ -584,13 +584,9 @@ func _missile(s: Dictionary, dt: float, sim: Sim) -> void:
 	s.cd += float(info.cooldown)
 	sim.strike(s, sim.horde.e_pos[t])
 	var dmg := float(info.damage) * sim.gladius_mult(true)
-	if s.type == "archer":
-		var fire := sim.rank("fire_arrows")
-		sim.shoot("arrow", s.pos, sim.horde.e_pos[t], float(info.arrow_speed), dmg, int(stat(s.type, "pierce")),
-			(_b.fire_arrows.dps + _b.fire_arrows.dps_per_level * (fire - 1)) if fire > 0 else 0.0, {"src": "archer"})
-	else:
-		sim.shoot("stone", s.pos, sim.horde.e_pos[t], float(info.stone_speed), dmg, 0, 0.0,
-			{"knock": float(info.knockback), "bounces": int(stat(s.type, "bounces")), "bounce_reach": float(info.bounce_reach), "src": s.type})
+	var fire := sim.rank("fire_arrows")
+	sim.shoot("arrow", s.pos, sim.horde.e_pos[t], float(info.arrow_speed), dmg, int(stat(s.type, "pierce")),
+		(_b.fire_arrows.dps + _b.fire_arrows.dps_per_level * (fire - 1)) if fire > 0 else 0.0, {"src": s.type})
 
 
 func _ballista(s: Dictionary, dt: float, sim: Sim) -> void:
