@@ -53,6 +53,7 @@ func activate(id: String) -> void:
 	var parts := id.split(":")
 	var setup: Dictionary = main.run_setup
 	if parts[0] == "prov":
+		selected = parts[1]
 		if parts[1] != setup.province:
 			setup.province = parts[1]
 			for m in MODES:
@@ -69,6 +70,13 @@ func activate(id: String) -> void:
 		if parts[1] != setup.province:
 			activate("prov:" + parts[1])
 		setup[parts[0]] = not setup[parts[0]]
+
+
+## The panel follows keys and a gamepad from province to province, but the pointer only by a click, so passing over the map leaves the difficulty being set where it is.
+func follow_focus(ui: Ui) -> void:
+	var id := ui.focus.trim_prefix("prov:")
+	if ui.focus.begins_with("prov:") and not ui.pointer_focus and main.content.provinces.has(id):
+		selected = id
 
 
 static func clock(seconds: float) -> String:
@@ -179,8 +187,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	var ids := road()
 	if selected == "" or not ids.has(selected):
 		selected = setup.province if ids.has(setup.province) else ids[0]
-	if ui.focus.begins_with("prov:") and ids.has(ui.focus.trim_prefix("prov:")):
-		selected = ui.focus.trim_prefix("prov:")
+	follow_focus(ui)
 	Ui.veil(c, 0.85)
 	if _picture == null:
 		_picture = load("res://assets/map.png")

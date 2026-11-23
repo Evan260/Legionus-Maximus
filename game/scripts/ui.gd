@@ -29,6 +29,8 @@ static var offset := Vector2.ZERO
 
 var items: Array = []
 var focus := ""
+## Whether the focus was last moved by the pointer resting over a button, rather than by keys or a gamepad.
+var pointer_focus := false
 ## Where a key moves focus from a button when the screen sets it, in place of the nearest button that way.
 var links := {}
 var _next: Array = []
@@ -370,6 +372,7 @@ func link(id: String, dir: Vector2, to: String) -> void:
 
 ## Moves focus where the screen linked it, or to the nearest button in the direction, preferring ones that line up with the current one.
 func move(dir: Vector2) -> void:
+	pointer_focus = false
 	var linked: String = links.get("%s|%s" % [focus, dir], "")
 	if linked != "" and has_item(linked):
 		focus = linked
@@ -412,6 +415,7 @@ func at(p: Vector2) -> String:
 func hover(p: Vector2) -> void:
 	var id := at(p)
 	if id != "":
+		pointer_focus = true
 		focus = id
 
 

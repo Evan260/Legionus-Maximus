@@ -8177,6 +8177,26 @@ func test_the_map_road_never_crosses_itself(b: Dictionary) -> void:
 	host.free()
 
 
+func test_hovering_a_province_leaves_the_panel_until_it_is_clicked(b: Dictionary) -> void:
+	var host := _map_host(content, b, "germania")
+	var map := MapScreen.new(host)
+	var ui := Ui.new()
+	map.selected = "germania"
+	ui.focus = "prov:germania"
+	ui.pointer_focus = true
+	ui.focus = "prov:gaul"
+	map.follow_focus(ui)
+	check(map.selected == "germania", "the pointer passing over Gaul leaves Germania's panel and difficulty up")
+	map.activate("prov:gaul")
+	map.follow_focus(ui)
+	check(map.selected == "gaul", "clicking Gaul shows its panel")
+	ui.pointer_focus = false
+	ui.focus = "prov:britannia"
+	map.follow_focus(ui)
+	check(map.selected == "britannia", "keys or a gamepad moving to a province still show its panel")
+	host.free()
+
+
 func test_the_map_chooses_the_difficulty_and_keeps_modes_for_a_win(b: Dictionary) -> void:
 	var host := _map_host(content, b, "germania")
 	var map := MapScreen.new(host)
