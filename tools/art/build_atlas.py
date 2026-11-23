@@ -10,7 +10,7 @@ Soldiers' armour and red cloth are marked in the alpha channel (LIVERY) so the g
 upgraded; `--livery-only` marks the existing atlas without rebuilding it.
 
 Usage: python tools/art/build_atlas.py [--livery-only]
-Writes game/assets/atlas.png, game/assets/atlas.json and the province grounds in game/assets/grounds/.
+Writes game/assets/atlas.png, game/assets/atlas.json, the wheat tile and the province grounds in game/assets/grounds/.
 """
 import json
 import shutil
@@ -54,7 +54,7 @@ PROPS = {"oak": "props2/oak.png", "fir": "props2/fir.png", "rock": "props2/rock.
          "eagle_standard": "props3/eagle_standard.png",
          "altar": "props3/altar.png", "stump": "props3/stump.png", "timber": "props3/timber.png",
          "wheat": "props3/wheat.png", "hedge": "props3/hedge.png", "hedge_end_left": "props6/hedge_end_left.png",
-         "hedge_end_right": "props6/hedge_end_right.png", "village": "props3/village.png", "roundhouse": "roundhouse/house_a.png",
+         "hedge_end_right": "props6/hedge_end_right.png", "roundhouse": "roundhouse/house_a.png",
          "wheat_field": "wheat_field/field_tile.png", "pine": "props3/pine.png", "frozen_stream": "frozen_stream/ice_tile.png",
          "dune": "props4/dune.png", "palm": "props4/palm.png", "ruined_wall": "props4/ruined_wall.png", "well": "props4/well.png",
          "fort_wall": "castra/wall_tile.png", "fort_side": "castra/side_tile.png", "watchtower": "castra/tower.png", "tent": "castra/tent.png",
@@ -62,10 +62,16 @@ PROPS = {"oak": "props2/oak.png", "fir": "props2/fir.png", "rock": "props2/rock.
          "heather": "props5/heather.png", "bog": "props5/bog.png", "stone_circle": "props5/stone_circle.png",
          "olive": "props7/olive.png", "stone_wall": "props7/stone_wall.png", "dry_grass": "props7/dry_grass.png",
          "date_palm": "props8/date_palm.png", "papyrus": "props8/papyrus.png", "fallen_column": "props8/fallen_column.png",
-         "obelisk": "props8/obelisk.png", "crops": "props8/crops.png",
+         "obelisk": "props8/obelisk.png",
          "feather_grass": "props9/feather_grass.png", "kurgan": "props9/kurgan_b.png", "wagon": "props9/wagon.png", "birch": "props9/birch.png"}
 # Props drawn as several frames side by side on one sheet, played in turn.
 SHEETS = {"flame": "props3/flame_sheet_b.png"}
+# Smaller copies of a sheet's frames, smoothed down from the drawing, as name: (sheet prop, scale), so a fire grows and dies
+# down by whole pictures instead of being stretched.
+SMALLER = {"flame_half": ("flame", 0.5), "flame_three_quarters": ("flame", 0.75)}
+# Pictures of several standing stones on one patch of grass, split as name: picture into the grass, drawn flat, and each
+# stone, sorted at its own foot, so a man can stand between the stones.
+SPLIT = {"stone_circle_parts": "stone_circle"}
 # Props toned down after drawing, as (how much the light parts darken, how much colour is taken out), so the
 # scattered stones and felled stumps do not shine like coins on the grass.
 TONE = {"stones": (0.4, 0.5), "stump": (0.4, 0.2)}
@@ -276,6 +282,70 @@ def torso_x(images, anchor, height):
     return float(np.mean(xs)) if xs else 0.0
 
 
+def smaller(frames, k):
+    """Frames scaled by k with their colours averaged, on canvases of one size so they stay rooted where they stand."""
+    size = (max(1, round(frames[0].width * k)), max(1, round(frames[0].height * k)))
+    return [im.convert("RGBa").resize(size, Image.Resampling.BOX).convert("RGBA") for im in frames]
+
+
+def rimmed_coin(coin):
+    """The coin as the game draws it: gold, inside a dark rim a pixel wide made of its own shape."""
+    a = np.asarray(coin).astype(float)
+    rim = (a * [0.18, 0.1, 0.04, 0.85]).clip(0, 255).astype(np.uint8)
+    gold = (a * [1.35, 1.12, 0.5, 1.0]).clip(0, 255).astype(np.uint8)
+    out = Image.new("RGBA", (coin.width + 2, coin.height + 2), (0, 0, 0, 0))
+    for dx, dy in ((0, 1), (2, 1), (1, 0), (1, 2)):
+        out.alpha_composite(Image.fromarray(rim), (dx, dy))
+    out.alpha_composite(Image.fromarray(gold), (1, 1))
+    return out
+
+
+def split_stones(im):
+    """A picture of standing stones on grass as [the grass, each stone], all on its canvas, and each part's lowest row.
+    Each stone grows from its light middle, which its dark outline keeps apart from the next, over every pixel that is
+    not grass and lies within a few pixels of that middle."""
+    a = np.asarray(im)
+    drawn = a[..., 3] > 0
+    hsv = cv2.cvtColor(np.ascontiguousarray(a[..., :3]), cv2.COLOR_RGB2HSV).astype(int)
+    h, s, v = hsv[..., 0], hsv[..., 1], hsv[..., 2]
+    grass = drawn & (v >= 50) & (((h >= 22) & (h <= 50) & (s >= 105)) | ((h >= 30) & (h <= 50) & (s >= 40)))
+    stony = drawn & ~grass
+    middle = cv2.erode((drawn & (s < 95) & (v >= 45)).astype(np.uint8), cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3)))
+    n, labels, stats, _ = cv2.connectedComponentsWithStats(middle, 4)
+    seeds = [i for i in range(1, n) if stats[i][4] >= 15]
+    reach = np.zeros(drawn.shape, int)
+    owner = np.zeros(drawn.shape, int)
+    for k, i in enumerate(seeds):
+        hull = np.zeros(drawn.shape, np.uint8)
+        cv2.fillConvexPoly(hull, cv2.convexHull(np.argwhere(labels == i)[:, ::-1].astype(np.int32)), 1)
+        reach[cv2.dilate(hull, np.ones((15, 15), np.uint8)).astype(bool)] |= 1 << k
+        owner[hull.astype(bool) & stony] = k + 1
+    while True:
+        grown = owner.copy()
+        for dy, dx in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+            near = np.roll(owner, (dy, dx), (0, 1))
+            within = (near > 0) & ((reach >> np.maximum(near - 1, 0)) & 1 == 1)
+            take = stony & (grown == 0) & within
+            grown[take] = near[take]
+        if (grown == owner).all():
+            break
+        owner = grown
+    parts = [np.where((owner == 0)[..., None], a, 0)]
+    rows = [int(np.nonzero(drawn.any(1))[0][-1])]
+    for k in range(len(seeds)):
+        mask = owner == k + 1
+        parts.append(np.where(mask[..., None], a, 0))
+        rows.append(int(np.nonzero(mask.any(1))[0][-1]))
+    return [Image.fromarray(part.astype(np.uint8)) for part in parts], rows
+
+
+def drawn_span(im, foot):
+    """The leftmost and rightmost columns drawn in the picture's bottom three rows down to `foot`, where a trunk meets the ground."""
+    rows = np.asarray(im)[max(0, foot - 2):foot + 1, :, 3] > 127
+    cols = np.nonzero(rows.any(0))[0]
+    return [int(cols[0]), int(cols[-1])] if len(cols) else [1 << 20, -1]
+
+
 def frames_of(unit, src, folder):
     """The frames of one animation folder in name order, flipped from their mirror folder where MIRROR says so."""
     mirrored = MIRROR.get(unit, {}).get(folder)
@@ -291,6 +361,7 @@ def main():
         atlas = Image.open(OUT / "atlas.png").convert("RGBA")
         tag_livery(atlas, json.loads((OUT / "atlas.json").read_text())).save(OUT / "atlas.png")
         return
+    OUT.mkdir(parents=True, exist_ok=True)
     sets = []
     for unit, action in UNITS.items():
         src = RAW / FOLDERS.get(unit, unit)
@@ -318,10 +389,25 @@ def main():
                 # The strike starts from the standing pose, so the anchor comes from it and the pose itself is left out.
                 images, anchor = crop_set(frames[1:], (frames[0].width / 2, feet(frames[:1])))
                 sets.append((("units", unit, "attack", d), images, anchor))
+    extra = {}
     for name in PROPS:
         im = prop_image(name)
         images, anchor = crop_set([im], (im.width / 2, feet([im])))
         sets.append((("props", name), images, anchor))
+        extra[name] = {"foot": drawn_span(images[0], int(anchor[1]))}
+        if name == "wheat_field":
+            # The wheat repeats across a whole field, so it also has a texture of its own.
+            images[0].save(OUT / "wheat_tile.png")
+    coin = rimmed_coin(prop_image("coin"))
+    images, anchor = crop_set([coin], (coin.width / 2, feet([coin])))
+    sets.append((("props", "coin_rimmed"), images, anchor))
+    for name, source in SPLIT.items():
+        im = prop_image(source)
+        parts, rows = split_stones(im)
+        images, anchor = crop_set(parts, (im.width / 2, feet([im])))
+        sets.append((("props", name), images, anchor))
+        top = int(anchor[1]) - feet([im])
+        extra[name] = {"feet": [row + top for row in rows]}
     for ground, province in fort_ground.variants().items():
         for name, im in fort_pictures(ground, province).items():
             images, anchor = crop_set([im], (im.width / 2, feet([im])))
@@ -330,6 +416,11 @@ def main():
         frames = sheet_frames(Image.open(RAW / path).convert("RGBA"))
         images, anchor = crop_set(frames, (frames[0].width / 2, feet(frames)))
         sets.append((("props", name), images, anchor))
+        for small, (sheet, k) in SMALLER.items():
+            if sheet == name:
+                scaled = smaller(frames, k)
+                images, anchor = crop_set(scaled, (scaled[0].width / 2, feet(scaled)))
+                sets.append((("props", small), images, anchor))
 
     # Shelf packing, tallest first, with a pixel of space so filtering never bleeds between sprites.
     flat = [(key, i, im) for key, images, _ in sets for i, im in enumerate(images)]
@@ -353,12 +444,13 @@ def main():
             atlas.alpha_composite(im, (px, py))
             frames.append([px, py, im.width, im.height])
         entry = {"frames": frames, "anchor": anchor}
+        if key[0] == "props":
+            entry.update(extra.get(key[1], {}))
         if key[0] == "units":
             meta["units"].setdefault(key[1], {}).setdefault(key[2], {})[key[3]] = entry
         else:
             meta["props"][key[1]] = entry
     atlas = tag_livery(atlas, meta)
-    OUT.mkdir(parents=True, exist_ok=True)
     atlas.save(OUT / "atlas.png")
     (OUT / "atlas.json").write_text(json.dumps(meta))
     (OUT / "grounds").mkdir(exist_ok=True)
