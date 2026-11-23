@@ -71,6 +71,11 @@ var _f_anchor := PackedVector2Array()
 var _f_rect: Array[Rect2] = []
 # Each prop kind's frame from the atlas, looked up once.
 var _prop_frames := {}
+# The legion's men this frame by the MEN_CELL square they stand in, as their places in [commander] + soldiers, so the trees in front of any of them are found quickly.
+const MEN_CELL := 32.0
+var _men_cells := {}
+# The foot of the frontmost tree hiding each hidden man, by his place; he is drawn again faintly just in front of it.
+var _hidden_by := {}
 # How far the tallest prop's picture rises above its foot, so one standing below the screen with its top on it is still drawn.
 var _prop_rise := 0.0
 # In a province whose ground is sand, each tree kind's drifts of sand round its foot, as [picture, top left against the tree's picture], and the province they were painted for.
@@ -348,9 +353,20 @@ func _draw() -> void:
 	var margin := 80.0
 	var view := Rect2(top_left - Vector2(margin, margin), screen + Vector2(margin, margin) * 2.0)
 
-	# Half see-through, so the tree still reads as a tree over the commander.
+	# Half see-through, so the tree still reads as a tree over the legion.
 	var see_through := Color(1, 1, 1, 0.5)
 	var him := Rect2(sim.commander.pos - Vector2(5, 26), Vector2(10, 26))
+	var men: Array = [sim.commander] + sim.soldiers
+	var legion := Rect2(sim.commander.pos, Vector2.ZERO)
+	_men_cells.clear()
+	_hidden_by.clear()
+	for k in men.size():
+		var p: Vector2 = men[k].pos
+		legion = legion.expand(p)
+		var cell := Vector2i(floori(p.x / MEN_CELL), floori(p.y / MEN_CELL))
+		if not _men_cells.has(cell):
+			_men_cells[cell] = []
+		_men_cells[cell].append(k)
 	var chops: Dictionary = sim.terrain.chops
 	var shaking := float(sim.b.felling.shake_seconds)
 	var fields: Array = sim.terrain.fields_in(view)
@@ -407,8 +423,9 @@ func _draw() -> void:
 					_felling.append([at, float(chops[at][0])])
 					at += Vector2(roundf(sin(sim.time * 45.0 + at.x) * 1.2), 0)
 				var mod := white
-				# A tree standing in front of the commander is seen through, so he is not lost once the legion cuts into a ridge.
-				if hides_commander(pr[0], pr[2] > 0.0, Rect2(at - f[1], f[0].size), at.y, sim.commander.pos):
+				# A tree standing in front of any man of the legion is seen through, so the legion is not lost once it cuts into a ridge.
+				var drawn := Rect2(at - f[1], f[0].size)
+				if can_hide(pr[0], pr[2] > 0.0, drawn) and _hides_men(drawn, at.y, men, legion):
 					mod = see_through
 				# The gate fades only half way, so the fort still reads while the commander walks under it.
 				elif pr[0].begins_with("fort_gate") and at.y > sim.commander.pos.y and Rect2(at - f[1], f[0].size).intersects(him):
@@ -435,7 +452,6 @@ func _draw() -> void:
 	var cycle := float(sim.b.triumph.cheer_cycle)
 	_dazed.clear()
 	_train_marks.clear()
-	var men: Array = [sim.commander] + sim.soldiers
 	for k in men.size():
 		var u: Dictionary = men[k]
 		var phase := cheer_phase(_cheer_t, k, cycle)
@@ -448,6 +464,9 @@ func _draw() -> void:
 		if cheering and not u.moving:
 			hop.y = -sin(PI * phase / cycle) * float(sim.b.triumph.hop)
 		_add(u.pos.y, f[0], u.pos - f[1] + hop, Livery.mark(mod), true)
+		if _hidden_by.has(k):
+			# However many canopies stand in front of him, a man in a wood still shows through them.
+			_add(_hidden_by[k], f[0], u.pos - f[1] + hop, Livery.mark(Color(mod, 0.6)), true)
 
 	var h: Horde = sim.horde
 	var strike_secs := Atlas.ATTACK_FRAMES / Atlas.ATTACK_FPS
@@ -1305,14 +1324,38 @@ func _add_flames(view: Rect2) -> void:
 
 ## Whether a prop drawn at `drawn`, its foot at `foot_y`, stands in front of the commander and is tall enough to hide him.
 static func hides_commander(kind: String, tree: bool, drawn: Rect2, foot_y: float, cam: Vector2) -> bool:
-	var him := Rect2(cam - Vector2(5, 26), Vector2(10, 26))
-	# A log lies low on the ground, and a rock or a wall no taller than the commander leaves him in sight, so they stay solid.
-	if kind == "log" or drawn.size.y <= him.size.y:
+	return can_hide(kind, tree, drawn) and foot_y > cam.y and _hides(_solid_part(drawn), cam)
+
+
+## Whether a prop of this kind drawn at `drawn` is tall and thick enough to hide a man standing behind it.
+static func can_hide(kind: String, tree: bool, drawn: Rect2) -> bool:
+	# A log lies low on the ground, and a rock or a wall no taller than a man leaves him in sight, so they stay solid.
+	if kind == "log" or drawn.size.y <= 26.0:
 		return false
-	if not (tree or Terrain.SOLID.has(kind) or kind == "papyrus" or kind == "feather_grass"):
+	return tree or Terrain.SOLID.has(kind) or kind == "papyrus" or kind == "feather_grass"
+
+
+## Whether `part` of a picture covers a man standing at `man`. Only the middle of a picture counts, since the empty margins round a canopy hide nothing.
+static func _hides(part: Rect2, man: Vector2) -> bool:
+	return part.intersects(Rect2(man - Vector2(5, 26), Vector2(10, 26)))
+
+
+## Whether a prop drawn at `drawn`, its foot at `foot_y`, hides any of these men, noting each one it hides in _hidden_by.
+func _hides_men(drawn: Rect2, foot_y: float, men: Array, legion: Rect2) -> bool:
+	var part := _solid_part(drawn)
+	# The feet of every man the part can cover lie in this box.
+	var feet := Rect2(part.position.x - 5.0, part.position.y, part.size.x + 10.0, part.size.y + 26.0)
+	if not feet.intersects(legion.grow(1.0)):
 		return false
-	# Only the middle of the picture counts, since the empty margins round a canopy hide nothing.
-	return foot_y > cam.y and _solid_part(drawn).intersects(him)
+	var any := false
+	for cx in range(floori(feet.position.x / MEN_CELL), floori(feet.end.x / MEN_CELL) + 1):
+		for cy in range(floori(feet.position.y / MEN_CELL), floori(feet.end.y / MEN_CELL) + 1):
+			for k: int in _men_cells.get(Vector2i(cx, cy), []):
+				var p: Vector2 = men[k].pos
+				if foot_y > p.y and _hides(part, p):
+					any = true
+					_hidden_by[k] = maxf(foot_y, _hidden_by.get(k, foot_y))
+	return any
 
 
 ## The part of a tree's picture that is canopy and trunk: a fifth in from each side and a tenth down from the top.
