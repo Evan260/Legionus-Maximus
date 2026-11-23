@@ -3436,7 +3436,7 @@ func spawn_cart() -> void:
 	var at := Vector2.INF
 	var last: Vector2 = commander.pos
 	var clearest := -1.0
-	# A cart in a wood or over a gorge could never be reached and one among the men is taken at once, so the open spot of a few tries farthest from them is kept.
+	# A cart in a wood or over a gorge could never be reached and one among the men is taken at once, so it takes the first open spot well clear of them, or the clearest of its tries.
 	for k in 24:
 		var off := Vector2.from_angle(rng.randf() * TAU) * (Vector2(1.6, 1.0) * rng.randf_range(float(cfg.near), float(cfg.far)) + Vector2.ONE * reach)
 		last = commander.pos + off.clamp(-half, half)
