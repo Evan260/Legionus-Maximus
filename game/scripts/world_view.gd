@@ -488,8 +488,8 @@ func _draw() -> void:
 	_draw_sorted(tex, standing, _keys.size())
 	_draw_death_bits()
 
-	_draw_shots(tex)
-	_draw_spears()
+	_draw_shots(tex, view)
+	_draw_spears(view)
 	_draw_dazed_and_trains()
 	_draw_boss_heads(view)
 	_draw_lobs(tex)
@@ -497,7 +497,7 @@ func _draw() -> void:
 	_draw_camp_fire(view)
 	_draw_triumph_wave()
 	_draw_objective_marks(view)
-	_draw_numbers()
+	_draw_numbers(view)
 	_draw_torches()
 	if sim != eye_sim:
 		_draw_bars()
@@ -1458,11 +1458,13 @@ func _draw_scorch(view: Rect2) -> void:
 
 
 ## Axes thrown by the horde spin end over end, drawn large and outlined so they read like the archers' arrows.
-func _draw_spears() -> void:
+func _draw_spears(view: Rect2) -> void:
 	var h: Horde = sim.horde
 	var ink := Color(0.16, 0.1, 0.08)
 	for i in h.sp_pos.size():
 		var p: Vector2 = h.sp_pos[i]
+		if not view.has_point(p):
+			continue
 		var dir: Vector2 = h.sp_vel[i].normalized()
 		if h.sp_kind[i] == 1:
 			# The Dacian archers' arrows are fletched dark red, so they never pass for the legion's own.
@@ -1471,8 +1473,8 @@ func _draw_spears() -> void:
 		if h.sp_kind[i] == 2:
 			# A sling stone is a small grey pebble with a faint trail.
 			draw_line(p - dir * 10.0, p - dir * 2.0, Color(1.0, 1.0, 0.9, 0.2), 2.0)
-			draw_rect(Rect2(p.round() - Vector2(1, 1), Vector2(3, 3)), ink)
-			draw_rect(Rect2(p.round() - Vector2(1, 1), Vector2(2, 2)), Color(0.72, 0.7, 0.66))
+			_box(Rect2(p.round() - Vector2(1, 1), Vector2(3, 3)), ink)
+			_box(Rect2(p.round() - Vector2(1, 1), Vector2(2, 2)), Color(0.72, 0.7, 0.66))
 			continue
 		draw_line(p - dir * 20.0, p - dir * 4.0, Color(1.0, 1.0, 0.85, 0.22), 4.0)
 		var spin := Vector2.from_angle(sim.time * 18.0 + float(i) * 1.7)
@@ -1481,10 +1483,17 @@ func _draw_spears() -> void:
 		var head := p + spin * 6.0
 		draw_line(butt, head, ink, 4.0)
 		draw_line(butt, head, Color(0.55, 0.36, 0.2), 2.0)
-		var blade := PackedVector2Array([head + side * 1.0, head + side * 6.0 + spin * 3.0, head + side * 7.0 - spin * 3.0, head - spin * 2.0])
-		draw_colored_polygon(blade, ink)
-		var inner := PackedVector2Array([head + side * 1.5, head + side * 5.0 + spin * 1.8, head + side * 5.5 - spin * 1.8, head - spin * 1.0])
-		draw_colored_polygon(inner, Color(0.85, 0.86, 0.88))
+		_quad(head + side * 1.0, head + side * 6.0 + spin * 3.0, head + side * 7.0 - spin * 3.0, head - spin * 2.0, ink)
+		_quad(head + side * 1.5, head + side * 5.0 + spin * 1.8, head + side * 5.5 - spin * 1.8, head - spin * 1.0, Color(0.85, 0.86, 0.88))
+
+
+# Missiles are built of four-point primitives only, as a thick line is, so all of them in flight go to the screen in one batch.
+func _quad(a: Vector2, b: Vector2, c: Vector2, d: Vector2, col: Color) -> void:
+	draw_primitive(PackedVector2Array([a, b, c, d]), PackedColorArray([col, col, col, col]), PackedVector2Array())
+
+
+func _box(r: Rect2, col: Color) -> void:
+	_quad(r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y), col)
 
 
 ## How much larger than its art an enemy kind is drawn; 1 for every other kind and for the legion's soldiers.
@@ -1552,9 +1561,11 @@ func _draw_boss_heads(view: Rect2) -> void:
 		draw_rect(Rect2(bar, Vector2(w * clampf(h.e_hp[i] / h.e_max[i], 0.0, 1.0), 3)), Color(0.85, 0.22, 0.18))
 
 
-func _draw_shots(tex: Texture2D) -> void:
+func _draw_shots(tex: Texture2D, view: Rect2) -> void:
 	var pil := atlas.prop_frame("pilum")
 	for s in sim.shots:
+		if not view.has_point(s.pos):
+			continue
 		var dir: Vector2 = s.vel.normalized()
 		match s.kind:
 			"arrow":
@@ -1591,8 +1602,8 @@ func _big_shot(pos: Vector2, dir: Vector2, length: float, fire: bool, wood: Colo
 	for k in [-1.0, 1.0]:
 		draw_line(tail + dir * 5.0, tail - dir * 1.0 + side * 4.0 * k, ink, 3.0)
 		draw_line(tail + dir * 5.0, tail - dir * 1.0 + side * 4.0 * k, feather, 1.5)
-	draw_colored_polygon(PackedVector2Array([pos + dir * 4.0, neck - dir * 1.0 + side * 4.5, neck - dir * 1.0 - side * 4.5]), ink)
-	draw_colored_polygon(PackedVector2Array([pos + dir * 2.5, neck + side * 3.0, neck - side * 3.0]), Color(0.9, 0.9, 0.88))
+	_quad(pos + dir * 4.0, neck - dir * 1.0 + side * 4.5, neck - dir * 1.0 - side * 4.5, neck - dir * 1.0 - side * 4.5, ink)
+	_quad(pos + dir * 2.5, neck + side * 3.0, neck - side * 3.0, neck - side * 3.0, Color(0.9, 0.9, 0.88))
 	if fire:
 		draw_circle(pos, 4.5, Color(1.0, 0.6, 0.15, 0.55))
 		draw_circle(pos, 2.0, Color(1.0, 0.95, 0.6))
@@ -1690,10 +1701,12 @@ func _draw_effects() -> void:
 
 
 ## Damage numbers rise from the enemy that was hit and fade out.
-func _draw_numbers() -> void:
+func _draw_numbers(view: Rect2) -> void:
 	var life := float(sim.b.damage_numbers.seconds)
 	var rise := float(sim.b.damage_numbers.rise)
 	for n in sim.numbers:
+		if not view.has_point(n.pos):
+			continue
 		var text := str(n.v)
 		var k: float = n.t / life
 		var at: Vector2 = (n.pos + Vector2(-(text.length() * 4 - 1) / 2.0, -rise * k)).round()
