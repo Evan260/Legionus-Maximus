@@ -8160,6 +8160,11 @@ func test_raiders_in_melee_slash_at_their_own_pace(b: Dictionary) -> void:
 		check(got[1] > 5.0 and got[0] > got[1] * 0.6 and got[0] < got[1] * 1.5, "%s against %d men slash about as often as their pace (%d against %.0f)" % [t[0], t[2], got[0], got[1]])
 
 
+func test_a_long_frame_is_played_in_sixtieths(_b: Dictionary) -> void:
+	check(Game.steps_for(1.0 / 30.0) == 2 and Game.steps_for(0.02) == 2, "a frame of a thirtieth or a fiftieth is played as two steps")
+	check(Game.steps_for(1.0 / 60.0) == 1 and Game.steps_for(1.0 / 144.0) == 1 and Game.steps_for(0.0) == 1, "a sixtieth or less is one step")
+
+
 func test_a_stunned_king_never_lands_his_leap(b: Dictionary) -> void:
 	var s := Sim.new(b, Content.with_all_art(), {"seed": 9, "province": "dacia"})
 	s.terrain.clear()

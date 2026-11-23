@@ -10,6 +10,12 @@ static var demo_forced := false
 static var demo_open: Array = []
 
 
+## How many steps a frame of `dt` seconds is played in, so that no step is longer than a sixtieth of a second
+## and the crowd presses on the legion as it does at 60 frames a second, however slow the computer.
+static func steps_for(dt: float) -> int:
+	return maxi(1, ceili(dt * 60.0 - 0.001))
+
+
 ## Whether this is the demo: the project exported with the "demo" feature, or started with --as-demo.
 static func is_demo() -> bool:
 	return demo_forced or OS.has_feature("demo") or "--as-demo" in OS.get_cmdline_user_args()

@@ -690,7 +690,12 @@ func _process(dt: float) -> void:
 				sim.build_wall()
 			if Input.is_action_just_pressed("bridge") or _pad("bridge"):
 				sim.build_bridge()
-			sim.update(sim.slowed(minf(dt, 1.0 / 30.0)), move, testudo)
+			var step := sim.slowed(minf(dt, 1.0 / 30.0))
+			var steps := Game.steps_for(step)
+			for k in steps:
+				sim.update(step / steps, move, testudo)
+				if sim.over or sim.pending_levels > 0 or sim.free_choices > 0 or not sim.supplies.is_empty():
+					break
 			Audio.drain(sim)
 			if sim.over:
 				_finish_run()
