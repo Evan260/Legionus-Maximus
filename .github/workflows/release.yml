@@ -38,6 +38,14 @@ jobs:
             exit 1
           fi
 
+      - name: Check every string is in the translation sheet
+        run: |
+          python3 tools/extract_strings.py
+          if ! git diff --exit-code game/translations/strings.csv; then
+            echo "::error title=Strings not extracted::Run python tools/extract_strings.py, translate the new rows and commit the sheet"
+            exit 1
+          fi
+
       - uses: ./.github/actions/setup-godot
 
       - name: Import

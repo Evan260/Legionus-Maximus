@@ -18,7 +18,7 @@ OUT = ROOT / "translations" / "strings.csv"
 WORDS = ["name", "text", "history", "more"]
 KINDS = ["recruits", "enemies", "arms", "forged", "drills", "provinces", "commanders", "quartermaster", "achievements", "gods"]
 # Tables of words that screens look up with tr(entry), as (script, constant name).
-TABLES = [("screens/camp.gd", "BOARDS"), ("screens/map.gd", "LEVELS"), ("screens/map.gd", "MODES"), ("screens/settings.gd", "VOLUME_NAMES"),
+TABLES = [("screens/camp.gd", "BOARDS"), ("screens/map.gd", "LEVELS"), ("screens/map.gd", "MODES"), ("screens/map.gd", "TIMES"), ("screens/settings.gd", "VOLUME_NAMES"),
           ("screens/settings.gd", "TOGGLES"), ("screens/tablinum.gd", "KINDS"), ("controls.gd", "ACTIONS"),
           ("controls.gd", "PAD_NAMES"), ("content.gd", "GROUPS"), ("upgrades.gd", "STAT_NAMES"), ("upgrades.gd", "FORGED_STATS")]
 # Tables whose every string is a word to translate, the lower-case ones too.
