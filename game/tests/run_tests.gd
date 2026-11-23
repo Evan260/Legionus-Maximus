@@ -19,16 +19,40 @@ func check(ok: bool, what: String) -> void:
 		print("FAIL: ", what)
 
 
+## Counts the script errors printed while the tests run, since a script error stops only the function it happens in and the run goes on.
+class ScriptErrors:
+	extends Logger
+	var count := 0
+
+	func _log_error(_function: String, _file: String, _line: int, _code: String, _rationale: String, _editor_notify: bool, error_type: int, _script_backtraces: Array[ScriptBacktrace]) -> void:
+		if error_type == ERROR_TYPE_SCRIPT:
+			count += 1
+
+
 func run(balance: Dictionary) -> int:
+	var errors := ScriptErrors.new()
+	OS.add_logger(errors)
 	content = Content.load_all(Content.available_art())
 	var only := OS.get_environment("ONLY_TESTS")
+	var called := 0
+	var finished := 0
 	for m in get_method_list():
 		if m.name.begins_with("test_") and (only == "" or m.name.contains(only)):
-			call(m.name, balance)
+			called += 1
+			var before := errors.count
+			# A test stopped by a script error leaves its later checks unmade, and one that awaits hands back its unfinished state.
+			if call(m.name, balance) == null and errors.count == before:
+				finished += 1
+			else:
+				print("FAIL: %s did not finish" % m.name)
+	OS.remove_logger(errors)
 	print("%d passed, %d failed" % [passes, failures])
-	if failures == 0 and passes > 0:
+	if finished < called:
+		print("%d of %d tests did not finish" % [called - finished, called])
+	var ok := failures == 0 and passes > 0 and finished == called and errors.count == 0
+	if ok:
 		print("ALL TESTS PASSED")
-	return 1 if failures > 0 or passes == 0 else 0
+	return 0 if ok else 1
 
 
 func test_the_run_starts_with_the_commander_and_two_legionaries(b: Dictionary) -> void:

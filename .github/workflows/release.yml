@@ -48,6 +48,10 @@ jobs:
           set -o pipefail
           timeout 20m godot --headless --path game -- --run-tests 2>&1 | tee test.log
           grep -q "ALL TESTS PASSED" test.log
+          if grep -q "SCRIPT ERROR" test.log; then
+            echo "::error title=Script error::A script error was printed while the tests ran; test.log has the line"
+            exit 1
+          fi
 
   export:
     name: Export ${{ matrix.edition }} ${{ matrix.platform }}
