@@ -20,6 +20,9 @@ const PAD_NAMES := {JOY_BUTTON_A: "A", JOY_BUTTON_B: "B", JOY_BUTTON_X: "X", JOY
 # The keys whose names are words, translated where they are drawn; every other key is named by its letter or symbol.
 const KEY_NAMES := {KEY_UP: "Up", KEY_DOWN: "Down", KEY_LEFT: "Left", KEY_RIGHT: "Right", KEY_SPACE: "Space", KEY_ESCAPE: "Escape",
 	KEY_ENTER: "Enter", KEY_TAB: "Tab", KEY_BACKSPACE: "Backspace"}
+# Actions read on the same screen: on the field, on the menus, at a level-up, on the pause screen and at the gods' choice. No key or button stands for two actions of one group.
+const GROUPS := [["up", "down", "left", "right", "testudo", "build", "wall", "bridge", "pray", "pause"], ["up", "down", "left", "right", "confirm", "back"],
+	["up", "down", "left", "right", "confirm", "reroll", "banish"], ["confirm", "pause"], ["confirm", "pray"]]
 # The words of the key hints, each translated on its own so no translation has to keep a key in its place.
 const HINT_WORDS := ["move", "choose", "back", "buy a rank", "take it", "call", "not now", "reroll", "banish",
 	"call the gods", "bridge", "palisade", "wall", "cancel", "delete", "change a key or button", "change a volume", "continue"]
@@ -72,9 +75,13 @@ static func install(saved: Dictionary) -> void:
 
 ## Replaces one slot of an action, "keys" or "pads", with a new code, in `saved` and in the input map.
 ## The code is taken out of the action's other slots, so one key is never listed twice for one action and a list is never left empty.
-static func rebind(saved: Dictionary, action: String, kind: String, slot: int, code: int) -> void:
-	var mine := effective(saved, action)
+## An action read on the same screen that holds the code gives it up and takes this slot's old code instead; false, with nothing changed,
+## when that would leave it with no key or button at all.
+static func rebind(saved: Dictionary, action: String, kind: String, slot: int, code: int) -> bool:
+	var trial := saved.duplicate(true)
+	var mine := effective(trial, action)
 	var list: Array = mine[kind]
+	var old: int = int(list[slot]) if slot < list.size() else -1
 	var at := slot
 	if slot < list.size():
 		list[slot] = code
@@ -84,8 +91,43 @@ static func rebind(saved: Dictionary, action: String, kind: String, slot: int, c
 	for i in range(list.size() - 1, -1, -1):
 		if i != at and list[i] == code:
 			list.remove_at(i)
-	saved[action] = mine
+	trial[action] = mine
+	for other in clashing(action):
+		var theirs := effective(trial, other)
+		var held: Array = theirs[kind]
+		var i := held.find(code)
+		if i < 0:
+			continue
+		if old >= 0 and old != code and not held.has(old) and _free_for(trial, other, kind, old):
+			held[i] = old
+		else:
+			held.remove_at(i)
+		if held.is_empty():
+			return false
+		trial[other] = theirs
+	saved.clear()
+	saved.merge(trial)
 	install(saved)
+	return true
+
+
+## The actions read on the same screen as `action`.
+static func clashing(action: String) -> Array:
+	var out: Array = []
+	for group in GROUPS:
+		if action in group:
+			for other in group:
+				if other != action and not other in out:
+					out.append(other)
+	return out
+
+
+## Whether no action read on the same screen as `action` holds the code.
+static func _free_for(saved: Dictionary, action: String, kind: String, code: int) -> bool:
+	for other in clashing(action):
+		if effective(saved, other)[kind].has(code):
+			return false
+	return true
 
 
 ## The saved bindings with the defaults of one action put back.

@@ -3478,6 +3478,29 @@ func test_rebinding_to_a_key_held_in_another_slot_keeps_it(b: Dictionary) -> voi
 	Controls.install({})
 
 
+func test_a_key_or_button_never_stands_for_two_actions_on_one_screen(_b: Dictionary) -> void:
+	var saved := {}
+	Controls.install(saved)
+	check(Controls.rebind(saved, "confirm", "pads", 0, JOY_BUTTON_B), "confirm can take the back button")
+	check(_has_button("confirm", JOY_BUTTON_B) and not _has_button("back", JOY_BUTTON_B), "and back gives it up")
+	check(_has_button("back", JOY_BUTTON_A), "taking confirm's old button in its place, so the buttons swap")
+	check(Controls.rebind(saved, "build", "keys", 0, KEY_SPACE) and _has_key("build", KEY_SPACE), "build can take the testudo's key")
+	check(not _has_key("testudo", KEY_SPACE) and _has_key("testudo", KEY_E), "and the testudo takes build's old key")
+	check(_has_key("confirm", KEY_SPACE), "while confirm, never read on the field, keeps Space")
+	for group in Controls.GROUPS:
+		for kind in ["keys", "pads"]:
+			var seen := {}
+			for action in group:
+				for code in Controls.effective(saved, action)[kind]:
+					check(not seen.has(code), "%s %d is not both %s and %s" % [kind, code, seen.get(code, ""), action])
+					seen[code] = action
+	saved = {}
+	Controls.install(saved)
+	check(not Controls.rebind(saved, "build", "keys", 1, KEY_SPACE), "a second key that would leave the testudo with none is refused")
+	check(_has_key("testudo", KEY_SPACE) and not _has_key("build", KEY_SPACE), "and nothing changes")
+	Controls.install({})
+
+
 func test_empty_saved_bindings_fall_back_to_the_defaults(b: Dictionary) -> void:
 	var cfg: Dictionary = ProfileScript.settings_of(ProfileScript.merge_settings({"bindings": {"up": {"keys": [], "pads": []}, "down": {"keys": [0, -3, "x"]}, "left": {"keys": [KEY_J]}}}))
 	check(not cfg.bindings.has("up") and not cfg.bindings.has("down"), "empty or unusable lists are dropped when loaded")

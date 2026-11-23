@@ -139,7 +139,8 @@ func capture(event: InputEvent) -> bool:
 
 func _bind(code: int) -> void:
 	var saved: Dictionary = Profile.settings.get("bindings", {})
-	Controls.rebind(saved, waiting.action, waiting.kind, waiting.slot, code)
+	if not Controls.rebind(saved, waiting.action, waiting.kind, waiting.slot, code):
+		Audio.play("back")
 	Profile.settings.bindings = saved
 	waiting = {}
 
