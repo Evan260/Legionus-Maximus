@@ -173,6 +173,8 @@ var g_start := PackedInt32Array()
 var g_items := PackedInt32Array()
 # The radius of each enemy in g_items, in the same order, so spacing reads it without going through its kind.
 var g_rad := PackedFloat32Array()
+## Whether a unit was thrown or dragged since the grids were built, so the unit grid still lists him in the cell he left.
+var units_shifted := false
 var _g_cell := PackedInt32Array()
 var _g_fill := PackedInt32Array()
 
@@ -701,6 +703,7 @@ func cidx(p: Vector2) -> int:
 
 func rebuild_grid() -> void:
 	frame += 1
+	units_shifted = false
 	var n := e_pos.size()
 	g_origin = Vector2i(floori(commander.pos.x / CELL) - GW / 2, floori(commander.pos.y / CELL) - GW / 2)
 	g_start.resize(GW * GW + 1)
@@ -1755,7 +1758,7 @@ func _lassos(dt: float, sim: Sim) -> void:
 		pulled = true
 	lassos = left
 	if pulled:
-		sim.units_moved()
+		units_shifted = true
 		sim.legion.remove_fallen(sim)
 
 
@@ -1859,7 +1862,7 @@ func _chieftain_after(sim: Sim) -> void:
 		hit_any = true
 		if not is_same(u, sim.commander):
 			u.pos += side * (throw if off.dot(side) >= 0.0 else -throw)
-			sim.units_moved()
+			units_shifted = true
 	if hit_any:
 		sim.shake = maxf(sim.shake, float(sim.b.shake.chieftain))
 		sim.legion.remove_fallen(sim)
@@ -2270,7 +2273,7 @@ func _ride_down(p: Vector2, radius: float, dir: Vector2, mark: int, dmg: float, 
 		hit_any = true
 		if not is_same(u, sim.commander):
 			u.pos += side * (throw if off.dot(side) >= 0.0 else -throw)
-			sim.units_moved()
+			units_shifted = true
 	return hit_any
 
 
@@ -2433,7 +2436,7 @@ func blast(i: int, cfg: Dictionary, sim: Sim) -> void:
 		if off.length_squared() < reach * reach and off.length_squared() > 0.0001:
 			u.pos += off.normalized() * push
 			u.hp -= dmg * sim.front_guard(u)
-	sim.units_moved()
+	units_shifted = true
 	sim.legion.remove_fallen(sim)
 	blast_left = float(cfg.seconds)
 	blast_slow = float(cfg.slow)
@@ -2715,6 +2718,7 @@ func _move(dt: float, sim: Sim) -> void:
 	var ug_head := sim.ug_head
 	var ug_next := sim.ug_next
 	var ug_all_in := sim.ug_all_in
+	var shifted := units_shifted
 	var ox := g_origin.x
 	var oy := g_origin.y
 	var t_origin := sim.terrain.origin
@@ -2951,12 +2955,21 @@ func _move(dt: float, sim: Sim) -> void:
 			var ky := floori(p.y / CELL) - oy
 			if not ug_all_in:
 				target_unit = _nearest_unit(p, r, span, sim)
-			elif r > Sim.NEAR_RADIUS or kx < 0 or ky < 0 or kx >= GW or ky >= GW or ug_near[kx + ky * GW] == 1:
-				# Only the cells within striking reach of p can hold the unit he strikes.
+			elif shifted or r > Sim.NEAR_RADIUS or kx < 0 or ky < 0 or kx >= GW or ky >= GW or ug_near[kx + ky * GW] == 1:
 				var hit_r := Sim.UNIT_RADIUS + r + 2.0
 				var best := INF
-				for cx in range(maxi(0, maxi(kx - span, floori((p.x - hit_r) / CELL) - ox)), mini(GW, mini(kx + span, floori((p.x + hit_r) / CELL) - ox) + 1)):
-					for cy in range(maxi(0, maxi(ky - span, floori((p.y - hit_r) / CELL) - oy)), mini(GW, mini(ky + span, floori((p.y + hit_r) / CELL) - oy) + 1)):
+				var x0 := kx - span
+				var x1 := kx + span
+				var y0 := ky - span
+				var y1 := ky + span
+				# Only the cells within striking reach of p can hold the unit he strikes, unless a unit was thrown since the grid listed him.
+				if not shifted:
+					x0 = maxi(x0, floori((p.x - hit_r) / CELL) - ox)
+					x1 = mini(x1, floori((p.x + hit_r) / CELL) - ox)
+					y0 = maxi(y0, floori((p.y - hit_r) / CELL) - oy)
+					y1 = mini(y1, floori((p.y + hit_r) / CELL) - oy)
+				for cx in range(maxi(0, x0), mini(GW, x1 + 1)):
+					for cy in range(maxi(0, y0), mini(GW, y1 + 1)):
 						var ui := ug_head[cx + cy * GW]
 						while ui >= 0:
 							var dd: float = (units[ui].pos - p).length()
@@ -3310,7 +3323,7 @@ func _maul(i: int, struck: Dictionary, guard: float, sim: Sim) -> void:
 		if not is_same(u, sim.commander):
 			var away: Vector2 = u.pos - p
 			u.pos += (away.normalized() if away.length_squared() > 0.0001 else Vector2.RIGHT) * k_maul_throw[kind]
-	sim.units_moved()
+	units_shifted = true
 	e_strike[i] = time
 	e_face[i] = (struck.pos - p).normalized() if struck.pos != p else e_face[i]
 	sim.effects.append({"kind": "cleave", "pos": p, "dir": e_face[i], "t": 0.0, "radius": k_radius[kind] + r, "arc": 1.6})

@@ -824,11 +824,6 @@ func unit_cells() -> Dictionary:
 	return _u_cells
 
 
-## Something moved a unit after the grids were built, so lookups use unit_cells() for the rest of the update.
-func units_moved() -> void:
-	ug_all_in = false
-
-
 func _cidx(p: Vector2) -> int:
 	return horde.cidx(p)
 
