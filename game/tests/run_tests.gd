@@ -182,6 +182,19 @@ func test_the_testudo_turns_marked_blows_only_for_the_shield_bearers(b: Dictiona
 		check(is_equal_approx(1e6 - legionary.hp, want), "and %.0f from a legionary (%.1f)" % [want, 1e6 - legionary.hp])
 
 
+func test_a_big_shadow_is_drawn_at_its_own_size(_b: Dictionary) -> void:
+	var view: GDScript = load("res://scripts/world_view.gd")
+	var img: Image = view.shadow_image(48)
+	check(img.get_size() == Vector2i(48, 18), "a 48 wide shadow is a 48 by 18 picture (%s)" % str(img.get_size()))
+	check(absf(img.get_pixel(24, 9).a - 0.38) < 0.01 and img.get_pixel(0, 0).a == 0.0, "it is dark in the middle and clear in the corners")
+	var row := 0
+	for x in 48:
+		if img.get_pixel(x, 9).a > 0.0:
+			row += 1
+	check(row >= 46, "its middle row spans the width (%d)" % row)
+	check(view.shadow_image(16).get_size() == Vector2i(16, 6), "a small one keeps 16 by 6")
+
+
 func test_the_testudo_tint_shows_on_the_shield_bearers(b: Dictionary) -> void:
 	var view: GDScript = load("res://scripts/world_view.gd")
 	var s := _one_soldier(b, 6104, "legionary", true)

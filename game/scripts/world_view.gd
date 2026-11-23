@@ -23,6 +23,8 @@ var atlas: Atlas
 var ground: Texture2D
 var _ground_of := "germania"
 var shadow: Texture2D
+# A boss's shadow by its width, made once at that size.
+var _big_shadows := {}
 var shake_on := true
 ## Where the camera looks while `eye_sim` is the field shown, in place of the commander; the title drifts it across the province.
 var eye_at := Vector2.ZERO
@@ -103,16 +105,28 @@ var _livery := Vector2i(-1, -1)
 var livery_force := Vector2i(-1, -1)
 
 
-func _ready() -> void:
-	ground = load(Content.ground_path("germania"))
-	var img := Image.create(16, 6, false, Image.FORMAT_RGBA8)
-	for y in 6:
-		for x in 16:
-			var dx := (x - 7.5) / 8.0
-			var dy := (y - 2.5) / 3.0
+## A dark ellipse a unit stands on, three eighths as tall as it is wide, one picture pixel to each world pixel.
+static func shadow_image(w: int) -> Image:
+	var h := maxi(1, roundi(w * 0.375))
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	for y in h:
+		for x in w:
+			var dx := (x - (w - 1) / 2.0) / (w / 2.0)
+			var dy := (y - (h - 1) / 2.0) / (h / 2.0)
 			if dx * dx + dy * dy <= 1.0:
 				img.set_pixel(x, y, Color(0.08, 0.06, 0.03, 0.38))
-	shadow = ImageTexture.create_from_image(img)
+	return img
+
+
+func _big_shadow(w: int) -> Texture2D:
+	if not _big_shadows.has(w):
+		_big_shadows[w] = ImageTexture.create_from_image(shadow_image(w))
+	return _big_shadows[w]
+
+
+func _ready() -> void:
+	ground = load(Content.ground_path("germania"))
+	shadow = ImageTexture.create_from_image(shadow_image(16))
 	digits = _digit_texture()
 	ravine_edge = load("res://assets/ravine_edge.png")
 	ice = load("res://assets/ice.png")
@@ -407,7 +421,8 @@ func _draw() -> void:
 		if sw <= 16.0:
 			draw_texture(shadow, _snap(p - Vector2(8, 3)))
 		else:
-			draw_texture_rect(shadow, Rect2(_snap(p - Vector2(sw / 2.0, sw * 0.1875)), Vector2(sw, sw * 0.375)), false)
+			var big := _big_shadow(roundi(sw))
+			draw_texture(big, _snap(p - Vector2(big.get_width() / 2.0, big.get_height() / 2.0)))
 		var sc := _k_scale[kind]
 		if sc != 1.0:
 			_add(p.y, rect, p - anchor * sc, mod, true, rect.size * sc)
