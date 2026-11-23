@@ -1129,6 +1129,13 @@ func _choices(sim: Sim) -> void:
 	if not big:
 		text(tr("Call one") if praying else tr("Choose one"), Vector2(0, ROW_TOP - 10.0), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W)
 	choice_rects.clear()
+	# The row under the mouse lights up, but only a click picks it out.
+	var under := -1
+	if not Touch.phone:
+		var mouse := get_local_mouse_position() - Ui.offset
+		for i in n:
+			if rows[i].has_point(mouse):
+				under = i
 	for i in n:
 		var id: String = main.choices[i]
 		var r: Rect2 = rows[i]
@@ -1136,7 +1143,7 @@ func _choices(sim: Sim) -> void:
 		var picked: bool = i == main.selected
 		if picked:
 			draw_rect(r.grow(3), GOLD)
-		panel(r, CREAM if picked else PARCH)
+		panel(r, CREAM if picked or i == under else PARCH)
 		var info: Dictionary = sim.content.gods[id] if praying else (supply_row(sim, id) if supply else sim.content.upgrade(id))
 		var icon := supply_icon(id) if supply else icon_of(id)
 		var side: float = lay.icon if big else ROW_ICON

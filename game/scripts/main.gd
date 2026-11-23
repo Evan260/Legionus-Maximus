@@ -1012,6 +1012,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	var at := Vector2.INF
 	if event is InputEventMouse:
 		at = hud.make_input_local(event).position - Ui.offset
+	_pointer(event, at)
+
+
+## A mouse event at `at`, in the centred box's coordinates.
+func _pointer(event: InputEvent, at: Vector2) -> void:
 	if screens.has(state):
 		if event is InputEventMouseMotion:
 			if _sliding != "" and state == "settings" and event.button_mask & MOUSE_BUTTON_MASK_LEFT:
@@ -1037,22 +1042,23 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if not Game.choosing(state):
 		return
-	if event is InputEventMouseMotion:
-		var i: int = hud.choice_at(at)
-		if i >= 0:
-			selected = i
-	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		if state == "choose" and Hud.shows_choice_panel(false, Ui.scale > 1):
-			match Hud.choice_button_at(sim, at):
-				"reroll":
-					_reroll()
-					return
-				"banish":
-					_banish()
-					return
-		var i: int = hud.choice_at(at)
-		if i >= 0:
-			_take_row(i)
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_click_choice(at)
+
+
+## A click on a choice: the panel's reroll or banish button, or a row, which the pointer passing over never picks out, so a banish hits the row clicked.
+func _click_choice(at: Vector2) -> void:
+	if state == "choose" and Hud.shows_choice_panel(false, Ui.scale > 1):
+		match Hud.choice_button_at(sim, at):
+			"reroll":
+				_reroll()
+				return
+			"banish":
+				_banish()
+				return
+	var i: int = hud.choice_at(at)
+	if i >= 0:
+		_pick_row(i)
 
 
 ## Follows each finger on a screen: a finger lifted where it landed taps, and one dragged up or down scrolls a list.

@@ -12505,6 +12505,68 @@ func test_a_first_tap_only_picks_out_a_purchase_or_a_choice(b: Dictionary) -> vo
 	_return_profile(kept)
 
 
+func _mouse_motion(m: Node, at: Vector2) -> void:
+	m._pointer(InputEventMouseMotion.new(), at)
+
+
+func _mouse_click(m: Node, at: Vector2, button := MOUSE_BUTTON_LEFT) -> void:
+	var e := InputEventMouseButton.new()
+	e.button_index = button
+	e.pressed = true
+	m._pointer(e, at)
+	var up := InputEventMouseButton.new()
+	up.button_index = button
+	m._pointer(up, at)
+
+
+func test_banishing_with_the_mouse_banishes_the_row_clicked(b: Dictionary) -> void:
+	var before := Ui.scale
+	Ui.set_text_size(1, b)
+	var rows := Hud.choice_rows(3, false)
+	var m := _bare_main(b, rows)
+	m.sim = _quiet_sim(b, 4402)
+	m.sim.banishes = 2
+	m.sim.gain(m.sim.xp_next - m.sim.xp)
+	m._open_choices()
+	m.clock = 5.0
+	var banish: Rect2 = Hud.choice_panel_buttons().banish
+	for p in [rows[0].get_center(), Vector2(rows[-1].end.x - 10.0, rows[-1].get_center().y), banish.get_center()]:
+		_mouse_motion(m, p)
+	check(m.selected == 0, "the pointer passing over the rows picks nothing out (%d)" % m.selected)
+	_mouse_click(m, rows[1].get_center())
+	check(m.state == "choose" and m.selected == 1, "a click on a row picks it out and takes nothing")
+	var want: String = m.choices[1]
+	_mouse_motion(m, Vector2(rows[-1].end.x - 10.0, rows[-1].get_center().y))
+	_mouse_click(m, banish.get_center())
+	check(m.sim.banished == [want], "the banish button banishes the row clicked (%s, not %s)" % [want, m.sim.banished])
+	_mouse_click(m, rows[0].get_center())
+	_mouse_click(m, rows[0].get_center())
+	check(m.state == "play", "a second click on a picked row takes it")
+	_free_main(m)
+	Ui.set_text_size(before, b)
+
+
+func test_a_mouse_click_waits_for_the_confirm_delay(b: Dictionary) -> void:
+	var rows := Hud.choice_rows(3, false)
+	var m := _bare_main(b, rows)
+	m.sim = _quiet_sim(b, 4403)
+	m.sim.gain(m.sim.xp_next - m.sim.xp)
+	m.sim.pending_levels = 2
+	m.clock = 5.0
+	m._open_choices()
+	var delay := float(b.confirm_delay)
+	m.clock = 5.0 + delay * 0.3
+	_mouse_click(m, rows[0].get_center())
+	_mouse_click(m, rows[0].get_center())
+	check(m.state == "choose" and m.sim.pending_levels == 2, "a double-click just as the choice opens takes nothing")
+	m.clock = 5.0 + delay + 0.01
+	_mouse_click(m, rows[0].get_center())
+	check(m.sim.pending_levels == 1 and m.state == "choose", "a click after the delay takes the row, and the next level opens")
+	_mouse_click(m, rows[0].get_center())
+	check(m.sim.pending_levels == 1, "a click straight after does not take the next level's row unseen")
+	_free_main(m)
+
+
 func test_touch_phone_hints_and_options_name_no_keys(b: Dictionary) -> void:
 	var saved: Dictionary = Profile.settings
 	Profile.settings = {"bindings": {}}
