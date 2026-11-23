@@ -1306,6 +1306,17 @@ func test_scorpio_bolt_damages_the_strongest(b: Dictionary) -> void:
 	check(s.horde.e_hp.size() == 0 or s.horde.e_hp[0] < before, "a projectile weapon hurts")
 
 
+func test_pilum_and_scorpio_look_again_soon_with_nothing_in_reach(b: Dictionary) -> void:
+	for arm in ["pilum", "scorpio"]:
+		var s := _arms_sim(b, 41, {arm: 1})
+		_run(s, 1.0)
+		var i := s.horde.spawn("barbarian_club", s.commander.pos + Vector2(100, 0))
+		s.horde.e_stun[i] = 100.0
+		s.horde.e_hp[i] = 1e6
+		_run(s, 0.8)
+		check(s.damage_by_source.get(arm, 0.0) > 0.0, "the %s strikes soon after a barbarian comes into reach" % arm)
+
+
 func test_onager_stone_scatters_the_crowd(b: Dictionary) -> void:
 	var s := _arms_sim(b, 40, {"onager": 2})
 	for i in 12:

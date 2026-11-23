@@ -125,7 +125,6 @@ func _pilum(dt: float, sim: Sim) -> void:
 	if pr <= 0 or not _go("pilum", dt):
 		return
 	var p: Dictionary = sim.b.pilum
-	timers.pilum = lv(p, "every", pr)
 	var hooked := sim.rank("hooked_pila") > 0
 	var pierce := pila_pierce(pr) + (int(sim.b.hooked_pila.extra_pierce) if hooked else 0)
 	var extra := {"pin": float(sim.b.hooked_pila.pin)} if hooked else {}
@@ -148,6 +147,7 @@ func _pilum(dt: float, sim: Sim) -> void:
 		if t >= 0:
 			sim.shoot("pilum", s.pos, sim.horde.e_pos[t], p.speed, lv(p, "damage", pr), pierce, 0.0, extra)
 			thrown += 1
+	timers.pilum = lv(p, "every", pr) if thrown > 0 else 0.3
 
 
 func _scorpio(dt: float, sim: Sim) -> void:
@@ -156,7 +156,6 @@ func _scorpio(dt: float, sim: Sim) -> void:
 		return
 	var sc: Dictionary = sim.b.scorpio
 	var siege := sim.rank("siege_train") > 0
-	timers.scorpio = lv(sc, "every", sr) * (float(sim.b.siege_train.every_mult) if siege else 1.0)
 	var best := -1
 	var best_hp := 0.0
 	var cpos: Vector2 = sim.commander.pos
@@ -165,7 +164,9 @@ func _scorpio(dt: float, sim: Sim) -> void:
 			best_hp = sim.horde.e_hp[i]
 			best = i
 	if best < 0:
+		timers.scorpio = 0.3
 		return
+	timers.scorpio = lv(sc, "every", sr) * (float(sim.b.siege_train.every_mult) if siege else 1.0)
 	var dmg := lv(sc, "damage", sr)
 	sim.shoot("bolt", cpos, sim.horde.e_pos[best], sc.speed, dmg, int(sc.pierce), 0.0, {"src": "scorpio"})
 	if siege:
