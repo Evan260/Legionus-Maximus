@@ -3635,6 +3635,10 @@ func _cuts_in(loc: String, scale: int, c: Content, sim: Sim, cuts: Array) -> voi
 	# The key hints at the foot of a screen, which lose their first parts when they do not fit.
 	for kind in ["volume", "keys", "press", "title"]:
 		_fit(cuts, loc, scale, "key hint " + kind, Controls.hint(kind), 624.0)
+	# The run's line at the top left stays clear of the chieftain's name and health bar in the middle.
+	for pid in c.provinces:
+		for d in ["Easy", "Medium", "Hard"]:
+			_fit(cuts, loc, scale, "run line", ("%s, %s" % [c.provinces[pid].name, tr_.call(d)]).to_upper(), Hud.RUN_LINE_ROOM)
 	_title_cuts(cuts, loc, scale, "how to play", sim.b)
 	Controls.pad_in_use = true
 	_title_cuts(cuts, loc, scale, "how to play on a gamepad", sim.b)
@@ -4871,6 +4875,12 @@ func test_the_legion_marching_past_the_north_of_the_fort_stays_with_its_commande
 			in_yard += 1
 	check(not s.objectives.in_fort(s.commander.pos, s), "the commander never went into the fort")
 	check(strays == 0 and in_yard == 0, "no soldier is led off into the fort while the legion passes its north wall (%d strayed, %d inside)" % [strays, in_yard])
+
+
+func test_the_top_bar_names_the_province_and_difficulty(b: Dictionary) -> void:
+	var s := Sim.new(b, Content.with_all_art(), {"seed": 3, "province": "gaul", "difficulty": "hard"})
+	var line: String = Hud.run_line(s)
+	check(line == ("%s, %s" % [s.content.provinces.gaul.name, TranslationServer.translate("Hard")]).to_upper(), "the run's line reads the province, then the difficulty (%s)" % line)
 
 
 func test_the_chieftain_is_never_inside_the_fort(b: Dictionary) -> void:

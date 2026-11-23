@@ -17,6 +17,8 @@ const BROWN_TEXT := Color(0.5, 0.36, 0.22)
 const MUTED := Color(0.7, 0.66, 0.6)
 
 const EDGE := 26.0
+## How wide the run's line at the top left may be, so it ends before the chieftain's name and health bar in the middle.
+const RUN_LINE_ROOM := 200.0
 ## How far above its foot an objective's name is written when it is on screen, clear of its sprite.
 const LABEL_RISE := {"camp": 56.0, "column": 50.0, "grove": 40.0, "fort": 76.0}
 ## The build panel on the left of the level-up and pause screens: its left edge, its top and foot between the top bar and the testudo, its width at each text size, its inner margin, and the icon sides it tries, largest first, until everything fits.
@@ -218,6 +220,11 @@ func _right_edge(W: float) -> float:
 	return minf(W - 10.0, pause.centre.x - pause.radius - 6.0 - Touch.inset_tl.x)
 
 
+## The province and difficulty of the run, as the top bar writes them under the level.
+static func run_line(sim: Sim) -> String:
+	return ("%s, %s" % [sim.content.provinces[sim.province].name, TranslationServer.translate(sim.difficulty.capitalize())]).to_upper()
+
+
 func _top_bar_in(sim: Sim, W: float, H: float) -> void:
 	var big := Ui.scale > 1
 	draw_rect(Rect2(8, 6, W - 16, 7), INK)
@@ -236,6 +243,8 @@ func _top_bar_in(sim: Sim, W: float, H: float) -> void:
 	plated_text((tr("Legion %d") % (sim.soldiers.size() + 1)).to_upper(), Vector2(0, y1), CREAM, HORIZONTAL_ALIGNMENT_RIGHT, right)
 	if not choosing:
 		plated_text((tr("Kills %d") % sim.kills).to_upper(), Vector2(0, y2), CREAM, HORIZONTAL_ALIGNMENT_RIGHT, right)
+		if not main.screens.has(main.state):
+			plated_text(run_line(sim), Vector2(10, y2), MUTED)
 	# The pause and summary screens write their key hints along the bottom, so the bottom row is left to them.
 	if main.screens.has(main.state):
 		_chieftain_line(sim, W, y1, big)
