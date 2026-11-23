@@ -12673,6 +12673,23 @@ func test_a_finger_drags_a_volume_bar(b: Dictionary) -> void:
 	Ui.set_text_size(before, b)
 
 
+func test_a_right_click_steps_back(b: Dictionary) -> void:
+	var m := _bare_main(b)
+	var settings := SettingsScreen.new(m)
+	m.screens = {"settings": settings}
+	m.state = "settings"
+	settings.page = "language"
+	_mouse_click(m, Vector2(100, 100), MOUSE_BUTTON_RIGHT)
+	check(settings.page == "main" and m.state == "settings", "a right click leaves the language page for the settings (%s)" % settings.page)
+	m.sim = _quiet_sim(b, 4405)
+	m.sim.gods.favour = m.sim.gods.need(b)
+	m._open_gods()
+	check(m.state == "pray", "the gods' choice is open")
+	_mouse_click(m, Vector2(100, 100), MOUSE_BUTTON_RIGHT)
+	check(m.state == "play", "a right click leaves the gods for later")
+	_free_main(m)
+
+
 func test_a_mouse_click_waits_for_the_confirm_delay(b: Dictionary) -> void:
 	var rows := Hud.choice_rows(3, false)
 	var m := _bare_main(b, rows)

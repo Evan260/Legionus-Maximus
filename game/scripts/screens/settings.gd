@@ -303,3 +303,7 @@ func _draw_language(c: CanvasItem, ui: Ui) -> void:
 			Ui.draw_in(loc)
 			ui.button(c, rect, "lang:" + loc, mark + str(Lang.NATIVE_NAMES[loc]))
 			Ui.draw_in("")
+	# Back takes the place after the last language, the free foot of the second column.
+	var at := choices.size()
+	var back := Rect2(r.position.x + 12.0 + (at / rows) * (w + 8.0), r.position.y + Ui.below_title() + (at % rows) * step, w, h)
+	ui.button(c, back, "back", tr("Back").to_upper(), "", true, null, true)

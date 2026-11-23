@@ -1020,6 +1020,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 ## A mouse event at `at`, in the centred box's coordinates.
 func _pointer(event: InputEvent, at: Vector2) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		_right_click()
+		return
 	if screens.has(state):
 		if event is InputEventMouseMotion:
 			if _sliding != "" and state == "settings" and event.button_mask & MOUSE_BUTTON_MASK_LEFT:
@@ -1050,6 +1053,17 @@ func _pointer(event: InputEvent, at: Vector2) -> void:
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		_click_choice(at)
+
+
+## A right click steps back as Escape does, so the mouse alone can leave every screen and put off the gods.
+func _right_click() -> void:
+	if state == "over" and screens.over.revealing():
+		if Game.confirm_allowed(state, opened_at, clock, balance):
+			screens.over.skip()
+	elif state == "pray":
+		_not_now()
+	elif screens.has(state):
+		_back()
 
 
 ## A click on a choice: a reroll or banish button, or a row, which the pointer passing over never picks out, so a banish hits the row clicked.
