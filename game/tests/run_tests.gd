@@ -1978,6 +1978,24 @@ func test_the_chieftain_shows_his_charge_then_throws_aside_those_in_its_path(b: 
 	check(s.horde.e_pos[ci].distance_to(from) > length * 0.8, "he charges on through the soldier (%.0f of %.0f px)" % [s.horde.e_pos[ci].distance_to(from), length])
 
 
+func test_a_hastened_chieftain_charges_no_further_than_his_marked_line(b: Dictionary) -> void:
+	for hasted in [false, true]:
+		var s := _chief_sim(b, 143)
+		var h := s.horde
+		var ci := h.spawn("chieftain", s.commander.pos + Vector2(260, 0))
+		s._rebuild_grids()
+		if hasted:
+			h.war_cry(ci, s)
+		h._warn_charge(ci, s.content.enemies.chieftain.attacks.charge)
+		var from := h.charge_from
+		var went := 0.0
+		for f in 240:
+			s.update(1.0 / 60.0, Vector2.ZERO, false)
+			if h.charging:
+				went = maxf(went, h.e_pos[h.chieftain_index()].distance_to(from))
+		check(went > h.charge_len * 0.8 and went <= h.charge_len + 2.0, "%s, his charge ends at the end of its line (%.0f of %.0f px)" % ["hastened by his war cry" if hasted else "unhastened", went, h.charge_len])
+
+
 func test_the_chieftains_slam_warns_then_hurts_everyone_in_the_ring(b: Dictionary) -> void:
 	var s := _chief_sim(b, 142)
 	var atk: Dictionary = s.content.enemies.chieftain.attacks.slam

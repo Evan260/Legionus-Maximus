@@ -2832,7 +2832,8 @@ func _move(dt: float, sim: Sim) -> void:
 			if e_dash[i] > 0.0:
 				e_dash[i] -= dt
 				dashing = true
-				v = e_dir[i] * spd * k_dash_mult[kind]
+				# The chieftain charges at his own pace, neither hastened nor slowed, so he stops where his marked line ends.
+				v = e_dir[i] * (k_speed[kind] if e_tag[i] == CHIEF else spd) * k_dash_mult[kind]
 			else:
 				e_cd[i] -= dt
 				if e_cd[i] <= 0.0 and d > dash_min and d < (legion_reach + k_dash_reach[kind] if k_dash_reach[kind] >= 0.0 and e_bare[i] == 0 else dash_max) and not circling:
