@@ -1153,10 +1153,12 @@ func _add_coins(view: Rect2) -> void:
 		var p: Vector2 = sim.c_pos[i]
 		if not view.has_point(p):
 			continue
-		var bob := roundf(sin(sim.time * 4.0 + i * 1.7) * 1.0)
+		# Each coin keeps its own beat from the moment it fell, since its place in the list changes as others are picked up.
+		var beat := sim.c_born[i] * 37.0
+		var bob := roundf(sin(sim.time * 4.0 + beat) * 1.0)
 		var at := (p - size / 2.0 + Vector2(0, bob - 2.0)).round()
 		_add(p.y, rimmed, at - Vector2(1, 1), Color.WHITE)
-		if int(sim.time * 5.0 + i * 3) % 11 == 0:
+		if posmod(int(sim.time * 5.0 + beat), 11) == 0:
 			_add(p.y, Rect2(rect.position + Vector2(3, 2), Vector2(2, 2)), at + Vector2(3, 2), Color(3, 3, 2.8))
 
 
