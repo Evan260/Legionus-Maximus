@@ -78,7 +78,7 @@ func probe(balance: Dictionary, content: Content, seed: int, province: String, s
 				if (u.pos - p).length() < r + Sim.UNIT_RADIUS + 10.0:
 					reach = true
 					break
-			var ok: bool = h.e_want[i] == 1 and h.e_fighting[i] == 0 and not reach and h.e_stun[i] <= 0.0
+			var ok: bool = h.e_fighting[i] == 0 and h.e_guard[i] == Vector2.ZERO and not reach and h.e_stun[i] <= 0.0
 			var list: Array = hist.get(id, [])
 			if not ok:
 				list.clear()

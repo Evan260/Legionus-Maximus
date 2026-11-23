@@ -161,8 +161,7 @@ var e_guard := PackedVector2Array()
 var e_stuck := PackedFloat32Array()
 # Seconds left running away from the legion, for a horn blower whom soldiers have reached.
 var e_flee := PackedFloat32Array()
-# 1 while a barbarian is trying to walk somewhere this update, and his real speed over the last moments in pixels a second, so one held in place shows his stance.
-var e_want := PackedByteArray()
+# Each barbarian's real speed over the last moments in pixels a second, so one held in place shows his stance.
 var e_pace := PackedFloat32Array()
 var next_id := 1
 var chieftain_id := -1
@@ -326,10 +325,9 @@ var k_heavy := PackedByteArray()
 var boss := {}
 ## How hard the horde hunts a legion that keeps marching without fighting, or never moves: 1 brings hunters from all round, and it climbs on to `cap`.
 var pursuit := 0.0
-## The kills a second and the march speed, each averaged over the last few seconds, and the way the legion is heading.
+## The kills a second and the march speed, each averaged over the last few seconds.
 var kill_rate := 0.0
 var march_speed := 0.0
-var heading := Vector2.ZERO
 var _p_next := 0.0
 var _p_from := Vector2.INF
 var _p_kills := 0
@@ -577,7 +575,6 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 	e_guard.append(Vector2.ZERO)
 	e_stuck.append(0.0)
 	e_flee.append(0.0)
-	e_want.append(0)
 	e_pace.append(k_speed[kind])
 	e_fury.append(1.0)
 	e_power.append(power)
@@ -853,7 +850,6 @@ func _pursue(sim: Sim) -> void:
 	kill_rate = lerpf(kill_rate, float(sim.kills - bare_kills - _p_kills) / step, k)
 	_p_kills = sim.kills - bare_kills
 	march_speed = lerpf(march_speed, moved.length(), k)
-	heading = heading.lerp(moved, k)
 	if time < float(cfg.from):
 		return
 	# Ground marched for each kill tells a legion that holds and fights from one that runs while its arms do the killing.
@@ -2771,7 +2767,6 @@ func _move(dt: float, sim: Sim) -> void:
 		if e_stun[i] > 0.0:
 			e_stun[i] -= dt
 			e_fighting[i] = 0
-			e_want[i] = 0
 			e_pace[i] = 0.0
 			if e_flash[i] > 0.0:
 				e_flash[i] -= dt
@@ -3151,7 +3146,6 @@ func _move(dt: float, sim: Sim) -> void:
 			e_stuck[i] = maxf(0.0, e_stuck[i] - dt)
 		e_pos[i] = np
 		if i % 3 == phase and (d < route_range or seen):
-			e_want[i] = 1 if v != Vector2.ZERO else 0
 			e_pace[i] += ((np - p).length() / dt - e_pace[i]) * pace_k
 		if v != Vector2.ZERO:
 			_turn(i, e_dir[i] if dashing else (v.normalized() if circling or fleeing else to / maxf(d, 0.001)))
@@ -3707,7 +3701,6 @@ func remove_at(i: int) -> void:
 	e_guard[i] = e_guard[last]; e_guard.resize(last)
 	e_stuck[i] = e_stuck[last]; e_stuck.resize(last)
 	e_flee[i] = e_flee[last]; e_flee.resize(last)
-	e_want[i] = e_want[last]; e_want.resize(last)
 	e_pace[i] = e_pace[last]; e_pace.resize(last)
 	e_fury[i] = e_fury[last]; e_fury.resize(last)
 	e_power[i] = e_power[last]; e_power.resize(last)

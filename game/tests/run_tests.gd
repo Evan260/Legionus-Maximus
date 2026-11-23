@@ -9724,7 +9724,7 @@ func test_barbarians_go_round_a_wood_without_standing_still(b: Dictionary) -> vo
 	for f in 20 * 60:
 		s.update(1.0 / 60.0, Vector2.ZERO, false)
 		for i in s.horde.e_pos.size():
-			if s.horde.e_want[i] == 1 and s.horde.e_fighting[i] == 0 and s.horde.e_pace[i] < Horde.STILL_PACE:
+			if s.horde.e_fighting[i] == 0 and s.horde.e_stun[i] <= 0.0 and s.horde.e_pace[i] < Horde.STILL_PACE:
 				still += 1.0 / 60.0
 			if s.horde.e_pos[i].y < 60.0:
 				reached[s.horde.e_id[i]] = true
@@ -9781,7 +9781,7 @@ func test_a_barbarian_held_in_place_counts_as_still(b: Dictionary) -> void:
 	s.horde.spawn("barbarian_club", Vector2(-300, 0))
 	_step_dt(s, 1.0)
 	check(s.horde.e_pace[1] > Horde.STILL_PACE, "a barbarian walking in the open counts as moving (%.0f)" % s.horde.e_pace[1])
-	check(s.horde.e_want[0] == 1 and s.horde.e_pace[0] < Horde.STILL_PACE, "one boxed in by rocks counts as still and shows his stance (%.1f)" % s.horde.e_pace[0])
+	check(s.horde.e_fighting[0] == 0 and s.horde.e_pace[0] < Horde.STILL_PACE, "one boxed in by rocks counts as still and shows his stance (%.1f)" % s.horde.e_pace[0])
 
 
 func test_a_stunned_barbarian_is_still_kept_out_of_trees_and_gorges(b: Dictionary) -> void:
