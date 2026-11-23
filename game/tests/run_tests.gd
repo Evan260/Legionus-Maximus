@@ -12462,12 +12462,36 @@ func _bare_main(b: Dictionary, rows: Array = []) -> Node:
 	m.content = content
 	m.hud = Hud.new()
 	m.hud.choice_rects = rows
+	m.world = FakeWorld.new()
 	return m
+
+
+class FakeWorld:
+	extends Node2D
+	var sim: Sim
+	var shake_on := true
 
 
 func _free_main(m: Node) -> void:
 	m.hud.free()
+	m.world.free()
 	m.free()
+
+
+func test_back_waits_a_moment_on_the_summary_of_a_defeat(b: Dictionary) -> void:
+	var kept := _borrow_profile()
+	var m := _bare_main(b)
+	m.screens = {"over": SummaryScreen.new(m)}
+	m.state = "over"
+	m.opened_at = 5.0
+	m.clock = 5.0 + float(b.confirm_delay) * 0.3
+	m._back()
+	check(m.state == "over", "a back press as the summary opens, meant for the run, leaves it open")
+	m.clock = 5.0 + float(b.confirm_delay) + 0.01
+	m._back()
+	check(m.state == "camp", "a back press after the delay goes to the camp (%s)" % m.state)
+	_free_main(m)
+	_return_profile(kept)
 
 
 func test_a_first_tap_only_picks_out_a_purchase_or_a_choice(b: Dictionary) -> void:
