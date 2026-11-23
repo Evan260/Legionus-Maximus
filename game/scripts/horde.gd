@@ -1032,7 +1032,7 @@ func _open_near(p: Vector2, first: int, sim: Sim) -> Vector2:
 		for k in 8:
 			var q: Vector2 = p + Vector2.from_angle(k * TAU / 8.0 + ring * 0.4) * ring * 24.0
 			q = commander.pos + (q - commander.pos).limit_length(most)
-			if beyond_screen(q) != q or not sim.terrain.is_open(q):
+			if not beyond_screen(q).is_equal_approx(q) or not sim.terrain.is_open(q):
 				continue
 			var free := true
 			for j in range(first, e_pos.size()):
