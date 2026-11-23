@@ -681,6 +681,11 @@ func level_mult(key: String) -> float:
 	return float(b.get(run_difficulty, {}).get(key, 1.0)) if run_difficulty in Sim.DIFFICULTIES else 1.0
 
 
+## How hard the chieftain's abilities hit: their numbers are tuned on Medium, so each difficulty scales them by its damage_mult against Medium's.
+func chief_power() -> float:
+	return level_mult("damage_mult") / float(b.get("medium", {}).get("damage_mult", 1.0))
+
+
 ## A number from this province's `difficulty` block in balance.json, 1 where it sets none.
 func difficulty(key: String) -> float:
 	return float(b.get("difficulty", {}).get(province, {}).get(key, 1.0))
@@ -1245,7 +1250,7 @@ func start_sweep(ci: int, sim: Sim) -> bool:
 	if not near_one:
 		return false
 	var dir: Vector2 = (commander.pos - p).normalized() if commander.pos != p else Vector2.RIGHT
-	sweep = {"pos": p, "dir": dir, "t": 0.0, "dur": float(cfg.windup), "reach": reach, "arc": float(cfg.arc), "dmg": k_dps[e_kind[ci]] * float(cfg.damage_mult)}
+	sweep = {"pos": p, "dir": dir, "t": 0.0, "dur": float(cfg.windup), "reach": reach, "arc": float(cfg.arc), "dmg": k_dps[e_kind[ci]] * float(cfg.damage_mult) * chief_power()}
 	e_face[ci] = dir
 	_hold(ci, float(cfg.windup))
 	# The blow is timed to land as the cone fills.
@@ -1263,7 +1268,7 @@ func rockfall(ci: int, sim: Sim) -> void:
 		var at: Vector2 = commander.pos
 		if k > 0:
 			at += Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(float(cfg.radius), float(cfg.spread) + sim.legion_reach * 0.5)
-		foe_lobs.append({"from": at, "to": at, "t": 0.0, "dur": float(cfg.delay) + 0.12 * k, "radius": float(cfg.radius), "dmg": float(cfg.damage), "slam": true, "rock": true, "volley_id": volley_ids})
+		foe_lobs.append({"from": at, "to": at, "t": 0.0, "dur": float(cfg.delay) + 0.12 * k, "radius": float(cfg.radius), "dmg": float(cfg.damage) * chief_power(), "slam": true, "rock": true, "volley_id": volley_ids})
 	e_strike[ci] = time
 	sim.event("bellow", e_pos[ci])
 
@@ -1276,7 +1281,7 @@ func start_leap(ci: int, sim: Sim) -> bool:
 		return false
 	var to: Vector2 = commander.pos
 	leap = {"from": p, "to": to, "t": 0.0, "dur": float(cfg.windup)}
-	foe_lobs.append({"from": p, "to": to, "t": 0.0, "dur": float(cfg.windup), "radius": float(cfg.radius), "dmg": k_dps[e_kind[ci]] * float(cfg.damage_mult), "slam": true, "by": e_id[ci]})
+	foe_lobs.append({"from": p, "to": to, "t": 0.0, "dur": float(cfg.windup), "radius": float(cfg.radius), "dmg": k_dps[e_kind[ci]] * float(cfg.damage_mult) * chief_power(), "slam": true, "by": e_id[ci]})
 	_hold(ci, float(cfg.windup) + 0.1)
 	e_face[ci] = (to - p).normalized() if to != p else e_face[ci]
 	e_strike[ci] = time + float(cfg.windup) - Atlas.ATTACK_FRAMES / Atlas.ATTACK_FPS
@@ -1387,7 +1392,7 @@ func _drive_on(ci: int, dt: float, sim: Sim) -> void:
 	e_pos[ci] = at
 	e_face[ci] = (pts[k] - pts[k - 1]).normalized()
 	var cfg: Dictionary = content.enemies[kind_ids[kind]].attacks.drive
-	var dmg := k_dps[kind] * float(cfg.damage_mult) * sim.frenzy_guard()
+	var dmg := k_dps[kind] * float(cfg.damage_mult) * chief_power() * sim.frenzy_guard()
 	# Her marks count down from -1000 so they never match an elite's charge or a soldier never ridden down.
 	if _ride_down(at, k_radius[kind], e_face[ci], -1000 - int(drive.n), dmg, float(cfg.throw), sim):
 		sim.shake = maxf(sim.shake, float(sim.b.shake.chieftain))
@@ -1480,7 +1485,7 @@ func volleys(ci: int, sim: Sim, key := "volleys") -> void:
 		if hidden > 0.0:
 			thrower = at + side * (hidden if k % 2 == 0 else -hidden)
 		foe_lobs.append({"from": thrower + Vector2(rng.randf_range(-40.0, 40.0), rng.randf_range(-30.0, 30.0)), "to": at, "t": 0.0, "dur": float(cfg.delay),
-			"radius": float(cfg.radius), "dmg": float(cfg.damage), "volley": true, "volley_id": volley_ids, "javelin": hidden > 0.0})
+			"radius": float(cfg.radius), "dmg": float(cfg.damage) * chief_power(), "volley": true, "volley_id": volley_ids, "javelin": hidden > 0.0})
 	e_strike[ci] = time
 	e_face[ci] = (commander.pos - from).normalized() if commander.pos != from else e_face[ci]
 	sim.objectives.notice = {"kind": key, "at": time}
@@ -1549,7 +1554,7 @@ func start_lancers(ci: int, sim: Sim) -> bool:
 	wave_n += 1
 	var width := float(cfg.width)
 	wave = {"from": c - dir * float(cfg.length) / 2.0, "dir": dir, "length": float(cfg.length), "width": width, "t": 0.0, "warn": float(cfg.warn),
-		"seconds": float(cfg.seconds), "riders": [], "n": wave_n, "damage": float(cfg.damage), "throw": float(cfg.throw)}
+		"seconds": float(cfg.seconds), "riders": [], "n": wave_n, "damage": float(cfg.damage) * chief_power(), "throw": float(cfg.throw)}
 	var n := int(cfg.riders)
 	for k in n:
 		if full():
@@ -1621,7 +1626,7 @@ func set_fire(ci: int, sim: Sim) -> void:
 	var cfg: Dictionary = content.enemies[kind_ids[e_kind[ci]]].attacks.steppe_fire
 	var dir := Vector2.from_angle(rng.randf() * TAU)
 	steppe_fire = {"pos": commander.pos - dir * float(cfg.back), "dir": dir, "half_len": float(cfg.length) / 2.0, "depth": float(cfg.depth), "t": 0.0,
-		"warn": float(cfg.warn), "seconds": float(cfg.seconds), "burn": float(cfg.burn), "dps": float(cfg.dps), "lit": false}
+		"warn": float(cfg.warn), "seconds": float(cfg.seconds), "burn": float(cfg.burn), "dps": float(cfg.dps) * chief_power(), "lit": false}
 	e_strike[ci] = time
 	sim.objectives.notice = {"kind": "steppe_fire", "at": time}
 	sim.event("bellow", e_pos[ci])
@@ -1735,7 +1740,7 @@ func burn_land(ci: int, sim: Sim) -> void:
 		var at: Vector2 = commander.pos
 		if k > 0:
 			at += Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(float(cfg.radius), float(cfg.spread) + sim.legion_reach * 0.5)
-		marks.append({"kind": "fire", "id": e_id[ci], "pos": at, "t": 0.0, "dur": float(cfg.warn), "radius": float(cfg.radius), "seconds": float(cfg.seconds), "dps": float(cfg.dps)})
+		marks.append({"kind": "fire", "id": e_id[ci], "pos": at, "t": 0.0, "dur": float(cfg.warn), "radius": float(cfg.radius), "seconds": float(cfg.seconds), "dps": float(cfg.dps) * chief_power()})
 	e_strike[ci] = time
 	sim.event("bellow", e_pos[ci])
 
@@ -1767,7 +1772,7 @@ func slam(ci: int, sim: Sim) -> bool:
 	var reach := (r + Sim.UNIT_RADIUS) * (r + Sim.UNIT_RADIUS)
 	for u in sim.units:
 		if (u.pos - p).length_squared() < reach:
-			foe_lobs.append({"from": p, "to": p, "t": 0.0, "dur": float(atk.windup), "radius": r, "dmg": k_dps[kind] * float(atk.damage_mult), "slam": true, "by": e_id[ci]})
+			foe_lobs.append({"from": p, "to": p, "t": 0.0, "dur": float(atk.windup), "radius": r, "dmg": k_dps[kind] * float(atk.damage_mult) * chief_power(), "slam": true, "by": e_id[ci]})
 			_hold(ci, float(atk.windup))
 			# The chop is timed to come down as the ring fills.
 			e_strike[ci] = time + float(atk.windup) - Atlas.ATTACK_FRAMES / Atlas.ATTACK_FPS
@@ -1823,7 +1828,7 @@ func _chieftain_after(sim: Sim) -> void:
 		if off.length_squared() > reach * reach or u.get("thrown", -1) == charge_n:
 			continue
 		u.thrown = charge_n
-		u.hp -= k_burst[kind] * sim.frenzy_guard()
+		u.hp -= k_burst[kind] * chief_power() * sim.frenzy_guard()
 		u.flash = 0.12
 		hit_any = true
 		if not is_same(u, sim.commander):
@@ -1851,7 +1856,7 @@ func cleave(ci: int, sim: Sim) -> bool:
 	var reach := float(atk.reach) + k_radius[kind]
 	var dir := e_face[ci]
 	var half := float(atk.arc) / 2.0
-	var dmg := k_dps[kind] * float(atk.damage_mult)
+	var dmg := k_dps[kind] * float(atk.damage_mult) * chief_power()
 	var hit_any := false
 	for u in sim.units:
 		var to: Vector2 = u.pos - e_pos[ci]
@@ -2317,7 +2322,7 @@ func _arrow_storm(dt: float, sim: Sim) -> void:
 		var at: Vector2 = commander.pos
 		if k > 0:
 			at += Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(float(cfg.radius), float(cfg.spread) + sim.legion_reach * 0.5)
-		foe_lobs.append({"from": from, "to": at, "t": 0.0, "dur": float(cfg.delay), "radius": float(cfg.radius), "dmg": float(cfg.damage), "volley": true, "volley_id": volley_ids})
+		foe_lobs.append({"from": from, "to": at, "t": 0.0, "dur": float(cfg.delay), "radius": float(cfg.radius), "dmg": float(cfg.damage) * chief_power(), "volley": true, "volley_id": volley_ids})
 	sim.event("arrow", commander.pos)
 
 

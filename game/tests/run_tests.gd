@@ -2294,6 +2294,110 @@ func test_easy_mode_is_gentler_and_pays_less(b: Dictionary) -> void:
 	check(_mode_sim(b, {"seed": 124, "difficulty": "nonsense"}).difficulty == "medium", "an unknown difficulty plays as Medium")
 
 
+## A quiet field in `province` at `difficulty`, the commander and eight legionaries too tough to fall, and the chieftain 50 px to his right.
+func _chief_at(b: Dictionary, province: String, difficulty: String) -> Sim:
+	var s := Sim.new(b, Content.with_all_art(), {"seed": 1990, "province": province, "difficulty": difficulty})
+	s.terrain.clear()
+	s.b = b.duplicate()
+	s.b.spawn_per_second_start = 0.0
+	s.b.spawn_per_second_growth = 0.0
+	for t in ["next_surge", "next_band", "next_cart", "next_boss", "_p_next"]:
+		s.horde.set(t, 1e9)
+	s.commander.pos = Vector2.ZERO
+	for k in 8:
+		s.add_soldier("legionary")
+	s.legion.place_all(s.facing_angle)
+	s.horde.spawn_chieftain(Vector2(50, 0))
+	s._rebuild_grids()
+	for u in s.units:
+		u.hp = 1e6
+		u.max_hp = 1e6
+	return s
+
+
+func _units_hp(s: Sim) -> float:
+	var hp := 0.0
+	for u in s.units:
+		hp += u.hp
+	return hp
+
+
+## What each chieftain's abilities deal at a difficulty, by name: the harm marked on the ground, or the health taken from those struck.
+func _chief_damage(b: Dictionary, difficulty: String) -> Dictionary:
+	var out := {}
+	var s := _chief_at(b, "germania", difficulty)
+	var h := s.horde
+	var ci := h.chieftain_index()
+	h.e_face[ci] = Vector2.LEFT
+	var hp0 := _units_hp(s)
+	h.cleave(ci, s)
+	out.cleave = hp0 - _units_hp(s)
+	h.slam(ci, s)
+	out.slam = h.foe_lobs[-1].dmg
+	h.e_pos[ci] = s.soldiers[0].pos + Vector2(h.k_radius[h.e_kind[ci]] + 4.0, 0)
+	h.charging = true
+	h.e_dash[ci] = 1.0
+	h.charge_n = 99
+	hp0 = _units_hp(s)
+	h._chieftain_after(s)
+	out.charge = hp0 - _units_hp(s)
+	s = _chief_at(b, "britannia", difficulty)
+	h = s.horde
+	ci = h.chieftain_index()
+	h.start_drive(ci, s)
+	h.drive.t = h.drive.warn
+	s.soldiers[0].pos = h.e_pos[ci] + Vector2(4, 0)
+	hp0 = _units_hp(s)
+	h._drive_on(ci, 0.0, s)
+	out.drive = hp0 - _units_hp(s)
+	h.burn_land(ci, s)
+	out.burn = h.marks[-1].dps
+	s = _chief_at(b, "hispania", difficulty)
+	s.horde.volleys(s.horde.chieftain_index(), s, "javelins")
+	out.javelins = s.horde.foe_lobs[-1].dmg
+	s = _chief_at(b, "aegyptus", difficulty)
+	s.horde.volleys(s.horde.chieftain_index(), s)
+	out.volleys = s.horde.foe_lobs[-1].dmg
+	s = _chief_at(b, "parthia", difficulty)
+	h = s.horde
+	h.start_storm(h.chieftain_index(), s)
+	h.arrow_storm.next = 0.0
+	h._arrow_storm(0.0, s)
+	out.storm = h.foe_lobs[-1].dmg
+	s = _chief_at(b, "dacia", difficulty)
+	h = s.horde
+	ci = h.chieftain_index()
+	h.start_sweep(ci, s)
+	out.sweep = h.sweep.dmg
+	h.rockfall(ci, s)
+	out.rockfall = h.foe_lobs[-1].dmg
+	h.start_leap(ci, s)
+	out.leap = h.foe_lobs[-1].dmg
+	s = _chief_at(b, "sarmatia", difficulty)
+	h = s.horde
+	ci = h.chieftain_index()
+	h.start_lancers(ci, s)
+	out.lancers = h.wave.damage
+	h.set_fire(ci, s)
+	out.steppe_fire = h.steppe_fire.dps
+	return out
+
+
+func test_the_chieftains_abilities_follow_the_difficulty(b: Dictionary) -> void:
+	var medium := _chief_damage(b, "medium")
+	var easy := _chief_damage(b, "easy")
+	var hard := _chief_damage(b, "hard")
+	var m := float(b.medium.get("damage_mult", 1.0))
+	for key in medium:
+		var softer := float(easy[key]) / float(medium[key])
+		var harder := float(hard[key]) / float(medium[key])
+		check(float(medium[key]) > 0.0 and is_equal_approx(softer, float(b.easy.get("damage_mult", 1.0)) / m) and is_equal_approx(harder, float(b.hard.get("damage_mult", 1.0)) / m),
+			"the chieftain's %s follows the difficulty's damage (Easy %.1f, Medium %.1f, Hard %.1f)" % [key, easy[key], medium[key], hard[key]])
+	var chief: Dictionary = content.enemies.chieftain
+	check(is_equal_approx(medium.slam, float(chief.dps) * float(chief.attacks.slam.damage_mult)), "and on Medium it hits as its numbers say (%.1f)" % medium.slam)
+	check(is_equal_approx(medium.javelins, float(content.enemies.viriathus.attacks.javelins.damage)), "a marked blow too (%.1f)" % medium.javelins)
+
+
 ## The denarii a run at another difficulty pays for 400 kills, against the first run's.
 func _pay_ratio(base: Sim, other: Sim) -> float:
 	var paid := [0, 0]
