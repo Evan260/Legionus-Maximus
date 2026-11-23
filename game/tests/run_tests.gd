@@ -219,6 +219,23 @@ func test_a_big_shadow_is_drawn_at_its_own_size(_b: Dictionary) -> void:
 	check(view.shadow_image(16).get_size() == Vector2i(16, 6), "a small one keeps 16 by 6")
 
 
+func test_every_shadow_is_drawn_from_one_sheet(_b: Dictionary) -> void:
+	var view: GDScript = load("res://scripts/world_view.gd")
+	var widths := [16, 29, 48]
+	var sheet: Array = view.shadow_sheet(widths)
+	var img: Image = sheet[0]
+	var cells: Array = sheet[1]
+	var same := true
+	for k in widths.size():
+		var cell: Rect2 = cells[k]
+		same = same and img.get_region(Rect2i(cell)).get_data() == view.shadow_image(widths[k]).get_data()
+	check(same, "each width's row is that shadow, pixel for pixel")
+	var apart := true
+	for k in range(1, cells.size()):
+		apart = apart and cells[k].position.y > cells[k - 1].end.y
+	check(apart, "with a clear row between one shadow and the next")
+
+
 func test_the_testudo_tint_shows_on_the_shield_bearers(b: Dictionary) -> void:
 	var view: GDScript = load("res://scripts/world_view.gd")
 	var s := _one_soldier(b, 6104, "legionary", true)

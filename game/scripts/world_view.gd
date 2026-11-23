@@ -22,9 +22,12 @@ var sim: Sim
 var atlas: Atlas
 var ground: Texture2D
 var _ground_of := "germania"
-var shadow: Texture2D
-# A boss's shadow by its width, made once at that size.
-var _big_shadows := {}
+# Every shadow width the field needs, one row each, so all the shadows draw from one texture; row 0 is the 16 px shadow of a man.
+var _shadow_sheet: Texture2D
+var _shadow_cells: Array[Rect2] = []
+# The shadows of this frame, as each one's top left and its row in the shadow sheet, drawn after the ground and before anyone standing.
+var _shadow_at := PackedVector2Array()
+var _shadow_row := PackedInt32Array()
 var shake_on := true
 ## Where the camera looks while `eye_sim` is the field shown, in place of the commander; the title drifts it across the province.
 var eye_at := Vector2.ZERO
@@ -52,11 +55,10 @@ var _stain_cells: Array[int] = []
 var _stain_rows: Array[int] = []
 # The trees being chopped this frame, as [position, seconds of chopping], for their progress bars.
 var _felling: Array = []
-# Per enemy kind of the current sim: its art name, whether it has an attack drawn, and its shadow's width.
+# Per enemy kind of the current sim: whether it has an attack drawn, and its shadow's row in the shadow sheet.
 var _kinds_of: Sim
-var _k_type := PackedStringArray()
 var _k_attack := PackedByteArray()
-var _k_shadow := PackedFloat32Array()
+var _k_shadow := PackedInt32Array()
 # How much larger than its art each kind is drawn, such as the war elephant.
 var _k_scale := PackedFloat32Array()
 # How far each kind's picture can reach from where it stands, so a big one is still drawn while part of it is on screen.
@@ -72,6 +74,9 @@ var _prop_frames := {}
 # In a province whose ground is sand, each tree kind's drifts of sand round its foot, as [picture, top left against the tree's picture], and the province they were painted for.
 var _drifts := {}
 var _drifts_of := ""
+# The drifts in view this frame, as picture and top left, drawn with the ground pictures.
+var _drift_tex: Array[Texture2D] = []
+var _drift_at := PackedVector2Array()
 # Where each tree kind's trunk meets the ground in its picture, read from the atlas once, since reading the atlas back is slow.
 static var _trunk_feet := {}
 ## The camp's burning huts by position, as [index, seconds since the eagle was taken], rebuilt each frame.
@@ -118,15 +123,33 @@ static func shadow_image(w: int) -> Image:
 	return img
 
 
-func _big_shadow(w: int) -> Texture2D:
-	if not _big_shadows.has(w):
-		_big_shadows[w] = ImageTexture.create_from_image(shadow_image(w))
-	return _big_shadows[w]
+## The shadows of these widths in one picture, a row each with a clear row between, and each one's rectangle in it.
+static func shadow_sheet(widths: Array) -> Array:
+	var cells: Array[Rect2] = []
+	var size := Vector2i.ZERO
+	for w: int in widths:
+		var h := maxi(1, roundi(w * 0.375))
+		cells.append(Rect2(0, size.y, w, h))
+		size = Vector2i(maxi(size.x, w), size.y + h + 1)
+	var img := Image.create(size.x, size.y, false, Image.FORMAT_RGBA8)
+	for k in widths.size():
+		img.blit_rect(shadow_image(widths[k]), Rect2i(Vector2i.ZERO, Vector2i(cells[k].size)), Vector2i(cells[k].position))
+	return [img, cells]
+
+
+func _add_shadow(at: Vector2, row: int) -> void:
+	_shadow_at.append(at)
+	_shadow_row.append(row)
+
+
+func _draw_shadows() -> void:
+	for n in _shadow_at.size():
+		var cell := _shadow_cells[_shadow_row[n]]
+		draw_texture_rect_region(_shadow_sheet, Rect2(_shadow_at[n], cell.size), cell)
 
 
 func _ready() -> void:
 	ground = load(Content.ground_path("germania"))
-	shadow = ImageTexture.create_from_image(shadow_image(16))
 	digits = _digit_texture()
 	ravine_edge = load("res://assets/ravine_edge.png")
 	ice = load("res://assets/ice.png")
@@ -271,16 +294,14 @@ func _snap(p: Vector2) -> Vector2:
 func _draw() -> void:
 	if not sim:
 		return
+	if _kinds_of != sim:
+		_index_kinds()
 	var cam := eye()
 	_cam = cam
 	var screen := get_viewport_rect().size
 	var top_left := cam - screen / 2.0
 	_draw_ravines(view_for(top_left).grow(80.0))
-	_draw_fort_ring(view_for(top_left))
-	_draw_ground_zones(view_for(top_left))
-	_draw_god_ground()
 	_draw_scorch(view_for(top_left))
-	_draw_warnings()
 	var livery := livery_force if livery_force.x >= 0 else Livery.tiers(sim)
 	if livery != _livery:
 		_livery = livery
@@ -293,6 +314,10 @@ func _draw() -> void:
 	_turns.clear()
 	_turn_lo = 0
 	_turn_hi = 0
+	_shadow_at.clear()
+	_shadow_row.clear()
+	_drift_tex.clear()
+	_drift_at.clear()
 	var white := Color.WHITE
 	var margin := 80.0
 	var view := Rect2(top_left - Vector2(margin, margin), screen + Vector2(margin, margin) * 2.0)
@@ -325,7 +350,8 @@ func _draw() -> void:
 				if not _drifts.is_empty() and _drifts.has(pr[0]):
 					var shapes: Array = _drifts[pr[0]]
 					var drift: Array = shapes[posmod(int(at.x) * 7 + int(at.y) * 13, shapes.size())]
-					draw_texture(drift[0], (at - f[1]).round() + drift[1])
+					_drift_tex.append(drift[0])
+					_drift_at.append((at - f[1]).round() + drift[1])
 				if pr[0] == "dune" or pr[0] == "bog" or pr[0] == "heather" or pr[0] == "dry_grass" or pr[0] == "hut_ruin":
 					# Dunes, bog pools, heather and dry grass are walked over, so they are drawn on the ground under everything that stands on them.
 					_add(at.y - 60000.0, f[0], at - f[1], white)
@@ -370,14 +396,12 @@ func _draw() -> void:
 		var mod := legion_tint(sim, u)
 		if u.get("dazed", 0.0) > 0.0:
 			_dazed.append(u.pos)
-		draw_texture(shadow, _snap(u.pos - Vector2(8, 3)))
+		_add_shadow(_snap(u.pos - Vector2(8, 3)), 0)
 		var hop := Vector2.ZERO
 		if cheering and not u.moving:
 			hop.y = -sin(PI * phase / cycle) * float(sim.b.triumph.hop)
 		_add(u.pos.y, f[0], u.pos - f[1] + hop, Livery.mark(mod), true)
 
-	if _kinds_of != sim:
-		_index_kinds()
 	var h: Horde = sim.horde
 	var strike_secs := Atlas.ATTACK_FRAMES / Atlas.ATTACK_FPS
 	var loop_t := sim.time * Atlas.ATTACK_FPS
@@ -417,12 +441,8 @@ func _draw() -> void:
 			mod = Color(1.0, 0.78, 0.6)
 		elif h.e_ward[i] > sim.time:
 			mod = Color(0.72, 0.95, 0.6)
-		var sw := _k_shadow[kind]
-		if sw <= 16.0:
-			draw_texture(shadow, _snap(p - Vector2(8, 3)))
-		else:
-			var big := _big_shadow(roundi(sw))
-			draw_texture(big, _snap(p - Vector2(big.get_width() / 2.0, big.get_height() / 2.0)))
+		var row := _k_shadow[kind]
+		_add_shadow(_snap(p - _shadow_cells[row].size / 2.0), row)
 		var sc := _k_scale[kind]
 		if sc != 1.0:
 			_add(p.y, rect, p - anchor * sc, mod, true, rect.size * sc)
@@ -453,10 +473,17 @@ func _draw() -> void:
 	_add_coins(view)
 	_keys.sort()
 	var tex := atlas.texture
-	# Stains and the coins' shadows go over the ground pictures, such as dunes and heather, and under everything that stands.
+	# Everything flat on the ground lies over the ground pictures, such as dunes and heather, and under everything that stands.
 	var standing := _keys.bsearch(STANDING_KEY)
 	_draw_sorted(tex, 0, standing)
+	for n in _drift_at.size():
+		draw_texture(_drift_tex[n], _drift_at[n])
 	_draw_stains(view)
+	_draw_fort_ring(view)
+	_draw_ground_zones(view)
+	_draw_god_ground()
+	_draw_warnings()
+	_draw_shadows()
 	_draw_coin_shadows(view)
 	_draw_sorted(tex, standing, _keys.size())
 	_draw_death_bits()
@@ -724,19 +751,24 @@ func _cheer_frame(u: Dictionary, phase: float) -> Array:
 func _index_kinds() -> void:
 	_kinds_of = sim
 	var h: Horde = sim.horde
-	_k_type.resize(h.kind_ids.size())
 	_k_attack.resize(h.kind_ids.size())
 	_k_shadow.resize(h.kind_ids.size())
 	_k_scale.resize(h.kind_ids.size())
 	_k_reach.resize(h.kind_ids.size())
 	_k_reach.fill(0.0)
 	_max_reach = 0.0
+	var widths := [16]
 	for k in h.kind_ids.size():
-		_k_type[k] = h.kind_ids[k]
 		_k_attack[k] = 1 if atlas.units.has(h.kind_ids[k]) and atlas.units[h.kind_ids[k]].has("attack") else 0
 		# A small barbarian keeps the 16 px shadow; a boss's grows with his body.
-		_k_shadow[k] = maxf(16.0, h.k_radius[k] * 2.4)
+		var w := roundi(maxf(16.0, h.k_radius[k] * 2.4))
+		if not widths.has(w):
+			widths.append(w)
+		_k_shadow[k] = widths.find(w)
 		_k_scale[k] = _scale_of(h.kind_ids[k])
+	var sheet := shadow_sheet(widths)
+	_shadow_sheet = ImageTexture.create_from_image(sheet[0])
+	_shadow_cells = sheet[1]
 	var slots := h.kind_ids.size() * 24
 	_f_start.resize(slots)
 	_f_count.resize(slots)
@@ -815,7 +847,7 @@ func _add_arm_sprites(view: Rect2) -> void:
 			var f := atlas.attack_frame("war_dog", Sim.dir_name(d.face), sim.time - float(d.bit))
 			if f.is_empty():
 				f = atlas.unit_frame("war_dog", action, Sim.dir_name(d.face), d.run * 12.0)
-			draw_texture(shadow, (d.pos - Vector2(8, 3)).round())
+			_add_shadow((d.pos - Vector2(8, 3)).round(), 0)
 			_add(d.pos.y, f[0], d.pos - f[1], Color.WHITE)
 
 
@@ -1176,7 +1208,7 @@ func _add_objectives(view: Rect2) -> void:
 					_add_prop("supply_cart", o.pos, Color(1, 1, 1, fade))
 				for g in o.guards:
 					var f := _legion_frame(g)
-					draw_texture(shadow, (g.pos - Vector2(8, 3)).round())
+					_add_shadow((g.pos - Vector2(8, 3)).round(), 0)
 					_add(g.pos.y, f[0], g.pos - f[1], Color(1.0, 0.55, 0.55) if g.flash > 0.0 else Color.WHITE)
 			"grove":
 				_add_prop(str(o.get("centre", "altar")), o.pos, Color.WHITE)
