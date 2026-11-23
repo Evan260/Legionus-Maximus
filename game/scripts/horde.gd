@@ -2747,6 +2747,14 @@ func _move(dt: float, sim: Sim) -> void:
 			e_pace[i] = 0.0
 			if e_flash[i] > 0.0:
 				e_flash[i] -= dt
+			# A throw that stuns him still lands him outside trees and wheat; an ordinary one carried over a lip falls in, and one still at it is left to the throw.
+			if d < solid_range or (absf(to.x) < seen_x and absf(to.y) < seen_y):
+				if e_tag[i] != ORDINARY:
+					e_pos[i] = _clear_of(p, k_radius[kind], sim)
+				elif sim.terrain.over_ravine(p, 4.0):
+					sim.plunge(i)
+				elif sim.terrain.ravine_push(p, k_radius[kind]) == p:
+					e_pos[i] = _clear_of(p, k_radius[kind], sim)
 			continue
 		var r := k_radius[kind]
 		var slow := e_slow[i]

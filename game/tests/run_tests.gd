@@ -9684,6 +9684,28 @@ func test_a_barbarian_held_in_place_counts_as_still(b: Dictionary) -> void:
 	check(s.horde.e_want[0] == 1 and s.horde.e_pace[0] < Horde.STILL_PACE, "one boxed in by rocks counts as still and shows his stance (%.1f)" % s.horde.e_pace[0])
 
 
+func test_a_stunned_barbarian_is_still_kept_out_of_trees_and_gorges(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 1605, Content.with_all_art())
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	_gorge(s, -300, 300, 200, 30)
+	var trunk := Vector2(150, 0)
+	s.terrain.add_post(trunk, 9.0, 1e9)
+	s.terrain.refresh(s.commander.pos)
+	var h := s.horde
+	var in_tree := h.e_id[h.spawn("barbarian_club", trunk + Vector2(2, 0))]
+	var over := h.e_id[h.spawn("barbarian_club", Vector2(-100, 200))]
+	var boss := h.e_id[h.spawn("berserker", Vector2(100, 200), true)]
+	for k in h.e_pos.size():
+		h.e_stun[k] = 0.5
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	var j := h.e_id.find(in_tree)
+	check(h.e_pos[j].distance_to(trunk) >= 9.0 + h.k_radius[h.e_kind[j]] - 0.5, "a stunned barbarian thrown into a tree comes out of it (%.1f px from its middle)" % h.e_pos[j].distance_to(trunk))
+	check(h.e_id.find(over) < 0, "one thrown over a gorge falls in")
+	var bj := h.e_id.find(boss)
+	check(bj >= 0 and s.terrain.ravine_edge(h.e_pos[bj]) >= 0.0, "while a boss is held at its lip")
+
+
 func test_a_ravine_end_is_solid_only_where_it_is_drawn(b: Dictionary) -> void:
 	var s := _quiet_sim(b, 1603)
 	_gorge(s, -200, 160, 300, 20)
