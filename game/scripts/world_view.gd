@@ -847,8 +847,8 @@ func _add_arm_sprites(view: Rect2) -> void:
 			var f := atlas.attack_frame("war_dog", Sim.dir_name(d.face), sim.time - float(d.bit))
 			if f.is_empty():
 				f = atlas.unit_frame("war_dog", action, Sim.dir_name(d.face), d.run * 12.0)
-			_add_shadow((d.pos - Vector2(8, 3)).round(), 0)
-			_add(d.pos.y, f[0], d.pos - f[1], Color.WHITE)
+			_add_shadow(_snap(d.pos - Vector2(8, 3)), 0)
+			_add(d.pos.y, f[0], d.pos - f[1], Color.WHITE, true)
 
 
 func _draw_lobs(tex: Texture2D) -> void:
