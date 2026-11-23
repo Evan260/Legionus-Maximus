@@ -2,7 +2,7 @@ extends Node
 ## Steam and the achievements: earned ones are kept in the profile and handed to Steam whenever it is running, and what friends
 ## see (rich presence) is sent only on a change. Outside Steam, in tests and in screenshots, nothing here calls Steam.
 
-const HIDING_STATES := ["choose", "pray", "over", "pause", "settings"]
+const HIDING_STATES := ["choose", "pray", "supply", "over", "pause", "settings"]
 const STORE_URL := "https://store.steampowered.com/app/%d"
 
 var steam: Object = null

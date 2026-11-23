@@ -62,6 +62,8 @@ var terrain: Terrain
 var objectives := Objectives.new()
 var province := "germania"
 var free_choices := 0
+## The supply carts opened and not yet chosen from, oldest first, each as {left, picks}.
+var supplies: Array = []
 var g_origin: Vector2i:
 	get:
 		return horde.g_origin
@@ -255,6 +257,53 @@ func bonus_amount(id: String) -> float:
 	if not content.quartermaster.has(id):
 		return 0.0
 	return float(_bonus(id)) * float(content.quartermaster[id].per_rank)
+
+
+## Opens a supply cart's choice of rewards, to be chosen from `picks` times.
+func add_supply(picks: int) -> void:
+	supplies.append({"left": Horde.CART_REWARDS.duplicate(), "picks": picks})
+
+
+## The rewards the oldest open supply cart still offers, or none.
+func supply_offers() -> Array:
+	return supplies[0].left.duplicate() if not supplies.is_empty() else []
+
+
+## Gives a reward of the oldest open supply cart, which closes once its picks are spent.
+func take_supply(id: String) -> void:
+	if supplies.is_empty():
+		return
+	var cart: Dictionary = supplies[0]
+	cart.left.erase(id)
+	cart.picks -= 1
+	if cart.picks <= 0 or cart.left.is_empty():
+		supplies.pop_front()
+	horde.cart_reward(self, id)
+
+
+## How hurt the legion is: its wounded soldiers, their health as a percentage of their most, and the commander's percentage.
+func legion_health() -> Dictionary:
+	var has := 0.0
+	var most := 0.0
+	var wounded := 0
+	for u in soldiers:
+		has += u.hp
+		most += u.max_hp
+		if u.hp < u.max_hp:
+			wounded += 1
+	var share := 100 if wounded == 0 else floori(100.0 * has / most)
+	var own := 100 if commander.hp >= commander.max_hp else floori(100.0 * commander.hp / commander.max_hp)
+	return {"wounded": wounded, "share": share, "commander": own}
+
+
+## The supply a bot or an autoplay takes: healing for a legion below half health, otherwise the free level-up.
+func bot_supply() -> String:
+	var offers := supply_offers()
+	if offers.is_empty():
+		return ""
+	if offers.has("heal") and legion_health().share < 50:
+		return "heal"
+	return "free_choice" if offers.has("free_choice") else str(offers[0])
 
 
 func rank(id: String) -> int:

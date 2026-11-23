@@ -46,6 +46,8 @@ const BIG_ROW_W := 616.0
 const BIG_ROW_H := 28.0
 const BIG_ROW_TOP := 44.0
 const BIG_ROW_ICON := 24.0
+## The icon of each supply cart reward.
+const SUPPLY_ICONS := {"free_choice": "glory", "heal": "medicus", "magnet": "magnet"}
 const DETAIL_H := 94.0
 const DETAIL_PAD := 8.0
 
@@ -63,6 +65,14 @@ func icon_of(id: String) -> Texture2D:
 		var path := "res://assets/icons/%s.png" % main.sim.content.icon_key(id)
 		icons[id] = load(path) if ResourceLoader.exists(path) else null
 	return icons[id]
+
+
+## A supply cart reward's icon, loaded the first time it is drawn.
+func supply_icon(id: String) -> Texture2D:
+	var key := "supply:" + id
+	if not icons.has(key):
+		icons[key] = load("res://assets/icons/%s.png" % SUPPLY_ICONS[id])
+	return icons[key]
 
 
 func _process(_dt: float) -> void:
@@ -161,7 +171,7 @@ func _scene() -> void:
 	if white > 0.0:
 		draw_rect(Rect2(Vector2.ZERO, Ui.view), Color(1, 1, 1, white * float(sim.b.chief_death.flash)))
 	_top_bar(sim)
-	var choosing: bool = main.state == "choose" or main.state == "pray"
+	var choosing := Game.choosing(main.state)
 	# The boss names and objective badges would sit on the choice's heading and cards, so they wait until it is made.
 	if not choosing:
 		var bosses := boss_names(sim)
@@ -215,7 +225,7 @@ func _top_bar_in(sim: Sim, W: float, H: float) -> void:
 	var y1 := 16.0 + 8.0 * Ui.scale
 	var y2 := y1 + (11.0 if not big else 20.0)
 	# A choice on screen keeps only the level and the legion up here; its cards and heading take the rest.
-	var choosing: bool = main.state == "choose" or main.state == "pray"
+	var choosing := Game.choosing(main.state)
 	plated_text((tr("Level %d") % sim.level).to_upper(), Vector2(10, y1))
 	if not (choosing and big):
 		plated_text("%02d:%02d" % [secs / 60, secs % 60], Vector2(0, y1), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W)
@@ -578,13 +588,7 @@ static func notice_line(kind: String, sim: Sim) -> String:
 				return TranslationServer.translate("The sacred well is ours: fewer barbarians for a minute")
 			return TranslationServer.translate("The sacred grove burns: fewer barbarians for a minute")
 		"cart_tip":
-			return TranslationServer.translate("A supply cart: march into it for a free level-up, healing or every coin pulled in")
-		"cart_free_choice":
-			return TranslationServer.translate("Supply cart: a free level-up")
-		"cart_heal":
-			return TranslationServer.translate("Supply cart: the legion is healed")
-		"cart_magnet":
-			return TranslationServer.translate("Supply cart: every coin is pulled in")
+			return TranslationServer.translate("A supply cart: march into it to choose a free level-up, healing or every coin pulled in")
 		"grove_tip":
 			if well:
 				return TranslationServer.translate("Stand at the sacred well to seize it: a free level-up and fewer barbarians for a minute")
@@ -966,9 +970,9 @@ static func build_rect() -> Rect2:
 	return Rect2(BUILD_X, top, BUILD_W_BIG if Ui.scale > 1 else BUILD_W, BUILD_FOOT - top)
 
 
-## The build panel sits beside a level-up's rows at the normal text size; large text needs the whole width, and the gods' choice is not about the build.
-static func shows_build(praying: bool, big: bool) -> bool:
-	return not praying and not big
+## The build panel sits beside a level-up's rows at the normal text size; large text needs the whole width, and the gods' and the supply cart's choices are not about the build.
+static func shows_build(other: bool, big: bool) -> bool:
+	return not other and not big
 
 
 ## The legion's build as [part, [[id, count or rank, most ranks], ...]]: every kind of soldier, then every arm with the forged ones after, then every drill, with none for one not yet taken.
@@ -1050,19 +1054,20 @@ func _choices(sim: Sim) -> void:
 	draw_set_transform(Ui.offset)
 	Ui.veil(self, 0.5)
 	var praying: bool = main.state == "pray"
+	var supply: bool = main.state == "supply"
 	var n: int = main.choices.size()
 	var rows := choice_rows(n, big)
-	if shows_build(praying, big):
+	if shows_build(praying or supply, big):
 		draw_build(sim, build_rect())
-	var side_panel := shows_choice_panel(praying, big)
+	var side_panel := shows_choice_panel(praying or supply, big)
 	if side_panel:
 		draw_choice_panel(sim, main.choices[clampi(main.selected, 0, n - 1)])
 	# With large text the heading takes the clock's place in the top bar, which already says the level.
 	var head_y := 16.0 + 8.0 * Ui.scale if big else ROW_TOP - 22.0
 	if praying:
 		ui.fit_text(self, tr("The gods hear you").to_upper(), 300.0 if big else W - 16.0, Vector2(0, head_y), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W, true)
-	elif not big or sim.pending_levels == 0:
-		ui.fit_text(self, (tr("Level %d") % sim.level if sim.pending_levels > 0 else tr("Supplies")).to_upper(), 300.0 if big else W - 16.0, Vector2(0, head_y), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W, true)
+	elif supply or not big or sim.pending_levels == 0:
+		ui.fit_text(self, (tr("Level %d") % sim.level if sim.pending_levels > 0 and not supply else tr("Supplies")).to_upper(), 300.0 if big else W - 16.0, Vector2(0, head_y), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W, true)
 	if not big:
 		text(tr("Call one") if praying else tr("Choose one"), Vector2(0, ROW_TOP - 10.0), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W)
 	choice_rects.clear()
@@ -1074,8 +1079,8 @@ func _choices(sim: Sim) -> void:
 		if picked:
 			draw_rect(r.grow(3), GOLD)
 		panel(r, CREAM if picked else PARCH)
-		var info: Dictionary = sim.content.gods[id] if praying else sim.content.upgrade(id)
-		var icon := icon_of(id)
+		var info: Dictionary = sim.content.gods[id] if praying else (supply_row(sim, id) if supply else sim.content.upgrade(id))
+		var icon := supply_icon(id) if supply else icon_of(id)
 		var side := BIG_ROW_ICON if big else ROW_ICON
 		if icon != null:
 			draw_texture_rect(icon, Rect2(r.position.x + (6.0 if big else 8.0), roundf(r.get_center().y - side / 2.0), side, side), false)
@@ -1086,7 +1091,9 @@ func _choices(sim: Sim) -> void:
 		var name_y := row_name_y(r, big) + roundf(spare)
 		text(str(info.name).to_upper(), Vector2(area.position.x, name_y), INK, HORIZONTAL_ALIGNMENT_LEFT, -1, false)
 		var right := tr("God").to_upper() if praying else Upgrades.level_text(sim, id)
-		text(right, Vector2(area.position.x, name_y), BROWN_TEXT if praying else RED, HORIZONTAL_ALIGNMENT_RIGHT, area.size.x, false)
+		if supply:
+			right = str(info.figure) if big else ""
+		text(right, Vector2(area.position.x, name_y), BROWN_TEXT if praying or supply else RED, HORIZONTAL_ALIGNMENT_RIGHT, area.size.x, false)
 		if not big:
 			wrap_text(words, Vector2(area.position.x, row_text_y(r) + roundf(spare)), area.size.x, INK)
 	var foot: float = rows[-1].end.y
@@ -1094,7 +1101,7 @@ func _choices(sim: Sim) -> void:
 		var box := detail_rect(n)
 		panel(box)
 		var id: String = main.choices[clampi(main.selected, 0, n - 1)]
-		var group := tr("God") if praying else tr(sim.content.group_of(id))
+		var group := tr("God") if praying else (tr("Supplies") if supply else tr(sim.content.group_of(id)))
 		var y := box.position.y + DETAIL_PAD + Ui.px
 		text(group.to_upper(), Vector2(box.position.x + DETAIL_PAD, y), BROWN_TEXT, HORIZONTAL_ALIGNMENT_LEFT, -1, false)
 		wrap_text(_description(sim, id, praying), Vector2(box.position.x + DETAIL_PAD, y + Ui.leading() + 2.0), box.size.x - 2.0 * DETAIL_PAD, INK)
@@ -1108,7 +1115,7 @@ func _choices(sim: Sim) -> void:
 		_centred_hint(Controls.hint("gods"), hint_y, CREAM)
 		return
 	_centred_hint(Controls.hint("level"), hint_y, CREAM)
-	if side_panel:
+	if side_panel or supply:
 		return
 	var extras: Array = []
 	if sim.rerolls > 0:
@@ -1122,9 +1129,10 @@ func _choices(sim: Sim) -> void:
 ## A row of buttons under a phone's choice: take or call the one picked out, then reroll and banish, or not now.
 func _touch_choice_buttons(sim: Sim, praying: bool, y: float) -> void:
 	var ids: Array = [["call", tr("call")], ["not_now", tr("not now")]] if praying else [["take", tr("take it")]]
-	if not praying and sim.rerolls > 0:
+	var levelling: bool = main.state == "choose"
+	if levelling and sim.rerolls > 0:
 		ids.append(["reroll", "%s (%d)" % [tr("reroll"), sim.rerolls]])
-	if not praying and sim.banishes > 0:
+	if levelling and sim.banishes > 0:
 		ids.append(["banish", "%s (%d)" % [tr("banish"), sim.banishes]])
 	var h := 30.0 if Ui.scale > 1 else 24.0
 	var gap := 8.0
@@ -1152,7 +1160,27 @@ func touch_button_at(p: Vector2) -> String:
 	return ""
 
 
+## A supply cart's row for the reward `id`, read from the run as it stands.
+static func supply_row(sim: Sim, id: String) -> Dictionary:
+	return supply_text(id, sim.legion_health(), sim.c_pos.size())
+
+
+## A supply cart's row as {name, line, figure}: what the reward is, a line that tells the state it answers, and that state in short for the large text's rows.
+static func supply_text(id: String, health: Dictionary, coins: int) -> Dictionary:
+	match id:
+		"heal":
+			return {"name": TranslationServer.translate("Heal the legion"),
+				"line": TranslationServer.translate("%d wounded, legion at %d%% health, commander at %d%%") % [health.wounded, health.share, health.commander],
+				"figure": "%d%%" % health.share}
+		"magnet":
+			return {"name": TranslationServer.translate("Every coin pulled in"),
+				"line": TranslationServer.translate("%d coins lie on the field") % coins, "figure": str(coins)}
+	return {"name": TranslationServer.translate("A free level-up"), "line": TranslationServer.translate("One more choice of arms, drills or recruits"), "figure": ""}
+
+
 func _description(sim: Sim, id: String, praying: bool) -> String:
+	if main.state == "supply":
+		return supply_row(sim, id).line
 	return str(sim.content.gods[id].text) if praying else Upgrades.describe(sim, id)
 
 
@@ -1175,8 +1203,8 @@ static func choice_panel_rect() -> Rect2:
 
 
 ## The choice panel shows where the build panel does, except on a phone, whose buttons under the rows do its work.
-static func shows_choice_panel(praying: bool, big: bool) -> bool:
-	return shows_build(praying, big) and not Touch.phone
+static func shows_choice_panel(other: bool, big: bool) -> bool:
+	return shows_build(other, big) and not Touch.phone
 
 
 ## The reroll and banish buttons at the foot of the choice panel, as {id: rect}, the lower one level with the foot of the build panel.

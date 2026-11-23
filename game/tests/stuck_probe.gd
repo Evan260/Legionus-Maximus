@@ -58,6 +58,8 @@ func probe(balance: Dictionary, content: Content, seed: int, province: String, s
 		# The commander keeps full health so the probe sees the whole span.
 		sim.commander.hp = sim.commander.max_hp
 		sim.update(dt, move, false)
+		while not sim.supplies.is_empty():
+			sim.take_supply(sim.bot_supply())
 		while sim.pending_levels > 0 or sim.free_choices > 0:
 			var picks := Upgrades.next_choices(sim)
 			if picks.is_empty():

@@ -143,11 +143,12 @@ func _process(dt: float) -> void:
 		_level_up(sim)
 	if main.state == "pray":
 		_pray()
-	if not main.state in ["play", "choose"] or (shot == "levelup" and main.state == "choose"):
+	if not main.state in ["play", "choose", "supply"] or (shot == "levelup" and main.state == "choose"):
 		return
 	while sim.pending_levels > 0:
 		Upgrades.apply(sim, Upgrades.offers(sim)[0])
 	sim.free_choices = 0
+	sim.supplies.clear()
 	main.state = "play"
 	if not main.args.has("mortal"):
 		sim.commander.hp = sim.commander.max_hp

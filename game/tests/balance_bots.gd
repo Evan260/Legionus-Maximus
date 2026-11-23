@@ -37,6 +37,8 @@ func run(balance: Dictionary, content: Content, seed: int, mode: String, provinc
 			var gods := Gods.offers(sim)
 			if not gods.is_empty():
 				sim.gods.invoke(sim, gods[rng.randi_range(0, gods.size() - 1)])
+		while not sim.supplies.is_empty():
+			sim.take_supply(sim.bot_supply())
 		while sim.pending_levels > 0 or sim.free_choices > 0:
 			var picks := Upgrades.next_choices(sim)
 			if picks.is_empty():

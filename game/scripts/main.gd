@@ -42,6 +42,7 @@ extends Node
 ##                      chop|salvo|howl|maul (Dacia), kite|lance|thrust|sling (Parthia), cry|stones|tend|pass (Britannia), slash|sling|kite (Hispania), thrust|volley|sprint|rush (Aegyptus) or lance|volley|lasso (Sarmatia) has them use theirs
 ##   --province=ID      start the run in that province, for looking at it
 ##   --god=ID           with --autoplay, call that god at --god-at seconds (default 2) of the look; --god=choose fills the favour and holds the choice open
+##   --cart=choose      with --autoplay, open a supply cart's choice at --cart-at seconds (default 2) and hold it open; --cart=twice opens one chosen from twice
 ##   --seed=N           lay out the field and run from a fixed seed, so a look comes out the same every time
 ##   --max-state        open every province, mode and commander with a million denarii, without reading or touching the real save
 ##   --trailer-shot=NAME  stage a trailer shot with tools/trailer/shots.gd
@@ -73,6 +74,8 @@ var profile_at_start := {}
 ## With --win-at, the second at which an autoplay wins, for a look at the triumph.
 var win_at := -1.0
 var god_at := -1.0
+# When the look started by --cart opens a supply cart's choice, on the real clock.
+var cart_at := -1.0
 # When the look started by --boss-act=die cuts the chieftain down, on the real clock.
 var slay_at := -1.0
 ## The run's touch controls on a phone, or null.
@@ -158,6 +161,8 @@ func _ready() -> void:
 				sim.update(1.0 / 30.0, Vector2(cos(sim.time * 0.3), sin(sim.time * 0.3)), false)
 				while sim.pending_levels > 0:
 					Upgrades.apply(sim, Upgrades.offers(sim)[0])
+				while not sim.supplies.is_empty():
+					sim.take_supply(sim.bot_supply())
 	if args.has("men") and state == "play":
 		for i in int(args.men):
 			sim.add_soldier("archer" if i % 3 == 1 else "legionary")
@@ -174,6 +179,8 @@ func _ready() -> void:
 		_bring_boss(str(args.boss), str(args.get("boss-act", "")))
 	if args.has("god"):
 		god_at = float(args.get("god-at", "2"))
+	if args.has("cart"):
+		cart_at = float(args.get("cart-at", "2"))
 	if args.has("shot"):
 		shot_at = float(args.get("at", "3"))
 	if args.has("win-at"):
@@ -646,6 +653,9 @@ func _process(dt: float) -> void:
 				_look_at_god(str(args.god))
 				if state != "play":
 					return
+			if cart_at >= 0.0 and clock >= cart_at:
+				cart_at = -1.0
+				sim.add_supply(2 if args.cart == "twice" else 1)
 			if slay_at >= 0.0 and clock >= slay_at:
 				slay_at = -1.0
 				var ci := sim.chieftain_index()
@@ -679,6 +689,8 @@ func _process(dt: float) -> void:
 			Audio.drain(sim)
 			if sim.over:
 				_finish_run()
+			elif not sim.supplies.is_empty() and sim.triumph_left <= 0.0:
+				_open_supplies()
 			elif (sim.pending_levels > 0 or sim.free_choices > 0) and sim.triumph_left <= 0.0:
 				_open_choices()
 		"pray":
@@ -707,6 +719,16 @@ func _process(dt: float) -> void:
 				_reroll()
 			elif Input.is_action_just_pressed("banish"):
 				_banish()
+		"supply":
+			if args.has("autoplay") and clock - opened_at > 0.5 and not args.has("cart"):
+				_take_supply(choices.find(sim.bot_supply()))
+			elif Input.is_action_just_pressed("up") or Input.is_action_just_pressed("left"):
+				selected = posmod(selected - 1, choices.size())
+			elif Input.is_action_just_pressed("down") or Input.is_action_just_pressed("right"):
+				selected = posmod(selected + 1, choices.size())
+			elif Input.is_action_just_pressed("confirm"):
+				if Game.confirm_allowed(state, opened_at, clock, balance):
+					_take_supply(selected)
 
 
 ## Whether a touch button was pressed this frame.
@@ -915,6 +937,39 @@ func _take(i: int) -> void:
 		_open_choices()
 
 
+## Opens the oldest supply cart's choice of rewards; the run waits while it is open.
+func _open_supplies() -> void:
+	choices = sim.supply_offers()
+	if choices.is_empty():
+		return
+	selected = Upgrades.keep_in(int(args.get("select", "0")), choices)
+	opened_at = clock
+	state = "supply"
+
+
+func _take_supply(i: int) -> void:
+	Audio.play("confirm")
+	sim.take_supply(choices[i])
+	state = "play"
+	# The confirm key is also the testudo key, so the press that took the reward must not raise the shields.
+	Input.action_release("testudo")
+	if not sim.supplies.is_empty():
+		_open_supplies()
+	elif sim.pending_levels > 0 or sim.free_choices > 0:
+		_open_choices()
+
+
+## Takes row `i` of whichever choice is open.
+func _take_row(i: int) -> void:
+	match state:
+		"pray":
+			_call_god(i)
+		"supply":
+			_take_supply(i)
+		_:
+			_take(i)
+
+
 func _input(event: InputEvent) -> void:
 	Controls.note_input(event)
 
@@ -947,7 +1002,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				ui.focus = id
 				_activate(id)
 		return
-	if state != "choose" and state != "pray":
+	if not Game.choosing(state):
 		return
 	if event is InputEventMouseMotion:
 		var i: int = hud.choice_at(at)
@@ -964,10 +1019,7 @@ func _unhandled_input(event: InputEvent) -> void:
 					return
 		var i: int = hud.choice_at(at)
 		if i >= 0:
-			if state == "pray":
-				_call_god(i)
-			else:
-				_take(i)
+			_take_row(i)
 
 
 ## Follows each finger on a screen: a finger lifted where it landed taps, and one dragged up or down scrolls a list.
@@ -999,7 +1051,7 @@ func _touch_input(event: InputEvent) -> void:
 
 ## A tap on a screen: a button acts, or a purchase or choice is first picked out to be read.
 func _tap(at: Vector2) -> void:
-	if state == "choose" or state == "pray":
+	if Game.choosing(state):
 		_tap_choice(at)
 		return
 	if not screens.has(state):
@@ -1030,7 +1082,7 @@ func _tap_choice(at: Vector2) -> void:
 	match button:
 		"take", "call":
 			if ready:
-				_call_god(selected) if state == "pray" else _take(selected)
+				_take_row(selected)
 			return
 		"reroll":
 			_reroll()
@@ -1046,7 +1098,7 @@ func _tap_choice(at: Vector2) -> void:
 		return
 	if Touch.tap_acts(state, "choice:%d" % i, "choice:%d" % selected):
 		if ready:
-			_call_god(i) if state == "pray" else _take(i)
+			_take_row(i)
 	else:
 		selected = i
 		Audio.play("click")

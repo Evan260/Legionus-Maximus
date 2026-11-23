@@ -433,9 +433,6 @@ func test_the_first_supply_cart_says_what_carts_are_for(b: Dictionary) -> void:
 	s.objectives.notice = {}
 	s.horde.spawn_cart()
 	check(s.objectives.notice.is_empty(), "and only with the first")
-	for reward in ["free_choice", "heal", "magnet"]:
-		s.horde.open_cart(s, reward)
-		check(s.objectives.notice.get("kind", "") == "cart_" + reward, "opening a cart names its reward (%s)" % [s.objectives.notice])
 
 
 func test_bosses_never_crowd_in_more_than_the_limit(b: Dictionary) -> void:
@@ -1446,21 +1443,121 @@ func test_elite_drops_a_chest(b: Dictionary) -> void:
 	check(bare.horde.chests.is_empty(), "with no chest art it drops nothing")
 
 
+func test_touching_a_supply_cart_opens_its_choice(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 97, Content.with_all_art())
+	s.soldiers[0].hp = 1.0
+	s.c_pos.append(Vector2(500, 300))
+	s.c_val.append(1)
+	s.c_pull.append(0)
+	s.horde.carts.append({"pos": s.commander.pos, "t": 0.0})
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.horde.carts.is_empty(), "the cart is taken")
+	check(s.supply_offers() == ["free_choice", "heal", "magnet"], "touching it offers the three rewards (%s)" % [s.supply_offers()])
+	check(s.free_choices == 0 and s.soldiers[0].hp < s.soldiers[0].max_hp and s.c_pull[0] == 0, "and gives none of them until one is chosen")
+
+
+func test_each_supply_cart_choice_gives_its_reward(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 98, Content.with_all_art())
+	for k in 6:
+		s.c_pos.append(Vector2(400 + k * 30, 200))
+		s.c_val.append(1)
+		s.c_pull.append(0)
+	s.add_supply(1)
+	s.take_supply("magnet")
+	var all := true
+	for p in s.c_pull:
+		all = all and p == 1
+	check(all and s.supply_offers().is_empty(), "the coins choice pulls every coin and closes the choice")
+	s.add_supply(1)
+	s.take_supply("free_choice")
+	check(s.free_choices == 1 and s.supply_offers().is_empty(), "the level-up choice gives a free choice")
+	s.soldiers[0].hp = 1.0
+	s.commander.hp = 1.0
+	s.add_supply(1)
+	s.take_supply("heal")
+	check(s.soldiers[0].hp == s.soldiers[0].max_hp and s.commander.hp == s.commander.max_hp, "the heal choice heals the legion and the commander")
+	s.add_supply(1)
+	check(s.bot_supply() == "free_choice", "a bot takes the level-up while the legion is well")
+
+
+func test_a_supply_cart_with_the_bonus_is_chosen_from_twice(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 99, Content.with_all_art())
+	s.add_supply(2)
+	s.take_supply("heal")
+	check(s.supply_offers() == ["free_choice", "magnet"], "after the first pick the choice stays open without it (%s)" % [s.supply_offers()])
+	s.take_supply("free_choice")
+	check(s.supply_offers().is_empty() and s.free_choices == 1, "the second pick closes it")
+	s.add_supply(1)
+	s.add_supply(1)
+	s.take_supply("magnet")
+	check(s.supply_offers().size() == 3, "a second cart opened meanwhile offers all three again")
+
+
+func test_the_supply_cart_heal_line_matches_the_legion(b: Dictionary) -> void:
+	var s := _quiet_sim(b, 100, Content.with_all_art())
+	while s.soldiers.size() < 4:
+		s.add_soldier("legionary")
+	var most := 0.0
+	var has := 0.0
+	for u in s.soldiers:
+		most += u.max_hp
+	s.soldiers[0].hp = s.soldiers[0].max_hp * 0.5
+	s.soldiers[1].hp = s.soldiers[1].max_hp * 0.25
+	for u in s.soldiers:
+		has += u.hp
+	s.commander.hp = s.commander.max_hp * 0.4
+	var h := s.legion_health()
+	check(h.wounded == 2, "two soldiers are wounded (%d)" % h.wounded)
+	check(h.share == floori(100.0 * has / most), "the legion's share is its health over its most (%d)" % h.share)
+	check(h.commander == 40, "the commander's share is his own (%d)" % h.commander)
+	var line: String = Hud.supply_row(s, "heal").line
+	check(line == "2 wounded, legion at %d%% health, commander at 40%%" % h.share, "the heal row says so (%s)" % line)
+	for k in 7:
+		s.c_pos.append(Vector2(400 + k * 30, 200))
+		s.c_val.append(1)
+		s.c_pull.append(0)
+	check(Hud.supply_row(s, "magnet").line == "%d coins lie on the field" % s.c_pos.size(), "the coins row counts the coins (%s)" % Hud.supply_row(s, "magnet").line)
+	for u in s.soldiers:
+		u.hp = u.max_hp * 0.3
+	s.add_supply(1)
+	check(s.bot_supply() == "heal", "a bot heals a legion below half health")
+
+
+func test_the_supply_cart_choice_pauses_the_run(b: Dictionary) -> void:
+	Controls.install({})
+	var m: Node = load("res://scripts/main.gd").new()
+	m.balance = b
+	m.sim = _quiet_sim(b, 101, Content.with_all_art())
+	m.content = m.sim.content
+	m.state = "play"
+	m.sim.horde.carts.append({"pos": m.sim.commander.pos, "t": 0.0})
+	m._process(1.0 / 60.0)
+	check(m.state == "supply" and m.choices == ["free_choice", "heal", "magnet"], "touching a cart opens its choice (%s %s)" % [m.state, m.choices])
+	var t: float = m.sim.time
+	for k in 30:
+		m._process(1.0 / 30.0)
+	check(m.sim.time == t, "the run waits while the choice is open")
+	check(Game.in_run("supply", "title") and not Game.confirm_allowed("supply", 1.0, 1.0, b) and Touch.back_step("supply", false) == "none", "the choice is part of the run, waits for a deliberate press and is not backed out of")
+	m._take_supply(0)
+	check(m.state == "choose" and m.sim.free_choices == 1, "taking the level-up opens the level-up after the cart's choice closes (%s)" % m.state)
+	m.free()
+
+
 func test_cart_magnet_pulls_every_coin(b: Dictionary) -> void:
 	var s := Sim.new(b, Content.with_all_art(), {"seed": 95})
 	for k in 6:
 		s.c_pos.append(Vector2(400 + k * 30, 200))
 		s.c_val.append(1)
 		s.c_pull.append(0)
-	s.horde.open_cart(s, "magnet")
+	s.horde.cart_reward(s, "magnet")
 	var all := true
 	for p in s.c_pull:
 		all = all and p == 1
 	check(all, "every coin is on its way")
-	s.horde.open_cart(s, "free_choice")
+	s.horde.cart_reward(s, "free_choice")
 	check(s.free_choices == 1, "a cart can give a free choice")
 	s.soldiers[0].hp = 1.0
-	s.horde.open_cart(s, "heal")
+	s.horde.cart_reward(s, "heal")
 	check(s.soldiers[0].hp == s.soldiers[0].max_hp, "or heal the legion")
 	var no_cart := Content.available_art()
 	no_cart.erase("prop:supply_cart")
@@ -3452,8 +3549,19 @@ func _cuts_in(loc: String, scale: int, c: Content, sim: Sim, cuts: Array) -> voi
 			_fit(cuts, loc, scale, "row name and level (%d rows)" % n, str(c.upgrade(id).name).to_upper() + "  " + Upgrades.level_text(sim, id), head.size.x)
 		for id in c.gods:
 			_fit(cuts, loc, scale, "god row (%d rows)" % n, str(c.gods[id].name).to_upper() + "  " + tr_.call("God").to_upper(), head.size.x)
+	# The supply cart's rows with the longest numbers they can show.
+	_fit(cuts, loc, scale, "supplies heading", tr_.call("Supplies").to_upper(), 300.0 if big else 624.0)
+	var supply_row: Rect2 = Hud.choice_rows(3, big)[0]
+	var supply_head := Hud.row_text(supply_row, big)
+	for id in Horde.CART_REWARDS:
+		var row := Hud.supply_text(id, {"wounded": 199, "share": 100, "commander": 100}, 9999)
+		_fit(cuts, loc, scale, "supply row name", str(row.name).to_upper() + "  " + str(row.figure), supply_head.size.x)
+		if big:
+			_lines(cuts, loc, scale, "supply line in the description box", row.line, Hud.detail_rect(3).size.x - 2.0 * Hud.DETAIL_PAD, Hud.detail_lines())
+		else:
+			_lines(cuts, loc, scale, "supply row line", row.line, supply_head.size.x, Hud.row_lines(supply_row))
 	if big:
-		for g in ["Recruit", "Arms", "Forged", "Drill", "God"]:
+		for g in ["Recruit", "Arms", "Forged", "Drill", "God", "Supplies"]:
 			_fit(cuts, loc, scale, "group in the description box", tr_.call(g).to_upper(), Hud.detail_rect(3).size.x - 2.0 * Hud.DETAIL_PAD)
 	for id in c.gods:
 		if Ui.width_at(str(c.gods[id].name).to_upper(), Ui.px * 3) > 624.0:
@@ -8740,10 +8848,11 @@ func test_quartermaster_cart_rewards_give_more(b: Dictionary) -> void:
 	var extra := {}
 	for rank in [0, 3]:
 		var s := _qm_sim(b, "cart_rewards", rank)
-		var before := s.free_choices
+		var picks := 0
 		for k in 400:
-			s.horde.open_cart(s, "free_choice")
-		extra[rank] = s.free_choices - before - 400
+			s.horde.open_cart(s)
+			picks += int(s.supplies[-1].picks)
+		extra[rank] = picks - 400
 	check(extra[0] == 0, "without it a cart gives its one reward")
 	var want := 400.0 * 3.0 * _qm_step("cart_rewards")
 	check(extra[3] > want * 0.6 and extra[3] < want * 1.4, "three ranks give a second reward from about %d%% of carts (%d of 400)" % [int(300.0 * _qm_step("cart_rewards")), extra[3]])

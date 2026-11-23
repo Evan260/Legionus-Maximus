@@ -157,14 +157,14 @@ static func button_at(layout: Dictionary, p: Vector2) -> String:
 	return best
 
 
-## What the back gesture does in a state: "pause", "not_now", "skip", "back", "background" or "none" while a level-up waits.
+## What the back gesture does in a state: "pause", "not_now", "skip", "back", "background" or "none" while a level-up or a supply cart waits.
 static func back_step(state: String, revealing: bool) -> String:
 	match state:
 		"play":
 			return "pause"
 		"pray":
 			return "not_now"
-		"choose":
+		"choose", "supply":
 			return "none"
 		"title":
 			return "background"

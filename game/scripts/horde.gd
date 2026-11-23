@@ -12,6 +12,8 @@ const LOBBER := 4
 const FLANKER := 5
 const DRIVER := 6
 const BEHAVIOURS := {"melee": MELEE, "ranged": RANGED, "charger": CHARGER, "beast": BEAST, "lobber": LOBBER, "flanker": FLANKER, "driver": DRIVER}
+## What a supply cart offers, in the order its choice lists them.
+const CART_REWARDS := ["free_choice", "heal", "magnet"]
 ## Below this real speed in pixels a second a barbarian counts as standing still.
 const STILL_PACE := 8.0
 ## How long a barbarian locked in melee keeps facing one way before he turns to another foe, in seconds.
@@ -3361,18 +3363,12 @@ func _carts(dt: float, sim: Sim) -> void:
 	carts = keep
 
 
-## Breaking a cart gives one of three rewards; the choice is named so a test can ask for each.
-func open_cart(sim: Sim, reward := "") -> void:
-	_cart_reward(sim, reward)
-	# The quartermaster's cart rewards give a share of carts a second reward.
-	if rng.randf() < sim.bonus_amount("cart_rewards"):
-		_cart_reward(sim, reward)
+## Breaking a cart opens a choice of its rewards; the quartermaster's cart rewards let a share of carts be chosen from twice.
+func open_cart(sim: Sim) -> void:
+	sim.add_supply(2 if rng.randf() < sim.bonus_amount("cart_rewards") else 1)
 
 
-func _cart_reward(sim: Sim, reward: String) -> void:
-	if reward == "":
-		reward = ["free_choice", "heal", "magnet"][rng.randi_range(0, 2)]
-	sim.objectives.notice = {"kind": "cart_" + reward, "at": sim.time}
+func cart_reward(sim: Sim, reward: String) -> void:
 	match reward:
 		"free_choice":
 			sim.free_choices += 1
