@@ -1255,8 +1255,6 @@ func _add_flames(view: Rect2) -> void:
 					_add_flame(o.oaks[i], Vector2(0, -30), i, 0, fade)
 
 
-## One flame of the atlas's flickering sheet at `ground` + `at`, sorted just in front of the thing standing at `ground`.
-## The part of a tree's picture that is canopy and trunk: a fifth in from each side and a tenth down from the top.
 ## Whether a prop drawn at `drawn`, its foot at `foot_y`, stands in front of the commander and is tall enough to hide him.
 static func hides_commander(kind: String, tree: bool, drawn: Rect2, foot_y: float, cam: Vector2) -> bool:
 	var him := Rect2(cam - Vector2(5, 26), Vector2(10, 26))
@@ -1269,19 +1267,17 @@ static func hides_commander(kind: String, tree: bool, drawn: Rect2, foot_y: floa
 	return foot_y > cam.y and _solid_part(drawn).intersects(him)
 
 
+## The part of a tree's picture that is canopy and trunk: a fifth in from each side and a tenth down from the top.
 static func _solid_part(r: Rect2) -> Rect2:
 	return Rect2(r.position + Vector2(r.size.x * 0.2, r.size.y * 0.1), Vector2(r.size.x * 0.6, r.size.y * 0.9))
 
 
-func _add_flame(ground: Vector2, at: Vector2, seed_i: int, k: int, fade: float, scale := 1.0) -> void:
-	var fl: Dictionary = atlas.props.flame
+## One flame of the atlas's flickering sheet at `ground` + `at`, sorted just in front of the thing standing at `ground`.
+## A flame `size` times as big as the drawing is shown by the nearest of the atlas's flame sizes, each drawn pixel for pixel.
+func _add_flame(ground: Vector2, at: Vector2, seed_i: int, k: int, fade: float, size := 1.0) -> void:
+	var fl: Dictionary = atlas.props.flame if size >= 0.875 else (atlas.props.flame_three_quarters if size >= 0.625 else atlas.props.flame_half)
 	var f: Array = fl.frames[(int(sim.time * 10.0) + seed_i * 3 + k) % fl.frames.size()]
-	var anchor := Vector2(fl.anchor[0], fl.anchor[1])
-	var rect := Rect2(f[0], f[1], f[2], f[3])
-	if scale == 1.0:
-		_add(ground.y + 1.0, rect, ground + at - anchor, Color(1, 1, 1, fade))
-	else:
-		_add(ground.y + 1.0, rect, ground + at - (anchor * scale).round(), Color(1, 1, 1, fade), false, (rect.size * scale).round())
+	_add(ground.y + 1.0, Rect2(f[0], f[1], f[2], f[3]), ground + at - Vector2(fl.anchor[0], fl.anchor[1]), Color(1, 1, 1, fade))
 
 
 func _prop(kind: String) -> Array:
