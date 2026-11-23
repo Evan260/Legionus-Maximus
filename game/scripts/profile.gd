@@ -30,6 +30,8 @@ var slot := 0
 var data := {}
 ## The player's settings as saved; `setting()` gives the default of any not saved.
 var settings := {}
+## Whether the last save of the game being played failed, so the camp and the summary can say so until a save succeeds.
+var last_save_failed := false
 ## Each loaded slot's save as read, by slot, laid under the game when it is saved so the fields this build does not know are kept.
 var _kept := {}
 
@@ -101,7 +103,14 @@ func settings_path() -> String:
 ## Saves the game being played in its slot: written to a temporary file and read back before it replaces the save, with the
 ## older saves kept as rolling backups. Does nothing when disabled or before a game is chosen.
 func save() -> bool:
-	if disabled or slot < 1 or slot > SLOTS or made_by_newer(_newest(slot)):
+	if disabled or slot < 1 or slot > SLOTS:
+		return false
+	last_save_failed = not _save_slot()
+	return not last_save_failed
+
+
+func _save_slot() -> bool:
+	if made_by_newer(_newest(slot)):
 		return false
 	var path := path_for(slot)
 	var out := laid_over(_kept.get(slot, {}), data.duplicate(true))
@@ -125,6 +134,7 @@ func load_slot(n: int) -> bool:
 	data = merge_saved(d)
 	_kept[n] = d
 	slot = n
+	last_save_failed = false
 	return true
 
 

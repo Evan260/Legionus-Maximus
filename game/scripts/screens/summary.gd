@@ -201,6 +201,11 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	if sim.demo_over and int(main.balance.demo.store_app_id) > 0 and not Touch.phone:
 		var wide := wide_button_width()
 		ui.button(c, Rect2(r.end.x - 12.0 - 2.0 * bw - 16.0 - wide, r.end.y - h - 6.0, wide, h), "wishlist", tr("Wishlist").to_upper(), "", true, null, true)
+	if Profile.last_save_failed:
+		var room := r.end.x - 12.0 - 2.0 * bw - 16.0 - lx
+		if sim.demo_over and int(main.balance.demo.store_app_id) > 0 and not Touch.phone:
+			room -= wide_button_width() + 8.0
+		ui.fit_text(c, tr("Your progress could not be saved"), room, Vector2(lx, r.end.y - 6.0 - h / 2.0 + Ui.px / 2.0 - 1.0), Ui.RED)
 
 
 ## The victory reveal over the darkened field: gold rays turning behind a great VICTORY between laurels, coins raining,

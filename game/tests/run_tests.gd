@@ -2671,6 +2671,26 @@ func test_saving_keeps_what_this_version_does_not_know(_b: Dictionary) -> void:
 	_cleanup_profile_files()
 
 
+func test_a_save_that_fails_is_reported_until_one_succeeds(_b: Dictionary) -> void:
+	_cleanup_profile_files()
+	_write_raw(TEST_SAVES.path_join("blocked"), "a file where the folder should be")
+	var p := _fresh_profile()
+	p.dir = TEST_SAVES.path_join("blocked")
+	p.slot = 0
+	check(not p.last_save_failed, "nothing has failed at first")
+	check(p.new_game() == 1 and p.last_save_failed, "a new game that cannot be written is reported")
+	p.dir = TEST_SAVES
+	p.data.denarii = 5
+	check(p.save() and not p.last_save_failed, "and no longer once a save succeeds")
+	p.last_save_failed = true
+	check(p.load_slot(1) and not p.last_save_failed, "or once a game is opened from its save")
+	p.disabled = true
+	p.save()
+	check(not p.last_save_failed, "a profile that never saves reports nothing")
+	p.free()
+	_cleanup_profile_files()
+
+
 func test_settings_are_shared_by_every_slot(_b: Dictionary) -> void:
 	_cleanup_profile_files()
 	var p := _fresh_profile()

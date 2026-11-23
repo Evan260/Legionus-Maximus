@@ -58,6 +58,12 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	c.draw_circle(coin_at, coin_r, Ui.GOLD)
 	c.draw_circle(coin_at + Vector2(-1, -1), coin_r * 0.45, Ui.GOLD_LIGHT)
 	ui.text(c, money, Vector2(0, 31 if big else 23), Ui.GOLD_LIGHT, HORIZONTAL_ALIGNMENT_RIGHT, Ui.W - 24, true)
+	if Profile.last_save_failed:
+		var warn := tr("Your progress could not be saved")
+		var ww := minf(Ui.width_at(warn, Ui.fit_size(warn, Ui.W - 40.0)), Ui.W - 40.0)
+		var wy := 58.0 if big else 46.0
+		c.draw_rect(Rect2(Ui.W / 2 - ww / 2 - 8, wy - Ui.px - 2, ww + 16, Ui.leading() + 2), Color(Ui.RED, 0.9))
+		ui.fit_text(c, warn, Ui.W - 40.0, Vector2(0, wy), Ui.CREAM, HORIZONTAL_ALIGNMENT_CENTER, Ui.W, true)
 	var setup: Dictionary = main.run_setup
 	var modes: Array = []
 	if setup.difficulty != "medium":
