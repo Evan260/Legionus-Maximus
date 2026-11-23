@@ -11905,6 +11905,7 @@ func test_a_fractional_window_scale_is_drawn_from_the_next_whole_scale(_b: Dicti
 	check(Display.prescale(Vector2(0.5, 0.5)) == Vector2(1, 1), "a window smaller than the view still draws from whole pixels")
 	check(Display.is_whole(Vector2(3, 3)) and Display.is_whole(Vector2(4.0, 4.0)), "3 and 4 times are whole")
 	check(not Display.is_whole(Vector2(3.75, 3.75)) and not Display.is_whole(Vector2(4, 3.5)), "3.75 times is not whole")
+	check(not Display.is_whole(Vector2(1922.0 / 640.0, 3.0)) and not Display.is_whole(Vector2(2.0, 721.0 / 360.0)), "nor is a hair off 3 or 2 times, which is smoothed rather than stretched")
 
 
 func _death_of(s: Sim) -> Dictionary:

@@ -28,8 +28,9 @@ static func prescale(scale: Vector2) -> Vector2:
 	return k
 
 
+## Whether the view fills the window at exactly a whole scale, so plain nearest filtering keeps every pixel the same width.
 static func is_whole(scale: Vector2) -> bool:
-	return _whole(scale.x) and _whole(scale.y)
+	return scale == scale.round()
 
 
 # The view is sized before the game inside it is ready, so the game starts with the size it keeps.
