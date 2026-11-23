@@ -2052,6 +2052,15 @@ func _gorge_mesh(piece: Dictionary) -> Array:
 
 ## A plank bridge: two side beams with planks laid across them and a post at each corner.
 func _draw_bridge(br: Dictionary) -> void:
+	# The deck is worked out once into one array of triangles, since a bridge never changes.
+	if not br.has("deck"):
+		br.deck = _bridge_deck(br)
+	var m: Array = br.deck
+	RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), m[0], m[1], m[2])
+
+
+## A bridge's deck as triangles with a colour at each corner: [indices, points, colours], laid in drawing order.
+func _bridge_deck(br: Dictionary) -> Array:
 	var d: Vector2 = br.dir
 	var side := d.orthogonal()
 	var hl: float = br.half_len
@@ -2060,25 +2069,44 @@ func _draw_bridge(br: Dictionary) -> void:
 	var ink := Color(0.16, 0.1, 0.08)
 	var beam := Color(0.33, 0.21, 0.11)
 	var planks := [Color(0.62, 0.43, 0.24), Color(0.55, 0.37, 0.2), Color(0.66, 0.47, 0.27)]
-	draw_colored_polygon(PackedVector2Array([c - d * hl + side * (hw + 2), c + d * hl + side * (hw + 2), c + d * hl - side * (hw + 2), c - d * hl - side * (hw + 2)]), ink)
+	var quads: Array = []
+	quads.append([c - d * hl + side * (hw + 2), c + d * hl + side * (hw + 2), c + d * hl - side * (hw + 2), c - d * hl - side * (hw + 2), ink])
 	var t := -hl + 1.0
 	var k := 0
 	while t < hl - 1.0:
 		var a := c + d * t
 		var z := c + d * minf(t + 4.0, hl - 1.0)
 		var jag := float((k * 7) % 3) - 1.0
-		var col: Color = planks[(k * 5) % 3]
-		draw_colored_polygon(PackedVector2Array([a + side * (hw + jag), z + side * (hw + jag), z - side * (hw - jag), a - side * (hw - jag)]), col)
-		draw_line(z + side * (hw - 1), z - side * (hw - 1), Color(0.3, 0.19, 0.1), 1.0)
+		quads.append([a + side * (hw + jag), z + side * (hw + jag), z - side * (hw - jag), a - side * (hw - jag), planks[(k * 5) % 3]])
+		quads.append(_line_quad(z + side * (hw - 1), z - side * (hw - 1), 1.0, Color(0.3, 0.19, 0.1)))
 		t += 5.0
 		k += 1
 	for edge in [-1.0, 1.0]:
 		var e: Vector2 = side * edge * (hw - 1.5)
-		draw_line(c - d * hl + e, c + d * hl + e, beam, 3.0)
+		quads.append(_line_quad(c - d * hl + e, c + d * hl + e, 3.0, beam))
 		for end in [-1.0, 1.0]:
 			var post: Vector2 = (c + d * (hl - 3.0) * end + side * edge * (hw + 1.0)).round()
-			draw_rect(Rect2(post - Vector2(3, 3), Vector2(6, 6)), ink)
-			draw_rect(Rect2(post - Vector2(2, 2), Vector2(4, 4)), beam)
+			quads.append(_rect_quad(Rect2(post - Vector2(3, 3), Vector2(6, 6)), ink))
+			quads.append(_rect_quad(Rect2(post - Vector2(2, 2), Vector2(4, 4)), beam))
+	var pts := PackedVector2Array()
+	var cols := PackedColorArray()
+	var idx := PackedInt32Array()
+	for q in quads:
+		var n := pts.size()
+		pts.append_array(PackedVector2Array([q[0], q[1], q[2], q[3]]))
+		cols.append_array(PackedColorArray([q[4], q[4], q[4], q[4]]))
+		idx.append_array(PackedInt32Array([n, n + 1, n + 2, n, n + 2, n + 3]))
+	return [idx, pts, cols]
+
+
+## A line `w` px wide from a to b as the four corners of a quad and its colour, as draw_line lays it.
+static func _line_quad(a: Vector2, b: Vector2, w: float, col: Color) -> Array:
+	var out := (a - b).orthogonal().normalized() * w / 2.0
+	return [b + out, a + out, a - out, b - out, col]
+
+
+static func _rect_quad(r: Rect2, col: Color) -> Array:
+	return [r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y), col]
 
 
 ## A dead man flashes white, is knocked away from the blow, topples over away from it and fades.
