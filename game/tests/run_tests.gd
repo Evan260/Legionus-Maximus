@@ -4451,7 +4451,7 @@ func _cuts_in(loc: String, scale: int, c: Content, sim: Sim, cuts: Array) -> voi
 		_fit(cuts, loc, scale, "commander tag", tag, 434.0)
 	_fit(cuts, loc, scale, "chosen tag", tr_.call("Chosen").to_upper(), 434.0)
 	var panel_w := MapScreen.panel_rect().size.x - 16.0
-	var mode_w := panel_w if big else (panel_w - 4.0) / 2.0
+	var mode_w := (panel_w - 4.0) / 2.0
 	for s in [tr_.call("Endless"), tr_.call("Decimatio")]:
 		_fit(cuts, loc, scale, "mode button", s, mode_w - Ui.px - 14.0)
 	var level_w := MapScreen.level_widths(panel_w)
@@ -4465,7 +4465,7 @@ func _cuts_in(loc: String, scale: int, c: Content, sim: Sim, cuts: Array) -> voi
 			_fit(cuts, loc, scale, "record column", tr_.call(MapScreen.TIMES[k][1]), columns[k + 1])
 			_fit(cuts, loc, scale, "record time", "99:59", columns[k + 1])
 		else:
-			_fit(cuts, loc, scale, "record line", tr_.call(MapScreen.TIMES[k][1]), MapScreen.time_label_room(panel_w))
+			_fit(cuts, loc, scale, "record column", tr_.call(MapScreen.TIMES[k][1]), MapScreen.time_column(panel_w) - 4.0)
 	if MapScreen.full_table():
 		if columns.reduce(func(sum: float, n: float) -> float: return sum + n, 0.0) > panel_w + 0.5:
 			cuts.append("%s x%d record table needs %d of %d" % [loc, scale, columns.reduce(func(sum: float, n: float) -> float: return sum + n, 0.0), panel_w])
@@ -9176,6 +9176,18 @@ func test_the_map_shows_all_eight_provinces_in_order(b: Dictionary) -> void:
 	check(to_steppe[0] == MapScreen.spot("dacia") and to_steppe[to_steppe.size() - 1] == MapScreen.spot("sarmatia"), "and the road runs east from Dacia to it")
 	Profile.data = saved
 	host.free()
+
+
+func test_the_maps_panel_covers_no_province(b: Dictionary) -> void:
+	var before := Ui.scale
+	for scale in [1, 2]:
+		Ui.set_text_size(scale, b)
+		var panel := MapScreen.panel_rect()
+		check(Rect2(0, 0, Ui.W, Ui.H).encloses(panel), "x%d: the panel is on the map" % scale)
+		for id in MapScreen.PLACES:
+			var node := Rect2(MapScreen.spot(id) - Vector2.ONE * (MapScreen.NODE_R + 6.0), Vector2.ONE * (MapScreen.NODE_R + 6.0) * 2.0)
+			check(not panel.intersects(node), "x%d: the panel %s leaves %s's node %s in sight and to be clicked" % [scale, panel, id, node])
+	Ui.set_text_size(before, b)
 
 
 func test_the_map_road_never_crosses_itself(b: Dictionary) -> void:

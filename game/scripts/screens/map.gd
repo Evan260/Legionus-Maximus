@@ -143,9 +143,9 @@ static func spot(id: String) -> Vector2:
 	return project(PLACES[id]).round()
 
 
-## The panel with the selected province's records and modes, over the steppe at the top right.
+## The panel with the selected province's records and modes, over the sea and the steppe at the top right; with large text it is wide and short, so Dacia and Sarmatia stay in sight below it.
 static func panel_rect() -> Rect2:
-	return Rect2(Ui.W - 254, 8, 246, 36.0 + 8.0 * Ui.leading()) if Ui.scale == 1 else Rect2(Ui.W - 260, 8, 252, 192)
+	return Rect2(Ui.W - 254, 8, 246, 36.0 + 8.0 * Ui.leading()) if Ui.scale == 1 else Rect2(296, 8, Ui.W - 304, 126)
 
 
 ## The road from one province to the next: a smooth curve through the towns on its route, or a bent line where it has none.
@@ -264,7 +264,8 @@ func _node(c: CanvasItem, ui: Ui, id: String, now: float) -> void:
 	var p := spot(id)
 	var state := state_of(id)
 	var hit := Rect2(p - Vector2.ONE * (NODE_R + 6.0), Vector2.ONE * (NODE_R + 6.0) * 2.0)
-	ui.register(hit, "prov:" + id, state == "won" or state == "open")
+	# The panel's buttons take every click that lands on the panel.
+	ui.register(hit, "prov:" + id, state == "won" or state == "open", not panel_rect().intersects(hit))
 	var chosen: bool = main.run_setup.province == id and (state == "won" or state == "open")
 	# The province the legion marches to next glows, so a click on another visibly moves the choice there.
 	if chosen:
@@ -437,9 +438,9 @@ static func table_columns(width: float) -> Array:
 	return out
 
 
-## The room for a mode's name on a line of the chosen difficulty's times, with the time on the right.
-static func time_label_room(width: float) -> float:
-	return width - Ui.width_at("99:59", Ui.px) - 8.0
+## The width of each of the chosen difficulty's times across the large panel, with its name above it.
+static func time_column(width: float) -> float:
+	return width / TIMES.size()
 
 
 ## A row for each difficulty: its name, then each of TIMES as a clock, or "-" where it has none.
@@ -468,28 +469,32 @@ func _panel(c: CanvasItem, ui: Ui, id: String) -> void:
 	var state := state_of(id)
 	ui.fit_text(c, info.name.to_upper(), w, Vector2(x, y), Ui.INK if state != "fog" and state != "locked" else Ui.MUTED)
 	y += Ui.leading()
-	var tag := state_text(id).to_upper()
-	ui.fit_text(c, tag, w, Vector2(x, y), Ui.RED if state == "open" else Ui.BROWN)
-	y += Ui.leading() + 2.0
-	if state == "fog" or state == "locked":
+	var shut := state == "fog" or state == "locked"
+	# With large text the plate by the node already says whether the province is won or open.
+	if not big or shut:
+		var tag := state_text(id).to_upper()
+		ui.fit_text(c, tag, w, Vector2(x, y), Ui.RED if state == "open" else Ui.BROWN)
+		y += Ui.leading()
+	y += 2.0
+	if shut:
 		return
 	var rec := Profile.record_of(id)
-	_records(c, ui, id, x, y, w)
+	# A province not yet won has no times, so the large panel leaves them out.
+	if not big or rec.won:
+		_records(c, ui, id, x, y, w)
 	var bh := 14.0 if not big else 22.0
-	var mode_rows := 1 if not big else MODES.size()
 	# Below the difficulty there is room for the mode switches or for the two lines that say how to open them.
-	var below := maxf(mode_rows * bh + (mode_rows - 1) * 4.0, 2.0 * Ui.leading())
+	var below := bh if big and rec.won else maxf(bh, 2.0 * Ui.leading())
 	var top := r.end.y - 6.0 - below - 4.0 - bh
 	_levels(c, ui, id, Rect2(x, top, w, bh))
 	top += bh + 4.0
 	if not rec.won:
 		ui.wrap_fit(c, tr("Win here to open Endless and Decimatio"), Vector2(x, top + Ui.px - 1.0), w, Ui.MUTED, 2)
 		return
-	var columns := MODES.size() if not big else 1
-	var bw := (w - (columns - 1) * 4.0) / columns
+	var bw := (w - (MODES.size() - 1) * 4.0) / MODES.size()
 	for k in MODES.size():
 		var on: bool = setup[MODES[k][0]] and setup.province == id
-		var at := Vector2(x + (k % columns) * (bw + 4.0), top + (k / columns) * (bh + 4.0))
+		var at := Vector2(x + k * (bw + 4.0), top)
 		var b := Rect2(at, Vector2(bw, bh))
 		ui.button(c, b, "%s:%s" % [MODES[k][0], id], "")
 		var box := Rect2(b.position + Vector2(5.0, (bh - Ui.px) / 2.0), Vector2.ONE * Ui.px)
@@ -500,16 +505,17 @@ func _panel(c: CanvasItem, ui: Ui, id: String) -> void:
 		ui.fit_text(c, tr(MODES[k][1]), room, Vector2(box.end.x + 4.0, b.position.y + bh / 2.0 + Ui.px * 3 / 8), Ui.INK)
 
 
-## The best times from `y` down: a row for each difficulty with the chosen one marked, or with large text the chosen one's alone.
+## The best times from `y` down: a row for each difficulty with the chosen one marked, or with large text the chosen one's alone, across.
 func _records(c: CanvasItem, ui: Ui, id: String, x: float, y: float, w: float) -> void:
 	var rows := record_rows(id)
 	var chosen := maxi(0, Sim.DIFFICULTIES.find(main.run_setup.difficulty))
 	if not full_table():
+		var col := time_column(w)
 		for j in TIMES.size():
 			var t: String = rows[chosen][j + 1]
-			ui.fit_text(c, tr(TIMES[j][1]), time_label_room(w), Vector2(x, y), Ui.INK)
-			ui.text(c, t, Vector2(x, y), Ui.MUTED if t == "-" else Ui.INK, HORIZONTAL_ALIGNMENT_RIGHT, w)
-			y += Ui.leading()
+			var at := Vector2(x + j * col, y)
+			ui.fit_text(c, tr(TIMES[j][1]), col - 4.0, at, Ui.BROWN, HORIZONTAL_ALIGNMENT_CENTER, col)
+			ui.text(c, t, at + Vector2(0, Ui.leading()), Ui.MUTED if t == "-" else Ui.INK, HORIZONTAL_ALIGNMENT_CENTER, col)
 		return
 	var cols := table_columns(w)
 	var at := x + float(cols[0])
@@ -582,15 +588,8 @@ func _links(ui: Ui, ids: Array) -> void:
 		ui.link(levels[k], Vector2.RIGHT, levels[mini(k + 1, levels.size() - 1)])
 		ui.link(levels[k], Vector2.UP, levels[k])
 		ui.link(levels[k], Vector2.DOWN, switches[0] if not switches.is_empty() else node)
-	var across := Ui.scale == 1
 	for k in switches.size():
-		if across:
-			ui.link(switches[k], Vector2.UP, chosen)
-			ui.link(switches[k], Vector2.DOWN, node)
-			ui.link(switches[k], Vector2.LEFT, switches[maxi(k - 1, 0)])
-			ui.link(switches[k], Vector2.RIGHT, switches[mini(k + 1, switches.size() - 1)])
-		else:
-			ui.link(switches[k], Vector2.UP, switches[k - 1] if k > 0 else chosen)
-			ui.link(switches[k], Vector2.DOWN, switches[k + 1] if k < switches.size() - 1 else node)
-			ui.link(switches[k], Vector2.LEFT, node)
-			ui.link(switches[k], Vector2.RIGHT, switches[k])
+		ui.link(switches[k], Vector2.UP, chosen)
+		ui.link(switches[k], Vector2.DOWN, node)
+		ui.link(switches[k], Vector2.LEFT, switches[maxi(k - 1, 0)])
+		ui.link(switches[k], Vector2.RIGHT, switches[mini(k + 1, switches.size() - 1)])
