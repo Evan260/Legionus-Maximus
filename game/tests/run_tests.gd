@@ -7563,6 +7563,27 @@ func test_the_hud_points_to_the_chieftain_off_screen(b: Dictionary) -> void:
 	check(not Hud.targets_of(s).any(func(t: Array) -> bool: return t[0] == "chieftain"), "once he falls the badge goes")
 
 
+func test_the_chieftains_line_has_its_own_row_at_large_text(b: Dictionary) -> void:
+	var before := Ui.scale
+	var s := Sim.new(b, content, {"seed": 1509})
+	var top_of := func(s_: Sim) -> float: return Hud.badges_top(s_) - Touch.inset_tl.y
+	for scale in [1, 2]:
+		Ui.set_text_size(scale, b)
+		var big := Ui.scale > 1
+		var y1 := 16.0 + 8.0 * Ui.scale
+		var run_y := y1 + (11.0 if not big else 20.0)
+		var chief_y := Hud.chieftain_y(y1, big)
+		s.time = 0.0
+		check(not Hud.chieftain_line_shown(s), "x%d: early in the run the chieftain's line is empty" % scale)
+		var quiet: float = top_of.call(s)
+		s.time = float(b.chieftain_at) - 10.0
+		check(Hud.chieftain_line_shown(s), "x%d: the warning shows as he comes" % scale)
+		check(top_of.call(s) >= chief_y + 4.0 and top_of.call(s) > quiet, "x%d: the badges keep below the warning (%d, the line at %d)" % [scale, top_of.call(s), chief_y])
+		if big:
+			check(chief_y - Ui.px >= run_y + 2.0, "the warning has a row of its own under the run line (%d under %d)" % [chief_y, run_y])
+	Ui.set_text_size(before, b)
+
+
 func test_barbarians_cross_a_bridge(b: Dictionary) -> void:
 	var s := _quiet_sim(b, 1504)
 	_gorge(s, -1400, 1400, 100, 50)

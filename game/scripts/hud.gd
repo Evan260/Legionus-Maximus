@@ -84,22 +84,24 @@ func _process(_dt: float) -> void:
 	queue_redraw()
 
 
-func text(s: String, pos: Vector2, col: Color = CREAM, align := HORIZONTAL_ALIGNMENT_LEFT, width := -1.0, shade := true) -> void:
+func text(s: String, pos: Vector2, col: Color = CREAM, align := HORIZONTAL_ALIGNMENT_LEFT, width := -1.0, shade := true, size := 0) -> void:
+	var sz := size if size > 0 else Ui.px
 	if shade:
-		draw_string(Ui.font(), pos + Vector2(Ui.scale, Ui.scale), s, align, width, Ui.px, INK)
-	draw_string(Ui.font(), pos, s, align, width, Ui.px, col)
+		draw_string(Ui.font(), pos + Vector2(Ui.scale, Ui.scale), s, align, width, sz, INK)
+	draw_string(Ui.font(), pos, s, align, width, sz, col)
 
 
 ## A text on a dim plate, for the corner labels that sit over snow, sand and dark trees alike.
-func plated_text(s: String, pos: Vector2, col: Color = CREAM, align := HORIZONTAL_ALIGNMENT_LEFT, width := -1.0) -> void:
-	var w := Ui.width_at(s, Ui.px)
+func plated_text(s: String, pos: Vector2, col: Color = CREAM, align := HORIZONTAL_ALIGNMENT_LEFT, width := -1.0, size := 0) -> void:
+	var sz := size if size > 0 else Ui.px
+	var w := Ui.width_at(s, sz)
 	var x := pos.x
 	if align == HORIZONTAL_ALIGNMENT_RIGHT:
 		x = pos.x + width - w
 	elif align == HORIZONTAL_ALIGNMENT_CENTER:
 		x = pos.x + (width - w) / 2.0
-	draw_rect(Rect2(x - 3.0, pos.y - Ui.px - 1.0, w + 6.0, Ui.leading() + 1.0), Color(0.08, 0.05, 0.04, 0.55))
-	text(s, pos, col, align, width)
+	draw_rect(Rect2(x - 3.0, pos.y - sz - 1.0, w + 6.0, Ui.lead_for(sz) + 1.0), Color(0.08, 0.05, 0.04, 0.55))
+	text(s, pos, col, align, width, true, sz)
 
 
 func wrap_text(s: String, pos: Vector2, width: float, col: Color) -> void:
@@ -244,7 +246,9 @@ func _top_bar_in(sim: Sim, W: float, H: float) -> void:
 	if not choosing:
 		plated_text((tr("Kills %d") % sim.kills).to_upper(), Vector2(0, y2), CREAM, HORIZONTAL_ALIGNMENT_RIGHT, right)
 		if not main.screens.has(main.state):
-			plated_text(run_line(sim), Vector2(10, y2), MUTED)
+			var line := run_line(sim)
+			var size := Ui.fit_size(line, RUN_LINE_ROOM)
+			plated_text(ui.clip(line, RUN_LINE_ROOM, size), Vector2(10, y2), MUTED, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size)
 	# The pause and summary screens write their key hints along the bottom, so the bottom row is left to them.
 	if main.screens.has(main.state):
 		_chieftain_line(sim, W, y1, big)
@@ -270,10 +274,28 @@ func _top_bar_in(sim: Sim, W: float, H: float) -> void:
 	_chieftain_line(sim, W, y1, big)
 
 
+## The baseline of the chieftain's line: under the clock, or with large text on a row of its own under the run line.
+static func chieftain_y(y1: float, big: bool) -> float:
+	return y1 + (11.0 if not big else 20.0 + Ui.leading())
+
+
+## Whether the chieftain's line shows anything: his health, the time won in endless mode or the warning that he is coming.
+static func chieftain_line_shown(sim: Sim) -> bool:
+	return sim.horde.chieftain_index() >= 0 or (sim.endless and sim.endless_since >= 0.0) or (sim.time > float(sim.b.chieftain_at) - 30.0 and sim.horde.chieftain_id == -1)
+
+
+## How far down the edge badges keep, clear of the top bar and the chieftain's line.
+static func badges_top(sim: Sim) -> float:
+	var y1 := 16.0 + 8.0 * Ui.scale
+	if chieftain_line_shown(sim):
+		return chieftain_y(y1, Ui.scale > 1) + 12.0 + Touch.inset_tl.y
+	return y1 + (22.0 if Ui.scale > 1 else 11.0) + Touch.inset_tl.y
+
+
 ## The chieftain's health under the clock, the time won in endless mode, or the warning that he is coming.
 func _chieftain_line(sim: Sim, W: float, y1: float, big: bool) -> void:
 	var ci := sim.horde.chieftain_index()
-	var y3 := y1 + (11.0 if not big else 22.0)
+	var y3 := chieftain_y(y1, big)
 	if ci >= 0:
 		text(chief_name(sim).to_upper(), Vector2(0, y3), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
 		draw_rect(Rect2(W / 2 - 101, y3 + 4, 202, 6), INK)
@@ -822,17 +844,13 @@ static func _name_key(kind: String) -> String:
 ## Badges at the screen's edge pointing to each objective not yet done and to the fort, and a notice when one is done.
 func _objective_arrows(sim: Sim, avoid: Array) -> void:
 	var view := Ui.view
-	var big := Ui.scale > 1
-	var top := 16.0 + 8.0 * Ui.scale + (22.0 if big else 11.0) + Touch.inset_tl.y
+	var top := badges_top(sim)
 	if Touch.phone:
 		var parts := bottom_layout(view - Touch.inset_tl - Touch.inset_br)
 		avoid = avoid + [Rect2(parts.testudo.position + Touch.inset_tl, parts.testudo.size), Rect2(parts.favour.position + Touch.inset_tl, parts.favour.size)]
 		var buttons := touch_layout()
 		for id in buttons:
 			avoid.append(Rect2(buttons[id].centre - Vector2.ONE * buttons[id].radius, Vector2.ONE * buttons[id].radius * 2.0).grow(3.0))
-	# The chieftain's name and health bar run under the clock, so the badges start below them.
-	if sim.horde.chieftain_index() >= 0:
-		top += 12.0
 	var note: Dictionary = sim.objectives.notice
 	var lines: Array = []
 	var spot := Rect2()
