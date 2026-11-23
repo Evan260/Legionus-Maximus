@@ -71,6 +71,8 @@ var _f_anchor := PackedVector2Array()
 var _f_rect: Array[Rect2] = []
 # Each prop kind's frame from the atlas, looked up once.
 var _prop_frames := {}
+# How far the tallest prop's picture rises above its foot, so one standing below the screen with its top on it is still drawn.
+var _prop_rise := 0.0
 # In a province whose ground is sand, each tree kind's drifts of sand round its foot, as [picture, top left against the tree's picture], and the province they were painted for.
 var _drifts := {}
 var _drifts_of := ""
@@ -351,9 +353,13 @@ func _draw() -> void:
 	_index_hut_burn()
 	if _drifts_of != sim.province:
 		_paint_drifts()
+	if _prop_rise == 0.0:
+		for kind in atlas.props:
+			_prop_rise = maxf(_prop_rise, float(atlas.props[kind].anchor[1]))
+	var lowest := view.end.y + maxf(0.0, _prop_rise - margin)
 	# The chunks are read in place, in the order props_in() would join them.
 	for cx in range(floori(view.position.x / Terrain.CHUNK), floori(view.end.x / Terrain.CHUNK) + 1):
-		for cy in range(floori(view.position.y / Terrain.CHUNK), floori(view.end.y / Terrain.CHUNK) + 1):
+		for cy in range(floori(view.position.y / Terrain.CHUNK), floori(lowest / Terrain.CHUNK) + 1):
 			for pr in sim.terrain.chunk(cx, cy):
 				# A piece with no kind is an unseen blocker, such as the inside of the fort's gate towers.
 				if pr[0] == "":
