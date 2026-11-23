@@ -8160,6 +8160,47 @@ func test_raiders_in_melee_slash_at_their_own_pace(b: Dictionary) -> void:
 		check(got[1] > 5.0 and got[0] > got[1] * 0.6 and got[0] < got[1] * 1.5, "%s against %d men slash about as often as their pace (%d against %.0f)" % [t[0], t[2], got[0], got[1]])
 
 
+func test_a_wedge_broken_on_the_testudo_frees_its_riders(b: Dictionary) -> void:
+	var s := Sim.new(b, Content.with_all_art(), {"seed": 9, "province": "parthia"})
+	s.terrain.clear()
+	s.b = b.duplicate()
+	s.b.spawn_per_second_start = 0.0
+	s.b.spawn_per_second_growth = 0.0
+	var h := s.horde
+	h.next_surge = 1e9
+	h.next_band = 1e9
+	h.next_cart = 1e9
+	h.next_boss = 1e9
+	h.storm_cd = 1e9
+	h._p_next = 1e9
+	h.time = 400.0
+	s.time = 400.0
+	for k in 30:
+		s.add_soldier("legionary")
+	s.legion.place_all(s.facing_angle)
+	for u in s.units:
+		u.hp = 1e9
+		u.max_hp = 1e9
+	s._rebuild_grids()
+	var i := h.spawn("cataphract_charge", s.commander.pos + Vector2(200, 0), true)
+	h.e_hp[i] = 1e9
+	var st: Dictionary = h.boss_state(i)
+	st.wedge_cd = 0.0
+	var riders: Array = []
+	var broke := false
+	for f in 60 * 4:
+		s.testudo_left = 10.0
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+		if riders.is_empty() and not st.wedge.is_empty():
+			riders = st.wedge.map(func(w: Array) -> int: return w[0])
+		var li := h.e_id.find(h.elite_ids[0]) if not h.elite_ids.is_empty() else -1
+		broke = broke or (li >= 0 and h.e_stun[li] > 0.0)
+	check(broke and not riders.is_empty(), "the wedge forms and breaks on the shields")
+	check(st.wedge.is_empty(), "the broken wedge is let go (%d still held)" % st.wedge.size())
+	var free := riders.all(func(id: int) -> bool: return h.e_id.find(id) < 0 or is_finite(h.e_cd[h.e_id.find(id)]))
+	check(free, "each rider is soon ready to charge again on his own")
+
+
 func test_camel_riders_thrust_through_two_ranks(b: Dictionary) -> void:
 	var s := _parthia_sim(b, 965)
 	var h := s.horde

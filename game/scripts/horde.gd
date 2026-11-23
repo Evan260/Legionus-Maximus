@@ -2054,6 +2054,7 @@ func _onrush(i: int, st: Dictionary, cfg: Dictionary, timer: String, dt: float, 
 		if _shields_stop(i, at, k_radius[e_kind[i]] + float(cfg.get("blade", 0.0)), sim):
 			st.rush_left = 0.0
 			_hold_boss(st, p, 0.0)
+			_end_rush(i, st, cfg, sim, true)
 			return
 		_hold_boss(st, at, st.rush_left)
 		e_pos[i] = at
@@ -2073,19 +2074,7 @@ func _onrush(i: int, st: Dictionary, cfg: Dictionary, timer: String, dt: float, 
 			sim.shake = maxf(sim.shake, float(cfg.get("shake", sim.b.shake.chieftain)))
 			sim.legion.remove_fallen(sim)
 		if st.rush_left <= 0.0:
-			# The spent wedge breaks up into ordinary riders, each soon ready to charge again on his own.
-			for w in st.wedge:
-				var j := e_id.find(w[0])
-				if j >= 0:
-					e_cd[j] = k_dash_every[e_kind[j]] * rng.randf()
-			st.wedge = []
-			# A scythed chariot turns at the end of its lane and marks a new one back at the legion.
-			if cfg.has("passes"):
-				st.passes += 1
-				if st.passes < int(cfg.passes):
-					_warn_rush(i, st, cfg, float(cfg.again_warn), sim)
-				else:
-					st.passes = 0
+			_end_rush(i, st, cfg, sim, false)
 		return
 	if st.rush_warn > 0.0:
 		st.rush_warn -= dt
@@ -2200,6 +2189,22 @@ func _shields_stop(i: int, p: Vector2, radius: float, sim: Sim) -> bool:
 			sim.event("shield", p)
 			return true
 	return false
+
+
+## Ends a charge: the spent wedge breaks up into ordinary riders, each soon ready to charge again on his own,
+## and a scythed chariot turns to mark a new lane back at the legion, unless the shields stopped it.
+func _end_rush(i: int, st: Dictionary, cfg: Dictionary, sim: Sim, stopped: bool) -> void:
+	for w in st.wedge:
+		var j := e_id.find(w[0])
+		if j >= 0:
+			e_cd[j] = k_dash_every[e_kind[j]] * rng.randf()
+	st.wedge = []
+	if cfg.has("passes"):
+		st.passes += 1
+		if st.passes < int(cfg.passes) and not stopped:
+			_warn_rush(i, st, cfg, float(cfg.again_warn), sim)
+		else:
+			st.passes = 0
 
 
 ## Rides down the Romans a charging rider at p reaches: each is hurt once per charge (`mark`) and thrown to the side,
