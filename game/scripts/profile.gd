@@ -124,7 +124,7 @@ func _save_slot() -> bool:
 
 
 ## Loads a slot from its save, or from the newest backup that can be read when it cannot. False when none can, or when a newer
-## version of the game made it, since this build would lose what it does not understand.
+## version of the game made it, which this build may not understand.
 func load_slot(n: int) -> bool:
 	if n < 1 or n > SLOTS:
 		return false
