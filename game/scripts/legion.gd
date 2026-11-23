@@ -161,8 +161,7 @@ func _block(n: int, start: float, way: float) -> Array:
 	while placed < n:
 		var in_row := mini(cols, n - placed)
 		for c in in_row:
-			# Alternate ranks sit half a place across, so the men behind see past the men in front.
-			var across := (c - (in_row - 1) / 2.0) * float(_l.col_gap) + (float(_l.stagger) if row % 2 == 1 and in_row < cols else 0.0)
+			var across := (c - (in_row - 1) / 2.0) * float(_l.col_gap)
 			out.append(Vector2(start + way * row * float(_l.row_gap), across))
 		placed += in_row
 		row += 1

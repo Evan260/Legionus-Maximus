@@ -577,7 +577,8 @@ func _run_options() -> Dictionary:
 ## A profile with something in every screen, held in memory only, so a screenshot shows the screens filled in.
 func _sample_profile() -> void:
 	Profile.data = Profile.merge_saved({"denarii": 640, "ranks": {"start_health": 2, "damage": 1, "rerolls": 3, "denarii": 5},
-		"records": {"germania": {"best_time": 1110.0, "longest": 1200.0, "won": true, "hard_won": false}},
+		"records": {"germania": {"best_time": 1050.0, "longest": 1620.0, "won": true, "hard_won": false, "endless_best": 1620.0,
+			"times": {"easy": {"win": 1050.0, "endless": 1620.0}, "medium": {"win": 1110.0, "decimatio": 1185.0}}}},
 		"seen": {"legionary": true, "archer": true, "pilum": true, "barbarian_club": true, "wolf": true, "berserker": true},
 		"totals": {"kills": 2400, "runs": 9, "wins": 1}, "unlocked": {"commanders": ["tribune", "archer_captain"]}})
 	Profile.open_won_provinces(content)

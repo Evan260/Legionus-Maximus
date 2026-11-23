@@ -6,6 +6,8 @@ extends RefCounted
 const LEVELS := [["easy", "Easy"], ["medium", "Medium"], ["hard", "Hard"]]
 ## The modes a province opens once it is won.
 const MODES := [["endless", "Endless"], ["decimatio", "Decimatio"]]
+## The record table's columns: each difficulty's fastest win, fastest win with Decimatio and longest Endless run.
+const TIMES := [["win", "Victory"], ["decimatio", "Decimatio"], ["endless", "Endless"]]
 ## The painted map's projection, the same as tools/art/make_map.py: equirectangular from 11.5°W and 58.9°N, with longitude scaled by cos 42°.
 const WEST := -11.5
 const NORTH := 58.9
@@ -135,7 +137,7 @@ static func spot(id: String) -> Vector2:
 
 ## The panel with the selected province's records and modes, over the steppe at the top right.
 static func panel_rect() -> Rect2:
-	return Rect2(Ui.W - 254, 8, 246, 38.0 + 5.0 * Ui.leading()) if Ui.scale == 1 else Rect2(Ui.W - 260, 8, 252, 172)
+	return Rect2(Ui.W - 254, 8, 246, 36.0 + 8.0 * Ui.leading()) if Ui.scale == 1 else Rect2(Ui.W - 260, 8, 252, 192)
 
 
 ## The road from one province to the next: a smooth curve through the towns on its route, or a bent line where it has none.
@@ -408,6 +410,43 @@ func _header(c: CanvasItem, ui: Ui) -> void:
 	ui.text(c, hint, Vector2(0, Ui.H - 6), Ui.CREAM, HORIZONTAL_ALIGNMENT_CENTER, Ui.W, true, size)
 
 
+## Whether the panel holds the whole record table; with large text it shows only the chosen difficulty's row.
+static func full_table() -> bool:
+	return Ui.scale == 1
+
+
+## The widths of the record table's columns across `width`: the difficulties' names, then one for each of TIMES, which share the room left.
+static func table_columns(width: float) -> Array:
+	var names := 0.0
+	for l in LEVELS:
+		names = maxf(names, Ui.width_at(TranslationServer.translate(l[1]), Ui.px))
+	var out: Array = [names + 8.0]
+	var spare: float = width - out[0]
+	for t in TIMES:
+		out.append(maxf(Ui.width_at(TranslationServer.translate(t[1]), Ui.px), Ui.width_at("99:59", Ui.px)))
+		spare -= out[out.size() - 1]
+	for k in range(1, out.size()):
+		out[k] += maxf(spare, 0.0) / TIMES.size()
+	return out
+
+
+## The room for a mode's name on a line of the chosen difficulty's times, with the time on the right.
+static func time_label_room(width: float) -> float:
+	return width - Ui.width_at("99:59", Ui.px) - 8.0
+
+
+## A row for each difficulty: its name, then each of TIMES as a clock, or "-" where it has none.
+func record_rows(id: String) -> Array:
+	var rows: Array = []
+	for l in LEVELS:
+		var row: Array = [tr(l[1])]
+		for t in TIMES:
+			var seconds: float = Profile.mode_time(id, l[0], t[0])
+			row.append(clock(seconds) if seconds > 0.0 else "-")
+		rows.append(row)
+	return rows
+
+
 ## The parchment panel for one province: its name and state, records, the difficulty and, once it is won, the mode switches.
 func _panel(c: CanvasItem, ui: Ui, id: String) -> void:
 	var content: Content = main.content
@@ -428,13 +467,7 @@ func _panel(c: CanvasItem, ui: Ui, id: String) -> void:
 	if state == "fog" or state == "locked":
 		return
 	var rec := Profile.record_of(id)
-	var results: Array = [tr("Best time %s") % clock(rec.best_time) if rec.best_time > 0.0 else tr("Not won yet")]
-	results.append(tr("Hard won") if rec.hard_won else tr("Hard not won"))
-	if rec.endless_best > 0.0:
-		results.append(tr("Endless %s") % clock(rec.endless_best))
-	for line in Ui.pack(results, "  ", w).slice(0, 1 if not big else 2):
-		ui.fit_text(c, line, w, Vector2(x, y), Ui.INK)
-		y += Ui.leading()
+	_records(c, ui, id, x, y, w)
 	var bh := 14.0 if not big else 22.0
 	var mode_rows := 1 if not big else MODES.size()
 	# Below the difficulty there is room for the mode switches or for the two lines that say how to open them.
@@ -458,6 +491,35 @@ func _panel(c: CanvasItem, ui: Ui, id: String) -> void:
 			c.draw_rect(box.grow(-2.0), Ui.RED)
 		var room := b.size.x - Ui.px - 14.0
 		ui.fit_text(c, tr(MODES[k][1]), room, Vector2(box.end.x + 4.0, b.position.y + bh / 2.0 + Ui.px * 3 / 8), Ui.INK)
+
+
+## The best times from `y` down: a row for each difficulty with the chosen one marked, or with large text the chosen one's alone.
+func _records(c: CanvasItem, ui: Ui, id: String, x: float, y: float, w: float) -> void:
+	var rows := record_rows(id)
+	var chosen := maxi(0, Sim.DIFFICULTIES.find(main.run_setup.difficulty))
+	if not full_table():
+		for j in TIMES.size():
+			var t: String = rows[chosen][j + 1]
+			ui.fit_text(c, tr(TIMES[j][1]), time_label_room(w), Vector2(x, y), Ui.INK)
+			ui.text(c, t, Vector2(x, y), Ui.MUTED if t == "-" else Ui.INK, HORIZONTAL_ALIGNMENT_RIGHT, w)
+			y += Ui.leading()
+		return
+	var cols := table_columns(w)
+	var at := x + float(cols[0])
+	for j in TIMES.size():
+		ui.fit_text(c, tr(TIMES[j][1]), cols[j + 1], Vector2(at, y), Ui.BROWN, HORIZONTAL_ALIGNMENT_CENTER, cols[j + 1])
+		at += cols[j + 1]
+	y += Ui.leading()
+	for k in rows.size():
+		if k == chosen:
+			c.draw_rect(Rect2(x - 3.0, y - Ui.px - 1.0, w + 6.0, Ui.leading()), Color(Ui.RED, 0.18))
+		ui.fit_text(c, rows[k][0], cols[0] - 4.0, Vector2(x, y), Ui.RED if k == chosen else Ui.INK)
+		at = x + float(cols[0])
+		for j in TIMES.size():
+			var t: String = rows[k][j + 1]
+			ui.text(c, t, Vector2(at, y), Ui.MUTED if t == "-" else Ui.INK, HORIZONTAL_ALIGNMENT_CENTER, cols[j + 1])
+			at += cols[j + 1]
+		y += Ui.leading()
 
 
 ## The three-way difficulty choice across `row`, the chosen one filled red.

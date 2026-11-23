@@ -4554,6 +4554,25 @@ func _fort_sim(b: Dictionary, seed_value: int) -> Sim:
 	return s
 
 
+func test_a_short_row_stands_centred_behind_the_rows_before_it(b: Dictionary) -> void:
+	var off_centre := []
+	for n in range(1, 30):
+		var s := _quiet_sim(b, 3)
+		for k in n:
+			s.legion.add("archer")
+		var rows: Dictionary = {}
+		for p in s.legion.formation():
+			var key := snappedf(p.x, 0.5)
+			rows[key] = rows.get(key, []) + [p.y]
+		for key in rows:
+			var sum := 0.0
+			for y in rows[key]:
+				sum += y
+			if absf(sum / rows[key].size()) > 0.01:
+				off_centre.append("%d archers, a row of %d" % [n, rows[key].size()])
+	check(off_centre.is_empty(), "every row of the rear block stands centred, the short last row too (%s)" % [off_centre.slice(0, 4)])
+
+
 func test_the_legion_marching_past_the_north_of_the_fort_stays_with_its_commander(b: Dictionary) -> void:
 	var s := _fort_sim(b, 400)
 	var fort: Dictionary = s.objectives.fort

@@ -13,6 +13,8 @@ const SETTINGS_FILE := "settings.json"
 const OLD_FILE := "profile.json"
 ## The camp's choices, kept with each game so it opens where it was left.
 const CHOICES := ["province", "commander", "difficulty"]
+## The kinds of best time kept for each difficulty: the fastest win, the fastest win with Decimatio and the longest Endless run.
+const TIME_MODES := ["win", "decimatio", "endless"]
 const NO_SAVE_FLAGS := ["run-tests", "bench", "autoplay", "skip", "shot", "at", "screen", "page", "text-size", "lang", "card", "easy", "hard", "endless", "decimatio",
 	"commander", "chieftain-at", "as-demo", "objectives-near", "boss", "boss-act", "god", "god-at", "give", "go-to", "hold-choice", "win-at", "timber", "max-state",
 	"province", "seed", "men", "mortal", "trailer-shot", "no-save"]
@@ -74,7 +76,7 @@ static func defaults() -> Dictionary:
 
 
 static func default_record() -> Dictionary:
-	return {"best_time": 0.0, "longest": 0.0, "won": false, "hard_won": false, "endless_best": 0.0}
+	return {"best_time": 0.0, "longest": 0.0, "won": false, "hard_won": false, "endless_best": 0.0, "times": {}}
 
 
 ## Moves an old profile into the slots, reads the settings and opens the game saved last.
@@ -328,7 +330,26 @@ static func _merge_record(saved: Dictionary) -> Dictionary:
 			rec[key] = v
 		elif rec[key] is float and _is_number(v):
 			rec[key] = float(v)
+	rec.times = times_of(saved)
 	return rec
+
+
+## A record's best times as {difficulty: {mode: seconds}}; a record with no times has one of unknown difficulty, counted as Medium's.
+static func times_of(rec: Dictionary) -> Dictionary:
+	var out := {}
+	var saved: Variant = rec.get("times")
+	if not saved is Dictionary:
+		saved = {"medium": {"win": rec.get("best_time", 0.0), "endless": rec.get("endless_best", 0.0)}}
+	for d in Sim.DIFFICULTIES:
+		var modes: Variant = saved.get(d)
+		if not modes is Dictionary:
+			continue
+		for m in TIME_MODES:
+			if _is_number(modes.get(m)) and float(modes[m]) > 0.0:
+				if not out.has(d):
+					out[d] = {}
+				out[d][m] = float(modes[m])
+	return out
 
 
 func _read_json(path: String) -> Dictionary:
@@ -474,6 +495,11 @@ func record_of(province: String) -> Dictionary:
 	return data.records.get(province, default_record())
 
 
+## The best time of one difficulty and mode in a province, 0 when there is none.
+func mode_time(province: String, difficulty: String, mode: String) -> float:
+	return float(times_of(record_of(province)).get(difficulty, {}).get(mode, 0.0))
+
+
 func commander_unlocked(id: String) -> bool:
 	return data.unlocked.commanders.has(id) or (Game.is_demo() and Game.demo_open.has(id))
 
@@ -550,6 +576,8 @@ func record_run(sim: Sim) -> void:
 		data.totals.ravine_tips = int(data.totals.ravine_tips) + 1
 	var rec: Dictionary = record_of(sim.province)
 	rec.longest = maxf(float(rec.longest), sim.time)
+	var times := times_of(rec)
+	var mine: Dictionary = times.get(sim.difficulty, {})
 	# A demo that reaches its time limit shows the victory screen but is not a win.
 	var won := sim.victory and not sim.demo_over
 	if won:
@@ -560,8 +588,15 @@ func record_run(sim: Sim) -> void:
 		var won_at: float = sim.endless_since if sim.endless and sim.endless_since >= 0.0 else sim.time
 		if float(rec.best_time) <= 0.0 or won_at < float(rec.best_time):
 			rec.best_time = won_at
+		var mode := "decimatio" if sim.decimatio else "win"
+		if float(mine.get(mode, 0.0)) <= 0.0 or won_at < float(mine[mode]):
+			mine[mode] = won_at
 	if sim.endless:
 		rec.endless_best = maxf(float(rec.endless_best), sim.time)
+		mine.endless = maxf(float(mine.get("endless", 0.0)), sim.time)
+	if not mine.is_empty():
+		times[sim.difficulty] = mine
+	rec.times = times
 	data.records[sim.province] = rec
 	for id in sim.ranks:
 		if int(sim.ranks[id]) > 0:

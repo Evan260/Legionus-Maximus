@@ -63,7 +63,6 @@
     "rear_start": -20,
     "col_gap": 16,
     "row_gap": 15,
-    "stagger": 8,
     "cols_factor": 1.6,
     "cols_min": 3,
     "cols_max": 9,
