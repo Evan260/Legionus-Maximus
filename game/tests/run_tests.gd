@@ -4717,6 +4717,22 @@ func test_giving_up_asks_twice(b: Dictionary) -> void:
 	m.free()
 
 
+func test_a_trip_to_the_settings_withdraws_the_question_to_give_up(b: Dictionary) -> void:
+	var kept := _borrow_profile()
+	var m := _bare_main(b)
+	m.sim = _quiet_sim(b, 4406)
+	m.screens = {"pause": PauseScreen.new(m), "settings": SettingsScreen.new(m)}
+	m.state = "pause"
+	m.screens.pause.activate("giveup")
+	check(m.screens.pause.confirming, "the first press asks")
+	m.open_settings("pause")
+	m.close_settings()
+	check(m.state == "pause" and not m.screens.pause.confirming, "back from the settings the question is gone, so one press cannot end the run")
+	check(not m.sim.over, "and the run goes on")
+	_free_main(m)
+	_return_profile(kept)
+
+
 func test_look_flags_never_touch_the_saved_profile(_b: Dictionary) -> void:
 	check(Profile.blocks_saving(PackedStringArray(["--text-size=2"])), "--text-size is not saved")
 	check(Profile.blocks_saving(PackedStringArray(["--autoplay"])), "--autoplay is not saved")

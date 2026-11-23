@@ -498,6 +498,7 @@ func _language_changed() -> void:
 
 func open_settings(from: String) -> void:
 	settings_from = from
+	screens.pause.confirming = false
 	state = "settings"
 	ui.focus = ""
 	screens.settings.enter()
