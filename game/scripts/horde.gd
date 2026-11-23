@@ -1323,7 +1323,7 @@ func _sweep_and_leap(ci: int, dt: float, sim: Sim) -> void:
 				if to.length() > sweep.reach + Sim.UNIT_RADIUS or absf(sweep.dir.angle_to(to)) > half:
 					continue
 				var target: Dictionary = sim.legion.shield(u)
-				target.hp -= sweep.dmg * sim.frenzy_guard()
+				target.hp -= sweep.dmg * sim.frenzy_guard() * sim.front_guard(target)
 				u.flash = 0.12
 				hit_any = true
 			sim.effects.append({"kind": "cleave", "pos": sweep.pos, "dir": sweep.dir, "t": 0.0, "radius": sweep.reach, "arc": sweep.arc})
@@ -1697,7 +1697,7 @@ func _fire_on(dt: float, sim: Sim) -> void:
 		var off: Vector2 = u.pos - steppe_fire.pos
 		var along: float = off.dot(steppe_fire.dir)
 		if along >= span.x and along <= span.y and absf(off.dot(side)) <= steppe_fire.half_len:
-			u.hp -= steppe_fire.dps * dt * guard
+			u.hp -= steppe_fire.dps * dt * guard * sim.front_guard(u)
 	sim.legion.remove_fallen(sim)
 
 
@@ -1750,7 +1750,7 @@ func _lassos(dt: float, sim: Sim) -> void:
 		var gap := to.length() - k_radius[e_kind[i]] - Sim.UNIT_RADIUS
 		if gap > 0.0:
 			u.pos += to.normalized() * minf(float(cfg.pull), gap)
-		u.hp -= float(cfg.damage) * e_power[i] * sim.frenzy_guard()
+		u.hp -= float(cfg.damage) * e_power[i] * sim.frenzy_guard() * sim.front_guard(u)
 		u.flash = 0.12
 		pulled = true
 	lassos = left
@@ -1854,7 +1854,7 @@ func _chieftain_after(sim: Sim) -> void:
 		if off.length_squared() > reach * reach or u.get("thrown", -1) == charge_n:
 			continue
 		u.thrown = charge_n
-		u.hp -= k_burst[kind] * chief_power() * sim.frenzy_guard()
+		u.hp -= k_burst[kind] * chief_power() * sim.frenzy_guard() * sim.front_guard(u)
 		u.flash = 0.12
 		hit_any = true
 		if not is_same(u, sim.commander):
@@ -1889,7 +1889,7 @@ func cleave(ci: int, sim: Sim) -> bool:
 		if to.length() > reach + 7.0 or absf(dir.angle_to(to)) > half:
 			continue
 		var target: Dictionary = sim.legion.shield(u)
-		target.hp -= dmg * sim.frenzy_guard()
+		target.hp -= dmg * sim.frenzy_guard() * sim.front_guard(target)
 		u.flash = 0.12
 		hit_any = true
 	if hit_any:
@@ -2262,7 +2262,7 @@ func _ride_down(p: Vector2, radius: float, dir: Vector2, mark: int, dmg: float, 
 		if off.length_squared() > reach * reach or u.get("rushed", -1) == mark:
 			continue
 		u.rushed = mark
-		u.hp -= dmg * (shield_cut if up and Sim.shielded(u) else 1.0)
+		u.hp -= dmg * (shield_cut if up and Sim.shielded(u) else 1.0) * sim.front_guard(u)
 		u.flash = 0.12
 		hit_any = true
 		if not is_same(u, sim.commander):
@@ -2429,7 +2429,7 @@ func blast(i: int, cfg: Dictionary, sim: Sim) -> void:
 		var off: Vector2 = u.pos - p
 		if off.length_squared() < reach * reach and off.length_squared() > 0.0001:
 			u.pos += off.normalized() * push
-			u.hp -= dmg
+			u.hp -= dmg * sim.front_guard(u)
 	sim.units_moved()
 	sim.legion.remove_fallen(sim)
 	blast_left = float(cfg.seconds)
@@ -2597,7 +2597,7 @@ func _storms(dt: float, sim: Sim) -> void:
 			frost_slow = maxf(frost_slow, st.slow)
 		for u in sim.units:
 			if (u.pos - st.pos).length_squared() < r2:
-				u.hp -= st.dps * dt * guard
+				u.hp -= st.dps * dt * guard * sim.front_guard(u)
 	storms = left
 	sim.legion.remove_fallen(sim)
 
@@ -2651,7 +2651,7 @@ func _foe_lobs(dt: float, sim: Sim) -> void:
 				# An elite's marked blow breaks on the raised shields.
 				if ward and cut < 1.0:
 					cut = 0.0
-				u.hp -= l.dmg * cut * guard
+				u.hp -= l.dmg * cut * guard * sim.front_guard(u)
 				u.flash = 0.12
 		if l.get("sky", false):
 			sim.event("boom", l.to)
@@ -2693,7 +2693,6 @@ func _move(dt: float, sim: Sim) -> void:
 	var phase := frame % 3
 	var slow_recover: float = b.slow_recover
 	var rush_fade: float = (float(b.war_band.get("rush", 1.0)) - 1.0) / float(b.war_band.get("rush_seconds", 1.0))
-	var wall := 1.0 - float(b.drills.shield_wall) * sim.rank("shield_wall")
 	var heading := Vector2.from_angle(sim.facing_angle)
 	var throw_every: float = b.ranged.every
 	var strike_secs := Atlas.ATTACK_FRAMES / Atlas.ATTACK_FPS
@@ -2966,10 +2965,11 @@ func _move(dt: float, sim: Sim) -> void:
 				var falx := k_falx[kind] == 1
 				# A falx cuts past the shield of a man covering his neighbour, and neither the testudo nor the shield wall turns it.
 				var u: Dictionary = units[target_unit] if falx else sim.legion.shield(units[target_unit])
-				var guard := bare if falx else bare * (shield if u.get("shield", false) else 1.0) * (wall if u.get("place", "") == "front" else 1.0)
-				u.hp -= k_dps[kind] * dt * guard * power
+				var guard := bare if falx else bare * (shield if u.get("shield", false) else 1.0)
+				var front := 1.0 if falx else sim.front_guard(u)
+				u.hp -= k_dps[kind] * dt * guard * front * power
 				if dashing:
-					u.hp -= k_burst[kind] * guard * power
+					u.hp -= k_burst[kind] * guard * front * power
 					e_dash[i] = 0.0
 					if k_fearless[kind] == 1:
 						_battle_cry(i, sim)
@@ -3302,7 +3302,7 @@ func _maul(i: int, struck: Dictionary, guard: float, sim: Sim) -> void:
 		if not is_same(u, struck) and off.length_squared() > r * r:
 			continue
 		var target: Dictionary = sim.legion.shield(u)
-		target.hp -= dmg if is_same(u, struck) else dmg * 0.5
+		target.hp -= (dmg if is_same(u, struck) else dmg * 0.5) * sim.front_guard(target)
 		u.flash = 0.12
 		if not is_same(u, sim.commander):
 			var away: Vector2 = u.pos - p
@@ -3327,7 +3327,7 @@ func _slash(i: int, at: Vector2, guard: float, sim: Sim) -> void:
 		if off.length_squared() > reach * reach or absf(at.angle_to(off)) > half:
 			continue
 		var target: Dictionary = sim.legion.shield(u)
-		target.hp -= dmg
+		target.hp -= dmg * sim.front_guard(target)
 		u.flash = 0.12
 		cut += 1
 		if cut >= 2:
@@ -3374,7 +3374,7 @@ func _spears(dt: float, sim: Sim) -> void:
 					sim.effects.append({"kind": "spark", "pos": p, "t": 0.0})
 					gone = true
 				else:
-					target.hp -= sp_dmg[i] * sim.frenzy_guard()
+					target.hp -= sp_dmg[i] * sim.frenzy_guard() * sim.front_guard(target)
 					u.flash = 0.08
 					# A sling stone leaves the soldier it strikes reeling for a moment; the commander keeps his head.
 					if sp_kind[i] == 2 and not is_same(target, sim.commander):

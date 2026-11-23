@@ -1609,6 +1609,49 @@ func test_shield_wall_cuts_front_rank_harm(b: Dictionary) -> void:
 	check(lost[1] < lost[0] * 0.85 and lost[0] > 0.0, "shield wall takes less harm (%.2f vs %.2f)" % [lost[1], lost[0]])
 
 
+## The harm a lone front-rank legionary takes, by source, with the shield wall drill at `rank`: a thrown axe, a ring falling on him, a charge riding him down, a blizzard, and half a second of a falx warrior's blows.
+func _front_rank_harm(b: Dictionary, rank: int) -> Dictionary:
+	var out := {}
+	var s := _one_soldier(b, 1402, "legionary", false)
+	s.ranks["shield_wall"] = rank
+	var u: Dictionary = s.soldiers[0]
+	var h := s.horde
+	var hp0: float = u.hp
+	h._throw(u.pos + Vector2.RIGHT * 6.0, Vector2.LEFT, 10.0)
+	h._spears(0.0, s)
+	out.axe = hp0 - u.hp
+	hp0 = u.hp
+	h.foe_lobs.append({"from": u.pos, "to": u.pos, "t": 0.0, "dur": 0.0, "radius": 4.0, "dmg": 10.0})
+	h._foe_lobs(0.0, s)
+	out.ring = hp0 - u.hp
+	hp0 = u.hp
+	h._ride_down(u.pos, 4.0, Vector2.UP, 12345, 10.0, 0.0, s)
+	out.charge = hp0 - u.hp
+	hp0 = u.hp
+	h.storms.append({"pos": u.pos, "radius": 4.0, "t": 0.0, "life": 1.0, "slow": 0.0, "dps": 60.0})
+	h._storms(1.0 / 60.0, s)
+	out.blizzard = hp0 - u.hp
+	var f := _one_soldier(b, 1403, "legionary", false)
+	f.ranks["shield_wall"] = rank
+	var v: Dictionary = f.soldiers[0]
+	f.horde.e_cd[f.horde.spawn("falx_warrior", v.pos + Vector2(10, 0))] = 1e9
+	hp0 = v.hp
+	for k in 30:
+		f._rebuild_grids()
+		f.horde._move(1.0 / 60.0, f)
+	out.falx = hp0 - v.hp
+	return out
+
+
+func test_shield_wall_cuts_every_blow_to_the_front_rank_but_a_falx(b: Dictionary) -> void:
+	var plain := _front_rank_harm(b, 0)
+	var walled := _front_rank_harm(b, 5)
+	var cut := 1.0 - float(b.drills.shield_wall) * 5.0
+	for key in ["axe", "ring", "charge", "blizzard"]:
+		check(float(plain[key]) > 0.0 and is_equal_approx(float(walled[key]), float(plain[key]) * cut), "the shield wall cuts the %s's harm to the front rank (%.2f against %.2f)" % [key, walled[key], plain[key]])
+	check(float(plain.falx) > 0.0 and is_equal_approx(float(walled.falx), float(plain.falx)), "but not a falx's (%.2f against %.2f)" % [walled.falx, plain.falx])
+
+
 func test_better_bows_reach_further(b: Dictionary) -> void:
 	var near := _legion_sim(b, 61, ["archer"])
 	var far := _legion_sim(b, 61, ["archer"])

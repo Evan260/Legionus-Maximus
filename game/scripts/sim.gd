@@ -385,6 +385,11 @@ static func shielded(u: Dictionary) -> bool:
 	return u.get("shield", false)
 
 
+## The share of a blow that reaches unit u past the shield wall drill, which guards the front rank only.
+func front_guard(u: Dictionary) -> float:
+	return 1.0 - float(b.drills.shield_wall) * rank("shield_wall") if u.get("place", "") == "front" else 1.0
+
+
 ## The share of a blow that reaches unit u through the testudo: the cut share for a shield-bearer while it is raised, all of it for anyone else.
 func testudo_guard(u: Dictionary) -> float:
 	return float(b.testudo_damage_taken) if testudo_left > 0.0 and u.get("shield", false) else 1.0
