@@ -12,10 +12,16 @@ uniform float corner = 14.0;
 uniform float reach = 20.0;
 uniform vec3 wheat_tint = vec3(1.0);
 
+// A number from 0 to 1 for the whole-pixel square p lies in, hashed in integers so fields far from the start fray as finely as those near it.
 float hash(vec2 p) {
-	p = fract(p * vec2(127.31, 311.97));
-	p += dot(p, p + 34.53);
-	return fract(p.x * p.y);
+	uvec2 v = uvec2(ivec2(floor(p))) * 1664525u + 1013904223u;
+	v.x += v.y * 1664525u;
+	v.y += v.x * 1664525u;
+	v = v ^ (v >> 16u);
+	v.x += v.y * 1664525u;
+	v.y += v.x * 1664525u;
+	v = v ^ (v >> 16u);
+	return float(v.x >> 8u) / 16777215.0;
 }
 
 float noise(vec2 p) {
