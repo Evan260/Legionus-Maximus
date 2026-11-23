@@ -564,7 +564,8 @@ func _shove_bosses() -> void:
 		var wide := r > Terrain.MAX_UNIT
 		var np := p + shove.limit_length(reach)
 		var kept := terrain.ravine_push(np, r, wide)
-		if shoved_over(np, kept, shove):
+		# The chieftain digs in at the lip, so a gorge is no shortcut past the last fight.
+		if shoved_over(np, kept, shove) and horde.e_id[i] != horde.chieftain_id:
 			_fall(i, np, kept)
 			continue
 		np = terrain.push_out_wide(np, r) if wide else terrain.push_out(np, r)

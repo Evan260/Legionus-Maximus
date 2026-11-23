@@ -421,13 +421,13 @@ func _draw() -> void:
 	_add_chests_and_carts(view)
 	_add_objectives(view)
 	_add_flames(view)
-	_draw_coins(view)
 	_keys.sort()
 	var tex := atlas.texture
-	# Stains go over the ground pictures, such as dunes and heather, and under everything that stands.
+	# Stains and coins go over the ground pictures, such as dunes and heather, and under everything that stands.
 	var standing := _keys.bsearch(STANDING_KEY)
 	_draw_sorted(tex, 0, standing)
 	_draw_stains(view)
+	_draw_coins(view)
 	_draw_sorted(tex, standing, _keys.size())
 	_draw_death_bits()
 

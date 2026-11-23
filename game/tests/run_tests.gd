@@ -9043,7 +9043,7 @@ func test_the_legion_shoves_a_boss_into_a_ravine(b: Dictionary) -> void:
 	check(dry, "on the lip, where the legion can take it")
 
 
-func test_a_chieftain_shoved_into_a_ravine_before_the_fort_leaves_the_fort_to_hold(b: Dictionary) -> void:
+func test_the_chieftain_cannot_be_shoved_over_a_ravine(b: Dictionary) -> void:
 	var s := _chief_sim(b, 1634)
 	s.ravine_tip = false
 	_gorge(s, -600, 600, 100, 40)
@@ -9057,9 +9057,11 @@ func test_a_chieftain_shoved_into_a_ravine_before_the_fort_leaves_the_fort_to_ho
 	s.horde.e_stun[ci] = 1e9
 	s.horde.e_hp[ci] = 1e9
 	s.horde.e_max[ci] = 1e9
+	var id: int = s.horde.e_id[ci]
 	_step_dt(s, 4.0, Vector2.DOWN)
-	check(s.horde.chief_dead, "the chieftain shoved over the lip falls")
-	check(not s.victory and s.objectives.notice.get("kind", "") == "chieftain", "and the run goes on until the fort is held")
+	var j := s.horde.e_id.find(id)
+	check(not s.horde.chief_dead and j >= 0, "the chieftain marched into at a ravine's lip does not fall, since he is too easy a kill that way")
+	check(j >= 0 and s.terrain.ravine_edge(s.horde.e_pos[j]) >= 0.0, "he stands his ground at the lip")
 
 
 func test_a_boss_beside_a_ravine_is_not_shoved_in(b: Dictionary) -> void:
