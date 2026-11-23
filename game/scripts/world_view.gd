@@ -1536,7 +1536,8 @@ func _draw_boss_heads(view: Rect2) -> void:
 		ids.append(h.e_id[ci])
 	for id in ids:
 		var i := h.e_id.find(id)
-		if i < 0 or not view.has_point(h.e_pos[i]):
+		# A boss is culled as his picture is, so his bar shows whenever any of him does.
+		if i < 0 or not view.grow(maxf(0.0, _k_reach[h.e_kind[i]] - 80.0)).has_point(h.e_pos[i]):
 			continue
 		var type: String = h.kind_ids[h.e_kind[i]]
 		var p: Vector2 = h.e_pos[i]
