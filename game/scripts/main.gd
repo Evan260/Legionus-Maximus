@@ -1076,20 +1076,35 @@ func _click_choice(at: Vector2) -> void:
 
 ## Follows each finger on a screen: a finger lifted where it landed taps, and one dragged up or down scrolls a list.
 func _touch_input(event: InputEvent) -> void:
-	var at: Vector2 = hud.make_input_local(event).position - Ui.offset
+	_finger(event, hud.make_input_local(event).position - Ui.offset)
+
+
+## A finger pressed, lifted or dragged at `at`, in the centred box's coordinates.
+func _finger(event: InputEvent, at: Vector2) -> void:
 	if event is InputEventScreenTouch:
 		if event.pressed:
-			_fingers[event.index] = {"from": at, "moved": 0.0, "pulled": 0.0, "state": state}
+			var finger := {"from": at, "moved": 0.0, "pulled": 0.0, "state": state, "bar": ""}
+			# A finger on a volume bar sets the volume as it lands and holds the bar while it slides.
+			var id := ui.at(at)
+			if state == "settings" and id != "" and screens.settings.tap_at(id, at):
+				ui.focus = id
+				finger.bar = id
+			_fingers[event.index] = finger
 		elif _fingers.has(event.index):
 			var f: Dictionary = _fingers[event.index]
 			_fingers.erase(event.index)
+			if f.bar != "":
+				Audio.play("click")
 			# A finger that opened a screen or a choice as it pressed does not also tap what opened under it.
-			if f.state == state and Touch.is_tap(f.moved, Touch.slop):
+			elif f.state == state and Touch.is_tap(f.moved, Touch.slop):
 				_tap(f.from)
 		return
 	if not _fingers.has(event.index):
 		return
 	var f: Dictionary = _fingers[event.index]
+	if f.bar != "" and f.state == state:
+		screens.settings.slide(f.bar, at)
+		return
 	f.moved = maxf(f.moved, at.distance_to(f.from))
 	if f.state != state or not screens.has(state) or not screens[state].has_method("scroll_by") or Touch.is_tap(f.moved, Touch.slop):
 		return

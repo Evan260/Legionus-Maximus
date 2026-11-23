@@ -12626,6 +12626,36 @@ func test_large_text_on_a_computer_rerolls_and_banishes_with_the_mouse(b: Dictio
 	Ui.set_text_size(before, b)
 
 
+func test_a_finger_drags_a_volume_bar(b: Dictionary) -> void:
+	var saved: Dictionary = Profile.settings.duplicate(true)
+	var before := Ui.scale
+	var m := _bare_main(b)
+	var settings := SettingsScreen.new(m)
+	m.screens = {"settings": settings}
+	m.state = "settings"
+	var bar := Rect2(300, 100, 120, 20)
+	settings._bars = {"music": bar}
+	m.ui.begin()
+	m.ui.register(Rect2(100, 100, 440, 20), "music")
+	m.ui.end()
+	Profile.settings.music = 0.5
+	var press := InputEventScreenTouch.new()
+	press.pressed = true
+	press.position = Vector2(bar.position.x + bar.size.x * 0.8, 110)
+	m._finger(press, press.position)
+	check(is_equal_approx(float(Profile.settings.music), 0.8), "a finger on the bar sets the volume where it lands (%s)" % Profile.settings.music)
+	var drag := InputEventScreenDrag.new()
+	drag.relative = Vector2(-60, 0)
+	m._finger(drag, Vector2(bar.position.x + bar.size.x * 0.3, 112))
+	check(is_equal_approx(float(Profile.settings.music), 0.3), "and the volume follows it as it slides (%s)" % Profile.settings.music)
+	var lift := InputEventScreenTouch.new()
+	m._finger(lift, Vector2(bar.position.x + bar.size.x * 0.3, 112))
+	check(is_equal_approx(float(Profile.settings.music), 0.3), "and stays where the finger lifts")
+	_free_main(m)
+	Profile.settings = saved
+	Ui.set_text_size(before, b)
+
+
 func test_a_mouse_click_waits_for_the_confirm_delay(b: Dictionary) -> void:
 	var rows := Hud.choice_rows(3, false)
 	var m := _bare_main(b, rows)
