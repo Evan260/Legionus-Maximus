@@ -17,7 +17,7 @@ const CHOICES := ["province", "commander", "difficulty"]
 const TIME_MODES := ["win", "decimatio", "endless"]
 const NO_SAVE_FLAGS := ["run-tests", "bench", "autoplay", "skip", "shot", "at", "screen", "page", "text-size", "lang", "card", "easy", "hard", "endless", "decimatio",
 	"commander", "chieftain-at", "as-demo", "objectives-near", "boss", "boss-act", "god", "god-at", "give", "go-to", "hold-choice", "win-at", "timber", "max-state",
-	"province", "seed", "men", "mortal", "trailer-shot", "no-save"]
+	"province", "seed", "men", "mortal", "trailer-shot", "cart", "cart-at", "select", "livery", "no-save"]
 
 const SETTING_DEFAULTS := {"master": 0.8, "music": 0.8, "effects": 0.8, "fullscreen": false, "shake": true, "numbers": true, "blood": true,
 	"text_size": 1, "bindings": {}, "language": ""}
