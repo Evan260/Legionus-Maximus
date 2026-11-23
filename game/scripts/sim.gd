@@ -1372,7 +1372,7 @@ func _regen(dt: float) -> void:
 		u.hp = minf(u.max_hp, u.hp + (r + own) * dt)
 
 
-## Decimatio: every so often one soldier in ten is taken from the legion, at least one once it has ten.
+## Decimatio: every so often one soldier in ten, chosen by lot, is taken from the legion, at least one once it has ten.
 func _decimate() -> void:
 	if not decimatio or time < decimate_next:
 		return
@@ -1380,7 +1380,9 @@ func _decimate() -> void:
 	var n := soldiers.size()
 	var lose := n / int(b.decimatio.one_in)
 	for i in lose:
-		var gone: Dictionary = soldiers.pop_back()
+		var k := rng.randi_range(0, soldiers.size() - 1)
+		var gone: Dictionary = soldiers[k]
+		soldiers.remove_at(k)
 		effects.append({"kind": "fallen", "pos": gone.pos, "t": 0.0, "type": gone.type, "facing": gone.facing})
 
 

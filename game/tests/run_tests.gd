@@ -2126,6 +2126,14 @@ func test_decimatio_takes_one_in_ten(b: Dictionary) -> void:
 	check(tiny.soldiers.size() == 9, "nine soldiers lose none")
 	var archers := _mode_sim(b, {"seed": 115, "decimatio": true, "commander": "archer_captain"})
 	check(archers.soldiers.size() == 30 and archers.count("archer") > 3 and archers.count("legionary") == 0, "the archer captain's legion is archers")
+	var spared := 0
+	for k in 8:
+		var lot := _mode_sim(b, {"seed": 120 + k, "decimatio": true})
+		lot.legion.pick("archer")
+		lot.time = float(b.decimatio.every) - 0.01
+		lot.update(1.0 / 60.0, Vector2.ZERO, false)
+		spared += 1 if lot.count("archer") == 2 else 0
+	check(spared >= 5, "the men are taken by lot, so a pick made just before is mostly spared (%d of 8)" % spared)
 	var legate := _mode_sim(b, {"seed": 116, "decimatio": true, "commander": "legate"})
 	check(legate.soldiers.size() == 30 and legate.count("standard_bearer") == 1 and legate.count("legionary") == 29, "the legate keeps his one standard bearer and fills the rest with legionaries (%d bearers)" % legate.count("standard_bearer"))
 	var old := _mode_sim(b, {"seed": 117, "decimatio": true, "commander": "old_centurion"})
