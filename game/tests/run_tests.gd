@@ -9441,6 +9441,30 @@ func test_the_fort_walls_run_straight_from_tower_to_gate(b: Dictionary) -> void:
 	check(not sides.is_empty() and sides[0] <= -half and sides[-1] >= half - float(b.fort.side_step), "the side walls run from the back towers to the front towers")
 
 
+func test_each_province_fort_stands_on_its_own_ground(b: Dictionary) -> void:
+	var meta: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://assets/atlas.json"))
+	var pieces := ["fort_wall", "fort_side", "fort_gate", "watchtower", "tent", "command_tent"]
+	for id in content.provinces:
+		var ground: String = content.provinces[id].get("fort_ground", "")
+		check(ground != "", "%s names its fort's ground" % id)
+		for name in pieces:
+			check(meta.props.has(Objectives.fort_piece(name, ground)), "the atlas has %s for %s" % [Objectives.fort_piece(name, ground), id])
+		var s := _mode_sim(b, {"seed": 400, "province": id})
+		s.objectives.list.clear()
+		s.terrain.clear()
+		s.objectives.raise_fort(s)
+		var drawn := {}
+		var wrong := []
+		for pr in s.terrain.extras:
+			for name in pieces:
+				if pr[0] == name or pr[0].begins_with(name + "_"):
+					drawn[name] = true
+					if pr[0] != Objectives.fort_piece(name, ground):
+						wrong.append(pr[0])
+		check(drawn.size() == pieces.size() and wrong.is_empty(), "%s's fort is drawn in its %s pieces (%s)" % [id, ground, wrong])
+	check(Objectives.fort_piece("fort_gate", "grass") == "fort_gate" and Objectives.fort_piece("fort_gate", "sand") == "fort_gate_sand", "grass keeps the pieces as drawn")
+
+
 func test_quartermaster_attack_speed_quickens_every_blow(b: Dictionary) -> void:
 	var plain := _qm_sim(b, "attack_speed", 0).attack_rate()
 	var drilled := _qm_sim(b, "attack_speed", 2).attack_rate()

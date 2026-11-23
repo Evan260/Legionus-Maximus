@@ -21,6 +21,8 @@ import cv2
 import numpy as np
 from PIL import Image
 
+import fort_ground
+
 ROOT = Path(__file__).resolve().parents[2]
 RAW = ROOT / "tools" / "art" / "raw"
 OUT = ROOT / "game" / "assets"
@@ -70,10 +72,9 @@ TONE = {"stones": (0.4, 0.5), "stump": (0.4, 0.2)}
 # Props whose black outline is redrawn in a darker shade of the colour just inside it, so the rock sits in the ground.
 SOFT_EDGE = {"rock"}
 # Props whose leaves are brought to another prop's greens, as prop: (the prop whose greens set the change, the prop to match),
-# so the Gaulish hedges wear the oaks' green and the fort's gate, towers and tents the grass of its wall bank.
+# so the Gaulish hedges wear the oaks' green and the fort's gate, towers and command tent the grass of its wall bank.
 MATCH_GREEN = {"hedge": ("hedge", "oak"), "hedge_end_left": ("hedge", "oak"), "hedge_end_right": ("hedge", "oak"),
-               "fort_gate": ("fort_gate", "fort_wall"), "watchtower": ("watchtower", "fort_wall"), "tent": ("tent", "fort_wall"),
-               "command_tent": ("command_tent", "fort_wall")}
+               "fort_gate": ("fort_gate", "fort_wall"), "watchtower": ("watchtower", "fort_wall"), "command_tent": ("command_tent", "fort_wall")}
 # The bosses and the chariot are drawn from their larger remakes; the small originals stay on disk.
 FOLDERS = {"berserker": "berserker_big", "war_band_leader": "war_band_leader_big", "war_priest": "war_priest_big",
            "chieftain": "chieftain_big", "champion": "champion_big", "horn_blower": "horn_blower_big", "gaul_king": "gaul_king_big",
@@ -216,6 +217,33 @@ def recolour(im, m):
     return Image.fromarray(a)
 
 
+def prop_image(name):
+    im = Image.open(RAW / PROPS[name]).convert("RGBA")
+    if name in TONE:
+        im = tone(im, *TONE[name])
+    if name in SOFT_EDGE:
+        im = soft_edge(im)
+    if name in MATCH_GREEN:
+        source, target = MATCH_GREEN[name]
+        im = recolour(im, green_match(Image.open(RAW / PROPS[source]).convert("RGBA"), Image.open(RAW / PROPS[target]).convert("RGBA")))
+    return im
+
+
+def fort_pictures(ground, province):
+    """The fort's pictures that stand on ground, named as props with the ground after them (fort_gate_sand), their grass
+    and bare earth in the province's ground; the wall strips come ready painted from make_castra_walls.py."""
+    pal = fort_ground.palette(province)
+    out = {}
+    for name in fort_ground.PIECES:
+        if name in ("fort_wall", "fort_side"):
+            im = Image.open(RAW / PROPS[name].replace(".png", f"_{ground}.png")).convert("RGBA")
+        else:
+            a = np.asarray(prop_image(name)).copy()
+            im = Image.fromarray(fort_ground.repaint(a, pal, fort_ground.ground_mask(a, name)))
+        out[f"{name}_{ground}"] = im
+    return out
+
+
 def sheet_frames(sheet):
     """Splits a sheet into its separate drawings, left to right, on canvases of one size with the middle of each
     drawing's base at the same point, so a flickering flame stays rooted where it stands."""
@@ -290,17 +318,14 @@ def main():
                 # The strike starts from the standing pose, so the anchor comes from it and the pose itself is left out.
                 images, anchor = crop_set(frames[1:], (frames[0].width / 2, feet(frames[:1])))
                 sets.append((("units", unit, "attack", d), images, anchor))
-    for name, path in PROPS.items():
-        im = Image.open(RAW / path).convert("RGBA")
-        if name in TONE:
-            im = tone(im, *TONE[name])
-        if name in SOFT_EDGE:
-            im = soft_edge(im)
-        if name in MATCH_GREEN:
-            source, target = MATCH_GREEN[name]
-            im = recolour(im, green_match(Image.open(RAW / PROPS[source]).convert("RGBA"), Image.open(RAW / PROPS[target]).convert("RGBA")))
+    for name in PROPS:
+        im = prop_image(name)
         images, anchor = crop_set([im], (im.width / 2, feet([im])))
         sets.append((("props", name), images, anchor))
+    for ground, province in fort_ground.variants().items():
+        for name, im in fort_pictures(ground, province).items():
+            images, anchor = crop_set([im], (im.width / 2, feet([im])))
+            sets.append((("props", name), images, anchor))
     for name, path in SHEETS.items():
         frames = sheet_frames(Image.open(RAW / path).convert("RGBA"))
         images, anchor = crop_set(frames, (frames[0].width / 2, feet(frames)))

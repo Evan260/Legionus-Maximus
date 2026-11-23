@@ -2154,6 +2154,7 @@
    "name": "Germania",
    "text": "Dark forests and clearings, where whole legions have vanished.",
    "ground": "forest clearings",
+   "fort_ground": "grass",
    "props": [
     "oak",
     "fir",
@@ -2182,6 +2183,7 @@
    "name": "Gaul",
    "text": "Farmland, hedges and villages.",
    "ground": "farmland",
+   "fort_ground": "grass",
    "props": [
     "wheat",
     "hedge",
@@ -2208,6 +2210,7 @@
    "name": "Britannia",
    "text": "Wet moorland at the edge of the known world.",
    "ground": "wet moorland",
+   "fort_ground": "moor",
    "props": [
     "heather",
     "bog",
@@ -2235,6 +2238,7 @@
    "name": "Hispania",
    "text": "Sunbaked hills, olive groves and dry-stone walls.",
    "ground": "dry hills",
+   "fort_ground": "earth",
    "props": [
     "olive",
     "stone_wall",
@@ -2262,6 +2266,7 @@
    "name": "Aegyptus",
    "text": "The Nile valley: palm groves, reed beds and irrigation canals.",
    "ground": "river valley",
+   "fort_ground": "silt",
    "props": [
     "date_palm",
     "papyrus",
@@ -2292,6 +2297,7 @@
    "name": "Parthia",
    "text": "Desert dunes and ruined walls.",
    "ground": "desert",
+   "fort_ground": "sand",
    "props": [
     "dune",
     "palm",
@@ -2319,6 +2325,7 @@
    "name": "Dacia",
    "text": "Snowy mountains and frozen streams.",
    "ground": "snowy mountains",
+   "fort_ground": "snow",
    "props": [
     "pine",
     "rock",
@@ -2345,6 +2352,7 @@
    "name": "Sarmatia",
    "text": "The open steppe north of the Black Sea: feather grass, burial mounds and wagon camps.",
    "ground": "steppe",
+   "fort_ground": "steppe",
    "props": [
     "feather_grass",
     "kurgan",

@@ -324,7 +324,7 @@ func _draw() -> void:
 				if hides_commander(pr[0], pr[2] > 0.0, Rect2(at - f[1], f[0].size), at.y, sim.commander.pos):
 					mod = see_through
 				# The gate fades only half way, so the fort still reads while the commander walks under it.
-				elif pr[0] == "fort_gate" and at.y > sim.commander.pos.y and Rect2(at - f[1], f[0].size).intersects(him):
+				elif pr[0].begins_with("fort_gate") and at.y > sim.commander.pos.y and Rect2(at - f[1], f[0].size).intersects(him):
 					mod = Color(1, 1, 1, 0.55)
 				if pr[0] == "feather_grass":
 					_add_swaying(pr[1], f, mod)

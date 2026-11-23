@@ -144,7 +144,8 @@ func raise_fort(sim: Sim) -> void:
 
 	var tx := float(cfg.tower_x)
 	var tr := float(cfg.tower_radius)
-	var pieces: Array = [["fort_gate", foot, 0.0], ["", foot + Vector2(-tx, -8), tr], ["", foot + Vector2(tx, -8), tr]]
+	var ground: String = sim.content.provinces.get(sim.province, {}).get("fort_ground", "grass")
+	var pieces: Array = [[fort_piece("fort_gate", ground), foot, 0.0], ["", foot + Vector2(-tx, -8), tr], ["", foot + Vector2(tx, -8), tr]]
 	# The walls are solid all round but drawn as palisade pieces, so the blockers along them have no picture of their own.
 	var steps := int(ceilf(2.0 * half / float(cfg.stake_gap)))
 	var corners := [Vector2(-half, -half), Vector2(half, -half), Vector2(half, half), Vector2(-half, half)]
@@ -159,34 +160,39 @@ func raise_fort(sim: Sim) -> void:
 			pieces.append(["", best + at, sr])
 	for edge in [-1.0, 1.0]:
 		pieces.append(["", foot + Vector2(edge * (tx + tr + sr * 0.5), 0.0), sr])
-	pieces.append_array(_fort_pictures(best, half, cfg))
+	pieces.append_array(_fort_pictures(best, half, cfg, ground))
 	fort = {"pos": foot, "gate": foot + Vector2(0, -12), "centre": best, "half": half, "gate_half": tx - tr, "hold": 0.0, "entered": false}
 	sim.terrain.add_clearing(best, room, pieces)
 	notice = {"kind": "fort", "at": sim.time}
 
 
+## The picture of a fort piece standing on a province's `fort_ground`; grass is the piece as drawn.
+static func fort_piece(name: String, ground: String) -> String:
+	return name if ground == "grass" or name == "tent" else "%s_%s" % [name, ground]
+
+
 ## The fort's palisade, corner towers and tents round a yard of `half` either side of `centre`: pictures, with a solid
 ## blocker under each tower and tent so nobody stands inside them.
-func _fort_pictures(centre: Vector2, half: float, cfg: Dictionary) -> Array:
+func _fort_pictures(centre: Vector2, half: float, cfg: Dictionary, ground := "grass") -> Array:
 	var out: Array = []
 	# The walls stand a little above the corners so their bank tucks behind the base of the gate and the towers.
 	var lift := float(cfg.wall_lift)
 	for x in _wall_run(-half, half, float(cfg.wall_step)):
-		out.append(["fort_wall", centre + Vector2(x, -half - lift), 0.0])
+		out.append([fort_piece("fort_wall", ground), centre + Vector2(x, -half - lift), 0.0])
 	# The front walls start under the gate's towers, so the gate hides where they end.
 	var tuck := float(cfg.tower_x)
 	for sx in [-1.0, 1.0]:
 		for x in _wall_run(sx * tuck, sx * half, float(cfg.wall_step)):
-			out.append(["fort_wall", centre + Vector2(x, half - lift), 0.0])
+			out.append([fort_piece("fort_wall", ground), centre + Vector2(x, half - lift), 0.0])
 	# Each side wall is a strip of stakes standing one behind another, which reads as a palisade running away from the viewer.
 	var y := -half - lift
 	while y < half + float(cfg.side_step) / 2.0:
 		for sx in [-1.0, 1.0]:
-			out.append(["fort_side", centre + Vector2(sx * half, y), 0.0])
+			out.append([fort_piece("fort_side", ground), centre + Vector2(sx * half, y), 0.0])
 		y += float(cfg.side_step)
 	for sx in [-1.0, 1.0]:
 		for sy in [-1.0, 1.0]:
-			out.append(["watchtower", centre + Vector2(sx * half, sy * half + 14.0), 0.0])
+			out.append([fort_piece("watchtower", ground), centre + Vector2(sx * half, sy * half + 14.0), 0.0])
 			out.append(["", centre + Vector2(sx * half, sy * half), float(cfg.tower_radius)])
 	# Tents line the inside of the side and back walls, with the commander's tent in the middle of the back.
 	var rim := float(cfg.tent_rim)
@@ -206,7 +212,7 @@ func _fort_pictures(centre: Vector2, half: float, cfg: Dictionary) -> Array:
 			out.append(["", at + Vector2(0, -6), tent_r])
 		x += float(cfg.tent_step)
 	var head := centre + Vector2(0, -half + rim + 16.0)
-	out.append(["command_tent", head, 0.0])
+	out.append([fort_piece("command_tent", ground), head, 0.0])
 	out.append(["", head + Vector2(0, -12), float(cfg.command_radius)])
 	return out
 
