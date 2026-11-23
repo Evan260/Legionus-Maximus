@@ -9190,6 +9190,17 @@ func test_the_maps_panel_covers_no_province(b: Dictionary) -> void:
 	Ui.set_text_size(before, b)
 
 
+func test_a_map_plate_stays_on_the_map_when_every_side_is_taken(_b: Dictionary) -> void:
+	var tries := [Rect2(500, 350, 200, 24), Rect2(500, 300, 200, 24)]
+	var placed := [Rect2(0, 280, 640, 80)]
+	var at := MapScreen.plate_spot(tries, placed, [])
+	check(Rect2(0, 0, Ui.W, Ui.H - 20.0).encloses(at), "a plate with no clear side still stays on the map above the key hints (%s)" % at)
+	at = MapScreen.plate_spot([Rect2(500, 350, 200, 24), Rect2(500, 280, 200, 24)], [Rect2(0, 290, 640, 70)], [])
+	check(at.position.y == 280.0, "and of the sides taken, it takes the one that covers the others least (%s)" % at)
+	at = MapScreen.plate_spot([Rect2(10, 10, 50, 20), Rect2(100, 10, 50, 20)], [], [Vector2(20, 20)])
+	check(at.position.x == 100.0, "of the clear sides, it takes the one covering the least of the road")
+
+
 func test_the_map_road_never_crosses_itself(b: Dictionary) -> void:
 	var host := _map_host(content, b, "germania")
 	var map := MapScreen.new(host)

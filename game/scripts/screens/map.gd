@@ -360,25 +360,9 @@ func _labels(c: CanvasItem, ui: Ui, ids: Array) -> void:
 		var h := Ui.leading() * (2.0 if two else 1.0)
 		var p := spot(id)
 		var tries: Array = [Rect2(p.x - w / 2.0, p.y + NODE_R + 6.0, w, h), Rect2(p.x - w / 2.0, p.y - NODE_R - 6.0 - h, w, h),
-			Rect2(p.x + NODE_R + 8.0, p.y - h / 2.0, w, h), Rect2(p.x - NODE_R - 8.0 - w, p.y - h / 2.0, w, h)]
-		# Of the sides clear of other plates and nodes, a plate takes the one that covers the least of the road.
-		var at: Rect2 = tries[0]
-		var least := INF
-		for t in tries:
-			t.position.x = clampf(t.position.x, 6.0, Ui.W - t.size.x - 6.0)
-			t.position.y = clampf(t.position.y, 4.0, Ui.H - t.size.y - 20.0)
-			var clash := false
-			for q in placed:
-				clash = clash or q.intersects(t.grow(2.0))
-			if clash:
-				continue
-			var covered := 0
-			var wide: Rect2 = t.grow(3.0)
-			for m in marks:
-				covered += 1 if wide.has_point(m) else 0
-			if covered < least:
-				least = covered
-				at = t
+			Rect2(p.x + NODE_R + 8.0, p.y - h / 2.0, w, h), Rect2(p.x - NODE_R - 8.0 - w, p.y - h / 2.0, w, h),
+			Rect2(p.x - w / 2.0, p.y - NODE_R - 10.0 - 2.0 * h, w, h)]
+		var at := plate_spot(tries, placed, marks)
 		placed.append(at.grow(2.0))
 		var state := state_of(id)
 		c.draw_rect(at.grow(3.0), SHADE)
@@ -387,6 +371,34 @@ func _labels(c: CanvasItem, ui: Ui, ids: Array) -> void:
 		if two:
 			var col := Ui.CREAM if state == "open" else (Color(0.6, 0.85, 0.5) if state == "won" else Color(0.72, 0.66, 0.6))
 			ui.fit_text(c, line, room, Vector2(at.position.x, at.position.y + Ui.px + Ui.leading()), col, HORIZONTAL_ALIGNMENT_CENTER, at.size.x)
+
+
+## Where a plate goes of the `tries`, each held on the map above the key hints: of the sides clear of the `placed` plates and nodes, the one
+## covering the fewest of the road's `marks`, or, when none is clear, the one that covers the others least.
+static func plate_spot(tries: Array, placed: Array, marks: Array) -> Rect2:
+	var at := Rect2()
+	var least := INF
+	var fallback := Rect2()
+	var least_cover := INF
+	for t: Rect2 in tries:
+		t.position.x = clampf(t.position.x, 6.0, Ui.W - t.size.x - 6.0)
+		t.position.y = clampf(t.position.y, 4.0, Ui.H - t.size.y - 20.0)
+		var cover := 0.0
+		for q: Rect2 in placed:
+			cover += q.intersection(t.grow(2.0)).get_area()
+		if cover > 0.0:
+			if cover < least_cover:
+				least_cover = cover
+				fallback = t
+			continue
+		var covered := 0
+		var wide: Rect2 = t.grow(3.0)
+		for m in marks:
+			covered += 1 if wide.has_point(m) else 0
+		if covered < least:
+			least = covered
+			at = t
+	return at if least < INF else fallback
 
 
 ## Points every few pixels along the road from Rome through the provinces, which the plates try not to cover.
