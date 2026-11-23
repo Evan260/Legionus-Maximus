@@ -1293,7 +1293,7 @@ func add_clearing(centre: Vector2, radius: float, pieces: Array) -> void:
 	for pr in pieces:
 		_extra_at[pr[1]] = true
 	for key in _regions:
-		_regions[key] = _regions[key].filter(func(p: Array) -> bool: return p[1].distance_to(centre) >= radius)
+		_regions[key] = _outside(_regions[key], centre, radius)
 	_buckets.clear()
 	var reach := radius
 	for pr in pieces:
@@ -1302,6 +1302,26 @@ func add_clearing(centre: Vector2, radius: float, pieces: Array) -> void:
 		for cy in range(floori((centre.y - reach) / CHUNK), floori((centre.y + reach) / CHUNK) + 1):
 			_chunks.erase(Vector2i(cx, cy))
 	_anchor = Vector2i(1 << 30, 0)
+
+
+## A region's pieces that lie outside a circle, each picture kept or left out together with the unseen blockers listed after it,
+## and a farmland hedge given new ends where the circle took a bush.
+func _outside(pieces: Array, centre: Vector2, radius: float) -> Array:
+	var farm := not field.is_empty()
+	var out: Array = []
+	var i := 0
+	while i < pieces.size():
+		var j := i + 1
+		while j < pieces.size() and pieces[j][0] == "":
+			j += 1
+		# A hedge's ends are laid again below, from the bushes that are left.
+		var end: bool = farm and pieces[i][0].begins_with("hedge_end")
+		if not end and pieces.slice(i, j).all(func(p: Array) -> bool: return p[1].distance_to(centre) >= radius):
+			out.append_array(pieces.slice(i, j))
+		i = j
+	if farm:
+		out.append_array(_hedge_ends(out))
+	return out
 
 
 func _in_clearing(p: Vector2) -> bool:

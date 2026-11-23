@@ -4696,6 +4696,40 @@ func test_a_clearing_keeps_its_ground_free_of_props(b: Dictionary) -> void:
 	check(blocked, "and the solid pieces block at once")
 
 
+func test_a_clearing_made_later_takes_a_held_picture_with_all_its_blockers(b: Dictionary) -> void:
+	var t := Terrain.new(903, b.forest, {})
+	t.field = b.fields.gaul
+	var span := float(b.fields.gaul.hedge_span)
+	var house := Vector2.INF
+	var bush := Vector2.INF
+	var hedges := {}
+	var all := t.props_in(Rect2(-3000, -3000, 6000, 6000))
+	for pr in all:
+		if pr[0] == "hedge":
+			hedges[Vector2i(pr[1].round())] = true
+	for pr in all:
+		if pr[0] == "roundhouse" and house == Vector2.INF:
+			house = pr[1]
+		elif pr[0] == "hedge" and bush == Vector2.INF and hedges.has(Vector2i((pr[1] + Vector2(span, 0)).round())) and hedges.has(Vector2i((pr[1] - Vector2(span, 0)).round())):
+			bush = pr[1]
+	check(house != Vector2.INF and bush != Vector2.INF, "a roundhouse and a bush in the middle of a hedge were found")
+	# Each circle takes the picture's foot but not the blockers behind it.
+	t.add_clearing(house + Vector2(0, 40), 45.0, [])
+	t.add_clearing(bush + Vector2(0, 10), 12.0, [])
+	var left := []
+	var ends := []
+	for pr in t.props_in(Rect2(-3000, -3000, 6000, 6000)):
+		if pr[0] in ["roundhouse", ""] and pr[1].distance_to(house) < 60.0:
+			left.append(pr[0])
+		if pr[0] in ["hedge", ""] and pr[1].distance_to(bush) < span / 2.0:
+			left.append(pr[0])
+		if pr[0].begins_with("hedge_end") and pr[1].distance_to(bush) < span:
+			ends.append(pr[0])
+	check(left.is_empty(), "the house and the bush go with every unseen blocker that held them (%s)" % str(left))
+	ends.sort()
+	check(ends == ["hedge_end_left", "hedge_end_right"], "and the hedge on each side of the gap ends softly (%s)" % str(ends))
+
+
 func test_a_run_places_two_or_three_objectives_in_clearings(b: Dictionary) -> void:
 	var cfg: Dictionary = b.objectives
 	var sizes := {}
