@@ -464,7 +464,7 @@ func _draw() -> void:
 			var mid: Vector2 = e.pos - f[1] + rect.size / 2.0 + into * k * k
 			if e.get("big", false):
 				mid.x += sin(e.t * 70.0) * 3.0 * (1.0 - k)
-			_add(mid.y, rect, mid - size / 2.0, Color(0.9 - 0.85 * k, 0.8 - 0.76 * k, 0.75 - 0.71 * k, 1.0 - k * k * k), false, size)
+			_add(e.pos.y + into.y * k * k, rect, mid - size / 2.0, Color(0.9 - 0.85 * k, 0.8 - 0.76 * k, 0.75 - 0.71 * k, 1.0 - k * k * k), false, size)
 
 	_add_arm_sprites(view)
 	_add_chests_and_carts(view)
@@ -832,7 +832,7 @@ func _add_arm_sprites(view: Rect2) -> void:
 		var f := atlas.prop_frame("caltrops")
 		for z in sim.arms.zones:
 			if z.kind == "caltrops" and view.has_point(z.pos):
-				_add(z.pos.y - 8.0, f[0], z.pos - f[1], Color(1, 1, 1, clampf((z.life - z.t) / 0.6, 0.0, 1.0)))
+				_add(z.pos.y - 60000.0, f[0], z.pos - f[1], Color(1, 1, 1, clampf((z.life - z.t) / 0.6, 0.0, 1.0)))
 	if atlas.props.has("stake") and not sim.arms.stakes.is_empty():
 		var f := atlas.prop_frame("stake")
 		var st: Dictionary = sim.arms.stakes
