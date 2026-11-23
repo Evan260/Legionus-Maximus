@@ -1,6 +1,7 @@
 """Makes a square ground texture repeat without seams: the texture is shifted half a tile so its edges meet in the
-middle, and a wavy band over that join is filled from the unshifted texture, whose middle has no seam. A plant or stone
-that the band's edge would cut is taken whole from one side.
+middle, and a band over that join is filled from the unshifted texture, whose middle has no seam. Each edge of the band
+follows the path where the two textures differ least, so it runs between the ground's mounds and tufts instead of across
+them. A plant or stone that the band's edge would still cut is taken whole from one side.
 
 Usage: python tools/art/make_seamless.py ground.png --out ground_tile.png [--value 0.9 --saturation 0.95]
 """
@@ -25,10 +26,37 @@ rolled = np.roll(np.roll(orig, half, 0), half, 1)
 yy, xx = np.mgrid[0:n, 0:n]
 
 
-def band(across, along, seed):
-    # A wavy edge keeps the join from lining up into a straight stripe once the tile repeats.
-    width = n / 25 + n / 50 * np.sin(along / 9.0 + seed) + n / 85 * np.sin(along / 4.3 + 2 * seed)
-    return np.abs(across - half - n / 42 * np.sin(along / 17.0 + 3 * seed)) < width
+# How far from the join each edge of the band may wander, and how near it must stay, in pixels.
+REACH = 44
+NEAR = 4
+
+
+def cheapest_loop(cost):
+    """For each row of cost, the column of the cheapest path from the top row to the bottom that steps at most a pixel
+    aside each row and ends in the column it starts in, so the band meets itself where the tile repeats."""
+    rows, cols = cost.shape
+    best, path = np.inf, None
+    for start in range(cols):
+        acc = np.full(cols, np.inf)
+        acc[start] = cost[0, start]
+        back = np.zeros((rows, cols), int)
+        for y in range(1, rows):
+            ways = np.stack([np.r_[np.inf, acc[:-1]], acc, np.r_[acc[1:], np.inf]])
+            back[y] = np.arange(cols) + ways.argmin(0) - 1
+            acc = ways.min(0) + cost[y]
+        if acc[start] < best:
+            best, x, path = acc[start], start, [start]
+            for y in range(rows - 1, 0, -1):
+                x = back[y, x]
+                path.append(x)
+    return np.array(path[::-1])
+
+
+def band(cost):
+    """The band down the middle of the tile: between a path left of the join and one right of it."""
+    left = half - REACH + cheapest_loop(cost[:, half - REACH:half - NEAR])
+    right = half + NEAR + cheapest_loop(cost[:, half + NEAR:half + REACH])
+    return (xx >= left[:, None]) & (xx < right[:, None])
 
 
 THING_MOST = 300
@@ -52,9 +80,12 @@ def edge_of(mask):
     return mask ^ cv2.erode(mask.astype(np.uint8), np.ones((3, 3), np.uint8)).astype(bool)
 
 
-mask = band(yy, xx, 0.3) | band(xx, yy, 1.7)
-# A cut thing goes wholly to one side, the band's when the shifted texture's own join already breaks it, and each move can cut another, so this repeats.
 mine, theirs = things(orig), things(rolled)
+# The band's edge runs where the two textures look most alike, and goes round the plants and stones of either.
+cost = np.abs(rolled.astype(float) - orig).sum(-1) + 2000.0 * ((mine > 0) | (theirs > 0))
+across = band(cost)
+mask = across | band((cost * ~across).T).T
+# A cut thing goes wholly to one side, the band's when the shifted texture's own join already breaks it, and each move can cut another, so this repeats.
 for _ in range(6):
     before = mask.copy()
     for labels, take in ((mine, True), (theirs, False)):
