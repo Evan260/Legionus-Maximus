@@ -6737,6 +6737,24 @@ func test_early_bosses_act_less_often(b: Dictionary) -> void:
 	check(is_equal_approx(wait, float(content.enemies.war_priest.lob.every) / float(cfg.early_pace)), "his pots come less often early on (%.1f s)" % wait)
 
 
+func test_early_bosses_rally_howl_and_charge_less_often_too(b: Dictionary) -> void:
+	var s := _chief_sim(b, 723)
+	var h := s.horde
+	s.time = float(b.bosses.first)
+	var ids: Array = []
+	for made in [["war_band_leader", Vector2(300, 0)], ["berserker", Vector2(-300, 0)], ["draco_rider", Vector2(0, 300)]]:
+		ids.append(h.e_id[h.spawn(made[0], made[1], true)])
+	h.rally_cd[ids[0]] = 5.0
+	h.e_cd[h.e_id.find(ids[1])] = 1.0
+	h.e_cd[h.e_id.find(ids[2])] = 1.0
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	var paced := h.early_pace() / 60.0
+	check(h.early_pace() < 0.5, "the first bosses act at a slow pace (%.2f)" % h.early_pace())
+	check(absf(5.0 - float(h.rally_cd[ids[0]]) - paced) < 1e-4, "and so does the war band leader's rally (%.4f against %.4f)" % [5.0 - float(h.rally_cd[ids[0]]), paced])
+	check(absf(1.0 - h.e_cd[h.e_id.find(ids[1])] - paced) < 1e-4, "the berserker's charge (%.4f)" % (1.0 - h.e_cd[h.e_id.find(ids[1])]))
+	check(absf(1.0 - h.e_cd[h.e_id.find(ids[2])] - paced) < 1e-4, "and the draco rider's howl (%.4f)" % (1.0 - h.e_cd[h.e_id.find(ids[2])]))
+
+
 ## A straight gorge from x0 to x1 along the line y, `half` px either side of its middle, laid on the run's field.
 func _gorge(s: Sim, x0: float, x1: float, y: float, half: float) -> void:
 	var pts := PackedVector2Array()

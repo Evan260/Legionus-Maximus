@@ -1876,6 +1876,7 @@ func cleave(ci: int, sim: Sim) -> bool:
 
 ## A rallying elite shouts every so often, and the barbarians around him move faster for a few seconds.
 func _rally(dt: float, sim: Sim) -> void:
+	var paced := dt * early_pace()
 	for id in elite_ids:
 		var i := e_id.find(id)
 		if i < 0 or e_stun[i] > 0.0:
@@ -1884,7 +1885,7 @@ func _rally(dt: float, sim: Sim) -> void:
 		if not info.has("rally"):
 			continue
 		var cfg: Dictionary = info.rally
-		var left: float = rally_cd.get(id, float(cfg.every) * 0.5) - dt
+		var left: float = rally_cd.get(id, float(cfg.every) * 0.5) - paced
 		if left <= 0.0:
 			left = float(cfg.every)
 			var r2 := float(cfg.radius) * float(cfg.radius)
@@ -2657,6 +2658,8 @@ func _move(dt: float, sim: Sim) -> void:
 	var heading := Vector2.from_angle(sim.facing_angle)
 	var throw_every: float = b.ranged.every
 	var strike_secs := Atlas.ATTACK_FRAMES / Atlas.ATTACK_FPS
+	# An elite's own calls and charges keep the slow pace of the first bosses, as his other abilities do.
+	var elite_dt := dt * early_pace()
 	var bare := sim.frenzy_guard()
 	var dash_min: float = b.charger.min_distance
 	var dash_max: float = b.charger.max_distance
@@ -2751,7 +2754,7 @@ func _move(dt: float, sim: Sim) -> void:
 			if e_cd[i] <= 0.0 and d < legion_reach + k_lasso_reach[kind]:
 				e_cd[i] = k_lasso[kind] if _swing_lasso(i, sim) else 0.5
 		if k_howl[kind] == 1:
-			e_cd[i] -= dt
+			e_cd[i] -= elite_dt if e_tag[i] == ELITE else dt
 			if e_cd[i] <= 0.0:
 				e_cd[i] = k_beat[kind]
 				if d < sep_range:
@@ -2835,7 +2838,7 @@ func _move(dt: float, sim: Sim) -> void:
 				# The chieftain charges at his own pace, neither hastened nor slowed, so he stops where his marked line ends.
 				v = e_dir[i] * (k_speed[kind] if e_tag[i] == CHIEF else spd) * k_dash_mult[kind]
 			else:
-				e_cd[i] -= dt
+				e_cd[i] -= elite_dt if e_tag[i] == ELITE else dt
 				if e_cd[i] <= 0.0 and d > dash_min and d < (legion_reach + k_dash_reach[kind] if k_dash_reach[kind] >= 0.0 and e_bare[i] == 0 else dash_max) and not circling:
 					e_cd[i] = k_dash_every[kind]
 					e_dir[i] = to / maxf(d, 0.001)
