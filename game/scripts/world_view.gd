@@ -1143,23 +1143,19 @@ func _draw_coin_shadows(view: Rect2) -> void:
 
 ## Each coin among the sorted sprites at its own depth, so a rock or a man in front of it covers it and it lies over the ones behind.
 func _add_coins(view: Rect2) -> void:
-	# A denarius is drawn as a full coin sprite with a dark rim, bobbing and glinting, so it stands out from the grass.
+	# A denarius is drawn as a gold coin with a dark rim, baked into one sprite by build_atlas.py, bobbing and glinting, so it stands out from the grass.
 	if not atlas.props.has("coin"):
 		return
-	var f := atlas.prop_frame("coin")
-	var rect: Rect2 = f[0]
+	var rect: Rect2 = atlas.prop_frame("coin")[0]
+	var rimmed: Rect2 = atlas.prop_frame("coin_rimmed")[0]
 	var size: Vector2 = rect.size
-	var gold := Color(1.35, 1.12, 0.5)
-	var rim := Color(0.18, 0.1, 0.04, 0.85)
 	for i in sim.c_pos.size():
 		var p: Vector2 = sim.c_pos[i]
 		if not view.has_point(p):
 			continue
 		var bob := roundf(sin(sim.time * 4.0 + i * 1.7) * 1.0)
 		var at := (p - size / 2.0 + Vector2(0, bob - 2.0)).round()
-		for off in [Vector2(-1, 0), Vector2(1, 0), Vector2(0, -1), Vector2(0, 1)]:
-			_add(p.y, rect, at + off, rim)
-		_add(p.y, rect, at, gold)
+		_add(p.y, rimmed, at - Vector2(1, 1), Color.WHITE)
 		if int(sim.time * 5.0 + i * 3) % 11 == 0:
 			_add(p.y, Rect2(rect.position + Vector2(3, 2), Vector2(2, 2)), at + Vector2(3, 2), Color(3, 3, 2.8))
 
