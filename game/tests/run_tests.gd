@@ -682,6 +682,13 @@ func test_lorica_raises_health(b: Dictionary) -> void:
 	check(s.soldiers[0].max_hp > float(content.recruits.legionary.hp), "the soldiers' health rose")
 	Upgrades.apply(s, "legionary")
 	check(s.soldiers[-1].max_hp > float(content.recruits.legionary.hp), "new recruits arrive with it")
+	var tough := Sim.new(b, content, {"seed": 12, "commander": "old_centurion", "profile_bonuses": {"start_health": 8, "soldier_health": 4}})
+	var hurt: Dictionary = tough.soldiers[0]
+	hurt.hp = hurt.max_hp - 5.0
+	var old_max: float = hurt.max_hp
+	Upgrades.apply(tough, "lorica")
+	check(tough.commander.hp == tough.commander.max_hp, "a commander at full health stays full (%.0f of %.0f)" % [tough.commander.hp, tough.commander.max_hp])
+	check(is_equal_approx(hurt.hp, hurt.max_hp - 5.0) and hurt.max_hp > old_max, "a wounded man is healed by all the health it adds (%.1f of %.1f)" % [hurt.hp, hurt.max_hp])
 
 
 ## Kills the chieftain, then stands the commander in the fort until it is held.

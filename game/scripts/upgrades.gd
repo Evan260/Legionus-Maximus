@@ -171,9 +171,9 @@ static func apply(sim: Sim, id: String) -> void:
 		sim.ranks[id] = sim.rank(id) + 1
 		if id == "lorica":
 			for u in [sim.commander] + sim.soldiers:
-				var base: float = sim.content.unit(u.type).hp
+				var old: float = u.max_hp
 				u.max_hp = sim.max_hp_of(u.type) + float(u.get("vet", 0.0))
-				u.hp = minf(u.max_hp, u.hp + base * 0.2)
+				u.hp = minf(u.max_hp, u.hp + u.max_hp - old)
 	if sim.pending_levels > 0:
 		sim.pending_levels -= 1
 	elif sim.free_choices > 0:
