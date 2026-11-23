@@ -245,6 +245,15 @@ func _add_turned(y: float, rect: Rect2, dest: Vector2, mod: Color, size: Vector2
 	_add(y, rect, dest - xf.origin, mod, false, size)
 
 
+## A group of standing stones: its grass drawn flat on the ground and each stone sorted at its own foot, so a man can stand among them.
+func _add_stones(at: Vector2) -> void:
+	var parts: Dictionary = atlas.props.stone_circle_parts
+	var top := at - Vector2(parts.anchor[0], parts.anchor[1])
+	for n in parts.frames.size():
+		var f: Array = parts.frames[n]
+		_add(at.y - 60000.0 if n == 0 else top.y + float(parts.feet[n]), Rect2(f[0], f[1], f[2], f[3]), top, Color.WHITE)
+
+
 ## Feather grass bends in the wind: its upper half is drawn a pixel or two aside, in a slow wave that runs across the field.
 func _add_swaying(at: Vector2, f: Array, mod: Color) -> void:
 	var rect: Rect2 = f[0]
@@ -352,6 +361,9 @@ func _draw() -> void:
 					var drift: Array = shapes[posmod(int(at.x) * 7 + int(at.y) * 13, shapes.size())]
 					_drift_tex.append(drift[0])
 					_drift_at.append((at - f[1]).round() + drift[1])
+				if pr[0] == "stone_circle":
+					_add_stones(at)
+					continue
 				if pr[0] == "dune" or pr[0] == "bog" or pr[0] == "heather" or pr[0] == "dry_grass" or pr[0] == "hut_ruin":
 					# Dunes, bog pools, heather and dry grass are walked over, so they are drawn on the ground under everything that stands on them.
 					_add(at.y - 60000.0, f[0], at - f[1], white)
