@@ -6399,7 +6399,7 @@ func test_trees_on_sand_stand_in_a_drift_and_trees_on_grass_do_not(b: Dictionary
 	view.sim = Sim.new(b, Content.with_all_art(), {"seed": 7, "province": "parthia"})
 	view._paint_drifts()
 	var palm: Array = view.atlas.prop_frame("palm")
-	var foot: Vector2i = view._trunk_feet.palm
+	var foot: Vector2i = view._trunk_foot("palm")
 	var drift: Array = view._drifts.get("palm", [[null, Vector2.ZERO]])[0]
 	var round_foot: bool = drift[0] != null and drift[1].x < foot.x and drift[1].x + drift[0].get_width() > foot.y + 1 \
 		and drift[1].y <= palm[1].y and drift[1].y + drift[0].get_height() > palm[1].y + 1

@@ -77,8 +77,6 @@ var _drifts_of := ""
 # The drifts in view this frame, as picture and top left, drawn with the ground pictures.
 var _drift_tex: Array[Texture2D] = []
 var _drift_at := PackedVector2Array()
-# Where each tree kind's trunk meets the ground in its picture, read from the atlas once, since reading the atlas back is slow.
-static var _trunk_feet := {}
 ## The camp's burning huts by position, as [index, seconds since the eagle was taken], rebuilt each frame.
 var _hut_burn := {}
 ## Where a hut's three fires burn on its roof, against its foot.
@@ -104,7 +102,8 @@ var _train_marks := PackedVector2Array()
 # The ground and the wheat fields are drawn by two layers behind this node, so the wheat can have a shader of its own that frays its edges.
 var _floor := Node2D.new()
 var _wheat := Node2D.new()
-var _wheat_tile: Texture2D
+# The wheat has a texture of its own so it repeats across a whole field in one piece, with no seams where atlas pieces would meet.
+var _wheat_tile: Texture2D = preload("res://assets/wheat_tile.png")
 # The legion's armour and cloth tiers drawn now, and tiers set from the command line for a look, or -1 to follow the upgrades.
 var _livery := Vector2i(-1, -1)
 var livery_force := Vector2i(-1, -1)
@@ -171,6 +170,7 @@ func _ready() -> void:
 	_wheat.draw.connect(_draw_fields)
 	var dress := ShaderMaterial.new()
 	dress.shader = load("res://scripts/livery.gdshader")
+	dress.set_shader_parameter("wheat_tile", _wheat_tile)
 	material = dress
 
 
@@ -327,7 +327,7 @@ func _draw() -> void:
 	var him := Rect2(sim.commander.pos - Vector2(5, 26), Vector2(10, 26))
 	var chops: Dictionary = sim.terrain.chops
 	var shaking := float(sim.b.felling.shake_seconds)
-	var fields: Array = sim.terrain.fields_in(view) if _wheat_tile != null else []
+	var fields: Array = sim.terrain.fields_in(view)
 	_felling.clear()
 	_index_hut_burn()
 	if _drifts_of != sim.province:
@@ -562,16 +562,11 @@ func _paint_drifts() -> void:
 	sand[2] = (sand[2] as Color).lightened(float(cfg.lighten))
 	var c: Array = cfg.shadow
 	var shade := Color(float(c[0]), float(c[1]), float(c[2]), float(c[3]))
-	var sheet: Image = null
 	for kind in Terrain.TREES.keys() + ["stump"]:
 		if not atlas.props.has(kind):
 			continue
 		var f := atlas.prop_frame(kind)
-		if not _trunk_feet.has(kind):
-			if sheet == null:
-				sheet = atlas.texture.get_image()
-			_trunk_feet[kind] = _trunk_foot(sheet, f[0], int(f[1].y))
-		var foot: Vector2i = _trunk_feet[kind]
+		var foot := _trunk_foot(kind)
 		if foot.y < foot.x:
 			continue
 		var shapes := []
@@ -605,15 +600,10 @@ static func _sand_colours(img: Image) -> Array:
 	return out
 
 
-## The leftmost and rightmost columns of a picture's bottom three rows that are drawn, where its trunk meets the ground.
-static func _trunk_foot(sheet: Image, rect: Rect2, foot_row: int) -> Vector2i:
-	var span := Vector2i(1 << 20, -1)
-	for y in range(maxi(0, foot_row - 2), foot_row + 1):
-		for x in int(rect.size.x):
-			if sheet.get_pixel(int(rect.position.x) + x, int(rect.position.y) + y).a > 0.5:
-				span.x = mini(span.x, x)
-				span.y = maxi(span.y, x)
-	return span
+## The leftmost and rightmost columns of a prop's bottom three rows that are drawn, where its trunk meets the ground, as build_atlas.py found them.
+func _trunk_foot(kind: String) -> Vector2i:
+	var span: Array = atlas.props[kind].foot
+	return Vector2i(int(span[0]), int(span[1]))
 
 
 ## One drift: a low mound of sand banked against the trunk, longer on the side the shadow falls, lit along its top
@@ -685,11 +675,6 @@ func _draw_fields() -> void:
 		mat.set_shader_parameter("turn", sim.terrain.field_turn)
 		mat.set_shader_parameter("reach", FIELD_FRAY)
 		mat.set_shader_parameter("wheat_tint", Vector3(float(tint[0]), float(tint[1]), float(tint[2])))
-	if _wheat_tile == null:
-		# The tile has a texture of its own so it repeats across a whole field in one piece, with no seams where atlas pieces would meet.
-		var src: Rect2 = atlas.prop_frame("wheat_field")[0]
-		_wheat_tile = ImageTexture.create_from_image(atlas.texture.get_image().get_region(Rect2i(src)))
-		material.set_shader_parameter("wheat_tile", _wheat_tile)
 	for f in fields:
 		var area: Rect2 = sim.terrain.field_box(f.grow(FIELD_FRAY)).intersection(view)
 		if area.size.x > 0.0 and area.size.y > 0.0:
