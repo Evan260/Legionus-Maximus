@@ -802,6 +802,8 @@ func _screen_input(dt: float) -> void:
 	if state == "camp":
 		for u in [camp_sim.commander] + camp_sim.soldiers:
 			u.anim += dt * 6.0
+	if state == "saves":
+		screens.saves.hold(dt, Input.is_action_pressed("confirm"), ui.focus)
 	if state == "over" and screens.over.revealing():
 		screens.over.tick(dt)
 		if (Input.is_action_just_pressed("confirm") or Input.is_action_just_pressed("back")) and Game.confirm_allowed(state, opened_at, clock, balance):

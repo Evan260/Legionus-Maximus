@@ -27,7 +27,7 @@ const GROUPS := [["up", "down", "left", "right", "testudo", "build", "wall", "br
 const LAYOUT_SERVERS := ["Windows", "macOS", "X11", "Wayland"]
 # The words of the key hints, each translated on its own so no translation has to keep a key in its place.
 const HINT_WORDS := ["move", "choose", "back", "buy a rank", "take it", "call", "not now", "reroll", "banish",
-	"call the gods", "bridge", "palisade", "wall", "cancel", "delete", "change a key or button", "change a volume", "continue"]
+	"call the gods", "bridge", "palisade", "wall", "cancel", "delete", "change a key or button", "change a volume", "continue", "hold to delete"]
 
 
 ## The keys and pad buttons an action has: the saved ones, or the defaults when none are saved or the saved list is empty.
@@ -228,6 +228,8 @@ static func hint(kind: String, count := 0) -> String:
 			parts = [TranslationServer.translate("Press the new key or button"), part(pad_of("back") if pad_in_use else key_name(KEY_ESCAPE), "cancel")]
 		"type":
 			parts = [part(key_name(KEY_ENTER), "delete"), part(key_name(KEY_ESCAPE), "cancel")]
+		"hold":
+			parts = [part(pad_of("confirm"), "hold to delete"), part(pad_of("back"), "cancel")]
 		"level":
 			parts = [part(rows, "choose"), part(confirm, "take it")]
 		"reroll":

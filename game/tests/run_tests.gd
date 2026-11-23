@@ -3248,6 +3248,37 @@ func _return_profile(kept: Dictionary) -> void:
 	_cleanup_profile_files()
 
 
+func test_a_gamepad_deletes_a_game_by_holding_confirm(b: Dictionary) -> void:
+	var kept := _borrow_profile()
+	var pad := Controls.pad_in_use
+	var m := FakeMenuMain.new()
+	m.content = content
+	m.balance = b
+	var saves := SavesScreen.new(m)
+	Profile.new_game()
+	Profile.save()
+	Profile.new_game()
+	Profile.save()
+	saves.activate("delete:2")
+	Controls.pad_in_use = true
+	saves.hold(SavesScreen.HOLD_SECONDS * 0.6, true, "yes")
+	saves.hold(0.1, false, "yes")
+	saves.hold(SavesScreen.HOLD_SECONDS * 0.6, true, "yes")
+	check(Profile.slot_taken(2) and saves.confirming == 2, "letting go before the time starts the hold again")
+	saves.hold(SavesScreen.HOLD_SECONDS * 1.1, true, "no")
+	check(Profile.slot_taken(2), "holding confirm on Cancel deletes nothing")
+	saves.hold(SavesScreen.HOLD_SECONDS * 0.6, true, "yes")
+	saves.hold(SavesScreen.HOLD_SECONDS * 0.6, true, "yes")
+	check(not Profile.slot_taken(2) and saves.confirming == 0, "holding confirm on Delete long enough deletes the game")
+	saves.activate("delete:1")
+	Controls.pad_in_use = false
+	saves.hold(SavesScreen.HOLD_SECONDS * 2.0, true, "yes")
+	check(Profile.slot_taken(1), "with the keyboard in hand the word must still be typed")
+	Controls.pad_in_use = pad
+	m.free()
+	_return_profile(kept)
+
+
 func test_the_title_offers_continue_new_game_and_load(b: Dictionary) -> void:
 	var kept := _borrow_profile()
 	var ids := func() -> Array: return TitleScreen.buttons(b).map(func(x: Array) -> String: return x[0])

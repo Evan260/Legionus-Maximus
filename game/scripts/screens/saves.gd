@@ -3,11 +3,16 @@ extends RefCounted
 ## The load list: one row for each of the three save slots, saying what game is in it, with Play and Delete, and a question before a game is deleted
 ## that is answered by typing the word "delete", as in the other Slow Sunday games, so no stray press can delete a game.
 
+## How long a gamepad, which cannot type the word, holds confirm on Delete to delete a game.
+const HOLD_SECONDS := 2.0
+
 var main: Node
 ## The slot whose deletion is being asked about, or 0.
 var confirming := 0
 ## What has been typed into the question so far.
 var typed := ""
+## How long confirm has been held on Delete.
+var held := 0.0
 
 
 func _init(owner_node: Node) -> void:
@@ -24,6 +29,7 @@ func activate(id: String) -> void:
 		"delete":
 			confirming = int(parts[1])
 			typed = ""
+			held = 0.0
 			# The question opens on Cancel, so a second press of the confirm key never deletes a game.
 			main.ui.focus = "no"
 			_keyboard(true)
@@ -34,6 +40,17 @@ func activate(id: String) -> void:
 		"yes":
 			if word_typed():
 				_delete(confirming)
+
+
+## Deletes the game once a gamepad has held confirm on Delete for HOLD_SECONDS; letting go starts the hold again.
+func hold(dt: float, pressed: bool, focus: String) -> void:
+	if confirming == 0 or not Controls.pad_in_use or not pressed or focus != "yes":
+		held = 0.0
+		return
+	held += dt
+	if held >= HOLD_SECONDS:
+		held = 0.0
+		_delete(confirming)
 
 
 ## Shows or hides a phone's own keyboard for the word.
@@ -147,10 +164,14 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 
 ## Asks before a game is deleted, saying what is in it, since a deleted game cannot be brought back.
 func _draw_question(c: CanvasItem, ui: Ui) -> void:
-	var r := ui.frame(c, tr("Delete a game").to_upper(), Controls.hint("type"))
+	var pad := Controls.pad_in_use and not Touch.phone
+	var r := ui.frame(c, tr("Delete a game").to_upper(), Controls.hint("hold" if pad else "type"))
 	var info := Profile.slot_info(confirming)
 	var said: Array = summary(info, main.content, main.balance) if not info.is_empty() else [tr("This game could not be read.")]
-	said.append(tr("It will be gone for good. Type \"%s\" to delete it.") % tr("delete"))
+	if pad:
+		said.append(tr("It will be gone for good. Hold the Delete button to delete it."))
+	else:
+		said.append(tr("It will be gone for good. Type \"%s\" to delete it.") % tr("delete"))
 	var width := r.size.x - 80.0
 	var bh := 24.0 if Ui.scale == 1 else 30.0
 	if Touch.phone:
@@ -168,7 +189,10 @@ func _draw_question(c: CanvasItem, ui: Ui) -> void:
 	# A sunken box with a blinking cursor, so it reads as the place to type and not as another button.
 	_field(c, ui, field)
 	y += bh + 6.0
-	ui.button(c, Rect2(cx - bw - 6.0, y + 12.0, bw, bh), "yes", tr("Delete").to_upper(), "", word_typed(), null, true)
+	var yes := Rect2(cx - bw - 6.0, y + 12.0, bw, bh)
+	ui.button(c, yes, "yes", tr("Delete").to_upper(), "", word_typed() or pad, null, true)
+	if held > 0.0:
+		c.draw_rect(Rect2(yes.position, Vector2(yes.size.x * held / HOLD_SECONDS, yes.size.y)), Color(Ui.RED, 0.4))
 	ui.button(c, Rect2(cx + 6.0, y + 12.0, bw, bh), "no", tr("Cancel").to_upper(), "", true, null, true)
 
 
@@ -202,3 +226,4 @@ func _field(c: CanvasItem, ui: Ui, field: Rect2) -> void:
 	if int(Time.get_ticks_msec() / 500) % 2 == 0:
 		var x := at.x + (Ui.width_at(typed.to_upper(), Ui.px) + 2.0 if typed != "" else 0.0)
 		c.draw_rect(Rect2(x, field.position.y + 5.0, 2.0, field.size.y - 10.0), Ui.INK)
+
