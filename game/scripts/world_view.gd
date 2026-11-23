@@ -67,6 +67,11 @@ var _f_anchor := PackedVector2Array()
 var _f_rect: Array[Rect2] = []
 # Each prop kind's frame from the atlas, looked up once.
 var _prop_frames := {}
+# In a province whose ground is sand, each tree kind's drifts of sand round its foot, as [picture, top left against the tree's picture], and the province they were painted for.
+var _drifts := {}
+var _drifts_of := ""
+# Where each tree kind's trunk meets the ground in its picture, read from the atlas once, since reading the atlas back is slow.
+static var _trunk_feet := {}
 ## The camp's burning huts by position, as [index, seconds since the eagle was taken], rebuilt each frame.
 var _hut_burn := {}
 ## Where a hut's three fires burn on its roof, against its foot.
@@ -286,6 +291,8 @@ func _draw() -> void:
 	var fields: Array = sim.terrain.fields_in(view) if _wheat_tile != null else []
 	_felling.clear()
 	_index_hut_burn()
+	if _drifts_of != sim.province:
+		_paint_drifts()
 	# The chunks are read in place, in the order props_in() would join them.
 	for cx in range(floori(view.position.x / Terrain.CHUNK), floori(view.end.x / Terrain.CHUNK) + 1):
 		for cy in range(floori(view.position.y / Terrain.CHUNK), floori(view.end.y / Terrain.CHUNK) + 1):
@@ -301,6 +308,10 @@ func _draw() -> void:
 				if not _hut_burn.is_empty() and _hut_burn.has(at):
 					_add_burning_hut(at, pr[0], f)
 					continue
+				if not _drifts.is_empty() and _drifts.has(pr[0]):
+					var shapes: Array = _drifts[pr[0]]
+					var drift: Array = shapes[posmod(int(at.x) * 7 + int(at.y) * 13, shapes.size())]
+					draw_texture(drift[0], (at - f[1]).round() + drift[1])
 				if pr[0] == "dune" or pr[0] == "bog" or pr[0] == "heather" or pr[0] == "dry_grass" or pr[0] == "hut_ruin":
 					# Dunes, bog pools, heather and dry grass are walked over, so they are drawn on the ground under everything that stands on them.
 					_add(at.y - 60000.0, f[0], at - f[1], white)
@@ -494,6 +505,121 @@ func _draw_floor() -> void:
 	for gx in range(gx0, gx0 + ceili(screen.x / gw) + 2):
 		for gy in range(gy0, gy0 + ceili(screen.y / gh) + 2):
 			_floor.draw_texture(ground, Vector2(gx * gw, gy * gh))
+
+
+## In a province listed in `tree_drift` in balance.json, paints a few drifts of sand for the foot of every kind of tree and stump,
+## in the colours of the province's ground tile, each fitted to where the trunk meets the ground in its picture.
+func _paint_drifts() -> void:
+	_drifts_of = sim.province
+	_drifts.clear()
+	var cfg: Dictionary = sim.b.get("tree_drift", {})
+	if not cfg.get("provinces", []).has(sim.province):
+		return
+	var sand := _sand_colours((load(Content.ground_path(sim.province)) as Texture2D).get_image())
+	sand[0] = (sand[0] as Color).darkened(float(cfg.darken))
+	sand[2] = (sand[2] as Color).lightened(float(cfg.lighten))
+	var c: Array = cfg.shadow
+	var shade := Color(float(c[0]), float(c[1]), float(c[2]), float(c[3]))
+	var sheet: Image = null
+	for kind in Terrain.TREES.keys() + ["stump"]:
+		if not atlas.props.has(kind):
+			continue
+		var f := atlas.prop_frame(kind)
+		if not _trunk_feet.has(kind):
+			if sheet == null:
+				sheet = atlas.texture.get_image()
+			_trunk_feet[kind] = _trunk_foot(sheet, f[0], int(f[1].y))
+		var foot: Vector2i = _trunk_feet[kind]
+		if foot.y < foot.x:
+			continue
+		var shapes := []
+		for v in int(cfg.shapes):
+			shapes.append(_paint_drift(foot, int(f[1].y), sand, shade, cfg, v * 31 + kind.length()))
+		_drifts[kind] = shapes
+
+
+## The ground tile's sand as [shaded, middle, lit] colours, each the average of a band of its pixels sorted by brightness.
+static func _sand_colours(img: Image) -> Array:
+	var lum := PackedFloat32Array()
+	var cols := PackedColorArray()
+	for y in range(0, img.get_height(), 2):
+		for x in range(0, img.get_width(), 2):
+			var p := img.get_pixel(x, y)
+			cols.append(p)
+			lum.append(p.get_luminance())
+	var sorted := lum.duplicate()
+	sorted.sort()
+	var out := []
+	for band in [[0.04, 0.14], [0.4, 0.6], [0.86, 0.97]]:
+		var lo := sorted[int(band[0] * (sorted.size() - 1))]
+		var hi := sorted[int(band[1] * (sorted.size() - 1))]
+		var sum := Color(0, 0, 0, 0)
+		var n := 0
+		for i in lum.size():
+			if lum[i] >= lo and lum[i] <= hi:
+				sum += cols[i]
+				n += 1
+		out.append(Color(sum.r / n, sum.g / n, sum.b / n))
+	return out
+
+
+## The leftmost and rightmost columns of a picture's bottom three rows that are drawn, where its trunk meets the ground.
+static func _trunk_foot(sheet: Image, rect: Rect2, foot_row: int) -> Vector2i:
+	var span := Vector2i(1 << 20, -1)
+	for y in range(maxi(0, foot_row - 2), foot_row + 1):
+		for x in int(rect.size.x):
+			if sheet.get_pixel(int(rect.position.x) + x, int(rect.position.y) + y).a > 0.5:
+				span.x = mini(span.x, x)
+				span.y = maxi(span.y, x)
+	return span
+
+
+## One drift: a low mound of sand banked against the trunk, longer on the side the shadow falls, lit along its top
+## and shaded along its foot, with the trunk's faint shadow across it. Returns [picture, top left against the tree's picture].
+func _paint_drift(foot: Vector2i, foot_row: int, sand: Array, shade: Color, cfg: Dictionary, seed_n: int) -> Array:
+	var reach: Array = cfg.reach
+	var rise := int(cfg.rise)
+	var dip := int(cfg.dip)
+	var lean := int(cfg.shadow_reach)
+	var west := foot.x - int(roundf(lerpf(float(reach[0]), float(reach[1]), _hash01(seed_n, 1)) * 0.7))
+	var east := foot.y + int(roundf(lerpf(float(reach[0]), float(reach[1]), _hash01(seed_n, 2))))
+	var left := west - 1
+	var top := foot_row - rise
+	var w := east + lean - left + 2
+	var h := rise + dip + 2
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	var mid := (foot.x + foot.y) / 2.0
+	for x in range(west, east + 1):
+		var t := 0.0
+		if x < foot.x:
+			t = float(foot.x - x) / float(foot.x - west + 1)
+		elif x > foot.y:
+			t = float(x - foot.y) / float(east - foot.y + 1)
+		var up := int(roundf(rise * pow(1.0 - t, 1.3) + (_hash01(seed_n, 10 + x) - 0.5) * 0.9 * t))
+		var down := int(roundf(dip * pow(1.0 - t, 0.6)))
+		for y in range(foot_row - up, foot_row + down + 1):
+			var col: Color = (sand[1] as Color).lerp(sand[2], float(cfg.lift))
+			if y == foot_row + 1 and x >= foot.x and x <= foot.y:
+				col = col.lerp(sand[0], 0.6)
+			elif y == foot_row - up:
+				col = sand[2] if x <= mid + 2 else (sand[1] as Color).lerp(sand[2], 0.5)
+			elif y == foot_row - up + 1 and x <= mid:
+				col = col.lerp(sand[2], 0.4)
+			elif y == foot_row + down:
+				col = sand[0] if x > mid - 2 else (sand[1] as Color).lerp(sand[0], 0.5)
+			img.set_pixel(x - left, y - top, col)
+	# The trunk's shadow falls to the east, darkening the sand it crosses and faint on open ground.
+	for x in range(foot.y - 1, east + lean + 1):
+		var k := float(x - (foot.y - 1)) / float(east + lean - foot.y + 2)
+		var half := 1 if k < 0.7 else 0
+		for y in range(foot_row - half, foot_row + half + 1):
+			var under := img.get_pixel(x - left, y - top)
+			var a := shade.a * (1.0 - k * 0.6)
+			if under.a > 0.0:
+				img.set_pixel(x - left, y - top, under.lerp(Color(shade.r, shade.g, shade.b), a))
+			else:
+				img.set_pixel(x - left, y - top, Color(shade.r, shade.g, shade.b, a))
+	return [ImageTexture.create_from_image(img), Vector2(left, top)]
 
 
 ## The wheat fields of Gaul and Aegyptus: the wheat tile repeated over each field, lined up with the world so neighbouring fields share their rows.

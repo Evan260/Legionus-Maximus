@@ -5821,6 +5821,23 @@ func test_the_horde_is_drawn_from_the_atlas_frames(b: Dictionary) -> void:
 	check(wrong.is_empty(), "every barbarian's frame comes from the atlas (%s)" % [wrong.slice(0, 4)])
 
 
+func test_trees_on_sand_stand_in_a_drift_and_trees_on_grass_do_not(b: Dictionary) -> void:
+	var view: Node2D = load("res://scripts/world_view.gd").new()
+	view.atlas = Atlas.new()
+	view.sim = Sim.new(b, Content.with_all_art(), {"seed": 7, "province": "parthia"})
+	view._paint_drifts()
+	var palm: Array = view.atlas.prop_frame("palm")
+	var foot: Vector2i = view._trunk_feet.palm
+	var drift: Array = view._drifts.get("palm", [[null, Vector2.ZERO]])[0]
+	var round_foot: bool = drift[0] != null and drift[1].x < foot.x and drift[1].x + drift[0].get_width() > foot.y + 1 \
+		and drift[1].y <= palm[1].y and drift[1].y + drift[0].get_height() > palm[1].y + 1
+	check(round_foot, "a palm on Parthia's sand stands in a drift wider than its trunk, round its foot")
+	view.sim = Sim.new(b, Content.with_all_art(), {"seed": 7, "province": "germania"})
+	view._paint_drifts()
+	check(view._drifts.is_empty(), "trees on Germania's grass stand in no drift")
+	view.free()
+
+
 func test_the_bosses_are_drawn_big(_b: Dictionary) -> void:
 	var atlas := Atlas.new()
 	for type in ["berserker", "war_band_leader", "war_priest"]:

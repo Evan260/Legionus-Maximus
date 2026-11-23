@@ -359,7 +359,7 @@ func _go_to(kind: String) -> void:
 			"grass": "feather_grass", "kurgan": "kurgan", "wagons": "wagon", "birches": "birch"}[kind]
 		var best := Vector2.INF
 		for pr in sim.terrain.props_in(Rect2(-3000, -3000, 6000, 6000)):
-			if pr[0] == want and pr[1].length() < best.length():
+			if (pr[0] == want or kind == "palms" and pr[0] == "palm") and pr[1].length() < best.length():
 				best = pr[1]
 		if best == Vector2.INF:
 			return
