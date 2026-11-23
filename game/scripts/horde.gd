@@ -1013,14 +1013,36 @@ func war_band_at(sim: Sim, centre: Vector2, mult := 1.0) -> void:
 	var wb: Dictionary = b.war_band
 	var n := int((float(wb.size_start) + float(wb.size_growth) * time) * mult * difficulty("spawn"))
 	var turn := rng.randf() * TAU
+	var first := e_pos.size()
 	for i in n:
 		if full():
 			break
 		# The band stands in a loose spiral, `spread` apart, so it walks in as a crowd and never as one pile, and within reach of the legion so none is sent round again at once.
 		var at := beyond_screen(centre + Vector2.from_angle(turn + i * 2.39996) * float(wb.spread) * 0.55 * sqrt(i + 0.5))
 		var held: Vector2 = commander.pos + (at - commander.pos).limit_length(float(b.give_up_radius) - 10.0)
-		spawn(_pick_ordinary(), held if beyond_screen(held) == held else at)
+		at = held if beyond_screen(held) == held else at
+		spawn(_pick_ordinary(), at if sim.terrain.is_open(at) else _open_near(at, first, sim))
 	sim.event("surge", commander.pos)
+
+
+## Open ground near p for a band member whose own place is closed, beyond the screen, within the chase and clear of the men placed since index `first`; p itself when none is near.
+func _open_near(p: Vector2, first: int, sim: Sim) -> Vector2:
+	var room := float(b.war_band.spread) * 0.5
+	var most := float(b.give_up_radius) - 10.0
+	for ring in range(1, 5):
+		for k in 8:
+			var q: Vector2 = p + Vector2.from_angle(k * TAU / 8.0 + ring * 0.4) * ring * 24.0
+			q = commander.pos + (q - commander.pos).limit_length(most)
+			if beyond_screen(q) != q or not sim.terrain.is_open(q):
+				continue
+			var free := true
+			for j in range(first, e_pos.size()):
+				if e_pos[j].distance_squared_to(q) < room * room:
+					free = false
+					break
+			if free:
+				return q
+	return p
 
 
 func chieftain_index() -> int:

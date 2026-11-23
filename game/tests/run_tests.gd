@@ -457,6 +457,34 @@ func test_a_war_band_arrives_together(b: Dictionary) -> void:
 	check(apart >= float(b.war_band.spread) * 0.5, "and none stands on another (%.0f px apart)" % apart)
 
 
+func test_a_war_band_gathers_on_open_ground(b: Dictionary) -> void:
+	for prov in ["germania", "dacia"]:
+		var s := Sim.new(b, Content.with_all_art(), {"seed": 21, "province": prov})
+		var h := s.horde
+		h.time = 600.0
+		s.time = 600.0
+		var placed := 0
+		var closed := 0
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 5
+		for trial in 30:
+			s.commander.pos = Vector2(rng.randf_range(-6000, 6000), rng.randf_range(-6000, 6000))
+			s.terrain.refresh(s.commander.pos)
+			s.terrain.update_flow(s.commander.pos)
+			s._rebuild_grids()
+			h.crowd = 0
+			var first := h.e_pos.size()
+			var a := rng.randf() * TAU
+			h.war_band_at(s, h.open_point(s.commander.pos + Vector2(cos(a) * 1.15, sin(a) * 0.75) * float(b.spawn_radius)))
+			for i in range(first, h.e_pos.size()):
+				placed += 1
+				if not s.terrain.is_open(h.e_pos[i]):
+					closed += 1
+			while h.e_pos.size() > first:
+				h.remove_at(h.e_pos.size() - 1)
+		check(placed > 100 and closed <= placed / 50, "in %s a war band's men stand on open ground, not among the trees (%d of %d on closed ground)" % [prov, closed, placed])
+
+
 func test_warriors_on_foot_never_outpace_the_legion(b: Dictionary) -> void:
 	var cap := float(b.foot_pace) * float(content.base_commander.speed)
 	check(cap < float(content.base_commander.speed), "the cap is below the legion's march")
