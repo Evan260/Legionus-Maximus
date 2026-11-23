@@ -3271,12 +3271,16 @@ func test_opening_the_steam_overlay_is_passed_on(_b: Dictionary) -> void:
 	Steamworks.overlay_opened.disconnect(count)
 
 func test_presence_names_the_province_minute_and_legion(b: Dictionary) -> void:
-	var march: Dictionary = Steamworks.presence_of("Germania", 4, 12)
-	check(march == {"steam_display": "#Status_Marching", "province": "Germania", "minute": "4", "legion": "12"}, "marching presence")
+	var march: Dictionary = Steamworks.presence_of("germania", 4, 12)
+	check(march == {"steam_display": "#Status_Marching", "province": "germania", "minute": "4", "legion": "12"}, "marching presence")
 	check(Steamworks.presence_of("", 0, 0) == {"steam_display": "#Status_Camp"}, "camp presence")
 	var vdf := FileAccess.get_file_as_string(ProjectSettings.globalize_path("res://").path_join("../tools/steam/rich_presence.vdf"))
 	for token in ["#Status_Marching", "#Status_Camp", "%province%", "%minute%", "%legion%"]:
 		check(vdf.contains(token), "the vdf has " + token)
+	# The province goes to Steam as its id, which a token per province names in each friend's own language.
+	check(vdf.count("{#Province_%province%}") == LANGUAGES.size(), "every language's marching line names the province through its token")
+	for id in content.provinces:
+		check(vdf.count("\"#Province_%s\"" % id) == LANGUAGES.size(), "every language names %s" % id)
 	Steamworks.presence("Germania", 1, 3)
 	check(not Steamworks.running(), "no Steam is called in a test")
 

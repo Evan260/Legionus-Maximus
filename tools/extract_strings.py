@@ -79,10 +79,13 @@ def from_content():
 
 
 def from_presence():
-    """The English tokens of tools/steam/rich_presence.vdf as {"presence.Status_Camp": English}; write_presence.py writes the other languages back."""
+    """The English tokens of tools/steam/rich_presence.vdf as {"presence.Status_Camp": English}; write_presence.py writes the other languages back.
+
+    The province tokens come from the content rows, and the token a line names the province through is read back as %province%."""
     text = (ROOT.parent / "tools" / "steam" / "rich_presence.vdf").read_text(encoding="utf-8")
-    english = text.split('"english"')[1].split("}")[0]
-    return {"presence." + k: v for k, v in re.findall(r'"#([A-Za-z_]+)"\s+"([^"]*)"', english)}
+    english = re.split(r"\n\s*}", text.split('"english"')[1])[0]
+    return {"presence." + k: v.replace("{#Province_%province%}", "%province%")
+            for k, v in re.findall(r'"#([A-Za-z_]+)"\s+"([^"]*)"', english) if not k.startswith("Province_")}
 
 
 def main():

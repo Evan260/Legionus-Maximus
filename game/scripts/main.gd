@@ -780,7 +780,7 @@ func _steam_update(dt: float) -> void:
 		if check_clock >= float(balance.steam.check_every):
 			check_clock = 0.0
 			Steamworks.check(sim)
-		Steamworks.presence(content.provinces[sim.province].name, int(sim.time / 60.0), sim.soldiers.size() + 1)
+		Steamworks.presence(sim.province, int(sim.time / 60.0), sim.soldiers.size() + 1)
 	else:
 		Steamworks.presence("", 0, 0)
 

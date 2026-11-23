@@ -149,7 +149,8 @@ func show_card(id: String) -> void:
 	queue.append({"id": id, "name": info.name, "text": info.text})
 
 
-## What Steam shows friends: a token from tools/steam/rich_presence.vdf and the words it fills in. An empty province means the camp.
+## What Steam shows friends: a token from tools/steam/rich_presence.vdf and the words it fills in. The province is its id, which the
+## vdf names in each friend's own language, and an empty one means the camp.
 static func presence_of(province: String, minute: int, legion: int) -> Dictionary:
 	if province == "":
 		return {"steam_display": "#Status_Camp"}

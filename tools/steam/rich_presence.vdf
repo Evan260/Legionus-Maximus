@@ -5,7 +5,15 @@
 		"tokens"
 		{
 			"#Status_Camp"	"In the camp"
-			"#Status_Marching"	"Marching through %province%, minute %minute%, legion of %legion%"
+			"#Status_Marching"	"Marching through {#Province_%province%}, minute %minute%, legion of %legion%"
+			"#Province_aegyptus"	"Aegyptus"
+			"#Province_britannia"	"Britannia"
+			"#Province_dacia"	"Dacia"
+			"#Province_gaul"	"Gaul"
+			"#Province_germania"	"Germania"
+			"#Province_hispania"	"Hispania"
+			"#Province_parthia"	"Parthia"
+			"#Province_sarmatia"	"Sarmatia"
 		}
 	}
 	"french"
@@ -13,7 +21,15 @@
 		"tokens"
 		{
 			"#Status_Camp"	"Dans le camp"
-			"#Status_Marching"	"Marchant à travers %province%, minute %minute%, légion de %legion%"
+			"#Status_Marching"	"Marchant à travers {#Province_%province%}, minute %minute%, légion de %legion%"
+			"#Province_aegyptus"	"Égypte"
+			"#Province_britannia"	"Bretagne"
+			"#Province_dacia"	"Dacie"
+			"#Province_gaul"	"Gaule"
+			"#Province_germania"	"Germanie"
+			"#Province_hispania"	"Hispanie"
+			"#Province_parthia"	"Parthie"
+			"#Province_sarmatia"	"Sarmatie"
 		}
 	}
 	"german"
@@ -21,7 +37,15 @@
 		"tokens"
 		{
 			"#Status_Camp"	"Im Lager"
-			"#Status_Marching"	"Marschiert durch %province%, Minute %minute%, Legion von %legion%"
+			"#Status_Marching"	"Marschiert durch {#Province_%province%}, Minute %minute%, Legion von %legion%"
+			"#Province_aegyptus"	"Ägypten"
+			"#Province_britannia"	"Britannien"
+			"#Province_dacia"	"Dakien"
+			"#Province_gaul"	"Gallien"
+			"#Province_germania"	"Germanien"
+			"#Province_hispania"	"Hispanien"
+			"#Province_parthia"	"Parthien"
+			"#Province_sarmatia"	"Sarmatien"
 		}
 	}
 	"spanish"
@@ -29,7 +53,15 @@
 		"tokens"
 		{
 			"#Status_Camp"	"En el campamento"
-			"#Status_Marching"	"Marchando por %province%, minuto %minute%, legión de %legion%"
+			"#Status_Marching"	"Marchando por {#Province_%province%}, minuto %minute%, legión de %legion%"
+			"#Province_aegyptus"	"Egipto"
+			"#Province_britannia"	"Britania"
+			"#Province_dacia"	"Dacia"
+			"#Province_gaul"	"Galia"
+			"#Province_germania"	"Germania"
+			"#Province_hispania"	"Hispania"
+			"#Province_parthia"	"Partia"
+			"#Province_sarmatia"	"Sarmacia"
 		}
 	}
 	"italian"
@@ -37,7 +69,15 @@
 		"tokens"
 		{
 			"#Status_Camp"	"Nel campo"
-			"#Status_Marching"	"Marciando attraverso %province%, minuto %minute%, legione di %legion%"
+			"#Status_Marching"	"Marciando attraverso {#Province_%province%}, minuto %minute%, legione di %legion%"
+			"#Province_aegyptus"	"Egitto"
+			"#Province_britannia"	"Britannia"
+			"#Province_dacia"	"Dacia"
+			"#Province_gaul"	"Gallia"
+			"#Province_germania"	"Germania"
+			"#Province_hispania"	"Hispania"
+			"#Province_parthia"	"Partia"
+			"#Province_sarmatia"	"Sarmazia"
 		}
 	}
 	"brazilian"
@@ -45,7 +85,15 @@
 		"tokens"
 		{
 			"#Status_Camp"	"No acampamento"
-			"#Status_Marching"	"Marchando por %province%, minuto %minute%, legião de %legion%"
+			"#Status_Marching"	"Marchando por {#Province_%province%}, minuto %minute%, legião de %legion%"
+			"#Province_aegyptus"	"Egito"
+			"#Province_britannia"	"Britânia"
+			"#Province_dacia"	"Dácia"
+			"#Province_gaul"	"Gália"
+			"#Province_germania"	"Germânia"
+			"#Province_hispania"	"Hispânia"
+			"#Province_parthia"	"Pártia"
+			"#Province_sarmatia"	"Sarmácia"
 		}
 	}
 	"polish"
@@ -53,7 +101,15 @@
 		"tokens"
 		{
 			"#Status_Camp"	"W obozie"
-			"#Status_Marching"	"Maszerując przez %province%, minuta %minute%, legion %legion%"
+			"#Status_Marching"	"Maszerując przez {#Province_%province%}, minuta %minute%, legion %legion%"
+			"#Province_aegyptus"	"Egipt"
+			"#Province_britannia"	"Brytania"
+			"#Province_dacia"	"Dacja"
+			"#Province_gaul"	"Galia"
+			"#Province_germania"	"Germania"
+			"#Province_hispania"	"Hispania"
+			"#Province_parthia"	"Partia"
+			"#Province_sarmatia"	"Sarmacja"
 		}
 	}
 	"turkish"
@@ -61,7 +117,15 @@
 		"tokens"
 		{
 			"#Status_Camp"	"Kampta"
-			"#Status_Marching"	"%province% boyunca yürüyüş, %minute%. dakika, lejyon büyüklüğü %legion%"
+			"#Status_Marching"	"{#Province_%province%} boyunca yürüyüş, %minute%. dakika, lejyon büyüklüğü %legion%"
+			"#Province_aegyptus"	"Mısır"
+			"#Province_britannia"	"Britanya"
+			"#Province_dacia"	"Dakya"
+			"#Province_gaul"	"Galya"
+			"#Province_germania"	"Germanya"
+			"#Province_hispania"	"Hispanya"
+			"#Province_parthia"	"Partya"
+			"#Province_sarmatia"	"Sarmatya"
 		}
 	}
 	"russian"
@@ -69,7 +133,15 @@
 		"tokens"
 		{
 			"#Status_Camp"	"В лагере"
-			"#Status_Marching"	"Марш через %province%, минута %minute%, легион из %legion%"
+			"#Status_Marching"	"Марш через {#Province_%province%}, минута %minute%, легион из %legion%"
+			"#Province_aegyptus"	"Египет"
+			"#Province_britannia"	"Британия"
+			"#Province_dacia"	"Дакия"
+			"#Province_gaul"	"Галлия"
+			"#Province_germania"	"Германия"
+			"#Province_hispania"	"Испания"
+			"#Province_parthia"	"Парфия"
+			"#Province_sarmatia"	"Сарматия"
 		}
 	}
 	"ukrainian"
@@ -77,7 +149,15 @@
 		"tokens"
 		{
 			"#Status_Camp"	"У таборі"
-			"#Status_Marching"	"Марш через %province%, хвилина %minute%, легіон із %legion%"
+			"#Status_Marching"	"Марш через {#Province_%province%}, хвилина %minute%, легіон із %legion%"
+			"#Province_aegyptus"	"Єгипет"
+			"#Province_britannia"	"Британія"
+			"#Province_dacia"	"Дакія"
+			"#Province_gaul"	"Галлія"
+			"#Province_germania"	"Германія"
+			"#Province_hispania"	"Іспанія"
+			"#Province_parthia"	"Парфія"
+			"#Province_sarmatia"	"Сарматія"
 		}
 	}
 	"japanese"
@@ -85,7 +165,15 @@
 		"tokens"
 		{
 			"#Status_Camp"	"キャンプにいる"
-			"#Status_Marching"	"%province%を行軍中、%minute%分、軍団 %legion%人"
+			"#Status_Marching"	"{#Province_%province%}を行軍中、%minute%分、軍団 %legion%人"
+			"#Province_aegyptus"	"エジプト"
+			"#Province_britannia"	"ブリタニア"
+			"#Province_dacia"	"ダキア"
+			"#Province_gaul"	"ガリア"
+			"#Province_germania"	"ゲルマニア"
+			"#Province_hispania"	"ヒスパニア"
+			"#Province_parthia"	"パルティア"
+			"#Province_sarmatia"	"サルマティア"
 		}
 	}
 	"koreana"
@@ -93,7 +181,15 @@
 		"tokens"
 		{
 			"#Status_Camp"	"야영지에서"
-			"#Status_Marching"	"%province% 행군 중, %minute%분, 군단 %legion%명"
+			"#Status_Marching"	"{#Province_%province%} 행군 중, %minute%분, 군단 %legion%명"
+			"#Province_aegyptus"	"이집트"
+			"#Province_britannia"	"브리타니아"
+			"#Province_dacia"	"다키아"
+			"#Province_gaul"	"갈리아"
+			"#Province_germania"	"게르마니아"
+			"#Province_hispania"	"히스파니아"
+			"#Province_parthia"	"파르티아"
+			"#Province_sarmatia"	"사르마티아"
 		}
 	}
 	"schinese"
@@ -101,7 +197,15 @@
 		"tokens"
 		{
 			"#Status_Camp"	"在营地中"
-			"#Status_Marching"	"正在行军穿越 %province%，第 %minute% 分钟，军团规模 %legion%"
+			"#Status_Marching"	"正在行军穿越 {#Province_%province%}，第 %minute% 分钟，军团规模 %legion%"
+			"#Province_aegyptus"	"埃及"
+			"#Province_britannia"	"不列颠尼亚"
+			"#Province_dacia"	"达契亚"
+			"#Province_gaul"	"高卢"
+			"#Province_germania"	"日耳曼尼亚"
+			"#Province_hispania"	"希斯帕尼亚"
+			"#Province_parthia"	"帕提亚"
+			"#Province_sarmatia"	"萨尔马提亚"
 		}
 	}
 	"tchinese"
@@ -109,7 +213,15 @@
 		"tokens"
 		{
 			"#Status_Camp"	"在營地中"
-			"#Status_Marching"	"正在行軍穿越 %province%，第 %minute% 分鐘，軍團規模 %legion%"
+			"#Status_Marching"	"正在行軍穿越 {#Province_%province%}，第 %minute% 分鐘，軍團規模 %legion%"
+			"#Province_aegyptus"	"埃及"
+			"#Province_britannia"	"不列顛尼亞"
+			"#Province_dacia"	"達契亞"
+			"#Province_gaul"	"高盧"
+			"#Province_germania"	"日耳曼尼亞"
+			"#Province_hispania"	"希斯帕尼亞"
+			"#Province_parthia"	"帕提亞"
+			"#Province_sarmatia"	"薩爾馬提亞"
 		}
 	}
 }
