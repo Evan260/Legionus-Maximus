@@ -10,6 +10,8 @@ const WHEAT_ROW := 19.0
 const WHEAT_EARS := 2.0
 # Low props that can stand in a wheat field, whose lower part the row of wheat in front of them hides.
 const IN_WHEAT := ["rock", "stones", "log"]
+## The gold of a shield-bearer standing in the raised testudo.
+const TESTUDO_TINT := Color(1.0, 0.92, 0.7)
 # Ground pictures sort 60000 px above where they lie, so every depth key from here up belongs to something standing.
 const STANDING_KEY := 70000 * 65536
 # How many stain shapes are painted for each size and direction.
@@ -317,9 +319,6 @@ func _draw() -> void:
 				_add(post[1].y, sf[0], post[1] - sf[1], Color(worn, worn, worn, clampf((post[3] - sim.time) / fade, 0.0, 1.0)))
 
 
-	var gold := Color(1.0, 0.92, 0.7)
-	var cursed := Color(0.78, 0.55, 1.0)
-	var stunned := Color(0.78, 0.74, 0.62)
 	var cheering := _cheering()
 	var cycle := float(sim.b.triumph.cheer_cycle)
 	_dazed.clear()
@@ -329,19 +328,9 @@ func _draw() -> void:
 		var u: Dictionary = men[k]
 		var phase := cheer_phase(_cheer_t, k, cycle)
 		var f := _cheer_frame(u, phase) if cheering and not u.moving else _legion_frame(u)
-		var mod := white
+		var mod := legion_tint(sim, u)
 		if u.get("dazed", 0.0) > 0.0:
 			_dazed.append(u.pos)
-		if u.flash > 0.0:
-			mod = Color(1.0, 0.55, 0.55)
-		elif sim.horde.curse_left > 0.0:
-			mod = cursed
-		elif u.get("afraid", 0.0) > 0.0:
-			mod = Color(0.72, 0.8, 1.0)
-		elif sim.horde.blast_left > 0.0:
-			mod = stunned
-		elif sim.testudo_left > 0.0:
-			mod = gold
 		draw_texture(shadow, _snap(u.pos - Vector2(8, 3)))
 		var hop := Vector2.ZERO
 		if cheering and not u.moving:
@@ -445,6 +434,22 @@ func _draw() -> void:
 		_draw_bars()
 	_draw_felling()
 	_draw_gods(top_left, screen)
+
+
+## The colour a man of the legion is drawn in: red as he is struck, then the curse, fear or a horn's blast on him,
+## and gold while he holds his shield in the raised testudo.
+static func legion_tint(sim: Sim, u: Dictionary) -> Color:
+	if u.flash > 0.0:
+		return Color(1.0, 0.55, 0.55)
+	if sim.horde.curse_left > 0.0:
+		return Color(0.78, 0.55, 1.0)
+	if u.get("afraid", 0.0) > 0.0:
+		return Color(0.72, 0.8, 1.0)
+	if sim.horde.blast_left > 0.0:
+		return Color(0.78, 0.74, 0.62)
+	if sim.testudo_left > 0.0 and Sim.shielded(u):
+		return TESTUDO_TINT
+	return Color.WHITE
 
 
 ## A legion soldier's frame: his attack while a strike plays, otherwise his walk or stance.

@@ -1576,7 +1576,7 @@ func _lancers_on(dt: float, sim: Sim) -> void:
 	var side := dir.orthogonal()
 	var kept: Array = []
 	var hit_any := false
-	var dmg: float = wave.damage * (0.5 if sim.testudo_left > 0.0 else 1.0) * sim.frenzy_guard()
+	var dmg: float = wave.damage * sim.frenzy_guard()
 	for w in wave.riders:
 		var j := e_id.find(w[0])
 		if j < 0:
@@ -1591,7 +1591,7 @@ func _lancers_on(dt: float, sim: Sim) -> void:
 				_free_rider(j)
 				continue
 			lane = at
-			hit_any = _ride_down(lane, r, dir, -2000 - int(wave.n), dmg, wave.throw, sim) or hit_any
+			hit_any = _ride_down(lane, r, dir, -2000 - int(wave.n), dmg, wave.throw, sim, 0.5) or hit_any
 		e_pos[j] = lane
 		e_face[j] = dir
 		kept.append(w)
@@ -1696,7 +1696,7 @@ func _swing_lasso(i: int, sim: Sim) -> bool:
 	return true
 
 
-## Once a lasso's wind-up is over it drags its soldier out of the ranks towards the rider, unless the testudo holds him in place.
+## Once a lasso's wind-up is over it drags its soldier out of the ranks towards the rider, unless he carries a shield and the testudo holds him in place.
 func _lassos(dt: float, sim: Sim) -> void:
 	if lassos.is_empty():
 		return
@@ -1711,7 +1711,7 @@ func _lassos(dt: float, sim: Sim) -> void:
 			left.append(l)
 			continue
 		var u: Dictionary = l.unit
-		if sim.testudo_left > 0.0:
+		if sim.testudo_left > 0.0 and Sim.shielded(u):
 			sim.event("shield", u.pos)
 			continue
 		var cfg: Dictionary = content.enemies[kind_ids[e_kind[i]]].lasso
@@ -2188,31 +2188,33 @@ func _in_wedge(at: Vector2, dir: Vector2, off: Vector2) -> Vector2:
 	return at + dir * off.x + dir.orthogonal() * off.y
 
 
-## Rides down the Romans a charging rider at p reaches: each is hurt once per charge (`mark`) and thrown to the side.
-## Whether the legion's testudo meets a charging boss whose body of `radius` at p reaches a soldier; if it does, the
+## Whether the legion's testudo meets a charging boss whose body of `radius` at p reaches a shield-bearer; if it does, the
 ## charge breaks on the shields and leaves him dazed for a moment.
 func _shields_stop(i: int, p: Vector2, radius: float, sim: Sim) -> bool:
 	if sim.testudo_left <= 0.0:
 		return false
 	var reach := radius + Sim.UNIT_RADIUS + 2.0
 	for u in sim.units:
-		if (u.pos - p).length_squared() <= reach * reach:
+		if Sim.shielded(u) and (u.pos - p).length_squared() <= reach * reach:
 			e_stun[i] = maxf(e_stun[i], float(b.testudo_block_stun))
 			sim.event("shield", p)
 			return true
 	return false
 
 
-func _ride_down(p: Vector2, radius: float, dir: Vector2, mark: int, dmg: float, throw: float, sim: Sim) -> bool:
+## Rides down the Romans a charging rider at p reaches: each is hurt once per charge (`mark`) and thrown to the side,
+## a shield-bearer taking only `shield_cut` of the blow while the testudo is up.
+func _ride_down(p: Vector2, radius: float, dir: Vector2, mark: int, dmg: float, throw: float, sim: Sim, shield_cut := 1.0) -> bool:
 	var reach := radius + Sim.UNIT_RADIUS + 2.0
 	var side: Vector2 = dir.orthogonal()
 	var hit_any := false
+	var up := sim.testudo_left > 0.0
 	for u in sim.units:
 		var off: Vector2 = u.pos - p
 		if off.length_squared() > reach * reach or u.get("rushed", -1) == mark:
 			continue
 		u.rushed = mark
-		u.hp -= dmg
+		u.hp -= dmg * (shield_cut if up and Sim.shielded(u) else 1.0)
 		u.flash = 0.12
 		hit_any = true
 		if not is_same(u, sim.commander):
@@ -2576,14 +2578,13 @@ func _foe_lobs(dt: float, sim: Sim) -> void:
 	if foe_lobs.is_empty():
 		return
 	var flying: Array = []
-	var shield: float = (b.testudo_damage_taken if sim.testudo_left > 0.0 else 1.0) * sim.frenzy_guard()
+	var guard := sim.frenzy_guard()
 	for l in foe_lobs:
 		l.t += dt
 		if l.t < l.dur:
 			flying.append(l)
 			continue
-		# An elite's marked blow breaks on the raised shields.
-		var cut: float = 0.0 if l.get("ward", false) and sim.testudo_left > 0.0 else shield
+		var ward: bool = l.get("ward", false)
 		for u in sim.units:
 			if (u.pos - l.to).length() < l.radius + Sim.UNIT_RADIUS:
 				# The rings of one fall or volley overlap, so each soldier is struck by only one of them.
@@ -2591,7 +2592,11 @@ func _foe_lobs(dt: float, sim: Sim) -> void:
 					if u.get("rocked", -1) == l.volley_id:
 						continue
 					u.rocked = l.volley_id
-				u.hp -= l.dmg * cut
+				var cut := sim.testudo_guard(u)
+				# An elite's marked blow breaks on the raised shields.
+				if ward and cut < 1.0:
+					cut = 0.0
+				u.hp -= l.dmg * cut * guard
 				u.flash = 0.12
 		if l.get("sky", false):
 			sim.event("boom", l.to)
@@ -2629,7 +2634,7 @@ func _move(dt: float, sim: Sim) -> void:
 	var cpos: Vector2 = commander.pos
 	var legion_reach := sim.legion_reach
 	var reach2 := legion_reach * legion_reach
-	var shield: float = (b.testudo_damage_taken if sim.testudo_left > 0.0 else 1.0) * sim.frenzy_guard()
+	var shield: float = b.testudo_damage_taken if sim.testudo_left > 0.0 else 1.0
 	var phase := frame % 3
 	var slow_recover: float = b.slow_recover
 	var rush_fade: float = (float(b.war_band.get("rush", 1.0)) - 1.0) / float(b.war_band.get("rush_seconds", 1.0))
@@ -2894,7 +2899,7 @@ func _move(dt: float, sim: Sim) -> void:
 				var falx := k_falx[kind] == 1
 				# A falx cuts past the shield of a man covering his neighbour, and neither the testudo nor the shield wall turns it.
 				var u: Dictionary = units[target_unit] if falx else sim.legion.shield(units[target_unit])
-				var guard := bare if falx else shield * (wall if u.get("place", "") == "front" else 1.0)
+				var guard := bare if falx else bare * (shield if u.get("shield", false) else 1.0) * (wall if u.get("place", "") == "front" else 1.0)
 				u.hp -= k_dps[kind] * dt * guard * power
 				if dashing:
 					u.hp -= k_burst[kind] * guard * power
@@ -3274,18 +3279,16 @@ func _throw(from: Vector2, dir: Vector2, dmg: float, kind := 0) -> void:
 	sp_kind.append(kind)
 
 
-## Thrown spears fly straight; the raised testudo stops them at the edge of the legion, and otherwise the first soldier they touch is hurt.
+## Thrown spears fly straight and hurt the first soldier they touch, unless the testudo is up and he carries a shield, which stops them.
 func _spears(dt: float, sim: Sim) -> void:
 	var n := sp_pos.size()
 	if n == 0:
 		return
-	var blocked := sim.testudo_left > 0.0
 	var reach: float = sim.legion_reach
 	var cpos: Vector2 = commander.pos
 	var hit_radius := Sim.UNIT_RADIUS + float(b.ranged.spear_radius)
 	var scan := reach + hit_radius
 	var scan2 := scan * scan
-	var reach2 := reach * reach
 	var struck := false
 	var i := n - 1
 	while i >= 0:
@@ -3296,14 +3299,14 @@ func _spears(dt: float, sim: Sim) -> void:
 		var gone := life <= 0.0
 		var gap2 := (p - cpos).length_squared()
 		if not gone and gap2 <= scan2:
-			if blocked and gap2 < reach2:
-				sim.effects.append({"kind": "spark", "pos": p, "t": 0.0})
-				gone = true
-			else:
-				var ui := _spear_target(p, hit_radius, sim)
-				if ui >= 0:
-					var u: Dictionary = sim.units[ui]
-					var target: Dictionary = sim.legion.shield(u)
+			var ui := _spear_target(p, hit_radius, sim)
+			if ui >= 0:
+				var u: Dictionary = sim.units[ui]
+				var target: Dictionary = sim.legion.shield(u)
+				if sim.testudo_guard(target) < 1.0:
+					sim.effects.append({"kind": "spark", "pos": p, "t": 0.0})
+					gone = true
+				else:
 					target.hp -= sp_dmg[i] * sim.frenzy_guard()
 					u.flash = 0.08
 					# A sling stone leaves the soldier it strikes reeling for a moment; the commander keeps his head.

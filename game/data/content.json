@@ -5,13 +5,15 @@
   "speed": 62,
   "damage": 8,
   "reach": 24,
-  "cooldown": 0.8
+  "cooldown": 0.8,
+  "shield": true
  },
  "recruits": {
   "legionary": {
    "name": "Legionaries",
-   "text": "Two legionaries join the front ranks.",
+   "text": "Two legionaries join the front ranks. Their shields make up the testudo.",
    "history": "Citizen soldiers who signed up for 25 years, then received land or a pension.",
+   "shield": true,
    "place": "front",
    "attack": "melee",
    "hp": 50,
@@ -80,8 +82,9 @@
   },
   "standard_bearer": {
    "name": "Standard bearer",
-   "text": "A standard bearer raises the attack speed of every soldier near him.",
+   "text": "A standard bearer raises the attack speed of every soldier near him. His shield joins the testudo.",
    "history": "The signifer carried the unit standard, and losing it in battle was a deep disgrace.",
+   "shield": true,
    "place": "middle",
    "attack": "aura",
    "hp": 60,
@@ -484,7 +487,7 @@
   },
   "testudo": {
    "name": "Testudo practice",
-   "text": "The testudo recharges 2 seconds sooner and holds 1 second longer.",
+   "text": "The testudo of the shield-bearers recharges 2 seconds sooner and holds 1 second longer.",
    "max": 4,
    "implemented": true,
    "art": [
@@ -1407,7 +1410,7 @@
   },
   "lasso_rider": {
    "name": "Lasso rider",
-   "text": "A light rider who swings a lasso over his head, then throws it and drags a soldier out of the ranks towards him. The testudo holds the men in place.",
+   "text": "A light rider who swings a lasso over his head, then throws it and drags a soldier out of the ranks towards him. The testudo holds the shield-bearers in place.",
    "history": "Pausanias wrote that the Sarmatians caught their enemies with lassos and dragged them down.",
    "behaviour": "melee",
    "mounted": true,
@@ -1497,7 +1500,7 @@
   },
   "rasparaganus": {
    "name": "Roxolani king",
-   "text": "Rasparaganus, king of the Roxolani. He marks a lane across the legion, and a line of his armoured lancers sweeps down it, striking soldiers and commander alike; the testudo halves the blow. He sets the steppe alight on one side, and the fire spreads over the marked ground towards the legion, so get out of it. When hurt he fights faster.",
+   "text": "Rasparaganus, king of the Roxolani. He marks a lane across the legion, and a line of his armoured lancers sweeps down it, striking soldiers and commander alike; the testudo halves the blow on the shield-bearers. He sets the steppe alight on one side, and the fire spreads over the marked ground towards the legion, so get out of it. When hurt he fights faster.",
    "history": "The Roxolani rose against Rome in 117 AD, and Hadrian made peace with their king Rasparaganus.",
    "behaviour": "melee",
    "hp": 30000,
@@ -1772,7 +1775,7 @@
   },
   "dacian_archer": {
    "name": "Archer",
-   "text": "Dacian archers loose together at the beat of a drum, a wall of arrows that only the testudo stops.",
+   "text": "Dacian archers loose together at the beat of a drum, a wall of arrows that only the shields of the testudo stop.",
    "history": "Dacian archers shot from the high walls of their mountain fortresses.",
    "behaviour": "ranged",
    "hp": 20,

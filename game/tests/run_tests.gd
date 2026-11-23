@@ -97,6 +97,129 @@ func test_testudo_cuts_the_harm_taken(b: Dictionary) -> void:
 	check(shielded.testudo_charge == 0.0, "the charge is spent")
 
 
+## A quiet field with the commander and one soldier of `type` 20 px to his right, both too tough to fall, and the testudo up or down.
+func _one_soldier(b: Dictionary, seed_value: int, type: String, testudo: bool) -> Sim:
+	var s := _quiet_sim(b, seed_value, Content.with_all_art())
+	s.soldiers.clear()
+	s.add_soldier(type)
+	var u: Dictionary = s.soldiers[0]
+	u.pos = s.commander.pos + Vector2(20, 0)
+	for m in [u, s.commander]:
+		m.hp = 1e6
+		m.max_hp = 1e6
+	s.testudo_left = 5.0 if testudo else 0.0
+	s._rebuild_grids()
+	return s
+
+
+func test_the_shield_bearers_carry_shields(b: Dictionary) -> void:
+	for type in ["legionary", "standard_bearer"]:
+		check(content.recruits[type].get("shield", false), "the %s carries a shield into the testudo" % type)
+	for type in ["archer", "cavalry", "medicus", "ballista", "centurion"]:
+		check(not content.recruits[type].get("shield", false), "the %s has no place in the testudo" % type)
+	check(content.base_commander.get("shield", false), "and so does the commander")
+	var s := _one_soldier(b, 6100, "legionary", true)
+	s.add_soldier("archer")
+	check(Sim.shielded(s.soldiers[0]) and Sim.shielded(s.commander) and not Sim.shielded(s.soldiers[1]), "a soldier knows whether he carries one")
+	check(is_equal_approx(s.testudo_guard(s.soldiers[0]), float(b.testudo_damage_taken)) and s.testudo_guard(s.soldiers[1]) == 1.0, "and only a shield-bearer is guarded by the testudo")
+	s.testudo_left = 0.0
+	check(s.testudo_guard(s.soldiers[0]) == 1.0, "nobody is once it is down")
+
+
+func test_the_testudo_cuts_a_blow_only_for_the_shield_bearers(b: Dictionary) -> void:
+	var lost := {}
+	for c in [["legionary", true], ["archer", true], ["archer", false]]:
+		var s := _one_soldier(b, 6101, c[0], c[1])
+		var u: Dictionary = s.soldiers[0]
+		var i := s.horde.spawn("barbarian_club", u.pos + Vector2(10, 0))
+		s.horde.e_cd[i] = 1e9
+		for k in 30:
+			s._rebuild_grids()
+			s.horde._move(1.0 / 60.0, s)
+		lost["%s %s" % c] = 1e6 - u.hp
+	var bare: float = lost["archer false"]
+	check(bare > 0.0, "a club hurts a soldier beside him (%.1f)" % bare)
+	check(is_equal_approx(lost["archer true"], bare), "under the testudo an archer still takes the whole blow (%.1f of %.1f)" % [lost["archer true"], bare])
+	check(is_equal_approx(lost["legionary true"], bare * float(b.testudo_damage_taken)), "while a legionary takes the cut blow (%.1f)" % lost["legionary true"])
+
+
+func test_the_testudo_stops_missiles_only_at_the_shield_bearers(b: Dictionary) -> void:
+	for type in ["legionary", "archer"]:
+		for kind in [0, 2]:
+			var s := _one_soldier(b, 6102, type, true)
+			var u: Dictionary = s.soldiers[0]
+			s.horde.sling_stun = 1.0
+			s.horde._throw(u.pos + Vector2(80, 0), Vector2.LEFT, 10.0, kind)
+			for k in 120:
+				s.horde._spears(1.0 / 60.0, s)
+			var what := "sling stone" if kind == 2 else "spear"
+			check(s.horde.sp_pos.is_empty() and s.commander.hp == 1e6, "the %s is spent before the commander (%s)" % [what, type])
+			if type == "legionary":
+				check(u.hp == 1e6 and u.get("dazed", 0.0) <= 0.0, "a legionary's shield stops a %s" % what)
+			else:
+				check(is_equal_approx(1e6 - u.hp, 10.0), "an archer takes a whole %s (%.1f)" % [what, 1e6 - u.hp])
+				if kind == 2:
+					check(u.get("dazed", 0.0) > 0.0, "and is left reeling by the stone")
+
+
+func test_the_testudo_turns_marked_blows_only_for_the_shield_bearers(b: Dictionary) -> void:
+	for ward in [false, true]:
+		var s := _one_soldier(b, 6103, "legionary", true)
+		s.add_soldier("archer")
+		var legionary: Dictionary = s.soldiers[0]
+		var archer: Dictionary = s.soldiers[1]
+		archer.hp = 1e6
+		archer.max_hp = 1e6
+		archer.pos = s.commander.pos + Vector2(-200, 0)
+		legionary.pos = s.commander.pos + Vector2(200, 0)
+		s._rebuild_grids()
+		for at in [legionary.pos, archer.pos]:
+			s.horde.foe_lobs.append({"from": at, "to": at, "t": 0.0, "dur": 0.1, "radius": 12.0, "dmg": 10.0, "slam": true, "ward": ward})
+		s.horde._foe_lobs(0.2, s)
+		var what := "a whirl" if ward else "a falling ring"
+		check(is_equal_approx(1e6 - archer.hp, 10.0), "%s takes its whole harm from an archer under the testudo (%.1f)" % [what, 1e6 - archer.hp])
+		var want := 0.0 if ward else 10.0 * float(b.testudo_damage_taken)
+		check(is_equal_approx(1e6 - legionary.hp, want), "and %.0f from a legionary (%.1f)" % [want, 1e6 - legionary.hp])
+
+
+func test_the_testudo_tint_shows_on_the_shield_bearers(b: Dictionary) -> void:
+	var view: GDScript = load("res://scripts/world_view.gd")
+	var s := _one_soldier(b, 6104, "legionary", true)
+	s.add_soldier("archer")
+	var legionary: Dictionary = s.soldiers[0]
+	var archer: Dictionary = s.soldiers[1]
+	check(view.legion_tint(s, legionary) == view.TESTUDO_TINT and view.legion_tint(s, s.commander) == view.TESTUDO_TINT, "the commander and the legionary turn gold under the testudo")
+	check(view.legion_tint(s, archer) == Color.WHITE, "the archer does not")
+	s.testudo_left = 0.0
+	check(view.legion_tint(s, legionary) == Color.WHITE, "nor does anyone once it is down")
+
+
+func test_a_charge_rides_through_a_testudo_of_archers(b: Dictionary) -> void:
+	var s := _gaul_sim(b, 6105, "hispania")
+	s.soldiers.clear()
+	for k in 10:
+		s.add_soldier("archer")
+	s.commander.pos = Vector2.ZERO
+	s.legion.place_all(s.facing_angle)
+	s._rebuild_grids()
+	var r := float(content.enemies.lusitanian_raider.radius)
+	var i := s.horde.spawn("lusitanian_raider", Vector2(-s.legion_reach - r - 120.0, 0), true)
+	var st: Dictionary = s.horde.boss_state(i)
+	for key in st:
+		if str(key).ends_with("_cd"):
+			st[key] = 1e9
+	st.onrush_cd = 0.0
+	var men: Array = s.soldiers.duplicate()
+	var places: Array = men.map(func(so: Dictionary) -> Vector2: return so.pos)
+	var thrown := 0.0
+	for k in 3 * 60:
+		s.testudo_left = 5.0
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+		for n in men.size():
+			thrown = maxf(thrown, men[n].pos.distance_to(places[n]))
+	check(thrown >= 12.0, "archers in the testudo have no shields to stop a charge, which throws them aside (%.0f px)" % thrown)
+
+
 func test_arms_stop_at_their_last_level(b: Dictionary) -> void:
 	var s := Sim.new(b, content, {"seed": 8})
 	for i in 9:
@@ -10605,8 +10728,14 @@ func test_sarmatian_warriors_charge_shoot_lasso_and_hunt(_b: Dictionary) -> void
 	check(int(e.steppe_wolf.most) <= 4, "and hunts in small packs")
 
 
-func _lasso_setup(b: Dictionary, seed_value: int) -> Array:
+func _lasso_setup(b: Dictionary, seed_value: int, type := "legionary") -> Array:
 	var s := _sarmatia_sim(b, seed_value)
+	if type != "legionary":
+		s.soldiers.clear()
+		for k in 8:
+			s.add_soldier(type)
+		s.legion.place_all(s.facing_angle)
+		s._rebuild_grids()
 	var h := s.horde
 	var u: Dictionary = s.soldiers[0]
 	var out: Vector2 = (u.pos - s.commander.pos).normalized()
@@ -10660,6 +10789,17 @@ func test_the_testudo_holds_a_lassoed_soldier_in_place(b: Dictionary) -> void:
 	for k in 90:
 		h._lassos(1.0 / 60.0, s)
 	check(h.lassos.is_empty() and u.pos == from, "the testudo holds the soldier, and the lasso falls away")
+	set_up = _lasso_setup(b, 2122, "archer")
+	s = set_up[0]
+	h = set_up[1]
+	u = set_up[2]
+	h._move(1.0 / 60.0, s)
+	from = u.pos
+	var hp: float = u.hp
+	s.testudo_left = 1e9
+	for k in 90:
+		h._lassos(1.0 / 60.0, s)
+	check(u.pos.distance_to(from) > 10.0 and u.hp < hp, "but an archer has no shield to hold him, and is dragged out and hurt (%.0f px)" % u.pos.distance_to(from))
 
 
 func test_the_draco_bearer_hastens_the_riders_round_him(b: Dictionary) -> void:
@@ -10745,6 +10885,20 @@ func test_the_roxolani_king_sends_lancers_down_a_marked_lane(b: Dictionary) -> v
 		check(h.wave.is_empty(), "the sweep ends")
 	check(is_equal_approx(lost[false][0], float(cfg.damage)) and lost[false][1] > 0.0, "the lancers strike the commander and the soldiers in the lane (%.1f, %.1f)" % lost[false])
 	check(is_equal_approx(lost[true][0], float(cfg.damage) * 0.5), "the testudo halves their blow (%.1f)" % lost[true][0])
+	var archers := {}
+	for shield in [false, true]:
+		var set_up := _king_wave(b, 2130, shield)
+		var s: Sim = set_up[0]
+		var h: Horde = set_up[1]
+		for so in s.soldiers:
+			so.shield = false
+		var men0 := _men_hp(s)
+		for k in 12 * 60:
+			if h.wave.is_empty():
+				break
+			h._chieftain(1.0 / 60.0, s)
+		archers[shield] = men0 - _men_hp(s)
+	check(archers[false] > 0.0 and is_equal_approx(archers[true], archers[false]), "but men without shields take the whole blow (%.1f, %.1f)" % [archers[false], archers[true]])
 
 
 func test_a_wall_stops_the_kings_lancers(b: Dictionary) -> void:

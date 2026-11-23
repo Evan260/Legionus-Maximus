@@ -46,7 +46,8 @@ func _init(balance: Dictionary, game_content: Content, random: RandomNumberGener
 	_l = balance.legion
 	var cu: Dictionary = _content.base_commander
 	commander = {"type": "commander", "pos": Vector2.ZERO, "hp": float(cu.hp), "max_hp": float(cu.hp), "cd": 0.0,
-		"anim": 0.0, "facing": Vector2.RIGHT, "moving": false, "flash": 0.0, "haste": 1.0, "struck_at": -1e9, "strike_dir": Vector2.RIGHT}
+		"anim": 0.0, "facing": Vector2.RIGHT, "moving": false, "flash": 0.0, "haste": 1.0, "struck_at": -1e9, "strike_dir": Vector2.RIGHT,
+		"shield": bool(cu.get("shield", false))}
 
 
 func count(type: String) -> int:
@@ -90,7 +91,7 @@ func add(type: String) -> bool:
 	soldiers.append({"type": type, "info": info, "place": info.place, "pos": commander.pos, "target": commander.pos,
 		"hp": hp, "max_hp": hp, "cd": _rng.randf() * 0.5, "anim": _rng.randf() * 8.0, "facing": Vector2.RIGHT,
 		"moving": false, "flash": 0.0, "haste": 1.0, "guard": null, "sortie": 0, "struck": {}, "struck_at": -1e9,
-		"strike_dir": Vector2.RIGHT})
+		"strike_dir": Vector2.RIGHT, "shield": bool(info.get("shield", false))})
 	return true
 
 

@@ -377,6 +377,16 @@ func attack_rate() -> float:
 	return (1.0 + float(b.drills.discipline) * rank("discipline")) * (1.0 + bonus_amount("attack_speed")) * (float(b.gods.mars.rate_mult) if gods.frenzy_left > 0.0 else 1.0) * (1.0 - horde.blast_slow if horde.blast_left > 0.0 else 1.0)
 
 
+## Whether a unit carries a shield, and so stands in the testudo (`shield` in content.json).
+static func shielded(u: Dictionary) -> bool:
+	return u.get("shield", false)
+
+
+## The share of a blow that reaches unit u through the testudo: the cut share for a shield-bearer while it is raised, all of it for anyone else.
+func testudo_guard(u: Dictionary) -> float:
+	return float(b.testudo_damage_taken) if testudo_left > 0.0 and u.get("shield", false) else 1.0
+
+
 ## The share of harm the legion takes: less with the quartermaster's armour and while Mars's frenzy is on it.
 func frenzy_guard() -> float:
 	return (float(b.gods.mars.taken_mult) if gods.frenzy_left > 0.0 else 1.0) * (1.0 - bonus_amount("armour"))
