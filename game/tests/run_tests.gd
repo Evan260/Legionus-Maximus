@@ -8116,6 +8116,50 @@ func test_cataphracts_charge_with_the_lance_and_turn_arrows(b: Dictionary) -> vo
 	check(is_equal_approx(a0 - h.e_hp[a], 10.0), "an unarmoured rider takes it in full")
 
 
+## Rings a still legion of `men` with twelve of `kind` and returns [slashes, the slashes their pace would give in the time they fought].
+func _slashes_in_melee(b: Dictionary, kind: String, province: String, men: int) -> Array:
+	var s := Sim.new(b, Content.with_all_art(), {"seed": 5, "province": province})
+	s.terrain.clear()
+	s.b = b.duplicate()
+	s.b.spawn_per_second_start = 0.0
+	s.b.spawn_per_second_growth = 0.0
+	var h := s.horde
+	h.next_surge = 1e9
+	h.next_band = 1e9
+	h.next_cart = 1e9
+	h.next_boss = 1e9
+	for k in men:
+		s.add_soldier("legionary")
+	s.legion.place_all(s.facing_angle)
+	for u in s.units:
+		u.hp = 1e9
+		u.max_hp = 1e9
+	s._rebuild_grids()
+	for k in 12:
+		h.spawn(kind, s.commander.pos + Vector2.from_angle(TAU * k / 12) * (s.legion_reach + 20.0))
+	var strikes := 0
+	var fighting := 0.0
+	var dt := 1.0 / 60.0
+	for f in 60 * 20:
+		h.time += dt
+		s._rebuild_grids()
+		h.frame += 1
+		h._move(dt, s)
+		for i in h.e_pos.size():
+			if h.e_fighting[i] == 1:
+				fighting += dt
+			if absf(h.e_strike[i] - h.time) < 0.0001:
+				strikes += 1
+	var cfg: Dictionary = s.content.enemies[kind]
+	return [strikes, fighting / float(cfg.get("slash", cfg.get("thrust", {})).every)]
+
+
+func test_raiders_in_melee_slash_at_their_own_pace(b: Dictionary) -> void:
+	for t in [["khopesh_raider", "aegyptus", 30], ["camel_rider", "parthia", 30], ["khopesh_raider", "aegyptus", 0]]:
+		var got := _slashes_in_melee(b, t[0], t[1], t[2])
+		check(got[1] > 5.0 and got[0] > got[1] * 0.6 and got[0] < got[1] * 1.5, "%s against %d men slash about as often as their pace (%d against %.0f)" % [t[0], t[2], got[0], got[1]])
+
+
 func test_camel_riders_thrust_through_two_ranks(b: Dictionary) -> void:
 	var s := _parthia_sim(b, 965)
 	var h := s.horde

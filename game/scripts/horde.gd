@@ -2812,7 +2812,8 @@ func _move(dt: float, sim: Sim) -> void:
 					e_ammo[i] -= 1
 					e_strike[i] = time
 					e_face[i] = aim.normalized()
-		elif k_dash_every[kind] > 0.0 and g == Vector2.ZERO:
+		# A raider already in melee leaves e_cd to his slash, which counts down the same timer.
+		elif k_dash_every[kind] > 0.0 and g == Vector2.ZERO and not (k_slash_every[kind] > 0.0 and e_fighting[i] == 1 and e_dash[i] <= 0.0):
 			if e_dash[i] > 0.0:
 				e_dash[i] -= dt
 				dashing = true
