@@ -933,35 +933,46 @@ func shoot(kind: String, from: Vector2, to: Vector2, spd: float, dmg: float, pie
 
 
 func _move_shots(dt: float) -> void:
+	if shots.is_empty():
+		return
 	var keep: Array = []
+	# Every enemy near every shot is checked, so the horde's arrays are read into locals once; e_hp is read through the horde, since hit() writes it.
+	var gs := horde.g_start
+	var gi := horde.g_items
+	var ids := horde.e_id
+	var kinds := horde.e_kind
+	var radius := horde.k_radius
+	var at := horde.e_pos
 	for s in shots:
-		s.pos += s.vel * dt
+		var pos: Vector2 = s.pos + s.vel * dt
+		s.pos = pos
 		s.life -= dt
-		var c := _cidx(s.pos)
+		var c := _cidx(pos)
 		var spent := c < 0
+		var struck: Dictionary = s.hit
 		var kx := c % GW
 		var ky := c / GW
+		var x0 := maxi(0, kx - 1)
+		var x1 := mini(GW, kx + 2)
 		for cy in range(maxi(0, ky - 1), mini(GW, ky + 2)):
-			for cx in range(maxi(0, kx - 1), mini(GW, kx + 2)):
-				if spent:
+			if spent:
+				break
+			# The cells of a row follow one another in the sorted grid, so the three are read as one run.
+			for t in range(gs[x0 + cy * GW], gs[x1 + cy * GW]):
+				var j := gi[t]
+				var r := radius[kinds[j]] + 3.0
+				if (at[j] - pos).length_squared() >= r * r or struck.has(ids[j]) or horde.e_hp[j] <= 0.0:
+					continue
+				# A cataphract's scale armour turns part of every arrow.
+				var armour: float = horde.k_armour[kinds[j]] if s.kind == "arrow" else 0.0
+				hit(j, s.dmg * (1.0 - armour), s.burn, s.src, pos - s.vel.normalized() * 30.0)
+				if s.pin > 0.0:
+					horde.e_stun[j] = maxf(horde.e_stun[j], s.pin)
+				struck[ids[j]] = true
+				s.pierce -= 1
+				if s.pierce < 0:
+					spent = true
 					break
-				var cell := cx + cy * GW
-				for t in range(g_start[cell], g_start[cell + 1]):
-					var j := g_items[t]
-					if s.hit.has(horde.e_id[j]) or horde.e_hp[j] <= 0.0:
-						continue
-					var r := horde.k_radius[horde.e_kind[j]] + 3.0
-					if (horde.e_pos[j] - s.pos).length_squared() < r * r:
-						# A cataphract's scale armour turns part of every arrow.
-						var armour: float = horde.k_armour[horde.e_kind[j]] if s.kind == "arrow" else 0.0
-						hit(j, s.dmg * (1.0 - armour), s.burn, s.src, s.pos - s.vel.normalized() * 30.0)
-						if s.pin > 0.0:
-							horde.e_stun[j] = maxf(horde.e_stun[j], s.pin)
-						s.hit[horde.e_id[j]] = true
-						s.pierce -= 1
-						if s.pierce < 0:
-							spent = true
-							break
 		if not spent and s.life > 0.0:
 			keep.append(s)
 		elif s.explode > 0.0:
