@@ -216,6 +216,8 @@ static func hint(kind: String, count := 0) -> String:
 			parts = [part(key_of("confirm"), "change a key or button"), part(key_of("back"), "back")]
 		"press":
 			parts = [TranslationServer.translate("Press the new key or button"), part(key_name(KEY_ESCAPE), "cancel")]
+		"press_key":
+			parts = [TranslationServer.translate("Press the new key or button"), part(pad_of("back") if pad_in_use else key_name(KEY_ESCAPE), "cancel")]
 		"type":
 			parts = [part(key_name(KEY_ENTER), "delete"), part(key_name(KEY_ESCAPE), "cancel")]
 		"level":

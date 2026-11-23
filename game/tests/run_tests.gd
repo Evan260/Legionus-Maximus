@@ -3501,6 +3501,28 @@ func test_a_key_or_button_never_stands_for_two_actions_on_one_screen(_b: Diction
 	Controls.install({})
 
 
+func test_a_gamepad_can_cancel_waiting_for_a_new_key(_b: Dictionary) -> void:
+	var host := Node.new()
+	var settings := SettingsScreen.new(host)
+	var pad := Controls.pad_in_use
+	settings.activate("bind:up:keys:0")
+	var press := InputEventJoypadButton.new()
+	press.button_index = JOY_BUTTON_B
+	press.pressed = true
+	check(settings.capture(press) and settings.waiting.is_empty(), "a pad button leaves a key slot waiting no more")
+	settings.activate("bind:up:pads:0")
+	var lift := InputEventJoypadButton.new()
+	lift.button_index = JOY_BUTTON_A
+	check(not settings.capture(lift) and not settings.waiting.is_empty(), "the lift of the button that opened the slot is not taken")
+	settings.waiting = {}
+	Controls.pad_in_use = true
+	check(Controls.hint("press_key").ends_with(Controls.pad_of("back") + "  " + TranslationServer.translate("cancel")), "with a pad in hand the hint names the button that cancels (%s)" % Controls.hint("press_key"))
+	Controls.pad_in_use = false
+	check(Controls.hint("press_key").ends_with(Controls.key_name(KEY_ESCAPE) + "  " + TranslationServer.translate("cancel")), "and Escape otherwise")
+	Controls.pad_in_use = pad
+	host.free()
+
+
 func test_empty_saved_bindings_fall_back_to_the_defaults(b: Dictionary) -> void:
 	var cfg: Dictionary = ProfileScript.settings_of(ProfileScript.merge_settings({"bindings": {"up": {"keys": [], "pads": []}, "down": {"keys": [0, -3, "x"]}, "left": {"keys": [KEY_J]}}}))
 	check(not cfg.bindings.has("up") and not cfg.bindings.has("down"), "empty or unusable lists are dropped when loaded")

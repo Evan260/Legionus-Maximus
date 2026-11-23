@@ -128,8 +128,11 @@ func capture(event: InputEvent) -> bool:
 			_bind(int(event.physical_keycode))
 		return true
 	if event is InputEventJoypadButton and event.pressed:
+		# A key slot cannot take a pad button, so any button cancels it and a player with only a pad is never stuck.
 		if waiting.kind == "pads":
 			_bind(int(event.button_index))
+		else:
+			waiting = {}
 		return true
 	if event is InputEventMouseButton and event.pressed:
 		waiting = {}
@@ -255,7 +258,7 @@ static func controls_metrics(frame_w: float) -> Dictionary:
 
 
 func _draw_controls(c: CanvasItem, ui: Ui) -> void:
-	var hint := Controls.hint("press" if not waiting.is_empty() else "keys")
+	var hint := Controls.hint("keys" if waiting.is_empty() else ("press_key" if waiting.kind == "keys" else "press"))
 	var r := ui.frame(c, tr("Keys and buttons").to_upper(), hint)
 	var saved: Dictionary = Profile.settings.get("bindings", {})
 	var metrics := controls_metrics(r.size.x)
