@@ -1306,6 +1306,40 @@ func test_scorpio_bolt_damages_the_strongest(b: Dictionary) -> void:
 	check(s.horde.e_hp.size() == 0 or s.horde.e_hp[0] < before, "a projectile weapon hurts")
 
 
+## The harm by source over `seconds` at `hz` updates a second, from a tribune's legion with the stakes and five ranks of discipline, against a barbarian in sword reach and one on the stake ring, neither moving nor falling, the first coming only after `late` seconds.
+func _dealt_at(b: Dictionary, hz: float, seconds: float, late := 0.0) -> Dictionary:
+	var s := _quiet_sim(b, 7)
+	s.objectives.list.clear()
+	s.commander.hp = 1e9
+	s.commander.max_hp = 1e9
+	s.ranks["stakes"] = 1
+	s.ranks["discipline"] = 5
+	s.horde.spawn("barbarian_club", s.commander.pos + Vector2(84, 0))
+	for k in int((seconds + late) * hz):
+		if k == int(late * hz):
+			s.horde.spawn("barbarian_club", s.commander.pos + Vector2(18, 0))
+		for j in s.horde.e_hp.size():
+			s.horde.e_hp[j] = 1e9
+			s.horde.e_stun[j] = 1e9
+		s.update(1.0 / hz, Vector2.ZERO, false)
+	return s.damage_by_source.duplicate()
+
+
+func test_blows_and_stakes_keep_time_at_any_frame_rate(b: Dictionary) -> void:
+	var rate := 1.0 + float(b.drills.discipline) * 5
+	var legionary: Dictionary = content.recruits.legionary
+	var blow := float(legionary.damage)
+	var every := float(legionary.cooldown) / rate
+	var sword := 2.0 * blow * 60.0 / every
+	var stakes := Arms.lv(b.stakes, "dps", 1) * 60.0
+	for hz in [60.0, 144.0]:
+		var d := _dealt_at(b, hz, 60.0)
+		check(absf(d.get("legionary", 0.0) / sword - 1.0) < 0.01, "at %d Hz the legionaries strike as often as their cooldown says (%.0f of %.0f)" % [hz, d.get("legionary", 0.0), sword])
+		check(absf(d.get("stakes", 0.0) / stakes - 1.0) < 0.01, "and the stakes deal their damage a second (%.0f of %.0f)" % [d.get("stakes", 0.0), stakes])
+	var waited := _dealt_at(b, 60.0, 1.0, 3.0)
+	check(waited.get("legionary", 0.0) <= 2.0 * blow * ceilf(1.0 / every), "a man who waited with nothing in reach strikes no faster once a barbarian comes (%.0f)" % waited.get("legionary", 0.0))
+
+
 func test_pilum_and_scorpio_look_again_soon_with_nothing_in_reach(b: Dictionary) -> void:
 	for arm in ["pilum", "scorpio"]:
 		var s := _arms_sim(b, 41, {arm: 1})

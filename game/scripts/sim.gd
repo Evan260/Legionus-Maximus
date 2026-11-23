@@ -898,10 +898,12 @@ func melee(u: Dictionary, dmg: float, reach: float, cooldown: float, dt: float) 
 		return
 	var t := horde.nearest_edge(u.pos, reach)
 	if t < 0:
+		u.cd = 0.0
 		return
 	strike(u, horde.e_pos[t])
 	hit(t, dmg * gladius_mult(false), 0.0, u.type, u.pos)
-	u.cd = cooldown
+	# The overshoot carries over, so the blows keep time at any frame rate; a man with nothing in reach waits at zero and banks none.
+	u.cd += cooldown
 	effects.append({"kind": "slash", "pos": u.pos, "to": horde.e_pos[t], "t": 0.0})
 
 

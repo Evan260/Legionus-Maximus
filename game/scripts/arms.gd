@@ -97,7 +97,7 @@ func _flame(sim: Sim) -> float:
 	return float(sim.b.burning_eagle.torch_radius_mult) if sim.rank("burning_eagle") > 0 else 1.0
 
 
-## True once the weapon's timer has run out; the caller sets the next delay.
+## True once the weapon's timer has run out; the caller adds the next delay, so the overshoot carries over and the weapon keeps time at any frame rate.
 func _go(id: String, dt: float) -> bool:
 	var t: float = timers.get(id, 0.5) - dt
 	timers[id] = t
@@ -147,7 +147,10 @@ func _pilum(dt: float, sim: Sim) -> void:
 		if t >= 0:
 			sim.shoot("pilum", s.pos, sim.horde.e_pos[t], p.speed, lv(p, "damage", pr), pierce, 0.0, extra)
 			thrown += 1
-	timers.pilum = lv(p, "every", pr) if thrown > 0 else 0.3
+	if thrown > 0:
+		timers.pilum += lv(p, "every", pr)
+	else:
+		timers.pilum = 0.3
 
 
 func _scorpio(dt: float, sim: Sim) -> void:
@@ -166,7 +169,7 @@ func _scorpio(dt: float, sim: Sim) -> void:
 	if best < 0:
 		timers.scorpio = 0.3
 		return
-	timers.scorpio = lv(sc, "every", sr) * (float(sim.b.siege_train.every_mult) if siege else 1.0)
+	timers.scorpio += lv(sc, "every", sr) * (float(sim.b.siege_train.every_mult) if siege else 1.0)
 	var dmg := lv(sc, "damage", sr)
 	sim.shoot("bolt", cpos, sim.horde.e_pos[best], sc.speed, dmg, int(sc.pierce), 0.0, {"src": "scorpio"})
 	if siege:
@@ -183,11 +186,11 @@ func _onager(dt: float, sim: Sim) -> void:
 		return
 	var cfg: Dictionary = sim.b.onager
 	var siege := sim.rank("siege_train") > 0
-	timers.onager = lv(cfg, "every", r) * (float(sim.b.siege_train.every_mult) if siege else 1.0)
 	var aim: Variant = _thickest(sim, float(cfg.range))
 	if aim == null:
 		timers.onager = 0.3
 		return
+	timers.onager += lv(cfg, "every", r) * (float(sim.b.siege_train.every_mult) if siege else 1.0)
 	for i in stones_per_throw(sim):
 		var jitter := Vector2.from_angle(_rng.randf() * TAU) * _rng.randf() * float(cfg.spread) if i > 0 else Vector2.ZERO
 		lobs.append({"kind": "stone", "from": sim.commander.pos, "to": aim + jitter, "t": 0.0, "dur": float(cfg.flight),
@@ -266,11 +269,9 @@ func _stakes(dt: float, sim: Sim) -> void:
 	var cpos: Vector2 = sim.commander.pos
 	stakes = {"kind": "stakes", "pos": cpos, "radius": ring, "t": sim.time}
 	_stake_tick -= dt
-	var pulse := _stake_tick <= 0.0
-	if pulse:
-		_stake_tick = float(cfg.tick)
-	if not pulse:
+	if _stake_tick > 0.0:
 		return
+	_stake_tick += float(cfg.tick)
 	var camp := sim.rank("fortified_camp") > 0
 	var dmg := stake_dps(sim) * float(cfg.tick)
 	for j in sim.enemies_near(cpos, ring + band):
@@ -286,12 +287,12 @@ func _fire_pots(dt: float, sim: Sim) -> void:
 	if r <= 0 or not _go("fire_pots", dt):
 		return
 	var cfg: Dictionary = sim.b.fire_pots
-	timers.fire_pots = lv(cfg, "every", r)
 	var ahead: Vector2 = sim.commander.pos + Vector2.from_angle(sim.facing_angle) * float(cfg.ahead)
 	var t := sim.nearest_enemy(ahead, float(cfg.range))
 	if t < 0:
 		timers.fire_pots = 0.3
 		return
+	timers.fire_pots += lv(cfg, "every", r)
 	var greek := sim.rank("greek_fire") > 0
 	var g: Dictionary = sim.b.greek_fire
 	lobs.append({"kind": "pot", "from": sim.commander.pos, "to": sim.horde.e_pos[t], "t": 0.0, "dur": float(cfg.flight),
@@ -305,11 +306,11 @@ func _oil_jars(dt: float, sim: Sim) -> void:
 	if r <= 0 or not _go("oil_jars", dt):
 		return
 	var cfg: Dictionary = sim.b.oil_jars
-	timers.oil_jars = lv(cfg, "every", r)
 	var aim: Variant = _thickest(sim, float(cfg.range))
 	if aim == null:
 		timers.oil_jars = 0.3
 		return
+	timers.oil_jars += lv(cfg, "every", r)
 	var camp := sim.rank("fortified_camp") > 0
 	var f: Dictionary = sim.b.fortified_camp
 	lobs.append({"kind": "oil", "from": sim.commander.pos, "to": aim, "t": 0.0, "dur": float(cfg.flight),
@@ -356,7 +357,7 @@ func _war_dogs(dt: float, sim: Sim) -> void:
 		var dist := to.length()
 		if ti >= 0 and dist <= float(cfg.strike):
 			if d.cd <= 0.0:
-				d.cd = float(cfg.cooldown)
+				d.cd += float(cfg.cooldown)
 				d.bit = sim.time
 				if dist > 0.001:
 					d.face = to / dist
@@ -364,6 +365,7 @@ func _war_dogs(dt: float, sim: Sim) -> void:
 		elif dist > 2.0:
 			d.pos += to / dist * minf(dist, speed * dt)
 			d.face = to / dist
+		d.cd = maxf(d.cd, 0.0)
 
 
 func _trumpets(dt: float, sim: Sim) -> void:
@@ -371,7 +373,7 @@ func _trumpets(dt: float, sim: Sim) -> void:
 	if r <= 0 or not _go("trumpets", dt):
 		return
 	var cfg: Dictionary = sim.b.trumpets
-	timers.trumpets = lv(cfg, "every", r)
+	timers.trumpets += lv(cfg, "every", r)
 	var radius := lv(cfg, "radius", r)
 	var push := lv(cfg, "push", r)
 	var cpos: Vector2 = sim.commander.pos
@@ -395,7 +397,7 @@ func _eagle(dt: float, sim: Sim) -> void:
 	if r <= 0 or not _go("eagle", dt):
 		return
 	var cfg: Dictionary = sim.b.eagle
-	timers.eagle = lv(cfg, "every", r)
+	timers.eagle += lv(cfg, "every", r)
 	var burning := sim.rank("burning_eagle") > 0
 	var f: Dictionary = sim.b.burning_eagle
 	var radius := lv(cfg, "radius", r)
@@ -416,7 +418,7 @@ func _torches(dt: float, sim: Sim) -> void:
 	_torch_tick -= dt
 	if _torch_tick > 0.0:
 		return
-	_torch_tick = float(cfg.tick)
+	_torch_tick += float(cfg.tick)
 	var burning := sim.rank("burning_eagle") > 0
 	var dps := lv(cfg, "dps", r) * (float(sim.b.burning_eagle.torch_dps_mult) if burning else 1.0)
 	var reach := float(cfg.reach) * _flame(sim)

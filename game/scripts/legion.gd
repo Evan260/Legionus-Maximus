@@ -565,8 +565,9 @@ func _missile(s: Dictionary, dt: float, sim: Sim) -> void:
 		return
 	var t := sim.nearest_enemy(s.pos, float(info.range) * sim.range_mult())
 	if t < 0:
+		s.cd = 0.0
 		return
-	s.cd = float(info.cooldown)
+	s.cd += float(info.cooldown)
 	sim.strike(s, sim.horde.e_pos[t])
 	var dmg := float(info.damage) * sim.gladius_mult(true)
 	if s.type == "archer":
@@ -586,8 +587,9 @@ func _ballista(s: Dictionary, dt: float, sim: Sim) -> void:
 	var reach := float(info.range) * sim.range_mult()
 	var t := sim.nearest_enemy(s.pos, reach)
 	if t < 0:
+		s.cd = 0.0
 		return
-	s.cd = float(info.cooldown)
+	s.cd += float(info.cooldown)
 	sim.strike(s, sim.horde.e_pos[t])
 	sim.shoot("bolt", s.pos, sim.horde.e_pos[t], float(info.bolt_speed), float(info.damage), int(info.pierce), 0.0,
 		{"life": reach / float(info.bolt_speed), "explode": stat(s.type, "explode_radius"), "src": s.type})
@@ -597,7 +599,7 @@ func _shout(s: Dictionary, dt: float, sim: Sim) -> void:
 	s.shout = float(s.get("shout", float(s.info.shout_every))) - dt * s.haste
 	if s.shout > 0.0:
 		return
-	s.shout = float(s.info.shout_every)
+	s.shout += float(s.info.shout_every)
 	var radius := float(s.info.shout_radius) * stat(s.type, "shout_scale", 1.0)
 	for j in sim.enemies_near(s.pos, radius):
 		sim.horde.e_stun[j] = maxf(sim.horde.e_stun[j], float(s.info.stun))
@@ -650,9 +652,12 @@ func _sortie(s: Dictionary, dt: float, sim: Sim) -> void:
 	var strike := float(info.strike_reach)
 	if s.sortie == 0:
 		s.cd -= dt * _rate * s.haste
-		if s.cd <= 0.0 and sim.nearest_enemy(s.pos, float(info.reach)) >= 0:
-			s.sortie = 1
-			s.struck = {}
+		if s.cd <= 0.0:
+			if sim.nearest_enemy(s.pos, float(info.reach)) >= 0:
+				s.sortie = 1
+				s.struck = {}
+			else:
+				s.cd = 0.0
 		return
 	if s.sortie == 1:
 		var t := sim.nearest_enemy(s.pos, float(info.reach) + 30.0)
@@ -678,7 +683,7 @@ func _sortie(s: Dictionary, dt: float, sim: Sim) -> void:
 			if not s.struck.has(sim.horde.e_id[t]):
 				sim.hit(t, dmg, 0.0, s.type, s.pos)
 			sim.effects.append({"kind": "slash", "pos": s.pos, "to": sim.horde.e_pos[t], "t": 0.0})
-			s.cd = float(info.cooldown)
+			s.cd += float(info.cooldown)
 			s.sortie = 2
 		return
 	var back: Vector2 = s.target - s.pos
