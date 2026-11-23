@@ -184,8 +184,10 @@ static func pad_of(action: String) -> String:
 	return slot_text(Profile.setting("bindings"), action, "pads", 0)
 
 
-## The four marching keys, for the hints that say how to move.
+## The four marching keys, or the stick while the player is on a gamepad, for the hints that say how to move.
 static func march_keys() -> String:
+	if pad_in_use:
+		return pad_name(JOY_BUTTON_LEFT_STICK)
 	return " ".join(["up", "left", "down", "right"].map(key_of))
 
 
@@ -198,22 +200,24 @@ static func part(keys: String, word: String) -> String:
 static func hint(kind: String, count := 0) -> String:
 	if Touch.phone:
 		return TranslationServer.translate("Lay a bridge") if kind == "bridge" else ""
-	var both := func(action: String) -> String: return shown(action)
-	var sides := key_of("left") + " / " + key_of("right")
+	var stick := pad_name(JOY_BUTTON_LEFT_STICK)
+	var sides := stick if pad_in_use else key_of("left") + " / " + key_of("right")
 	# The level-up and the gods' choice are rows, worked up and down.
-	var rows := key_of("up") + " / " + key_of("down")
+	var rows := stick if pad_in_use else key_of("up") + " / " + key_of("down")
+	var confirm := shown("confirm")
+	var back := shown("back")
 	var parts: Array = []
 	match kind:
 		"pick":
-			parts = [part(march_keys(), "move"), part(key_of("confirm"), "choose"), part(key_of("back"), "back")]
+			parts = [part(march_keys(), "move"), part(confirm, "choose"), part(back, "back")]
 		"buy":
-			parts = [part(march_keys(), "move"), part(key_of("confirm"), "buy a rank"), part(key_of("back"), "back")]
+			parts = [part(march_keys(), "move"), part(confirm, "buy a rank"), part(back, "back")]
 		"look":
-			parts = [part(march_keys(), "move"), part(key_of("back"), "back")]
+			parts = [part(march_keys(), "move"), part(back, "back")]
 		"volume":
-			parts = [part(march_keys(), "move"), part(sides, "change a volume"), part(key_of("back"), "back")]
+			parts = [part(march_keys(), "move"), part(sides, "change a volume"), part(back, "back")]
 		"keys":
-			parts = [part(key_of("confirm"), "change a key or button"), part(key_of("back"), "back")]
+			parts = [part(confirm, "change a key or button"), part(back, "back")]
 		"press":
 			parts = [TranslationServer.translate("Press the new key or button"), part(key_name(KEY_ESCAPE), "cancel")]
 		"press_key":
@@ -221,21 +225,21 @@ static func hint(kind: String, count := 0) -> String:
 		"type":
 			parts = [part(key_name(KEY_ENTER), "delete"), part(key_name(KEY_ESCAPE), "cancel")]
 		"level":
-			parts = [part(rows, "choose"), part(key_of("confirm"), "take it")]
+			parts = [part(rows, "choose"), part(confirm, "take it")]
 		"reroll":
-			parts = [part(both.call("reroll"), "reroll") + " (%d)" % count]
+			parts = [part(shown("reroll"), "reroll") + " (%d)" % count]
 		"banish":
-			parts = [part(both.call("banish"), "banish") + " (%d)" % count]
+			parts = [part(shown("banish"), "banish") + " (%d)" % count]
 		"summary":
-			parts = [part(key_of("confirm"), "choose"), part(key_of("back"), "Camp")]
+			parts = [part(confirm, "choose"), part(back, "Camp")]
 		"victory":
-			parts = [part(key_of("confirm"), "continue")]
+			parts = [part(confirm, "continue")]
 		"title":
-			parts = [part(key_of("back"), "Title")]
+			parts = [part(back, "Title")]
 		"pray":
-			parts = [part(both.call("pray"), "call the gods")]
+			parts = [part(shown("pray"), "call the gods")]
 		"bridge":
-			parts = [part(both.call("bridge"), "bridge")]
+			parts = [part(shown("bridge"), "bridge")]
 		"gods":
-			parts = [part(rows, "choose"), part(key_of("confirm"), "call"), part(key_of("back"), "not now")]
+			parts = [part(rows, "choose"), part(confirm, "call"), part(back, "not now")]
 	return "     ".join(parts)

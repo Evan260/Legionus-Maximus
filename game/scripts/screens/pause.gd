@@ -49,5 +49,5 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	if not confirming:
 		ui.fit_text(c, Hud.run_line(main.sim), Ui.W - 16.0, Vector2(0, top + 3 * (h + 8) + 8), Ui.CREAM, HORIZONTAL_ALIGNMENT_CENTER, Ui.W, true)
 	if confirming:
-		var ask := tr("Give up the run? Tap again to confirm") if Touch.phone else tr("Give up the run? %s again to confirm") % Controls.key_of("confirm")
+		var ask := tr("Give up the run? Tap again to confirm") if Touch.phone else tr("Give up the run? %s again to confirm") % Controls.shown("confirm")
 		ui.fit_text(c, ask, Ui.W - 16.0, Vector2(0, top + 3 * (h + 8) + 8), Ui.GOLD, HORIZONTAL_ALIGNMENT_CENTER, Ui.W, true)

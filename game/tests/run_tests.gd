@@ -6343,6 +6343,23 @@ func test_hints_follow_the_last_device_used(b: Dictionary) -> void:
 	check(not Controls.pad_in_use, "a resting stick's drift does not")
 
 
+func test_with_a_gamepad_every_hint_names_its_buttons(_b: Dictionary) -> void:
+	var saved: Dictionary = Profile.settings
+	var pad := Controls.pad_in_use
+	Profile.settings = {"bindings": {}}
+	Controls.install({})
+	Controls.pad_in_use = true
+	var stick := Controls.pad_name(JOY_BUTTON_LEFT_STICK)
+	check(Controls.hint("level") == "%s  choose     A  take it" % stick, "the level-up names the stick and the button that takes (%s)" % Controls.hint("level"))
+	check(Controls.hint("pick") == "%s  move     A  choose     B  back" % stick, "a menu names the stick and buttons (%s)" % Controls.hint("pick"))
+	check(Controls.hint("gods").ends_with("A  call     B  not now"), "the gods' choice names its buttons (%s)" % Controls.hint("gods"))
+	for kind in ["buy", "look", "volume", "keys", "summary", "victory", "title"]:
+		for key in [Controls.key_name(KEY_SPACE), Controls.key_name(KEY_ESCAPE), "W A S D"]:
+			check(not Controls.hint(kind).contains(key), "the %s hint names no key (%s)" % [kind, Controls.hint(kind)])
+	Controls.pad_in_use = pad
+	Profile.settings = saved
+
+
 func test_the_gods_have_their_own_key(b: Dictionary) -> void:
 	Controls.install({})
 	check(_has_key("pray", KEY_G) and _has_button("pray", JOY_BUTTON_Y), "G and the north face button call the gods")
