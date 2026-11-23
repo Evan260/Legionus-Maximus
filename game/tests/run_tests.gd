@@ -3140,37 +3140,30 @@ func test_the_level_up_choices_stack_down_the_middle_of_the_screen(b: Dictionary
 	var problems := []
 	for scale in [1, 2]:
 		Ui.set_text_size(scale, b)
-		var big: bool = scale > 1
-		for n in [3, 4]:
-			var rows: Array = Hud.choice_rows(n, big)
-			if rows.size() != n:
-				problems.append("x%d %d choices give %d rows" % [scale, n, rows.size()])
-				continue
-			for i in n:
-				var r: Rect2 = rows[i]
-				if absf(r.get_center().x - Ui.W / 2.0) > 0.5:
-					problems.append("x%d %d choices: row %d is not centred on the screen (%s)" % [scale, n, i, r])
-				if not Rect2(4, 4, Ui.W - 8, Ui.H - 8).encloses(r):
-					problems.append("x%d %d choices: row %d %s is off the screen" % [scale, n, i, r])
-				if i > 0 and r.position.y < rows[i - 1].end.y + 3.0:
-					problems.append("x%d %d choices: row %d touches the one above" % [scale, n, i])
-			var foot: float = rows[-1].end.y
-			if big:
-				if Hud.shows_build(false, true):
-					problems.append("x2 the panel shows beside the large rows")
-				var d := Hud.detail_rect(n)
-				if d.position.y <= foot or absf(d.get_center().x - Ui.W / 2.0) > 0.5:
-					problems.append("x2 %d choices: the description box %s is not centred under the rows" % [n, d])
-				foot = d.end.y
-			else:
+		if scale == 1:
+			for n in [3, 4]:
+				var rows: Array = Hud.choice_rows(n, false)
+				if rows.size() != n:
+					problems.append("x1 %d choices give %d rows" % [n, rows.size()])
+					continue
+				for i in n:
+					var r: Rect2 = rows[i]
+					if absf(r.get_center().x - Ui.W / 2.0) > 0.5:
+						problems.append("x1 %d choices: row %d is not centred on the screen (%s)" % [n, i, r])
+					if not Rect2(4, 4, Ui.W - 8, Ui.H - 8).encloses(r):
+						problems.append("x1 %d choices: row %d %s is off the screen" % [n, i, r])
+					if i > 0 and r.position.y < rows[i - 1].end.y + 3.0:
+						problems.append("x1 %d choices: row %d touches the one above" % [n, i])
 				var panel := Hud.build_rect()
 				if panel.position.y >= rows[0].position.y or panel.end.y <= rows[-1].end.y:
 					problems.append("x1 %d choices: the panel %s does not stand taller than the rows, %s to %s" % [n, panel, rows[0].position.y, rows[-1].end.y])
 				if panel.end.x + 8.0 > rows[0].position.x:
 					problems.append("x1 %d choices: the panel reaches the rows" % n)
-			# The key hints go under the rows, above the corners of the screen where the testudo and favour sit.
-			if foot + (40.0 if big else 29.0) > Ui.H - 4.0:
-				problems.append("x%d %d choices: no room left for the key hints under the rows" % [scale, n])
+				# The key hints go under the rows, above the corners of the screen where the testudo and favour sit.
+				if rows[-1].end.y + 29.0 > Ui.H - 4.0:
+					problems.append("x1 %d choices: no room left for the key hints under the rows" % n)
+		elif Hud.shows_build(false, true):
+			problems.append("x2 the panel shows beside the large rows")
 		# The panel keeps clear of the level in the top bar and of the testudo and timber in the bottom corner.
 		var room := Hud.build_rect()
 		var top_bar: float = 16.0 + 8.0 * scale + Ui.leading() - Ui.px
@@ -3181,6 +3174,83 @@ func test_the_level_up_choices_stack_down_the_middle_of_the_screen(b: Dictionary
 		print("  ", p)
 	check(problems.is_empty(), "the choices stack down the middle at both text sizes, three or four of them (%d problems)" % problems.size())
 	check(Hud.shows_build(false, false) and not Hud.shows_build(true, false), "the panel shows beside a level-up's rows but not the gods'")
+
+
+## The screens large text is laid out for: a computer at 16:9, a 2424 by 1080 phone and a 16:9 phone at half size, and a tablet, each with the insets and fingertip the touch screen works out for it.
+static func _big_screens() -> Array:
+	var out: Array = [{"name": "computer", "view": Vector2(640, 360), "tl": Vector2.ZERO, "br": Vector2.ZERO, "phone": false, "tip": 0.0}]
+	for e in [["20:9 phone", Vector2i(1212, 540), Vector2(808, 360), Touch.PHONE_INCHES], ["16:9 phone", Vector2i(1280, 720), Vector2(640, 360), Touch.PHONE_INCHES], ["tablet", Vector2i(1024, 768), Vector2(640, 480), Touch.TABLET_INCHES]]:
+		var window: Vector2i = e[1]
+		var scale := Vector2(window) / Vector2(e[2])
+		var insets := Touch.insets_for(window, Rect2i(Vector2i.ZERO, window), scale)
+		out.append({"name": e[0], "view": e[2], "tl": insets[0], "br": insets[1], "phone": true, "tip": Touch.fingertip_for(window.y / float(e[3]), scale.y)})
+	return out
+
+
+static func _big_layout_on(screen: Dictionary, n: int) -> Dictionary:
+	return Hud.big_layout(n, screen.view, screen.tl, screen.br, screen.phone, screen.tip)
+
+
+func test_large_text_choices_are_tall_rows_clear_of_the_bars_and_corners(b: Dictionary) -> void:
+	var before_scale := Ui.scale
+	var before_view := Ui.view
+	Ui.set_text_size(2, b)
+	var problems := []
+	for screen in _big_screens():
+		Ui.fit_view(screen.view)
+		var safe := Rect2(screen.tl - Ui.offset, screen.view - screen.tl - screen.br)
+		var plates: float = safe.position.y + 16.0 + 8.0 * Ui.scale - Ui.px + Ui.leading()
+		for n in [3, 4]:
+			var lay := _big_layout_on(screen, n)
+			var rows: Array = lay.rows
+			var tag := "%s, %d choices" % [screen.name, n]
+			if rows.size() != n:
+				problems.append("%s: %d rows" % [tag, rows.size()])
+				continue
+			for i in n:
+				var r: Rect2 = rows[i]
+				if not safe.encloses(r):
+					problems.append("%s: row %d %s leaves the safe area %s" % [tag, i, r, safe])
+				if absf(r.get_center().x - safe.get_center().x) > 0.5:
+					problems.append("%s: row %d is not centred" % [tag, i])
+				if r.position.y < plates + 2.0:
+					problems.append("%s: row %d at %s covers the level and legion in the top bar, which end at %s" % [tag, i, r.position.y, plates])
+				for c in lay.corners:
+					if r.intersects(c):
+						problems.append("%s: row %d %s covers a corner %s" % [tag, i, r, c])
+				if i > 0 and r.position.y < rows[i - 1].end.y + 3.0:
+					problems.append("%s: row %d touches the one above" % [tag, i])
+				if screen.phone and r.size.y < screen.tip:
+					problems.append("%s: rows are %d tall, under a fingertip of %d" % [tag, r.size.y, screen.tip])
+			if float(lay.icon) < 32.0:
+				problems.append("%s: icons are only %d px" % [tag, lay.icon])
+			if int(lay.lines) < 1:
+				problems.append("%s: no room for a description in the rows" % tag)
+			if screen.name == "20:9 phone" and (int(lay.lines) < 2 or (n == 3 and float(lay.icon) < 48.0)):
+				problems.append("%s: rows hold %d lines and %d px icons" % [tag, lay.lines, lay.icon])
+			if screen.phone:
+				var bar: Rect2 = lay.buttons
+				if bar.size.y < minf(screen.tip, 30.0) or bar.size.x < 80.0:
+					problems.append("%s: the buttons %s are too small" % [tag, bar])
+				var whole := Rect2(safe.get_center().x - (3.0 * bar.size.x + 16.0) / 2.0, bar.position.y, 3.0 * bar.size.x + 16.0, bar.size.y)
+				if not safe.encloses(whole) or whole.position.y < rows[-1].end.y + 4.0:
+					problems.append("%s: the buttons %s are off the screen or on the rows" % [tag, whole])
+				for c in lay.corners:
+					if whole.intersects(c):
+						problems.append("%s: the buttons %s cover a corner %s" % [tag, whole, c])
+			else:
+				# The key hints fit under the rows, above the corners.
+				if lay.hint_y - Ui.px < rows[-1].end.y + 4.0:
+					problems.append("%s: the key hints at %s run into the rows" % [tag, lay.hint_y])
+				for c in lay.corners:
+					if c.position.y < lay.hint_y + 2.0:
+						problems.append("%s: the key hints at %s run into a corner %s" % [tag, lay.hint_y, c])
+	Ui.fit_view(before_view)
+	Ui.set_text_size(before_scale, b)
+	for p in problems:
+		print("  ", p)
+	check(problems.is_empty(), "large text shows the choices as tall rows between the top bar and the corners on a computer, phones and a tablet (%d problems)" % problems.size())
+	check(Hud.choice_rows(3, true) == Hud.big_layout(3, Ui.view, Touch.inset_tl, Touch.inset_br, Touch.phone, Touch.fingertip).rows, "the large rows are the layout's rows for the screen showing")
 
 
 func test_every_choice_fits_its_row_in_every_language(b: Dictionary) -> void:
@@ -3217,25 +3287,37 @@ func test_every_choice_fits_its_row_in_every_language(b: Dictionary) -> void:
 						if other.intersects(it[1]):
 							problems.append("%s x%d %s at %s overlaps another piece" % [loc, scale, it[2], it[1]])
 					placed.append(it[1])
-			for n in [3, 4]:
-				var r: Rect2 = Hud.choice_rows(n, big)[0]
-				var head := Hud.row_text(r, big)
-				var lines := Hud.detail_lines() if big else Hud.row_lines(r)
-				var width := Hud.detail_rect(n).size.x - 2.0 * Hud.DETAIL_PAD if big else head.size.x
-				var entries: Array = []
-				for id in ids:
-					var info: Dictionary = words.upgrade(id)
-					for tx in [str(info.get("text", "")), str(info.get("more", ""))]:
-						if tx != "":
-							entries.append([id, str(info.name).to_upper(), Upgrades.level_text(s, id), tx])
-				for id in words.gods:
-					entries.append([id, str(words.gods[id].name).to_upper(), TranslationServer.translate("God").to_upper(), str(words.gods[id].text)])
-				for e in entries:
-					if Ui.width_at(e[1], Ui.px) + 8.0 + Ui.width_at(e[2], Ui.px) > head.size.x:
-						problems.append("%s x%d %d rows: %s's name and '%s' do not fit one line" % [loc, scale, n, e[0], e[2]])
-					var need: int = Ui.lines_of(e[3], width).size()
-					if need > lines:
-						problems.append("%s x%d %d rows: %s's text takes %d lines, room for %d" % [loc, scale, n, e[0], need, lines])
+			var entries: Array = []
+			for id in ids:
+				var info: Dictionary = words.upgrade(id)
+				for tx in [str(info.get("text", "")), str(info.get("more", ""))]:
+					if tx != "":
+						entries.append([id, str(info.name).to_upper(), Upgrades.level_text(s, id), tx])
+			for id in words.gods:
+				entries.append([id, str(words.gods[id].name).to_upper(), TranslationServer.translate("God").to_upper(), str(words.gods[id].text)])
+			# The supply cart's lines are in the large rows too; the normal rows' are checked with the other labels.
+			for id in Horde.CART_REWARDS if big else []:
+				var row := Hud.supply_text(id, {"wounded": 199, "share": 100, "commander": 100}, 9999)
+				entries.append([id, str(row.name).to_upper(), "", str(row.line)])
+			# Large text is checked on every screen it is laid out for; the normal size has one layout.
+			var screens: Array = _big_screens() if big else [{"name": "computer"}]
+			var before_view := Ui.view
+			for screen in screens:
+				if big:
+					Ui.fit_view(screen.view)
+				for n in [3, 4]:
+					var r: Rect2 = _big_layout_on(screen, n).rows[0] if big else Hud.choice_rows(n, false)[0]
+					var head := Hud.row_text(r, big)
+					var lines := Hud.row_lines(r, big)
+					# Three rows anywhere and four on the 20:9 phone hold every description at the text size; four on a smaller screen may step down to the small size.
+					var strict: bool = not big or n == 3 or screen.name == "20:9 phone"
+					for e in entries:
+						if Ui.width_at(e[1], Ui.px) + 8.0 + Ui.width_at(e[2], Ui.px) > head.size.x:
+							problems.append("%s x%d %s %d rows: %s's name and '%s' do not fit one line" % [loc, scale, screen.name, n, e[0], e[2]])
+						var need: int = Ui.lines_of(e[3], head.size.x).size() if strict else Ui.block(e[3], head.size.x, lines).lines
+						if need > lines:
+							problems.append("%s x%d %s %d rows: %s's text takes %d lines, room for %d" % [loc, scale, screen.name, n, e[0], need, lines])
+			Ui.fit_view(before_view)
 	Lang.apply(before, false)
 	words.localize()
 	Ui.set_text_size(before_scale, b)
@@ -3644,26 +3726,29 @@ func _cuts_in(loc: String, scale: int, c: Content, sim: Sim, cuts: Array) -> voi
 	# The level-up and gods' rows, whose names and levels share one line, and the god's name written across the screen at three times the size.
 	_fit(cuts, loc, scale, "god heading", tr_.call("The gods hear you").to_upper(), 624.0)
 	_fit(cuts, loc, scale, "favour hint", Controls.hint("pray").to_upper(), 624.0 * 0.45)
-	for n in [3, 4]:
-		var head := Hud.row_text(Hud.choice_rows(n, big)[0], big)
-		for id in c.recruits.keys() + c.arms.keys() + c.forged.keys() + c.drills.keys():
-			_fit(cuts, loc, scale, "row name and level (%d rows)" % n, str(c.upgrade(id).name).to_upper() + "  " + Upgrades.level_text(sim, id), head.size.x)
-		for id in c.gods:
-			_fit(cuts, loc, scale, "god row (%d rows)" % n, str(c.gods[id].name).to_upper() + "  " + tr_.call("God").to_upper(), head.size.x)
-	# The supply cart's rows with the longest numbers they can show.
+	var screens: Array = _big_screens() if big else [{"name": "computer"}]
+	var before_view := Ui.view
 	_fit(cuts, loc, scale, "supplies heading", tr_.call("Supplies").to_upper(), 300.0 if big else 624.0)
-	var supply_row: Rect2 = Hud.choice_rows(3, big)[0]
-	var supply_head := Hud.row_text(supply_row, big)
-	for id in Horde.CART_REWARDS:
-		var row := Hud.supply_text(id, {"wounded": 199, "share": 100, "commander": 100}, 9999)
-		_fit(cuts, loc, scale, "supply row name", str(row.name).to_upper() + "  " + str(row.figure), supply_head.size.x)
+	for screen in screens:
 		if big:
-			_lines(cuts, loc, scale, "supply line in the description box", row.line, Hud.detail_rect(3).size.x - 2.0 * Hud.DETAIL_PAD, Hud.detail_lines())
-		else:
-			_lines(cuts, loc, scale, "supply row line", row.line, supply_head.size.x, Hud.row_lines(supply_row))
-	if big:
-		for g in ["Recruit", "Arms", "Forged", "Drill", "God", "Supplies"]:
-			_fit(cuts, loc, scale, "group in the description box", tr_.call(g).to_upper(), Hud.detail_rect(3).size.x - 2.0 * Hud.DETAIL_PAD)
+			Ui.fit_view(screen.view)
+		for n in [3, 4]:
+			var r: Rect2 = _big_layout_on(screen, n).rows[0] if big else Hud.choice_rows(n, false)[0]
+			var head := Hud.row_text(r, big)
+			var what := "%s, %d rows" % [screen.name, n]
+			for id in c.recruits.keys() + c.arms.keys() + c.forged.keys() + c.drills.keys():
+				_fit(cuts, loc, scale, "row name and level (%s)" % what, str(c.upgrade(id).name).to_upper() + "  " + Upgrades.level_text(sim, id), head.size.x)
+			for id in c.gods:
+				_fit(cuts, loc, scale, "god row (%s)" % what, str(c.gods[id].name).to_upper() + "  " + tr_.call("God").to_upper(), head.size.x)
+			# The supply cart's rows with the longest numbers they can show.
+			for id in Horde.CART_REWARDS:
+				var row := Hud.supply_text(id, {"wounded": 199, "share": 100, "commander": 100}, 9999)
+				_fit(cuts, loc, scale, "supply row name (%s)" % what, str(row.name).to_upper(), head.size.x)
+				_lines(cuts, loc, scale, "supply row line (%s)" % what, row.line, head.size.x, Hud.row_lines(r, big))
+		if big and screen.phone:
+			for t in [tr_.call("take it"), tr_.call("call"), tr_.call("not now"), tr_.call("reroll") + " (9)", tr_.call("banish") + " (9)"]:
+				_fit(cuts, loc, scale, "choice button on a %s" % screen.name, t.to_upper(), _big_layout_on(screen, 3).buttons.size.x - 12.0)
+	Ui.fit_view(before_view)
 	for id in c.gods:
 		if Ui.width_at(str(c.gods[id].name).to_upper(), Ui.px * 3) > 624.0:
 			cuts.append("%s x%d god banner %s does not fit" % [loc, scale, id])

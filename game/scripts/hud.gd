@@ -41,15 +41,18 @@ const ROW_TOP := 72.0
 const ROW_H3 := 62.0
 const ROW_H4 := 56.0
 const ROW_ICON := 32.0
-## Large text: the rows run the width of the screen with only the name and level, and the box under them holds the description of the one picked out.
-const BIG_ROW_W := 616.0
-const BIG_ROW_H := 28.0
-const BIG_ROW_TOP := 44.0
-const BIG_ROW_ICON := 24.0
+## Large text: the rows run across the screen's safe area between the top bar and the corners, each with its icon, name, level and description. Their widest and tallest, the gap between them, the room inside them, the icon sides they try, largest first, and the share of the text size a capital stands above its line.
+const BIG_ROW_W := 760.0
+const BIG_ROW_H := 88.0
+const BIG_ROW_GAP := 4.0
+const BIG_ROW_PAD := 3.0
+const BIG_ICONS := [64.0, 48.0, 32.0]
+const BIG_GLYPH := 0.75
+## A phone's buttons under the large rows: their widest, and the narrowest that still sits between the testudo and the favour before the row moves up above them.
+const BIG_BUTTON_W := 210.0
+const BIG_BUTTON_LOW := 80.0
 ## The icon of each supply cart reward.
 const SUPPLY_ICONS := {"free_choice": "glory", "heal": "medicus", "magnet": "magnet"}
-const DETAIL_H := 94.0
-const DETAIL_PAD := 8.0
 
 var main: Node
 var ui: Ui
@@ -245,9 +248,12 @@ func _top_bar_in(sim: Sim, W: float, H: float) -> void:
 	draw_rect(Rect2(8, H - 9, 34, 4), INK)
 	var charge := 1.0 if sim.testudo_left > 0.0 else sim.testudo_charge
 	draw_rect(Rect2(9, H - 8, 32 * charge, 2), GOLD if ready or sim.testudo_left > 0.0 else PARCH_DARK)
-	plated_text((tr("Testudo") if sim.testudo_left <= 0.0 else tr("Hold!")).to_upper(), Vector2(46, H - 6), GOLD_LIGHT if ready or sim.testudo_left > 0.0 else Color(0.7, 0.66, 0.6))
-	_timber(sim, W, H)
-	_favour(sim, W, H)
+	# A large choice keeps only the testudo's and the favour's pictures down here, so its buttons and hints fit between them.
+	var bare := choosing and big
+	if not bare:
+		plated_text((tr("Testudo") if sim.testudo_left <= 0.0 else tr("Hold!")).to_upper(), Vector2(46, H - 6), GOLD_LIGHT if ready or sim.testudo_left > 0.0 else Color(0.7, 0.66, 0.6))
+		_timber(sim, W, H)
+	_favour(sim, W, H, bare)
 	_timber_keys(sim, W, H)
 	if choosing:
 		return
@@ -346,7 +352,7 @@ static func timber_keys(balance: Dictionary, timber: int) -> Array:
 
 
 ## The favour of the gods at the bottom right: a wreath over a bar that fills with kills, glowing with the key to call them once full.
-func _favour(sim: Sim, W: float, H: float) -> void:
+func _favour(sim: Sim, W: float, H: float, bare := false) -> void:
 	var gods := sim.gods
 	var ready := gods.full(sim.b)
 	var share := clampf(float(gods.favour) / maxf(1.0, gods.need(sim.b)), 0.0, 1.0)
@@ -358,6 +364,8 @@ func _favour(sim: Sim, W: float, H: float) -> void:
 	_laurel(c)
 	draw_rect(Rect2(W - 42, H - 9, 34, 4), INK)
 	draw_rect(Rect2(W - 41, H - 8, 32 * share, 2), GOLD_LIGHT if ready else GOLD)
+	if bare:
+		return
 	plated_text(tr("Favour").to_upper(), Vector2(0, H - 6), GOLD_LIGHT if ready else Color(0.7, 0.66, 0.6), HORIZONTAL_ALIGNMENT_RIGHT, W - 46)
 	if ready and main.state == "play":
 		text(Controls.hint("pray").to_upper(), Vector2(0, H - 6 - Ui.leading()), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_RIGHT, W - 46)
@@ -924,46 +932,84 @@ static func _free_spot(r: Rect2, placed: Array, view: Vector2, top: float, low :
 
 ## The choices as rows stacked down the middle of the screen, as their rects.
 static func choice_rows(n: int, big: bool) -> Array:
-	var w := BIG_ROW_W if big else ROW_W
-	var h := BIG_ROW_H if big else (ROW_H3 if n <= 3 else ROW_H4)
-	var gap := 4.0 if big else ROW_GAP
-	var top := BIG_ROW_TOP if big else ROW_TOP
+	if big:
+		return big_layout(n, Ui.view, Touch.inset_tl, Touch.inset_br, Touch.phone, Touch.fingertip).rows
 	var out: Array = []
 	for i in n:
-		out.append(Rect2((W - w) / 2.0, top + i * (h + gap), w, h))
+		out.append(Rect2((W - ROW_W) / 2.0, ROW_TOP + i * ((ROW_H3 if n <= 3 else ROW_H4) + ROW_GAP), ROW_W, ROW_H3 if n <= 3 else ROW_H4))
 	return out
 
 
-## Where a row's name, level and, at the normal text size, description are written: right of its icon, inside its margin.
+## Large text on a screen of `view` with insets `tl` and `br`, in the centred box's coordinates: the rows, their icon side and lines of description, the testudo's and favour's corners they keep clear of, and a phone's buttons (one of three, centred, as `buttons`) or a computer's key hint line (`hint_y`). A phone's buttons sit between the corners when three fit there, and above them otherwise.
+static func big_layout(n: int, view: Vector2, tl: Vector2, br: Vector2, phone: bool, tip: float) -> Dictionary:
+	var safe := Rect2(tl - ((view - Vector2(W, H)) / 2.0).floor(), view - tl - br)
+	var top := safe.position.y + 16.0 + 8.0 * Ui.scale - Ui.px + Ui.leading() + 4.0
+	var left := Rect2(safe.position.x + 8.0, safe.end.y - 42.0, 34.0, 42.0)
+	var right := Rect2(safe.end.x - 42.0, safe.end.y - 42.0, 34.0, 42.0)
+	var corner_top := left.position.y
+	var out := {"corners": [left, right]}
+	var cx := safe.get_center().x
+	var foot: float
+	if phone:
+		var h := clampf(tip, 30.0, 38.0)
+		var half := minf(cx - left.end.x, right.position.x - cx) - 8.0
+		var w := minf(BIG_BUTTON_W, floorf((2.0 * half - 16.0) / 3.0))
+		var y := safe.end.y - 4.0 - h
+		if w < BIG_BUTTON_LOW:
+			w = minf(BIG_BUTTON_W, floorf((safe.size.x - 32.0) / 3.0))
+			y = corner_top - 4.0 - h
+		out.buttons = Rect2(cx - w / 2.0, y, w, h)
+		foot = minf(corner_top, y) - 4.0
+	else:
+		out.hint_y = corner_top - 6.0
+		foot = out.hint_y - Ui.px - 6.0
+	var room := foot - top
+	var rh := minf(BIG_ROW_H, floorf((room - (n - 1) * BIG_ROW_GAP) / n))
+	var rw := minf(BIG_ROW_W, safe.size.x - 16.0)
+	var x := safe.position.x + floorf((safe.size.x - rw) / 2.0)
+	var y0 := top + floorf((room - n * rh - (n - 1) * BIG_ROW_GAP) / 2.0)
+	var rows: Array = []
+	for i in n:
+		rows.append(Rect2(x, y0 + i * (rh + BIG_ROW_GAP), rw, rh))
+	out.rows = rows
+	out.icon = big_icon(rh)
+	out.lines = row_lines(rows[0], true) if n > 0 else 0
+	return out
+
+
+## The largest icon a large row of height `h` holds with room around it.
+static func big_icon(h: float) -> float:
+	for side in BIG_ICONS:
+		if side + 12.0 <= h:
+			return side
+	return BIG_ICONS[-1]
+
+
+## The height of a capital above its line at the text size.
+static func big_glyph() -> float:
+	return roundf(Ui.px * BIG_GLYPH)
+
+
+## Where a row's name, level and description are written: right of its icon, inside its margin.
 static func row_text(r: Rect2, big: bool) -> Rect2:
-	var left := 6.0 + BIG_ROW_ICON + 8.0 if big else 8.0 + ROW_ICON + 8.0
+	var left := 8.0 + big_icon(r.size.y) + 10.0 if big else 8.0 + ROW_ICON + 8.0
 	return Rect2(r.position.x + left, r.position.y, r.size.x - left - 8.0, r.size.y)
 
 
-## The baseline of a row's name and level, and of the first line of its description under them.
-static func row_name_y(r: Rect2, big: bool) -> float:
-	return r.position.y + (r.size.y + Ui.px) / 2.0 if big else r.position.y + 4.0 + Ui.px
+## The baseline of a normal row's name and level, and of the first line of its description under them.
+static func row_name_y(r: Rect2) -> float:
+	return r.position.y + 4.0 + Ui.px
 
 
 static func row_text_y(r: Rect2) -> float:
-	return row_name_y(r, false) + Ui.leading() + 2.0
+	return row_name_y(r) + Ui.leading() + 2.0
 
 
-## How many lines of description a row holds at the normal text size, the last one clear of its foot.
-static func row_lines(r: Rect2) -> int:
+## How many lines of description a row holds under its name, the last one clear of its foot.
+static func row_lines(r: Rect2, big := false) -> int:
+	if big:
+		return floori((r.size.y - 2.0 * BIG_ROW_PAD - big_glyph()) / Ui.leading())
 	return floori((r.end.y - 4.0 - row_text_y(r)) / Ui.leading()) + 1
-
-
-## The box under the large rows that holds the group and description of the one picked out.
-static func detail_rect(n: int) -> Rect2:
-	var foot: float = choice_rows(n, true)[-1].end.y
-	return Rect2((W - BIG_ROW_W) / 2.0, foot + 8.0, BIG_ROW_W, DETAIL_H)
-
-
-## How many lines of description the large text's box holds under its group's name.
-static func detail_lines() -> int:
-	var first := DETAIL_PAD + Ui.px + Ui.leading() + 2.0
-	return floori((DETAIL_H - DETAIL_PAD - first) / Ui.leading()) + 1
 
 
 ## The build panel's room, taller than the level-up's rows; large text shows it only on the pause screen, where it is wider and starts below the larger top bar.
@@ -1058,14 +1104,15 @@ func _choices(sim: Sim) -> void:
 	var praying: bool = main.state == "pray"
 	var supply: bool = main.state == "supply"
 	var n: int = main.choices.size()
-	var rows := choice_rows(n, big)
+	var lay := big_layout(n, Ui.view, Touch.inset_tl, Touch.inset_br, Touch.phone, Touch.fingertip) if big else {}
+	var rows: Array = lay.rows if big else choice_rows(n, false)
 	if shows_build(praying or supply, big):
 		draw_build(sim, build_rect())
 	var side_panel := shows_choice_panel(praying or supply, big)
 	if side_panel:
 		draw_choice_panel(sim, main.choices[clampi(main.selected, 0, n - 1)])
 	# With large text the heading takes the clock's place in the top bar, which already says the level.
-	var head_y := 16.0 + 8.0 * Ui.scale if big else ROW_TOP - 22.0
+	var head_y := Touch.inset_tl.y + 16.0 + 8.0 * Ui.scale - Ui.offset.y if big else ROW_TOP - 22.0
 	if praying:
 		ui.fit_text(self, tr("The gods hear you").to_upper(), 300.0 if big else W - 16.0, Vector2(0, head_y), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W, true)
 	elif supply or not big or sim.pending_levels == 0:
@@ -1083,65 +1130,69 @@ func _choices(sim: Sim) -> void:
 		panel(r, CREAM if picked else PARCH)
 		var info: Dictionary = sim.content.gods[id] if praying else (supply_row(sim, id) if supply else sim.content.upgrade(id))
 		var icon := supply_icon(id) if supply else icon_of(id)
-		var side := BIG_ROW_ICON if big else ROW_ICON
+		var side: float = lay.icon if big else ROW_ICON
 		if icon != null:
-			draw_texture_rect(icon, Rect2(r.position.x + (6.0 if big else 8.0), roundf(r.get_center().y - side / 2.0), side, side), false)
+			draw_texture_rect(icon, Rect2(r.position.x + 8.0, roundf(r.get_center().y - side / 2.0), side, side), false)
 		var area := row_text(r, big)
 		var words := _description(sim, id, praying)
-		# A short description leaves lines empty, so the name and text sit in the middle of the row beside the icon.
-		var spare := 0.0 if big else maxf(0.0, (row_lines(r) - Ui.lines_of(words, area.size.x).size()) * Ui.leading() / 2.0)
-		var name_y := row_name_y(r, big) + roundf(spare)
+		var right := tr("God").to_upper() if praying else ("" if supply else Upgrades.level_text(sim, id))
+		var name_y: float
+		if big:
+			var fit := Ui.block(words, area.size.x, lay.lines)
+			var used := mini(int(fit.lines), int(lay.lines))
+			# The name and description sit as one block in the middle of the row beside the icon.
+			var tall := big_glyph() + Ui.leading() + (used - 1) * Ui.lead_for(fit.size)
+			name_y = r.position.y + floorf((r.size.y - tall) / 2.0) + big_glyph()
+			ui.wrap_fit(self, words, Vector2(area.position.x, name_y + Ui.leading()), area.size.x, INK, lay.lines)
+		else:
+			# A short description leaves lines empty, so the name and text sit in the middle of the row beside the icon.
+			var spare := roundf(maxf(0.0, (row_lines(r) - Ui.lines_of(words, area.size.x).size()) * Ui.leading() / 2.0))
+			name_y = row_name_y(r) + spare
+			wrap_text(words, Vector2(area.position.x, row_text_y(r) + spare), area.size.x, INK)
 		text(str(info.name).to_upper(), Vector2(area.position.x, name_y), INK, HORIZONTAL_ALIGNMENT_LEFT, -1, false)
-		var right := tr("God").to_upper() if praying else Upgrades.level_text(sim, id)
-		if supply:
-			right = str(info.figure) if big else ""
-		text(right, Vector2(area.position.x, name_y), BROWN_TEXT if praying or supply else RED, HORIZONTAL_ALIGNMENT_RIGHT, area.size.x, false)
-		if not big:
-			wrap_text(words, Vector2(area.position.x, row_text_y(r) + roundf(spare)), area.size.x, INK)
-	var foot: float = rows[-1].end.y
-	if big:
-		var box := detail_rect(n)
-		panel(box)
-		var id: String = main.choices[clampi(main.selected, 0, n - 1)]
-		var group := tr("God") if praying else (tr("Supplies") if supply else tr(sim.content.group_of(id)))
-		var y := box.position.y + DETAIL_PAD + Ui.px
-		text(group.to_upper(), Vector2(box.position.x + DETAIL_PAD, y), BROWN_TEXT, HORIZONTAL_ALIGNMENT_LEFT, -1, false)
-		wrap_text(_description(sim, id, praying), Vector2(box.position.x + DETAIL_PAD, y + Ui.leading() + 2.0), box.size.x - 2.0 * DETAIL_PAD, INK)
-		foot = box.end.y
-	var hint_y := foot + (20.0 if big else 16.0)
+		text(right, Vector2(area.position.x, name_y), BROWN_TEXT if praying else RED, HORIZONTAL_ALIGNMENT_RIGHT, area.size.x, false)
 	touch_buttons.clear()
 	if Touch.phone:
-		_touch_choice_buttons(sim, praying, foot + 8.0)
+		if big:
+			_touch_choice_buttons(sim, praying, lay.buttons)
+		else:
+			var w := touch_button_width(3)
+			_touch_choice_buttons(sim, praying, Rect2((W - w) / 2.0, rows[-1].end.y + 8.0, w, 24.0))
 		return
+	var hint_y: float = lay.hint_y if big else rows[-1].end.y + 16.0
 	if praying:
 		_centred_hint(Controls.hint("gods"), hint_y, CREAM)
 		return
-	_centred_hint(Controls.hint("level"), hint_y, CREAM)
-	if side_panel or supply:
-		return
+	var level := Controls.hint("level")
 	var extras: Array = []
-	if sim.rerolls > 0:
-		extras.append(Controls.hint("reroll", sim.rerolls))
-	if sim.banishes > 0:
-		extras.append(Controls.hint("banish", sim.banishes))
+	if not (side_panel or supply):
+		if sim.rerolls > 0:
+			extras.append(Controls.hint("reroll", sim.rerolls))
+		if sim.banishes > 0:
+			extras.append(Controls.hint("banish", sim.banishes))
+	# Large text has room for one line of hints above the corners, so the rerolls and banishes follow the level's hint on it.
+	if big and not extras.is_empty():
+		_centred_hint("     ".join([level] + extras), hint_y, CREAM)
+		return
+	_centred_hint(level, hint_y, CREAM)
 	if not extras.is_empty():
-		_centred_hint("     ".join(extras), hint_y + (20.0 if big else 13.0), GOLD_LIGHT)
+		_centred_hint("     ".join(extras), hint_y + 13.0, GOLD_LIGHT)
 
 
-## A row of buttons under a phone's choice: take or call the one picked out, then reroll and banish, or not now.
-func _touch_choice_buttons(sim: Sim, praying: bool, y: float) -> void:
+## A row of buttons under a phone's choice: take or call the one picked out, then reroll and banish, or not now, each the size of `one` and the row centred where it is.
+func _touch_choice_buttons(sim: Sim, praying: bool, one: Rect2) -> void:
 	var ids: Array = [["call", tr("call")], ["not_now", tr("not now")]] if praying else [["take", tr("take it")]]
 	var levelling: bool = main.state == "choose"
 	if levelling and sim.rerolls > 0:
 		ids.append(["reroll", "%s (%d)" % [tr("reroll"), sim.rerolls]])
 	if levelling and sim.banishes > 0:
 		ids.append(["banish", "%s (%d)" % [tr("banish"), sim.banishes]])
-	var h := 30.0 if Ui.scale > 1 else 24.0
 	var gap := 8.0
-	var w := touch_button_width(ids.size())
-	var x0 := roundf((W - ids.size() * w - (ids.size() - 1) * gap) / 2.0)
+	var w := one.size.x
+	var h := one.size.y
+	var x0 := roundf(one.get_center().x - (ids.size() * w + (ids.size() - 1) * gap) / 2.0)
 	for k in ids.size():
-		var r := Rect2(x0 + k * (w + gap), y, w, h)
+		var r := Rect2(x0 + k * (w + gap), one.position.y, w, h)
 		touch_buttons[ids[k][0]] = r
 		if k == 0:
 			draw_rect(r.grow(3), GOLD)
@@ -1149,9 +1200,9 @@ func _touch_choice_buttons(sim: Sim, praying: bool, y: float) -> void:
 		ui.fit_text(self, str(ids[k][1]).to_upper(), w - 12.0, Vector2(r.position.x, r.position.y + h / 2.0 + Ui.px * 3 / 8), INK, HORIZONTAL_ALIGNMENT_CENTER, w)
 
 
-## The width of each of `n` buttons in the row under a phone's choice.
+## The width of each of `n` buttons in the row under a phone's choice at the normal text size.
 static func touch_button_width(n: int) -> float:
-	return minf(170.0 if Ui.scale > 1 else 130.0, (W - 32.0 - (n - 1) * 8.0) / n)
+	return minf(130.0, (W - 32.0 - (n - 1) * 8.0) / n)
 
 
 ## The phone button under a choice at a point, or "".
@@ -1167,17 +1218,16 @@ static func supply_row(sim: Sim, id: String) -> Dictionary:
 	return supply_text(id, sim.legion_health(), sim.c_pos.size())
 
 
-## A supply cart's row as {name, line, figure}: what the reward is, a line that tells the state it answers, and that state in short for the large text's rows.
+## A supply cart's row as {name, line}: what the reward is, and a line that tells the state it answers.
 static func supply_text(id: String, health: Dictionary, coins: int) -> Dictionary:
 	match id:
 		"heal":
 			return {"name": TranslationServer.translate("Heal the legion"),
-				"line": TranslationServer.translate("%d wounded, legion at %d%% health, commander at %d%%") % [health.wounded, health.share, health.commander],
-				"figure": "%d%%" % health.share}
+				"line": TranslationServer.translate("%d wounded, legion at %d%% health, commander at %d%%") % [health.wounded, health.share, health.commander]}
 		"magnet":
 			return {"name": TranslationServer.translate("Every coin pulled in"),
-				"line": TranslationServer.translate("%d coins lie on the field") % coins, "figure": str(coins)}
-	return {"name": TranslationServer.translate("A free level-up"), "line": TranslationServer.translate("One more choice of arms, drills or recruits"), "figure": ""}
+				"line": TranslationServer.translate("%d coins lie on the field") % coins}
+	return {"name": TranslationServer.translate("A free level-up"), "line": TranslationServer.translate("One more choice of arms, drills or recruits")}
 
 
 func _description(sim: Sim, id: String, praying: bool) -> String:
