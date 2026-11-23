@@ -2254,14 +2254,15 @@ func _draw_stains(view: Rect2) -> void:
 	var fade_in := float(cfg.stain_in)
 	var big := float(cfg.big_stain)
 	var now := sim.time
-	var area := view.grow(-40.0)
+	# A first cut by where each man fell, wide enough for the chieftain's pool, which lies furthest from that point and spreads widest.
+	var near := view.grow((knock + torso) * float(sim.b.chief_death.stain) + _stain_cells[2] / 2.0)
 	for k in sim.stain_pos.size():
 		var age := now - sim.stain_born[k]
 		var life := sim.stain_life[k]
 		if age < 0.0 or age >= life:
 			continue
 		var p := sim.stain_pos[k]
-		if not area.has_point(p):
+		if not near.has_point(p):
 			continue
 		var sz := sim.stain_size[k]
 		var d := sim.stain_dir[k]
@@ -2273,6 +2274,8 @@ func _draw_stains(view: Rect2) -> void:
 		# The pool spreads under the body's middle, which lies to the side it toppled towards.
 		var fell := signf(d.x) if absf(d.x) > 0.05 else (1.0 if seed_n % 2 == 0 else -1.0)
 		var mid := (p + d * knock * sz + Vector2(fell * sin(topple * maxf(absf(d.x), lean_least)) * torso * sz, -2.0)).round()
+		if not view.grow(cell / 2.0 - 80.0).has_point(mid):
+			continue
 		draw_texture_rect_region(_stain_sheet, Rect2(mid - Vector2(cell, cell) / 2.0, Vector2(cell, cell)), Rect2(col * cell, _stain_rows[row], cell, cell), Color(1, 1, 1, a))
 
 
