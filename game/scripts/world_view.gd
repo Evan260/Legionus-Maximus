@@ -5,6 +5,11 @@ extends Node2D
 # How far the wheat tile is laid past each field for its frayed edge, and how many fields the shader holds (its `fields` array).
 const FIELD_FRAY := 20.0
 const FIELD_SHAPES := 32
+# The wheat tile's rows of stalks repeat this far apart down the world, and each row's ears start this far below where the row begins.
+const WHEAT_ROW := 19.0
+const WHEAT_EARS := 2.0
+# Low props that can stand in a wheat field, whose lower part the row of wheat in front of them hides.
+const IN_WHEAT := ["rock", "stones", "log"]
 # Ground pictures sort 60000 px above where they lie, so every depth key from here up belongs to something standing.
 const STANDING_KEY := 70000 * 65536
 # How many stain shapes are painted for each size and direction.
@@ -188,6 +193,38 @@ func _add_swaying(at: Vector2, f: Array, mod: Color) -> void:
 	_add(at.y, Rect2(rect.position + Vector2(0, top), Vector2(rect.size.x, rect.size.y - top)), at - f[1] + Vector2(0, top), mod)
 
 
+## Whether a prop of this kind at p stands in one of these fields, or in the wheat frayed past a field's edge, low enough for the wheat in front to hide its lower part.
+static func stands_in_wheat(kind: String, p: Vector2, fields: Array, turn: float) -> bool:
+	if not IN_WHEAT.has(kind):
+		return false
+	var at := p.rotated(-turn)
+	for f: Rect2 in fields:
+		if f.grow(FIELD_FRAY).has_point(at):
+			return true
+	return false
+
+
+## For a prop whose lowest pixel row is `foot` and which is `height` px tall: the row where the wheat in front of its foot starts covering it, and how far down that row of wheat is moved.
+static func wheat_cover(foot: float, height: float) -> Vector2:
+	var ears := (floorf((foot - WHEAT_ROW + 1.0) / WHEAT_ROW) + 1.0) * WHEAT_ROW + WHEAT_EARS
+	# The wheat covers at most the lower half, moved down when its ears would reach higher, so the prop's top always shows.
+	var cut := maxf(ears, foot + 1.0 - floorf(height / 2.0))
+	return Vector2(cut, cut - ears)
+
+
+## A low prop in a wheat field, drawn in two pieces so livery.gdshader can paint the row of wheat in front of it over the lower one.
+func _add_in_wheat(y: float, f: Array, at: Vector2, mod: Color) -> void:
+	var rect: Rect2 = f[0]
+	var dest: Vector2 = (at - f[1]).round()
+	var cover := wheat_cover(dest.y + rect.size.y - 1.0, rect.size.y)
+	var top := clampf(cover.x - dest.y, 0.0, rect.size.y)
+	if top > 0.0:
+		_add(y, Rect2(rect.position, Vector2(rect.size.x, top)), dest, mod)
+	if top < rect.size.y:
+		var marked := Color(mod.r, mod.g + Livery.MARK, mod.b + Livery.MARK * cover.y, mod.a)
+		_add(y, Rect2(rect.position + Vector2(0, top), Vector2(rect.size.x, rect.size.y - top)), dest + Vector2(0, top), marked)
+
+
 ## Rounds a moving unit to the pixel relative to the camera, so men marching beside the commander keep a steady gap on a diagonal.
 func _snap(p: Vector2) -> Vector2:
 	return (p - _cam).round() + _cam.round()
@@ -227,6 +264,7 @@ func _draw() -> void:
 	var him := Rect2(cam - Vector2(5, 26), Vector2(10, 26))
 	var chops: Dictionary = sim.terrain.chops
 	var shaking := float(sim.b.felling.shake_seconds)
+	var fields: Array = sim.terrain.fields_in(view) if _wheat_tile != null else []
 	_felling.clear()
 	# The chunks are read in place, in the order props_in() would join them.
 	for cx in range(floori(view.position.x / Terrain.CHUNK), floori(view.end.x / Terrain.CHUNK) + 1):
@@ -256,6 +294,9 @@ func _draw() -> void:
 					mod = Color(1, 1, 1, 0.55)
 				if pr[0] == "feather_grass":
 					_add_swaying(pr[1], f, mod)
+					continue
+				if not fields.is_empty() and stands_in_wheat(pr[0], at, fields, sim.terrain.field_turn):
+					_add_in_wheat(pr[1].y, f, at, mod)
 					continue
 				_add(pr[1].y, f[0], at - f[1], mod)
 	if not sim.terrain.posts.is_empty():
@@ -440,16 +481,19 @@ func _draw_fields() -> void:
 	for f in fields:
 		if shapes.size() < FIELD_SHAPES:
 			shapes.append(_field_shape(f, fields))
-	_wheat.material.set_shader_parameter("fields", shapes)
-	_wheat.material.set_shader_parameter("count", shapes.size())
-	_wheat.material.set_shader_parameter("turn", sim.terrain.field_turn)
-	_wheat.material.set_shader_parameter("reach", FIELD_FRAY)
 	var tint: Array = sim.terrain.valley.get("grain_tint", [1.0, 1.0, 1.0])
-	_wheat.material.set_shader_parameter("tint", Vector3(float(tint[0]), float(tint[1]), float(tint[2])))
+	# This node's own material draws the wheat over rocks in the fields, so it frays the wheat the same way.
+	for mat: ShaderMaterial in [_wheat.material, material]:
+		mat.set_shader_parameter("fields", shapes)
+		mat.set_shader_parameter("count", shapes.size())
+		mat.set_shader_parameter("turn", sim.terrain.field_turn)
+		mat.set_shader_parameter("reach", FIELD_FRAY)
+		mat.set_shader_parameter("wheat_tint", Vector3(float(tint[0]), float(tint[1]), float(tint[2])))
 	if _wheat_tile == null:
 		# The tile has a texture of its own so it repeats across a whole field in one piece, with no seams where atlas pieces would meet.
 		var src: Rect2 = atlas.prop_frame("wheat_field")[0]
 		_wheat_tile = ImageTexture.create_from_image(atlas.texture.get_image().get_region(Rect2i(src)))
+		material.set_shader_parameter("wheat_tile", _wheat_tile)
 	for f in fields:
 		var area: Rect2 = sim.terrain.field_box(f.grow(FIELD_FRAY)).intersection(view)
 		if area.size.x > 0.0 and area.size.y > 0.0:

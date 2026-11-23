@@ -11035,3 +11035,34 @@ func test_touch_phone_hints_and_options_name_no_keys(b: Dictionary) -> void:
 	check(SettingsScreen.rows().has("music_folder") and SettingsScreen.rows().has("controls"), "and its music folder and key bindings")
 	Controls.install({})
 	Profile.settings = saved
+
+
+func test_a_rock_in_a_field_sits_behind_the_row_of_wheat_in_front(b: Dictionary) -> void:
+	var view: GDScript = load("res://scripts/world_view.gd")
+	var field := Rect2(0, 0, 200, 150)
+	check(view.stands_in_wheat("stones", Vector2(100, 60), [field], 0.0), "stones in a field stand among the wheat")
+	check(view.stands_in_wheat("rock", Vector2(-10, 60), [field], 0.0), "and so does a rock in the wheat frayed past its edge")
+	check(not view.stands_in_wheat("rock", Vector2(-60, 60), [field], 0.0), "but not a rock out on the grass")
+	check(not view.stands_in_wheat("oak", Vector2(100, 60), [field], 0.0), "and a tree is never hidden by wheat")
+	check(view.stands_in_wheat("rock", Vector2(100, 60).rotated(0.5), [field], 0.5), "a rock in a field turned along a canal stands among its wheat")
+	var row := 19.0
+	var low := true
+	var whole_rows := true
+	var top_shows := true
+	var some_covered := false
+	for foot in range(-40, 80):
+		for height in [16.0, 23.0]:
+			var c: Vector2 = view.wheat_cover(foot, height)
+			var covered := float(foot) - c.x + 1.0
+			some_covered = some_covered or covered > 0.0
+			top_shows = top_shows and covered <= floorf(height / 2.0)
+			# The wheat drawn starts at a row's ears and is that row's, whose stalks stand below the foot.
+			var ears := c.x - c.y
+			whole_rows = whole_rows and is_equal_approx(posmod(ears, row), 2.0) and ears + row - 3.0 > float(foot) and ears - row + 16.0 <= float(foot)
+			low = low and c.y >= 0.0 and (c.y == 0.0 or covered == floorf(height / 2.0))
+	check(some_covered, "the row in front covers the lower part of a rock")
+	check(top_shows, "but never more than half of it, so its top shows")
+	check(whole_rows, "the wheat over it is the row whose stalks stand just in front of its foot")
+	check(low, "moved down only as far as keeps the top showing")
+	check(view.wheat_cover(37.0, 16.0).x > 37.0, "a rock at the foot of a row stands in front of it, with nothing covering it")
+	check(view.wheat_cover(44.0, 16.0) == Vector2(40, 0), "a rock just behind a row's ears has its foot hidden by them where they stand")
