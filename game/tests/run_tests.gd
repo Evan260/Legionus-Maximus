@@ -3066,6 +3066,22 @@ func test_settings_make_the_audio_buses(b: Dictionary) -> void:
 	SettingsScreen.apply_audio(Profile.SETTING_DEFAULTS)
 
 
+func test_a_setting_leaves_a_maximized_window_maximized(_b: Dictionary) -> void:
+	check(SettingsScreen.window_change(false, DisplayServer.WINDOW_MODE_MAXIMIZED) == -1, "a maximized window stays maximized")
+	check(SettingsScreen.window_change(false, DisplayServer.WINDOW_MODE_WINDOWED) == -1, "a window stays a window")
+	check(SettingsScreen.window_change(false, DisplayServer.WINDOW_MODE_FULLSCREEN) == DisplayServer.WINDOW_MODE_WINDOWED, "full screen turned off makes a window")
+	check(SettingsScreen.window_change(false, DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN) == DisplayServer.WINDOW_MODE_WINDOWED, "exclusive full screen turned off makes a window")
+	check(SettingsScreen.window_change(true, DisplayServer.WINDOW_MODE_MAXIMIZED) == DisplayServer.WINDOW_MODE_FULLSCREEN, "full screen turned on fills the screen")
+	check(SettingsScreen.window_change(true, DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN) == -1, "a full screen stays full")
+
+
+func test_a_volume_bar_follows_the_pointer(_b: Dictionary) -> void:
+	var bar := Rect2(100, 50, 80, 20)
+	check(is_equal_approx(SettingsScreen.value_at(bar, 140.0), 0.5), "the middle of the bar is half")
+	check(is_equal_approx(SettingsScreen.value_at(bar, 172.0), 0.9), "a point near the end snaps to a tenth")
+	check(SettingsScreen.value_at(bar, 20.0) == 0.0 and SettingsScreen.value_at(bar, 400.0) == 1.0, "a drag past either end stops at the end")
+
+
 func test_summary_lists_the_top_eight_sources(b: Dictionary) -> void:
 	var s := Sim.new(b, content, {"seed": 208})
 	for id in ["pilum", "fire_arrows", "scorpio", "onager", "caltrops", "stakes", "fire_pots", "war_dogs", "trumpets", "eagle"]:

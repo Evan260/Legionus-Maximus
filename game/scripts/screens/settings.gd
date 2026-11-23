@@ -205,15 +205,37 @@ func _draw_main(c: CanvasItem, ui: Ui) -> void:
 						ui.button(c, rect, key, tr(t[1]), tr("On") if bool(Profile.setting(key)) else tr("Off"))
 
 
-## A tap on a volume's bar sets the volume where the finger lands; true when the tap was used.
+## The window mode to switch to for the full screen setting, or -1 to leave it; a maximized window is already a window.
+static func window_change(fullscreen: bool, current: int) -> int:
+	var full := current == DisplayServer.WINDOW_MODE_FULLSCREEN or current == DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN
+	if fullscreen == full:
+		return -1
+	return DisplayServer.WINDOW_MODE_FULLSCREEN if fullscreen else DisplayServer.WINDOW_MODE_WINDOWED
+
+
+## The volume at a point across a bar, in tenths, held to the bar's ends.
+static func value_at(bar: Rect2, x: float) -> float:
+	return clampf(snappedf((x - bar.position.x) / bar.size.x, 0.1), 0.0, 1.0)
+
+
+## A tap or click on a volume's bar sets the volume where it lands; true when it was used.
 func tap_at(id: String, at: Vector2) -> bool:
 	if page != "main" or not _bars.has(id):
 		return false
 	var bar: Rect2 = _bars[id]
 	if at.x < bar.position.x - 8.0 or at.x > bar.end.x + 8.0:
 		return false
-	_put(id, clampf(snappedf((at.x - bar.position.x) / bar.size.x, 0.1), 0.0, 1.0))
+	slide(id, at)
 	return true
+
+
+## Moves a volume that is being dragged to the pointer, wherever the pointer has gone.
+func slide(id: String, at: Vector2) -> void:
+	if page != "main" or not _bars.has(id):
+		return
+	var v := value_at(_bars[id], at.x)
+	if not is_equal_approx(v, float(Profile.setting(id))):
+		_put(id, v)
 
 
 ## The height of each row on the key page and the step between rows, so every action and the buttons below fit the room.

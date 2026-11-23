@@ -84,6 +84,8 @@ var touch_pad: TouchPad = null
 var _back_at := -100000
 ## Each finger on a screen by its touch index, as {from, moved, pulled, state}, so a finger lifted where it landed is a tap.
 var _fingers := {}
+## The volume whose bar the mouse is holding, empty when none is.
+var _sliding := ""
 ## Whether the phone's text size has been settled, which waits for the screen's size to be known.
 var _text_sized := false
 const RUN_SETUP := {"province": "germania", "commander": "tribune", "difficulty": "medium", "endless": false, "decimatio": false}
@@ -471,8 +473,8 @@ func _summary_shot(won := false) -> void:
 func apply_settings() -> void:
 	var cfg := Profile.settings_of(Profile.settings)
 	SettingsScreen.apply_audio(cfg)
-	var want := DisplayServer.WINDOW_MODE_FULLSCREEN if cfg.fullscreen else DisplayServer.WINDOW_MODE_WINDOWED
-	if DisplayServer.window_get_mode() != want and not Touch.phone:
+	var want := SettingsScreen.window_change(bool(cfg.fullscreen), DisplayServer.window_get_mode())
+	if want >= 0 and not Touch.phone:
 		DisplayServer.window_set_mode(want)
 	Ui.set_text_size(int(cfg.text_size), balance)
 	world.shake_on = cfg.shake
@@ -994,16 +996,26 @@ func _unhandled_input(event: InputEvent) -> void:
 		at = hud.make_input_local(event).position - Ui.offset
 	if screens.has(state):
 		if event is InputEventMouseMotion:
+			if _sliding != "" and state == "settings" and event.button_mask & MOUSE_BUTTON_MASK_LEFT:
+				screens.settings.slide(_sliding, at)
+				return
 			ui.hover(at)
+		elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+			_sliding = ""
 		elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 			if state == "over" and screens.over.revealing():
 				if Game.confirm_allowed(state, opened_at, clock, balance):
 					screens.over.skip()
 				return
 			var id := ui.at(at)
-			if id != "":
-				ui.focus = id
-				_activate(id)
+			if id == "":
+				return
+			ui.focus = id
+			if screens[state].has_method("tap_at") and screens[state].tap_at(id, at):
+				_sliding = id
+				Audio.play("click")
+				return
+			_activate(id)
 		return
 	if not Game.choosing(state):
 		return
