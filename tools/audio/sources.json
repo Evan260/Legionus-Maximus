@@ -125,12 +125,6 @@
   "title": "Bass drum (bdrum_special_sidehit.wav)",
   "page": "https://freesound.org/people/sgossner/sounds/375287/"
  },
- "345635": {
-  "license": "CC0",
-  "author": "cabled_mess",
-  "title": "Frame drum_oneshot_RAW_15.wav",
-  "page": "https://freesound.org/people/cabled_mess/sounds/345635/"
- },
  "581467": {
   "license": "CC0",
   "author": "johnnydekk",
@@ -400,65 +394,5 @@
   "author": "Noxdl",
   "title": "Didgeridoo Monster Roar",
   "page": "https://freesound.org/people/Noxdl/sounds/204912/"
- },
- "373556": {
-  "license": "CC0",
-  "author": "sgossner",
-  "title": "Harp - A4 (KSHarp_A4_mf.wav)",
-  "page": "https://freesound.org/people/sgossner/sounds/373556/"
- },
- "373559": {
-  "license": "CC0",
-  "author": "sgossner",
-  "title": "Harp - B3 (KSHarp_B3_mf.wav)",
-  "page": "https://freesound.org/people/sgossner/sounds/373559/"
- },
- "373560": {
-  "license": "CC0",
-  "author": "sgossner",
-  "title": "Harp - B5 (KSHarp_B5_mf.wav)",
-  "page": "https://freesound.org/people/sgossner/sounds/373560/"
- },
- "373563": {
-  "license": "CC0",
-  "author": "sgossner",
-  "title": "Harp - C5 (KSHarp_C5_mf.wav)",
-  "page": "https://freesound.org/people/sgossner/sounds/373563/"
- },
- "373565": {
-  "license": "CC0",
-  "author": "sgossner",
-  "title": "Harp - D4 (KSHarp_D4_mf.wav)",
-  "page": "https://freesound.org/people/sgossner/sounds/373565/"
- },
- "373566": {
-  "license": "CC0",
-  "author": "sgossner",
-  "title": "Harp - D6 (KSHarp_D6_mf.wav)",
-  "page": "https://freesound.org/people/sgossner/sounds/373566/"
- },
- "373568": {
-  "license": "CC0",
-  "author": "sgossner",
-  "title": "Harp - E5 (KSHarp_E5_mf.wav)",
-  "page": "https://freesound.org/people/sgossner/sounds/373568/"
- },
- "373570": {
-  "license": "CC0",
-  "author": "sgossner",
-  "title": "Harp - E#4 (KSHarp_F4_mf.wav)",
-  "page": "https://freesound.org/people/sgossner/sounds/373570/"
- },
- "373571": {
-  "license": "CC0",
-  "author": "sgossner",
-  "title": "Harp - E#6 (KSHarp_F6_mf.wav)",
-  "page": "https://freesound.org/people/sgossner/sounds/373571/"
- },
- "373573": {
-  "license": "CC0",
-  "author": "sgossner",
-  "title": "Harp - F#5 (KSHarp_G5_mf.wav)",
-  "page": "https://freesound.org/people/sgossner/sounds/373573/"
  }
 }

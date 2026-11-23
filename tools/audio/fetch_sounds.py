@@ -23,7 +23,7 @@ SOUNDS = {
     163453: "LeMudCrab", 249810: "spookymodem",
     539956: "adharca", 482686: "jocmusic",
     651646: "Krizin", 267248: "BerlinGameScene",
-    486140: "Anuj_Shrestha1", 486141: "Anuj_Shrestha1", 375287: "sgossner", 345635: "cabled_mess", 581467: "johnnydekk",
+    486140: "Anuj_Shrestha1", 486141: "Anuj_Shrestha1", 375287: "sgossner", 581467: "johnnydekk",
     547209: "MrFossy", 464486: "elynch0901",
     416839: "tonsil5", 416838: "tonsil5", 554443: "Blankened", 577032: "Blankened",
     347174: "Davidsraba", 350875: "cabled_mess",
@@ -38,9 +38,6 @@ SOUNDS = {
     513694: "kasparsj", 350978: "cabled_mess", 621352: "WelvynZPorterSamples", 274121: "bone666138",
     361772: "kingsrow", 840628: "loganzsound", 431851: "nofeedbak",
     431174: "Blankened", 186932: "ReadeOnly", 505063: "olver", 204912: "Noxdl",
-    # The VSCO 2 CE harp notes the calm music is played from, the same ones the other games use.
-    373556: "sgossner", 373559: "sgossner", 373560: "sgossner", 373563: "sgossner", 373565: "sgossner",
-    373566: "sgossner", 373568: "sgossner", 373570: "sgossner", 373571: "sgossner", 373573: "sgossner",
 }
 
 

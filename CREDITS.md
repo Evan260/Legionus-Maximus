@@ -1,6 +1,6 @@
 # Credits
 
-Every recording is CC0 (free for any use, no credit required), and they are listed here anyway. `tools/audio/fetch_sounds.py` downloads them into `tools/audio/downloads/` under their Freesound ids, `tools/audio/cut_sounds.py` cuts the effects from them and `tools/audio/make_music.py` builds the trailer's harp and drum loops. The battle music is three CC0 tracks from OpenGameArt, levelled and saved as .ogg. Nothing under CC-BY or any other licence that asks for credit is used.
+Every recording is CC0 (free for any use, no credit required), and they are listed here anyway. `tools/audio/fetch_sounds.py` downloads them into `tools/audio/downloads/` under their Freesound ids, and `tools/audio/cut_sounds.py` cuts the effects from them. The battle music is three CC0 tracks from OpenGameArt, levelled and saved as .ogg. Nothing under CC-BY or any other licence that asks for credit is used.
 
 | Game sounds | Recordings | Licence |
 |---|---|---|
@@ -11,7 +11,7 @@ Every recording is CC0 (free for any use, no credit required), and they are list
 | `sfx/bolt_*` | [Crossbow Shot](https://freesound.org/people/LeMudCrab/sounds/163453/) by LeMudCrab; [Crossbow Shot.wav](https://freesound.org/people/spookymodem/sounds/249810/) by spookymodem | CC0 |
 | `sfx/horn_*` | [war horn.wav](https://freesound.org/people/adharca/sounds/539956/) by adharca; [War Horn Blast](https://freesound.org/people/jocmusic/sounds/482686/) by jocmusic | CC0 |
 | `sfx/roar_*` | [Crowd Cheer 5](https://freesound.org/people/Krizin/sounds/651646/) by Krizin; [BerlinGameScene.com Crowd Cheer 2](https://freesound.org/people/BerlinGameScene/sounds/267248/) by BerlinGameScene | CC0 |
-| `sfx/drum_*`, and the drum layer of the music | [taiko.wav](https://freesound.org/people/Anuj_Shrestha1/sounds/486140/) by Anuj_Shrestha1; [taiko2.wav](https://freesound.org/people/Anuj_Shrestha1/sounds/486141/) by Anuj_Shrestha1; [Bass drum (bdrum_special_sidehit.wav)](https://freesound.org/people/sgossner/sounds/375287/) by sgossner; [Fractanimal_Acoustic_Drum_Kit_Low_Tom_1.wav](https://freesound.org/people/johnnydekk/sounds/581467/) by johnnydekk; [Frame drum_oneshot_RAW_15.wav](https://freesound.org/people/cabled_mess/sounds/345635/) by cabled_mess | CC0 |
+| `sfx/drum_*` | [taiko.wav](https://freesound.org/people/Anuj_Shrestha1/sounds/486140/) by Anuj_Shrestha1; [taiko2.wav](https://freesound.org/people/Anuj_Shrestha1/sounds/486141/) by Anuj_Shrestha1; [Bass drum (bdrum_special_sidehit.wav)](https://freesound.org/people/sgossner/sounds/375287/) by sgossner; [Fractanimal_Acoustic_Drum_Kit_Low_Tom_1.wav](https://freesound.org/people/johnnydekk/sounds/581467/) by johnnydekk | CC0 |
 | `sfx/hurt_*` | [Voice_AdultMale_PainGrunts_09.wav](https://freesound.org/people/MrFossy/sounds/547209/) by MrFossy; [Male Grunting In Pain](https://freesound.org/people/elynch0901/sounds/464486/) by elynch0901 | CC0 |
 | `sfx/die_*` | [Grunt1 - Death Pain.wav](https://freesound.org/people/tonsil5/sounds/416839/) by tonsil5; [Grunt2 - Death Pain.wav](https://freesound.org/people/tonsil5/sounds/416838/) by tonsil5; [Male Death Sound](https://freesound.org/people/Blankened/sounds/554443/) by Blankened; [MaleDeathSound13.wav](https://freesound.org/people/Blankened/sounds/577032/) by Blankened | CC0 |
 | `sfx/coin_*` | [Coin Pickup Sound V 0.2](https://freesound.org/people/Davidsraba/sounds/347174/) by Davidsraba; [Coin_C_07](https://freesound.org/people/cabled_mess/sounds/350875/) by cabled_mess | CC0 |
@@ -38,9 +38,8 @@ Every recording is CC0 (free for any use, no credit required), and they are list
 | `sfx/boom_*` | [Fireball Explosion.wav](https://freesound.org/people/Blankened/sounds/431174/) by Blankened; [fire_explosion.wav](https://freesound.org/people/ReadeOnly/sounds/186932/) by ReadeOnly | CC0 |
 | `sfx/apollo_*` | [HARP GLISSANDO UP.wav](https://freesound.org/people/olver/sounds/505063/) by olver | CC0 |
 | `sfx/boss_*` | [Didgeridoo Monster Roar](https://freesound.org/people/Noxdl/sounds/204912/) by Noxdl | CC0 |
-| harp notes the trailer's harp loop is played from | VSCO 2 CE harp samples by sgossner (Versilian Studios Chamber Orchestra 2 Community Edition): [Harp - A4 (KSHarp_A4_mf.wav)](https://freesound.org/people/sgossner/sounds/373556/), [Harp - B3 (KSHarp_B3_mf.wav)](https://freesound.org/people/sgossner/sounds/373559/), [Harp - B5 (KSHarp_B5_mf.wav)](https://freesound.org/people/sgossner/sounds/373560/), [Harp - C5 (KSHarp_C5_mf.wav)](https://freesound.org/people/sgossner/sounds/373563/), [Harp - D4 (KSHarp_D4_mf.wav)](https://freesound.org/people/sgossner/sounds/373565/), [Harp - D6 (KSHarp_D6_mf.wav)](https://freesound.org/people/sgossner/sounds/373566/), [Harp - E5 (KSHarp_E5_mf.wav)](https://freesound.org/people/sgossner/sounds/373568/), [Harp - E#4 (KSHarp_F4_mf.wav)](https://freesound.org/people/sgossner/sounds/373570/), [Harp - E#6 (KSHarp_F6_mf.wav)](https://freesound.org/people/sgossner/sounds/373571/), [Harp - F#5 (KSHarp_G5_mf.wav)](https://freesound.org/people/sgossner/sounds/373573/) | CC0 |
 
-The game's music is the battle tracks below, played one after another from the moment the game opens, with any music the player puts in their own music folder. `tools/audio/make_music.py` builds a harp loop from the VSCO 2 CE harp samples and a drum loop from the drum recordings above, used only in the trailer.
+The game's music is the battle tracks below, played one after another from the moment the game opens, with any music the player puts in their own music folder.
 
 | Battle music | Track | Licence |
 |---|---|---|

@@ -47,4 +47,4 @@ Pushing a version tag such as `v0.1.0` makes GitHub test the game, build the ful
 
 ## Art and sound
 
-Everything is pixel art drawn with PixelLab (what each picture cost, in US dollars, is in `tools/art/ledger.csv`) and packed into one atlas by `tools/art/build_atlas.py`, so the whole horde draws in one batch. Every sound is a CC0 recording, cut by the scripts in `tools/audio/`, and the music is built from harp and drum recordings by `tools/audio/make_music.py`. Everything shipped with the game is credited in [CREDITS.md](CREDITS.md).
+Everything is pixel art drawn with PixelLab (what each picture cost, in US dollars, is in `tools/art/ledger.csv`) and packed into one atlas by `tools/art/build_atlas.py`, so the whole horde draws in one batch. Every sound is a CC0 recording, cut by the scripts in `tools/audio/`, and the music is three CC0 battle tracks from OpenGameArt. Everything shipped with the game is credited in [CREDITS.md](CREDITS.md).
