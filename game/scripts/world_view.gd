@@ -566,8 +566,9 @@ func _draw_floor() -> void:
 	var gh := ground.get_height()
 	var gx0 := floori(top_left.x / gw)
 	var gy0 := floori(top_left.y / gh)
-	for gx in range(gx0, gx0 + ceili(screen.x / gw) + 2):
-		for gy in range(gy0, gy0 + ceili(screen.y / gh) + 2):
+	# A tile to spare on every side covers the strip a shake shows past the screen's edge.
+	for gx in range(gx0 - 1, gx0 + ceili(screen.x / gw) + 2):
+		for gy in range(gy0 - 1, gy0 + ceili(screen.y / gh) + 2):
 			_floor.draw_texture(ground, Vector2(gx * gw, gy * gh))
 
 
