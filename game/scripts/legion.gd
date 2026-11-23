@@ -692,5 +692,11 @@ func _sortie(s: Dictionary, dt: float, sim: Sim) -> void:
 	if d <= 5.0:
 		s.sortie = 0
 		return
-	s.pos += back / d * minf(d, speed * dt)
-	s.facing = back / d
+	var way := back / d
+	# A rider whose place lies across a ravine follows the route map round it or over a bridge, as the men in formation do.
+	if sim.terrain.crosses_ravine(s.pos, s.target):
+		var f := sim.terrain.flow_at(s.pos)
+		if f != Vector2.ZERO:
+			way = f
+	s.pos += way * minf(d, speed * dt)
+	s.facing = way

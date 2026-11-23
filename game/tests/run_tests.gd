@@ -1068,6 +1068,17 @@ func test_cavalry_strikes_a_big_enemy_instead_of_pushing_him(b: Dictionary) -> v
 	check(s.horde.e_pos[0].distance_to(at) < 40.0, "without carrying him along (%.0f)" % s.horde.e_pos[0].distance_to(at))
 
 
+func test_a_rider_rides_home_round_a_ravine(b: Dictionary) -> void:
+	var s := _one_soldier(b, 1520, "cavalry", false)
+	_gorge(s, -160, 160, 100, 45)
+	var cav: Dictionary = s.soldiers[0]
+	cav.pos = s.commander.pos + Vector2(0, 220)
+	cav.sortie = 2
+	_step_dt(s, 10.0)
+	check(cav.sortie == 0, "a rider whose place lies across a ravine rides round it and rejoins the formation")
+	check(cav.pos.distance_to(cav.target) < 8.0, "and reaches his place (%.0f px off)" % cav.pos.distance_to(cav.target))
+
+
 func test_ballista_bolt_pierces_all(b: Dictionary) -> void:
 	var s := _legion_sim(b, 9, ["ballista"])
 	for k in 3:
