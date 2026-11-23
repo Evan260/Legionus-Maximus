@@ -47,6 +47,8 @@ USD_PER_MILLION = 10.0
 PLACEHOLDER = re.compile(r"%[a-z]+%|%[-0-9.]*[sdifxXcv%]|\{[A-Za-z0-9_]*\}| {2,}|[Tt]estudo|Decimatio|Tablinum|Steam|Space|Esc|WASD|A / D|R / Y|B / X")
 # Godot's % operator fills these in order, so a translation must keep them in the English order.
 PERCENT = re.compile(r"%[-0-9.]*[sdifxXcv]")
+# Named fields, which format() fills by name, so a translation may move them but must keep every one.
+FIELDS = re.compile(r"\{[A-Za-z0-9_]*\}")
 # The English a short word is sent as, where on its own the translator picks the wrong sense (Arms as body parts).
 HINTS = {
     "Arms": "Weapons", "Forged": "Forged weapon", "Drill": "Military training", "Banked": "Total saved in the bank",
@@ -116,7 +118,8 @@ def shield_names(text, lang, glossary, names):
 
 
 def apply_fixes(header, rows, fixes):
-    """Writes the hand-checked cells over the sheet; a fix whose English no longer matches the sheet is reported and skipped."""
+    """Writes the hand-checked cells over the sheet. A fix whose English no longer matches the sheet, or a cell that would break a
+    format call, is reported and skipped, keeping the machine's translation."""
     by_key = {r[0]: r for r in rows}
     for key, cells in fixes.items():
         row = by_key.get(key)
@@ -129,7 +132,11 @@ def apply_fixes(header, rows, fixes):
         for lang, text in cells.items():
             if lang != "en" and lang in header:
                 if PERCENT.findall(text) != PERCENT.findall(row[1]):
-                    print(f"  fix for {key!r} in {lang} has its % codes out of the English order; check it")
+                    print(f"  fix for {key!r} in {lang} has its % codes out of the English order; skipped, check it")
+                    continue
+                if sorted(FIELDS.findall(text)) != sorted(FIELDS.findall(row[1])):
+                    print(f"  fix for {key!r} in {lang} has other {{fields}} than the English; skipped, check it")
+                    continue
                 row[header.index(lang)] = text
 
 
