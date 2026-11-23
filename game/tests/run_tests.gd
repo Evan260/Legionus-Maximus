@@ -5740,7 +5740,7 @@ func test_big_bosses_still_fight_and_collide(b: Dictionary) -> void:
 	var hp0: float = s.horde.e_hp[ci]
 	s.commander.cd = 0.0
 	var cu: Dictionary = s.content.base_commander
-	s.melee(s.commander, float(cu.damage), float(cu.reach), float(cu.cooldown), 1.0 / 60.0)
+	s.melee(s.commander, float(cu.damage), float(cu.reach), float(cu.cooldown), 1.0 / 60.0, s.attack_rate())
 	check(s.horde.e_hp[ci] < hp0, "the commander strikes a big chieftain he stands against")
 	var before: float = s.commander.hp
 	s.horde.e_pos[ci] = s.commander.pos + Vector2(Sim.UNIT_RADIUS + 41, 0)

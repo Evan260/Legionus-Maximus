@@ -20,8 +20,9 @@ var _ranks: Dictionary
 ## How many soldiers the legion can hold.
 var cap := 100
 var _l: Dictionary
-# The attack rate for this update, read once since every soldier's cooldown runs on it.
+# The attack rate and the missiles' range bonus for this update, read once since every soldier's cooldown and every archer's search use them.
 var _rate := 1.0
+var _range := 1.0
 # The roll formation() last placed and the places it gave, reused while the roll is the same.
 var _form_roll: Array = []
 var _form_places: Array = []
@@ -451,6 +452,7 @@ func update(dt: float, sim: Sim) -> void:
 	_reserves(dt)
 	var medici: Array = []
 	_rate = sim.attack_rate()
+	_range = sim.range_mult()
 	_hurt_ready = false
 	for s in soldiers:
 		# A soldier struck by a sling stone reels and cannot fight until he gathers himself.
@@ -468,12 +470,12 @@ func update(dt: float, sim: Sim) -> void:
 				if s.cd - dt * _rate * s.haste > 0.0:
 					s.cd -= dt * _rate * s.haste
 				else:
-					sim.melee(s, _melee_damage(s.type), float(info.reach), float(info.cooldown), dt)
+					sim.melee(s, _melee_damage(s.type), float(info.reach), float(info.cooldown), dt, _rate)
 			"shout":
 				if s.cd - dt * _rate * s.haste > 0.0:
 					s.cd -= dt * _rate * s.haste
 				else:
-					sim.melee(s, _melee_damage(s.type), float(info.reach), float(info.cooldown), dt)
+					sim.melee(s, _melee_damage(s.type), float(info.reach), float(info.cooldown), dt, _rate)
 				_shout(s, dt, sim)
 			"missile":
 				_missile(s, dt, sim)
@@ -577,7 +579,7 @@ func _missile(s: Dictionary, dt: float, sim: Sim) -> void:
 	s.cd -= dt * _rate * s.haste
 	if s.cd > 0.0:
 		return
-	var t := sim.nearest_enemy(s.pos, float(info.range) * sim.range_mult())
+	var t := sim.nearest_enemy(s.pos, float(info.range) * _range)
 	if t < 0:
 		s.cd = 0.0
 		return
@@ -594,7 +596,7 @@ func _ballista(s: Dictionary, dt: float, sim: Sim) -> void:
 	s.cd -= dt * _rate * s.haste
 	if s.cd > 0.0:
 		return
-	var reach := float(info.range) * sim.range_mult()
+	var reach := float(info.range) * _range
 	var t := sim.nearest_enemy(s.pos, reach)
 	if t < 0:
 		s.cd = 0.0

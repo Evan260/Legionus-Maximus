@@ -115,7 +115,12 @@ var commander_id := "tribune"
 var difficulty := "medium"
 var endless := false
 var decimatio := false
-var bonuses := {}
+var bonuses := {}:
+	set(value):
+		bonuses = value
+		_bonus_amounts.clear()
+# What each quartermaster upgrade adds, worked out once, since every hit, burn, kill and coin asks for one.
+var _bonus_amounts := {}
 var decimate_next := 0.0
 var endless_since := -1.0
 var peak_soldiers := 0
@@ -256,9 +261,11 @@ func _bonus(id: String) -> int:
 
 ## What a quartermaster upgrade adds, its rank times its step.
 func bonus_amount(id: String) -> float:
-	if not content.quartermaster.has(id):
-		return 0.0
-	return float(_bonus(id)) * float(content.quartermaster[id].per_rank)
+	var v: Variant = _bonus_amounts.get(id)
+	if v == null:
+		v = float(_bonus(id)) * float(content.quartermaster[id].per_rank) if content.quartermaster.has(id) else 0.0
+		_bonus_amounts[id] = v
+	return v
 
 
 ## Opens a supply cart's choice of rewards, to be chosen from `picks` times.
@@ -892,8 +899,9 @@ func scorch(i: int, dmg: float, src := "") -> void:
 	horde.e_burn[i] = maxf(horde.e_burn[i], 0.4)
 
 
-func melee(u: Dictionary, dmg: float, reach: float, cooldown: float, dt: float) -> void:
-	u.cd -= dt * attack_rate() * u.haste
+## Unit u strikes the nearest enemy in reach once his cooldown is out; `rate` is attack_rate(), which the caller reads once an update.
+func melee(u: Dictionary, dmg: float, reach: float, cooldown: float, dt: float, rate: float) -> void:
+	u.cd -= dt * rate * u.haste
 	if u.cd > 0.0:
 		return
 	var t := horde.nearest_edge(u.pos, reach)
@@ -916,7 +924,7 @@ func strike(u: Dictionary, at: Vector2) -> void:
 
 func _legion_attacks(dt: float) -> void:
 	var cu: Dictionary = content.base_commander
-	melee(commander, cu.damage, cu.reach, cu.cooldown, dt)
+	melee(commander, cu.damage, cu.reach, cu.cooldown, dt, attack_rate())
 	legion.update(dt, self)
 
 

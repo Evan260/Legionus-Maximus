@@ -385,11 +385,12 @@ func _column(o: Dictionary, dt: float, sim: Sim) -> void:
 	var info: Dictionary = sim.content.recruits.legionary
 	var alive: Array = []
 	var held := {}
+	var rate := sim.attack_rate()
 	for g in o.guards:
 		g.anim += dt * 6.0
 		if g.flash > 0.0:
 			g.flash -= dt
-		sim.melee(g, float(info.damage), float(info.reach), float(info.cooldown), dt)
+		sim.melee(g, float(info.damage), float(info.reach), float(info.cooldown), dt, rate)
 		for j in h.near(g.pos, Sim.UNIT_RADIUS + 14.0):
 			var reach := h.k_radius[h.e_kind[j]] + Sim.UNIT_RADIUS
 			var away: Vector2 = h.e_pos[j] - g.pos
