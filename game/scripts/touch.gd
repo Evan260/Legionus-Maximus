@@ -180,10 +180,10 @@ static func back_counts(now_ms: int, last_ms: int) -> bool:
 	return now_ms - last_ms > BACK_REPEAT_MS
 
 
-## Whether a tap acts at once; one that spends denarii or takes a choice first picks it out, so it is read before a second tap.
-static func tap_acts(state: String, id: String, focus: String) -> bool:
+## Whether a tap acts at once; one that spends denarii or takes a choice acts only once the last tap (`picked`) picked it out, so it is read first.
+static func tap_acts(state: String, id: String, picked: String) -> bool:
 	if id.begins_with("buy:") or id.begins_with("see:") or id.begins_with("choice:"):
-		return id == focus
+		return id == picked
 	return true
 
 

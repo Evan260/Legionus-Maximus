@@ -12454,6 +12454,57 @@ func test_touch_tap_on_a_purchase_or_choice_first_picks_it_out(_b: Dictionary) -
 	check(Touch.is_tap(3.0, 8.0) and not Touch.is_tap(20.0, 8.0), "a finger that slid away is a drag, not a tap")
 
 
+## The real main script as a bare node, out of the scene tree, with a stand-in HUD whose choice rows are `rows`.
+func _bare_main(b: Dictionary, rows: Array = []) -> Node:
+	Controls.install({})
+	var m: Node = load("res://scripts/main.gd").new()
+	m.balance = b
+	m.content = content
+	m.hud = Hud.new()
+	m.hud.choice_rects = rows
+	return m
+
+
+func _free_main(m: Node) -> void:
+	m.hud.free()
+	m.free()
+
+
+func test_a_first_tap_only_picks_out_a_purchase_or_a_choice(b: Dictionary) -> void:
+	var kept := _borrow_profile()
+	Profile.new_game()
+	Profile.data.denarii = 100000
+	var ids: Array = content.quartermaster.keys()
+	var m := _bare_main(b)
+	m.screens = {"quartermaster": QuartermasterScreen.new(m)}
+	m.state = "quartermaster"
+	m.ui.begin()
+	m.ui.register(Rect2(0, 0, 100, 20), "buy:" + ids[0])
+	m.ui.register(Rect2(0, 30, 100, 20), "buy:" + ids[1])
+	m.ui.end()
+	check(m.ui.focus == "buy:" + ids[0], "the screen opens with its first upgrade in focus")
+	m._tap(Vector2(50, 10))
+	check(Profile.rank(ids[0]) == 0, "a first tap on it only picks it out, though the screen put the focus there")
+	m._tap(Vector2(50, 10))
+	check(Profile.rank(ids[0]) == 1, "a second tap buys a rank")
+	m.state = "camp"
+	m.state = "quartermaster"
+	m._tap(Vector2(50, 10))
+	check(Profile.rank(ids[0]) == 1, "coming back to the screen, the first tap picks it out again")
+	_free_main(m)
+	m = _bare_main(b, [Rect2(0, 0, 100, 40), Rect2(0, 50, 100, 40), Rect2(0, 100, 100, 40)])
+	m.sim = _quiet_sim(b, 4401)
+	m.sim.gain(m.sim.xp_next - m.sim.xp)
+	m._open_choices()
+	m.clock = 5.0
+	m._tap_choice(Vector2(50, 20))
+	check(m.state == "choose" and m.selected == 0, "a first tap on the first row, though it starts picked out, takes nothing")
+	m._tap_choice(Vector2(50, 20))
+	check(m.state == "play", "a second tap takes it")
+	_free_main(m)
+	_return_profile(kept)
+
+
 func test_touch_phone_hints_and_options_name_no_keys(b: Dictionary) -> void:
 	var saved: Dictionary = Profile.settings
 	Profile.settings = {"bindings": {}}

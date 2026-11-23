@@ -52,7 +52,10 @@ extends Node
 var balance: Dictionary
 var content: Content
 var sim: Sim
-var state := "title"
+var state := "title":
+	set(value):
+		state = value
+		_picked = ""
 var choices: Array = []
 var selected := 0
 ## The march an autoplay look holds to instead of circling, or INF.
@@ -84,6 +87,8 @@ var touch_pad: TouchPad = null
 var _back_at := -100000
 ## Each finger on a screen by its touch index, as {from, moved, pulled, state}, so a finger lifted where it landed is a tap.
 var _fingers := {}
+## The button or choice row a tap last picked out, so a second tap on it acts; a new screen or choice starts with none.
+var _picked := ""
 ## The volume whose bar the mouse is holding, empty when none is.
 var _sliding := ""
 ## Whether the phone's text size has been settled, which waits for the screen's size to be known.
@@ -765,6 +770,7 @@ func _press(id: String) -> void:
 	var after := Upgrades.press(sim, id, choices, selected)
 	choices = after.choices
 	selected = after.selected
+	_picked = ""
 
 
 ## Leaves the gods' choice for later, with the favour kept.
@@ -1094,8 +1100,9 @@ func _tap(at: Vector2) -> void:
 		ui.focus = id
 		Audio.play("click")
 		return
-	var acts := Touch.tap_acts(state, id, ui.focus)
+	var acts := Touch.tap_acts(state, id, _picked)
 	ui.focus = id
+	_picked = id
 	if acts:
 		_activate(id)
 	else:
@@ -1121,13 +1128,19 @@ func _tap_choice(at: Vector2) -> void:
 			_not_now()
 			return
 	var i: int = hud.choice_at(at)
-	if i < 0:
-		return
-	if Touch.tap_acts(state, "choice:%d" % i, "choice:%d" % selected):
-		if ready:
+	if i >= 0:
+		_pick_row(i)
+
+
+## A choice row is picked out by a first click or tap and taken by a second on it, once the choice has been open long enough.
+func _pick_row(i: int) -> void:
+	var id := "choice:%d" % i
+	if Touch.tap_acts(state, id, _picked):
+		if Game.confirm_allowed(state, opened_at, clock, balance):
 			_take_row(i)
 	else:
 		selected = i
+		_picked = id
 		Audio.play("click")
 
 
