@@ -1,7 +1,7 @@
 class_name SettingsScreen
 extends RefCounted
 ## The settings: volumes, full screen, screen shake, damage numbers, blood, text size, language, and the key and button bindings.
-## Changes apply at once; they are saved when the screen is left.
+## Every change applies and is saved at once, so closing the window on this screen keeps it.
 
 const VOLUMES := ["master", "music", "effects"]
 const VOLUME_NAMES := {"master": "Master volume", "music": "Music volume", "effects": "Effects volume"}
@@ -63,6 +63,7 @@ static func apply_audio(cfg: Dictionary) -> void:
 func _put(key: String, value: Variant) -> void:
 	Profile.settings[key] = value
 	main.apply_settings()
+	Profile.save_settings()
 
 
 ## Left or right on a volume row changes it by a tenth; returns true when the row used the key.
@@ -108,6 +109,7 @@ func activate(id: String) -> void:
 	elif id == "reset":
 		Profile.settings.bindings = {}
 		Controls.install({})
+		Profile.save_settings()
 	elif id.begins_with("bind:"):
 		var parts := id.split(":")
 		waiting = {"action": parts[1], "kind": parts[2], "slot": int(parts[3])}
@@ -145,6 +147,7 @@ func _bind(code: int) -> void:
 	if not Controls.rebind(saved, waiting.action, waiting.kind, waiting.slot, code):
 		Audio.play("back")
 	Profile.settings.bindings = saved
+	Profile.save_settings()
 	waiting = {}
 
 

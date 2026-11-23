@@ -3123,6 +3123,26 @@ func test_settings_are_read_from_their_temporary_file_or_backup(_b: Dictionary) 
 		q.free()
 	_cleanup_profile_files()
 
+
+func test_a_setting_is_saved_as_soon_as_it_changes(b: Dictionary) -> void:
+	var kept := _borrow_profile()
+	var before := Ui.scale
+	Profile.settings = ProfileScript.merge_settings({})
+	var m := _bare_main(b)
+	var settings := SettingsScreen.new(m)
+	var on_disk := func() -> Dictionary: return JSON.parse_string(FileAccess.get_file_as_string(Profile.settings_path())) if FileAccess.file_exists(Profile.settings_path()) else {}
+	settings.adjust("music", -1)
+	check(is_equal_approx(float(on_disk.call().get("music", -1.0)), float(Profile.settings.music)), "a volume turned down is saved at once, so closing the window keeps it")
+	settings.activate("shake")
+	check(on_disk.call().get("shake", true) == Profile.settings.shake, "and so is a switch")
+	settings.activate("bind:testudo:keys:0")
+	settings.capture(_key_press(KEY_T, "t"))
+	check(str(on_disk.call().get("bindings", {})).contains(str(KEY_T)), "and a new key")
+	_free_main(m)
+	Ui.set_text_size(before, b)
+	_return_profile(kept)
+	Controls.install({})
+
 func test_the_old_profile_moves_into_slot_one_and_the_settings_file(_b: Dictionary) -> void:
 	_cleanup_profile_files()
 	var old := JSON.stringify({"denarii": 4321, "ranks": {"damage": 3}, "unlocked": {"commanders": ["tribune", "engineer"], "provinces": ["germania", "gaul", "britannia"]},
