@@ -1588,16 +1588,15 @@ func _lancers_on(dt: float, sim: Sim) -> void:
 			continue
 		var r := k_radius[e_kind[j]]
 		var lane: Vector2 = wave.from + dir * wave.length * k + side * float(w[1])
+		var at := _clear_of(lane, r, sim)
 		if run > 0.0:
-			var at := sim.terrain.push_out_wide(lane, r) if r > Terrain.MAX_UNIT else sim.terrain.push_out(lane, r)
 			# A wall, tree or rock in a rider's way ends his charge where he meets it.
 			if at.distance_squared_to(lane) > 0.25:
-				e_pos[j] = sim.terrain.push_out_wide(e_pos[j], r) if r > Terrain.MAX_UNIT else sim.terrain.push_out(e_pos[j], r)
+				e_pos[j] = _clear_of(e_pos[j], r, sim)
 				_free_rider(j)
 				continue
-			lane = at
-			hit_any = _ride_down(lane, r, dir, -2000 - int(wave.n), dmg, wave.throw, sim, 0.5) or hit_any
-		e_pos[j] = lane
+			hit_any = _ride_down(at, r, dir, -2000 - int(wave.n), dmg, wave.throw, sim, 0.5) or hit_any
+		e_pos[j] = at
 		e_face[j] = dir
 		kept.append(w)
 	wave.riders = kept
@@ -1619,6 +1618,11 @@ func _end_wave() -> void:
 
 func _free_rider(j: int) -> void:
 	e_cd[j] = k_dash_every[e_kind[j]] * rng.randf()
+
+
+## Where a rider of radius r at p stands once moved out of the trees, rocks, walls, wheat and gorges there.
+func _clear_of(p: Vector2, r: float, sim: Sim) -> Vector2:
+	return sim.terrain.push_out_wide(p, r) if r > Terrain.MAX_UNIT else sim.terrain.push_out(p, r)
 
 
 ## The king sets the grass alight on one side of the legion: a band is marked across it, and once the warning is over the fire spreads over it towards the legion.
@@ -2068,12 +2072,23 @@ func _onrush(i: int, st: Dictionary, cfg: Dictionary, timer: String, dt: float, 
 		var mark := e_id[i] * 1000 + int(st.rush_n)
 		var dmg := k_dps[e_kind[i]] * float(cfg.damage_mult) * e_power[i] * sim.frenzy_guard()
 		var hit_any := _ride_down(at, k_radius[e_kind[i]] + float(cfg.get("blade", 0.0)), st.rush_dir, mark, dmg, float(cfg.throw), sim)
+		var riding: Array = []
 		for w in st.wedge:
 			var j := e_id.find(w[0])
-			if j >= 0:
-				e_pos[j] = _in_wedge(at, st.rush_dir, w[1])
-				e_face[j] = st.rush_dir
-				hit_any = _ride_down(e_pos[j], k_radius[e_kind[j]], st.rush_dir, mark, dmg * float(cfg.rider_mult), float(cfg.throw), sim) or hit_any
+			if j < 0:
+				continue
+			var r := k_radius[e_kind[j]]
+			var spot := _in_wedge(at, st.rush_dir, w[1])
+			# A rider whose place in the wedge runs into a tree, wall or gorge stops there and leaves the wedge.
+			if _clear_of(spot, r, sim).distance_squared_to(spot) > 0.25:
+				e_pos[j] = _clear_of(e_pos[j], r, sim)
+				_free_rider(j)
+				continue
+			riding.append(w)
+			e_pos[j] = spot
+			e_face[j] = st.rush_dir
+			hit_any = _ride_down(spot, r, st.rush_dir, mark, dmg * float(cfg.rider_mult), float(cfg.throw), sim) or hit_any
+		st.wedge = riding
 		if cfg.has("shake"):
 			sim.shake = maxf(sim.shake, float(cfg.shake) * 0.5)
 		if hit_any:
@@ -2459,6 +2474,7 @@ func _hold_boss(st: Dictionary, at: Vector2, seconds: float) -> void:
 
 ## Keeps an elite where he stands while he winds up or holds his shield, facing the way his shield points.
 func _bosses_after() -> void:
+	var owner_sim: Sim = sim_ref.get_ref() if sim_ref != null else null
 	for id in elite_ids:
 		var st: Dictionary = boss.get(id, {})
 		if st.is_empty() or st.hold <= 0.0:
@@ -2471,7 +2487,8 @@ func _bosses_after() -> void:
 		for w in st.wedge:
 			var j := e_id.find(w[0])
 			if j >= 0:
-				e_pos[j] = _in_wedge(st.at, st.rush_dir, w[1])
+				var spot := _in_wedge(st.at, st.rush_dir, w[1])
+				e_pos[j] = _clear_of(spot, k_radius[e_kind[j]], owner_sim) if owner_sim != null else spot
 				e_face[j] = st.rush_dir
 		if st.shield > 0.0:
 			e_face[i] = st.shield_dir

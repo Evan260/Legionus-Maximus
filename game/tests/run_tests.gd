@@ -11584,6 +11584,55 @@ func test_a_wall_stops_the_kings_lancers(b: Dictionary) -> void:
 	check(not through and s.commander.hp == hp0, "a wall across the lane stops the lancers where they meet it")
 
 
+func test_lancers_waiting_at_their_lane_stand_clear_of_trees(b: Dictionary) -> void:
+	var set_up := _king_wave(b, 2133, false)
+	var s: Sim = set_up[0]
+	var h: Horde = set_up[1]
+	var w: Array = h.wave.riders[0]
+	var trunk: Vector2 = h.wave.from + h.wave.dir.orthogonal() * float(w[1]) + Vector2(3, 0)
+	s.terrain.add_post(trunk, 9.0, 1e9)
+	s.terrain.refresh(s.commander.pos)
+	for k in 30:
+		h._chieftain(1.0 / 60.0, s)
+	var j := h.e_id.find(w[0])
+	var gap: float = h.e_pos[j].distance_to(trunk) - 9.0 - h.k_radius[h.e_kind[j]]
+	check(h.wave.t < h.wave.warn and gap > -0.5, "a lancer waiting out the warning stands beside a tree, not in it (%.1f px)" % gap)
+
+
+func test_a_wedge_rider_who_meets_a_tree_leaves_the_wedge_there(b: Dictionary) -> void:
+	var s := _parthia_sim(b, 969)
+	var h := s.horde
+	var cfg: Dictionary = content.enemies.cataphract_charge.wedge
+	s.commander.pos = Vector2.ZERO
+	s.legion.place_all(s.facing_angle)
+	for u in s.units:
+		u.max_hp = 1e6
+		u.hp = 1e6
+	# The second row's rider on one side rides straight at this trunk, while his leader's lane passes it by.
+	var trunk := Vector2(120.0, float(cfg.spacing) * 2.0)
+	s.terrain.add_post(trunk, 9.0, 1e9)
+	s.terrain.refresh(s.commander.pos)
+	var i := h.spawn("cataphract_charge", Vector2(220, 0), true)
+	h.e_hp[i] = 1e9
+	var st: Dictionary = h.boss_state(i)
+	st.wedge_cd = 0.0
+	var riders: Array = []
+	var inside := false
+	var fewest := 1 << 30
+	for f in 4 * 60:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+		if riders.is_empty():
+			riders = st.wedge.map(func(w: Array) -> int: return w[0])
+		if st.rush_left > 0.0:
+			fewest = mini(fewest, st.wedge.size())
+		for id in riders:
+			var j := h.e_id.find(id)
+			if j >= 0 and h.e_pos[j].distance_to(trunk) < 9.0 + h.k_radius[h.e_kind[j]] - 0.5:
+				inside = true
+	check(riders.size() == int(cfg.riders) and fewest < riders.size(), "the rider who meets the tree leaves the wedge (%d of %d ride on)" % [fewest, riders.size()])
+	check(not inside, "and nobody in the wedge rides through it")
+
+
 func test_the_roxolani_king_sets_the_steppe_on_fire(b: Dictionary) -> void:
 	var cfg: Dictionary = content.enemies.rasparaganus.attacks.steppe_fire
 	for stay in [true, false]:
