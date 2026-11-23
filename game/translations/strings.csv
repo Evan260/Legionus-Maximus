@@ -32,7 +32,6 @@ Backspace,Backspace,Retour arr.,Rücktaste,Retroceso,Backspace,Backspace,Backspa
 Banish,Banish,Bannir,Verbannen,Desterrar,Bandisci,Banir,Wyklucz,Çıkar,Исключить,Виключити,追放,추방,放逐,放逐
 Banked,Banked,En caisse,Kasse,En caja,In cassa,Em caixa,W skarbcu,Kasada,В казне,У скарбниці,所持金,보유액,存款,存款
 Barbarian camp,Barbarian camp,Camp barbare,Barbarenlager,Campamento bárbaro,Accampamento barbaro,Acampamento bárbaro,Obóz barbarzyńców,Barbar kampı,Варварский лагерь,Табір варварів,蛮族の陣営,야만인 캠프,野蛮人营地,野蠻人營地
-Best time %s,Best time %s,Meilleur moment %s,Beste Zeit %s,Mejor momento %s,Il miglior momento %s,Melhor momento %s,Najlepszy czas %s,En iyi zaman %s,Лучшее время %s,Найкращий час %s,ベストタイム %s,가장 좋은 시간 %s,最佳时间 %s,最佳時間 %s
 Blood,Blood,Sang,Blut,Sangre,Sangue,Sangue,Krew,Kan,Кровь,Кров,血,피,血液,血液
 Bolts,Bolts,Carreaux,Bolzen,Virotes,Dardi,Virotes,Bełty,Ağır oklar,Болты,Болти,ボルト,볼트,弩矢,弩矢
 Bridge,Bridge,Pont,Brücke,Puente,Ponte,Ponte,Most,Köprü,Мост,Міст,橋,다리,架桥,架橋
@@ -75,7 +74,6 @@ Effects volume,Effects volume,Volume des effets,Effekte,Volumen de efectos,Volum
 Empty,Empty,Vide,Leer,Vacía,Vuoto,Vazio,Puste,Boş,Пусто,Порожньо,空き,비어 있음,空,空
 Endless,Endless,Infini,Endlos,Infinito,Infinito,Infinito,Nieskończony,Sonsuz,Бесконечный,Нескінченний,エンドレス,무한,无尽,無盡
 Endless  +%d:%02d,Endless  +%d:%02d,Mode infini  +%d:%02d,Endlos-Modus  +%d:%02d,Modo infinito  +%d:%02d,Modalità infinita  +%d:%02d,Modo infinito  +%d:%02d,Tryb endless  +%d:%02d,Sonsuz mod  +%d:%02d,Бесконечный режим  +%d:%02d,Нескінченний режим  +%d:%02d,エンドレスモード  +%d:%02d,무한 모드  +%d:%02d,无尽模式  +%d:%02d,無盡模式  +%d:%02d
-Endless %s,Endless %s,Mode infini %s,Endlos-Modus %s,Modo infinito %s,Modalità infinita %s,Modo infinito %s,Tryb nieskończony %s,Sonsuz mod %s,Бесконечный режим %s,Нескінченний режим %s,エンドレスモード %s,무한 모드 %s,无尽模式 %s,無盡模式 %s
 Endless and Decimatio in %s,Endless and Decimatio in %s,Infini et Decimatio en %s,Endlos und Decimatio in %s,Infinito y Decimatio en %s,Infinito e Decimatio in %s,Infinito e Decimatio em %s,Nieskończony i Decimatio w prowincji %s,%s eyaletinde Sonsuz ve Decimatio,Бесконечный и Decimatio в провинции %s,Нескінченний і Decimatio у провінції %s,%sでエンドレスとDecimatio,%s에서 무한과 Decimatio,%s的无尽和 Decimatio,%s的無盡和 Decimatio
 Enemy,Enemy,Ennemi,Feind,Enemigo,Nemico,Inimigo,Wróg,Düşman,Враг,Ворог,敵,적,敌人,敵人
 Enemy speed,Enemy speed,Vitesse ennemie,Feindtempo,Vel. enemiga,Vel. nemica,Vel. inimiga,Szybkość wroga,Düşman hızı,Скорость врага,Швидкість ворога,敵の速度,적 속도,敌人速度,敵人速度
@@ -99,7 +97,6 @@ Give up the run? %s again to confirm,Give up the run? %s again to confirm,Abando
 Give up the run? Tap again to confirm,Give up the run? Tap again to confirm,Abandonner l’expédition ? Touchez encore pour confirmer,Feldzug aufgeben? Zum Bestätigen noch einmal tippen,¿Abandonar la campaña? Toca otra vez para confirmar,Abbandonare la campagna? Tocca di nuovo per confermare,Desistir da campanha? Toque de novo para confirmar,"Porzucić wyprawę? Stuknij jeszcze raz, by potwierdzić",Seferi bırakmak mı? Onaylamak için tekrar dokun,Прервать поход? Коснись ещё раз для подтверждения,Перервати похід? Торкнись ще раз для підтвердження,遠征をあきらめる？もう一度タップで確定,원정을 포기할까요? 확인하려면 한 번 더 탭,放弃这次远征？再点一次确认,放棄這次遠征？再點一次確認
 God,God,Dieu,Gott,Dios,Dio,Deus,Bóg,Tanrı,Бог,Бог,神,신,神,神
 Hard,Hard,Difficile,Schwer,Difícil,Difficile,Difícil,Trudny,Zor,Сложный,Складний,ハード,하드,困难,困難
-Hard not won,Hard not won,Difficile non gagné,Schwer nicht gewonnen,Difícil sin ganar,Difficile non vinto,Difícil não vencido,Trudny niewygrany,Zor kazanılmadı,Сложный не пройден,Складний не пройдено,ハード未勝利,하드 미승리,困难未胜,困難未勝
 Hard won,Hard won,Difficile gagné,Schwer gewonnen,Difícil ganado,Difficile vinto,Difícil vencido,Trudny wygrany,Zor kazanıldı,Сложный пройден,Складний пройдено,ハード勝利,하드 승리,困难已胜,困難已勝
 Heal the legion,Heal the legion,Soigner la légion,Legion heilen,Curar a la legión,Curare la legione,Curar a legião,Ulecz legion,Lejyonu iyileştir,Исцелить легион,Зцілити легіон,軍団を回復,군단 회복,治疗军团,治療軍團
 Healing,Healing,Soins,Heilung,Curación,Cura,Cura,Leczenie,İyileşme,Лечение,Лікування,回復,회복,治疗,治療
@@ -157,7 +154,6 @@ Normal,Normal,Normal,Normal,Normal,Normale,Normal,Normalny,Normal,Обычный
 Not enough timber: %d needed,Not enough timber: %d needed,Pas assez de bois : %d nécessaire,Nicht genug Holz: %d gebraucht,No hay suficiente madera: %d necesaria,Non abbastanza legname: %d necessario,Madeira insuficiente: %d necessário,Za mało drewna: %d potrzebne,Yeterince kereste yok: %d gerekli,Недостаточно древесины: нужно %d,Недостатньо деревини: потрібно %d,木材が足りない: %d必要,목재 부족: %d 필요,木材不足：需要 %d,木材不足：需要 %d
 Not found yet,Not found yet,Pas encore trouvé,Noch nicht gefunden,Aún no encontrado,Non ancora trovato,Ainda não encontrado,Jeszcze nie znaleziono,Henüz bulunmadı,Пока не найдено,Ще не знайдено,まだ見つかっていません,아직 찾지 못했습니다,还没找到,還沒找到
 Not ready yet,Not ready yet,Pas encore disponible,Noch nicht verfügbar,Aún no disponible,Non ancora disponibile,Ainda não disponível,Jeszcze niedostępne,Henüz hazır değil,Пока недоступно,Поки недоступно,準備中,준비 중,尚未开放,尚未開放
-Not won yet,Not won yet,Pas encore gagné,Noch nicht gewonnen,Aún no ha ganado,Non ancora vinto,Ainda não venceu,Jeszcze nie wygrał,Henüz kazanılmadı,Ещё не выиграл,Ще не виграв,まだ勝てていません,아직 이기지 못했다,还没赢,還沒贏
 Off,Off,Désactivé,Aus,Desactivado,Disattivo,Desligado,Wyłączone,Kapalı,Выкл.,Вимк.,オフ,꺼짐,关,關
 Oil lasts,Oil lasts,Durée de l'huile,Öldauer,Duración del aceite,Durata dell'olio,Duração do óleo,Czas oleju,Yağ süresi,Масло длится,Олія триває,油の持続,기름 지속,油持续,油持續
 Oil radius,Oil radius,Rayon de l'huile,Ölradius,Radio del aceite,Raggio dell'olio,Raio do óleo,Zasięg oleju,Yağ yarıçapı,Радиус масла,Радіус олії,油の範囲,기름 범위,油范围,油範圍
