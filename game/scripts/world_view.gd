@@ -1926,13 +1926,14 @@ func _paint_stains() -> Texture2D:
 	return ImageTexture.create_from_image(img)
 
 
-## A rounded pixel splat w by h centred on p: a rectangle with its corners cut.
+## A pixel splat w by h centred on p, each row as wide as an ellipse is at that height so even a big pool stays round.
 func _blob(img: Image, p: Vector2, w: float, h: float, c: Color) -> void:
-	var corner := Vector2i(p - Vector2(floorf(w / 2.0), floorf(h / 2.0)))
-	var wi := int(w)
-	var hi := int(h)
-	if hi <= 2 or wi <= 2:
-		img.fill_rect(Rect2i(corner, Vector2i(wi, hi)), c)
-		return
-	img.fill_rect(Rect2i(corner + Vector2i(0, 1), Vector2i(wi, hi - 2)), c)
-	img.fill_rect(Rect2i(corner + Vector2i(1, 0), Vector2i(wi - 2, hi)), c)
+	var hi := maxi(1, int(h))
+	var top := int(p.y - floorf(h / 2.0))
+	for y in hi:
+		var dy := (y + 0.5 - h / 2.0) / (h / 2.0)
+		var half := w / 2.0 * sqrt(maxf(0.0, 1.0 - dy * dy))
+		var left := int(roundf(p.x - half))
+		var span := int(roundf(p.x + half)) - left
+		if span > 0:
+			img.fill_rect(Rect2i(left, top + y, span, 1), c)
