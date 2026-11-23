@@ -374,6 +374,14 @@ func _draw() -> void:
 					f = atlas.prop_frame(pr[0])
 					_prop_frames[pr[0]] = f
 				var at: Vector2 = pr[1]
+				var stump: bool = pr[0] == "stump"
+				var mark := 0
+				if stump:
+					# A felled wood's stumps would stand in the rows its trees grew in, so some are left out and the rest are set a little aside.
+					mark = hash(at)
+					if mark % 5 == 0:
+						continue
+					at += Vector2((mark >> 3) % 7 - 3, (mark >> 6) % 5 - 2)
 				if not _hut_burn.is_empty() and _hut_burn.has(at):
 					_add_burning_hut(at, pr[0], f)
 					continue
@@ -382,6 +390,12 @@ func _draw() -> void:
 					var drift: Array = shapes[posmod(int(at.x) * 7 + int(at.y) * 13, shapes.size())]
 					_drift_tex.append(drift[0])
 					_drift_at.append((at - f[1]).round() + drift[1])
+				if stump:
+					var shade := 0.9 + 0.05 * ((mark >> 9) % 3)
+					var flip := (mark >> 11) % 2 == 1
+					var dest: Vector2 = at - (Vector2(f[0].size.x - f[1].x, f[1].y) if flip else f[1])
+					_add(at.y, f[0], dest, Color(shade, shade, shade), false, f[0].size * Vector2(-1.0 if flip else 1.0, 1.0))
+					continue
 				if pr[0] == "stone_circle":
 					_add_stones(at)
 					continue
