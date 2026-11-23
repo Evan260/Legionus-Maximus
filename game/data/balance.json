@@ -10,7 +10,7 @@
     "metre_px": 16,
     "purse": {"camp": 1500, "column": 600, "grove": 800},
     "notice_seconds": 3.5,
-    "camp": {"wake": 250, "huts": 6, "hut_ring": 72, "hut_radius": 14, "touch": 16, "leader": {"germania": "war_band_leader", "gaul": "champion", "dacia": "falx_band", "parthia": "cataphract_charge", "britannia": "chariot_charge", "hispania": "lusitanian_raider", "aegyptus": "camel_captain", "sarmatia": "war_wagon"}, "burn_seconds": 4},
+    "camp": {"wake": 250, "huts": 6, "hut_ring": 72, "hut_radius": 14, "touch": 16, "leader": {"germania": "war_band_leader", "gaul": "champion", "dacia": "falx_band", "parthia": "cataphract_charge", "britannia": "chariot_charge", "hispania": "lusitanian_raider", "aegyptus": "camel_captain", "sarmatia": "war_wagon"}, "burn_seconds": 15, "burn": {"catch_stagger": 0.22, "spread": 0.45, "collapse": 5.8, "collapse_stagger": 0.3, "cave": 0.5}},
     "column": {"wake": 300, "guards": 4, "guard_ring": 24, "reach": 40, "band_from": 160},
     "grove": {"ring": 96, "oak_step": 22, "trees": {"dacia": "pine", "parthia": "palm", "hispania": "olive", "aegyptus": "date_palm", "sarmatia": "birch"}, "centre": {"parthia": "well"}, "stones": {"britannia": {"ring": 116, "step": 60, "lift": [2, 20]}}, "gaps": 3, "gap_width": 0.6, "inside": 80, "hold": 5.0, "band_every": 2.5, "band_from": 230, "calm_seconds": 60, "calm_mult": 0.5, "burn_seconds": 10, "tip_within": 300, "tip_seconds": 10}
   },
@@ -169,7 +169,7 @@
   "banishes": 0,
   "history_every": 10,
   "damage_numbers": {"cap": 60, "seconds": 0.6, "rise": 14},
-  "shake": {"hurt": 0.12, "chieftain": 0.3, "roar": 0.6, "bossfall": 0.7, "testudo": 0.2, "elite_death": 0.2, "pixels": 2},
+  "shake": {"hurt": 0.12, "hut_fall": 0.15, "chieftain": 0.3, "roar": 0.6, "bossfall": 0.7, "testudo": 0.2, "elite_death": 0.2, "pixels": 2},
   "livery": {"defence": {"quartermaster": ["soldier_health", "armour"], "drills": ["lorica", "shield_wall"], "tiers": [3, 8]},
     "offence": {"quartermaster": ["damage", "attack_speed"], "drills": ["gladius", "discipline"], "tiers": [4, 11]}},
   "deaths": {
@@ -242,7 +242,7 @@
       "blink": {"set": "blink", "max": 2, "db": -8.0, "spread": 0.08, "pitch": 1.0, "priority": 0},
       "charge": {"set": "charge", "max": 1, "db": -5.0, "spread": 0.04, "pitch": 0.7, "priority": 1},
       "ride": {"set": "charge", "max": 1, "db": -9.0, "spread": 0.06, "pitch": 0.75, "priority": 1, "cooldown": 12.0},
-      "slam": {"set": "slam", "max": 1, "db": -3.0, "spread": 0.05, "pitch": 1.0, "priority": 1},
+      "slam": {"set": "slam", "max": 1, "db": -3.0, "spread": 0.05, "pitch": 1.0, "priority": 1}, "hut_fall": {"set": "slam", "max": 1, "db": -8.0, "spread": 0.1, "pitch": 0.7, "priority": 1},
       "bellow": {"set": "bellow", "max": 1, "db": -4.0, "spread": 0.0, "pitch": 0.8, "priority": 2}, "bossfall": {"set": "bellow", "max": 1, "db": -2.0, "spread": 0.05, "pitch": 1.25, "priority": 2},
       "godready": {"set": "godready", "max": 1, "db": -6.0, "spread": 0.0, "pitch": 1.0, "priority": 2},
       "thunder": {"set": "thunder", "max": 1, "db": -5.0, "spread": 0.05, "pitch": 1.0, "priority": 1},

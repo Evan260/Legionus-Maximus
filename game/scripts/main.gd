@@ -397,6 +397,8 @@ func _go_to(kind: String) -> void:
 	sim.commander.pos = at + Vector2(0, 110)
 	if burn:
 		sim.commander.pos = at + Vector2(0, 30)
+		# The legion stands among the huts, so the whole burn stays on screen.
+		look_march = Vector2.ZERO
 	sim.legion.place_all(sim.facing_angle)
 
 

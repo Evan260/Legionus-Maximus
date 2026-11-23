@@ -5290,19 +5290,81 @@ func test_the_camp_burns_and_its_huts_go(b: Dictionary) -> void:
 	s.update(1.0 / 60.0, Vector2.ZERO, false)
 	check(camp.done and camp.burnt_at >= 0.0, "the commander walking into the camp takes the eagle and sets the huts alight")
 	check(_solid_at(s, huts[0]), "the burning huts still stand at first")
-	_step_dt(s, float(cfg.burn_seconds) - 0.5)
-	check(_solid_at(s, huts[0]), "for %d seconds" % int(cfg.burn_seconds))
-	_step_dt(s, 1.0)
+	_step_dt(s, Objectives.fall_at(cfg, 0) - 0.1)
+	check(_solid_at(s, huts[0]) and _kinds_at(s, huts[0]) == ["hut"], "until the first one collapses")
+	_step_dt(s, float(cfg.burn_seconds) - Objectives.fall_at(cfg, 0) + 0.5)
 	var gone := true
 	for h in huts:
-		gone = gone and not _solid_at(s, h) and _kinds_at(s, h).is_empty() and s.terrain.is_open(h)
-	check(gone, "then the huts are gone and the ground is open")
+		gone = gone and not _solid_at(s, h) and _kinds_at(s, h) == ["hut_ruin"] and s.terrain.is_open(h)
+	check(camp.razed and gone, "then only walk-through ruins are left and the ground is open")
 	var e := _objective_sim(b, 411)
 	var c2: Dictionary = e.objectives.add(e, "camp", Vector2(600, 0))
 	e.soldiers[0].pos = c2.pos
 	e._rebuild_grids()
 	e.objectives.update(0.01, e)
 	check(c2.burnt_at >= 0.0, "taking the eagle sets the camp alight too")
+
+
+func test_the_camp_burn_runs_through_its_stages(b: Dictionary) -> void:
+	var cfg: Dictionary = b.objectives.camp
+	var last := int(cfg.huts) - 1
+	check(Objectives.hut_stage(cfg, 0, 0.05) == "catching" and Objectives.hut_stage(cfg, last, 0.05) == "catching", "every hut is catching fire at first")
+	check(Objectives.hut_stage(cfg, 0, 0.0) == "catching" and Objectives.hut_flames(cfg, 0, 0.05) == 1, "a hut catches at one spot")
+	check(Objectives.hut_flames(cfg, last, 0.05) == 0, "and the huts catch one after another")
+	var blazing := true
+	for i in int(cfg.huts):
+		blazing = blazing and Objectives.hut_stage(cfg, i, 2.05) == "blazing" and Objectives.hut_flames(cfg, i, 2.05) == 3
+	check(blazing, "by two seconds every hut blazes at three spots")
+	var falls: Array = []
+	for i in int(cfg.huts):
+		falls.append(Objectives.fall_at(cfg, i))
+	check(falls[0] >= 5.5 and falls[0] <= 6.5 and falls[last] > falls[0] and falls[last] < 9.0, "the huts collapse about six seconds in, one after another (%s)" % [falls])
+	check(Objectives.hut_stage(cfg, 0, falls[0] - 0.05) == "blazing" and Objectives.hut_stage(cfg, 0, falls[0] + 0.05) == "collapsing", "a hut blazes until it collapses")
+	check(Objectives.hut_stage(cfg, 0, 10.0) == "smouldering" and Objectives.hut_stage(cfg, last, 10.0) == "smouldering", "then smoulders")
+	check(absf(float(cfg.burn_seconds) - 15.0) < 0.01, "the burn lasts fifteen seconds (%.1f)" % float(cfg.burn_seconds))
+	check(Objectives.hut_stage(cfg, 0, 14.9) == "smouldering" and Objectives.hut_stage(cfg, last, 15.0) == "ruins", "and leaves ruins once it is over")
+
+
+func test_the_camp_huts_stop_blocking_as_each_collapses(b: Dictionary) -> void:
+	var cfg: Dictionary = b.objectives.camp
+	var s := _objective_sim(b, 412)
+	var camp: Dictionary = s.objectives.add(s, "camp", Vector2(600, 0))
+	var huts: Array = camp.huts
+	s.commander.pos = camp.pos
+	s.terrain.refresh(s.commander.pos)
+	s.events.clear()
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	var start: float = camp.burnt_at
+	var first := Objectives.fall_at(cfg, 0)
+	var second := Objectives.fall_at(cfg, 1)
+	_step_dt(s, first + 0.05 - (s.time - start))
+	check(not _solid_at(s, huts[0]) and _kinds_at(s, huts[0]) == ["hut_charred"], "the first hut stops blocking as it collapses")
+	check(_solid_at(s, huts[1]) and _kinds_at(s, huts[1]) == ["hut"], "while the next still stands")
+	check(_count_events(s, "hut_fall") == 1 and s.shake > 0.0, "the collapse sounds and shakes the screen")
+	check(not camp.razed, "and the camp is not razed yet")
+	_step_dt(s, second + 0.05 - (s.time - start))
+	check(not _solid_at(s, huts[1]), "the next stops blocking when it collapses")
+	_step_dt(s, float(cfg.burn_seconds) + 0.1 - (s.time - start))
+	check(_count_events(s, "hut_fall") == huts.size(), "every hut collapses once (%d)" % _count_events(s, "hut_fall"))
+	_step_dt(s, 30.0)
+	var open := true
+	for h in huts:
+		open = open and not _solid_at(s, h) and s.terrain.is_open(h) and _kinds_at(s, h) == ["hut_ruin"]
+	check(camp.razed and open, "the ruins stay walk-through after the burn")
+
+
+func test_burning_the_camp_changes_nothing_else_about_finishing_it(b: Dictionary) -> void:
+	var cfg: Dictionary = b.objectives.camp
+	var s := _objective_sim(b, 413)
+	var camp: Dictionary = s.objectives.add(s, "camp", Vector2(600, 0))
+	var choices := s.free_choices
+	s.commander.pos = camp.pos
+	s.terrain.refresh(s.commander.pos)
+	s.update(1.0 / 60.0, Vector2.ZERO, false)
+	var after := [camp.done, s.free_choices, s.objectives.purse, camp.done_at]
+	check(camp.done and s.free_choices == choices + 1, "taking the eagle finishes the camp at once with a free choice")
+	_step_dt(s, float(cfg.burn_seconds) + 1.0)
+	check([camp.done, s.free_choices, s.objectives.purse, camp.done_at] == after, "and the burn adds nothing to it (%s against %s)" % [[camp.done, s.free_choices, s.objectives.purse, camp.done_at], after])
 
 
 func _press_tree(s: Sim, i: int, tree: Vector2, seconds: float) -> void:

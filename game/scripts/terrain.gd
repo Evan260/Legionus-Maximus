@@ -244,13 +244,14 @@ func take_logs() -> int:
 	return n
 
 
-## Takes the run's own pieces at these positions off the field, such as a camp's burnt huts.
-func remove_extras(at: Array) -> void:
-	var gone := {}
+## Turns the run's own pieces at these positions into another kind and radius, such as a camp's huts into walk-through ruins.
+func change_extras(at: Array, kind: String, radius: float) -> void:
+	var changed := {}
 	for p in at:
-		gone[p] = true
-		_extra_at.erase(p)
-	extras = extras.filter(func(pr: Array) -> bool: return not gone.has(pr[1]))
+		changed[p] = true
+	for k in extras.size():
+		if changed.has(extras[k][1]):
+			extras[k] = [kind, extras[k][1], radius]
 	for p in at:
 		_chunks.erase(Vector2i(floori(p.x / CHUNK), floori(p.y / CHUNK)))
 	_anchor = Vector2i(1 << 30, 0)

@@ -67,6 +67,16 @@ var _f_anchor := PackedVector2Array()
 var _f_rect: Array[Rect2] = []
 # Each prop kind's frame from the atlas, looked up once.
 var _prop_frames := {}
+## The camp's burning huts by position, as [index, seconds since the eagle was taken], rebuilt each frame.
+var _hut_burn := {}
+## Where a hut's three fires burn on its roof, against its foot.
+const HUT_FIRES := [Vector2(-12, -14), Vector2(0, -22), Vector2(12, -12)]
+## Fires on a blazing hut's walls, against its foot.
+const HUT_WALL_FIRES := [Vector2(-18, -4), Vector2(16, -3)]
+## The low fires left in a collapsed hut's frame, against its foot.
+const HUT_EMBER_FIRES := [Vector2(-8, -3), Vector2(9, -6)]
+## The colour a hut darkens to as it burns.
+const CHARRED := Color(0.34, 0.25, 0.22)
 # The rocky lip drawn along every ravine.
 var ravine_edge: Texture2D
 # The ice laid along every frozen stream, repeated across the world.
@@ -275,6 +285,7 @@ func _draw() -> void:
 	var shaking := float(sim.b.felling.shake_seconds)
 	var fields: Array = sim.terrain.fields_in(view) if _wheat_tile != null else []
 	_felling.clear()
+	_index_hut_burn()
 	# The chunks are read in place, in the order props_in() would join them.
 	for cx in range(floori(view.position.x / Terrain.CHUNK), floori(view.end.x / Terrain.CHUNK) + 1):
 		for cy in range(floori(view.position.y / Terrain.CHUNK), floori(view.end.y / Terrain.CHUNK) + 1):
@@ -287,7 +298,10 @@ func _draw() -> void:
 					f = atlas.prop_frame(pr[0])
 					_prop_frames[pr[0]] = f
 				var at: Vector2 = pr[1]
-				if pr[0] == "dune" or pr[0] == "bog" or pr[0] == "heather" or pr[0] == "dry_grass":
+				if not _hut_burn.is_empty() and _hut_burn.has(at):
+					_add_burning_hut(at, pr[0], f)
+					continue
+				if pr[0] == "dune" or pr[0] == "bog" or pr[0] == "heather" or pr[0] == "dry_grass" or pr[0] == "hut_ruin":
 					# Dunes, bog pools, heather and dry grass are walked over, so they are drawn on the ground under everything that stands on them.
 					_add(at.y - 60000.0, f[0], at - f[1], white)
 					continue
@@ -427,6 +441,7 @@ func _draw() -> void:
 	_draw_boss_heads(view)
 	_draw_lobs(tex)
 	_draw_effects()
+	_draw_camp_fire(view)
 	_draw_triumph_wave()
 	_draw_objective_marks(view)
 	_draw_numbers()
@@ -1073,10 +1088,8 @@ func _add_flames(view: Rect2) -> void:
 		if not view.grow(120.0).has_point(o.pos):
 			continue
 		if o.kind == "camp" and o.burnt_at >= 0.0 and not o.razed:
-			var left := float(sim.b.objectives.camp.burn_seconds) - (sim.time - float(o.burnt_at))
 			for i in o.huts.size():
-				for k in 3:
-					_add_flame(o.huts[i], [Vector2(-12, -14), Vector2(0, -22), Vector2(12, -12)][k], i, k, clampf(left / 1.5, 0.0, 1.0))
+				_add_hut_flames(o.huts[i], i, sim.time - float(o.burnt_at))
 		elif o.kind == "grove" and o.get("centre", "altar") == "altar":
 			# The altar's fire always flickers, so its painted flames never sit still.
 			_add_flame(o.pos, Vector2(0, -8), o.oaks.size(), 0, 1.0)
@@ -1104,11 +1117,155 @@ static func _solid_part(r: Rect2) -> Rect2:
 	return Rect2(r.position + Vector2(r.size.x * 0.2, r.size.y * 0.1), Vector2(r.size.x * 0.6, r.size.y * 0.9))
 
 
-func _add_flame(ground: Vector2, at: Vector2, seed_i: int, k: int, fade: float) -> void:
+func _add_flame(ground: Vector2, at: Vector2, seed_i: int, k: int, fade: float, scale := 1.0) -> void:
 	var fl: Dictionary = atlas.props.flame
 	var f: Array = fl.frames[(int(sim.time * 10.0) + seed_i * 3 + k) % fl.frames.size()]
 	var anchor := Vector2(fl.anchor[0], fl.anchor[1])
-	_add(ground.y + 1.0, Rect2(f[0], f[1], f[2], f[3]), ground + at - anchor, Color(1, 1, 1, fade))
+	var rect := Rect2(f[0], f[1], f[2], f[3])
+	if scale == 1.0:
+		_add(ground.y + 1.0, rect, ground + at - anchor, Color(1, 1, 1, fade))
+	else:
+		_add(ground.y + 1.0, rect, ground + at - (anchor * scale).round(), Color(1, 1, 1, fade), false, (rect.size * scale).round())
+
+
+func _prop(kind: String) -> Array:
+	var f: Array = _prop_frames.get(kind, [])
+	if f.is_empty():
+		f = atlas.prop_frame(kind)
+		_prop_frames[kind] = f
+	return f
+
+
+func _index_hut_burn() -> void:
+	_hut_burn.clear()
+	for o in sim.objectives.list:
+		if o.kind == "camp" and o.burnt_at >= 0.0 and not o.razed:
+			for i in o.huts.size():
+				_hut_burn[o.huts[i]] = [i, sim.time - float(o.burnt_at)]
+
+
+## A burning hut: darkening while it stands, its roof caving in onto the charred frame, then the frame over the ash heap.
+func _add_burning_hut(at: Vector2, kind: String, f: Array) -> void:
+	var cfg: Dictionary = sim.b.objectives.camp
+	var i: int = _hut_burn[at][0]
+	var t: float = _hut_burn[at][1]
+	var fall := Objectives.fall_at(cfg, i)
+	if kind == "hut":
+		var lit := Objectives.catch_at(cfg, i)
+		var dark := Color.WHITE.lerp(CHARRED, clampf((t - lit) / (fall - lit), 0.0, 1.0))
+		# The hut shudders for a moment before its roof gives way.
+		var shudder := Vector2(roundf(sin(t * 60.0)), 0) if fall - t < 0.35 else Vector2.ZERO
+		_add(at.y, f[0], at - f[1] + shudder, dark)
+		return
+	var since := t - fall
+	var cave := float(cfg.burn.cave)
+	var ruin := _prop("hut_ruin")
+	_add(at.y - 60000.0, ruin[0], at - ruin[1], Color(1, 1, 1, clampf(since / cave, 0.0, 1.0)))
+	var frame_alpha := clampf((float(cfg.burn_seconds) - t) / 1.5, 0.0, 1.0)
+	if since >= cave:
+		_add(at.y, f[0], at - f[1], Color(1, 1, 1, frame_alpha))
+		return
+	var k := since / cave
+	_add(at.y, f[0], at - f[1], Color(1, 1, 1, k))
+	# The roof sinks onto its foot and spreads a little as it falls in.
+	var hut := _prop("hut")
+	var rect: Rect2 = hut[0]
+	var squash := Vector2(1.0 + 0.12 * k, 1.0 - 0.8 * k * k)
+	_add(at.y + 0.5, rect, at - (hut[1] * squash).round(), Color(CHARRED, 1.0 - k * k), false, (rect.size * squash).round())
+
+
+## The fires on one hut: catching at one spot and spreading to three, blazing, then low flames in the collapsed frame.
+func _add_hut_flames(hut: Vector2, i: int, t: float) -> void:
+	var cfg: Dictionary = sim.b.objectives.camp
+	var fall := Objectives.fall_at(cfg, i)
+	if t >= fall:
+		var fade := clampf((float(cfg.burn_seconds) - t) / 3.0, 0.0, 1.0) * clampf((t - fall) / 0.3, 0.0, 1.0)
+		for n in HUT_EMBER_FIRES.size():
+			_add_flame(hut, HUT_EMBER_FIRES[n], i, n, fade, 0.5)
+		var k := (t - fall) / float(cfg.burn.cave)
+		if k < 1.0:
+			# The roof's fires fall in with it and die down.
+			for n in 3:
+				_add_flame(hut, HUT_FIRES[n] * Vector2(1.0 + 0.12 * k, 1.0 - 0.8 * k), i, n, 1.0 - k * k, lerpf(1.25, 0.5, k))
+		return
+	var spread := float(cfg.burn.spread)
+	var since := t - Objectives.catch_at(cfg, i)
+	var blaze := clampf((since - 2.0 * spread) / 1.0, 0.0, 1.0)
+	for n in 3:
+		var lit := since - n * spread
+		if lit < 0.0:
+			break
+		var k := (i + n) % 3
+		_add_flame(hut, HUT_FIRES[k], i, k, clampf(lit / 0.25, 0.0, 1.0), clampf(0.4 + lit * 1.5, 0.4, 1.0) + 0.25 * blaze)
+	for n in HUT_WALL_FIRES.size():
+		var lit := since - 2.0 * spread - 0.4 - 0.5 * n
+		if lit > 0.0:
+			_add_flame(hut, HUT_WALL_FIRES[n], i + 1, n, clampf(lit / 0.3, 0.0, 1.0), 0.8)
+
+
+## A steady number from 0 to 1 for speck j of hut i, so each speck keeps its own path from frame to frame.
+static func _speck(i: int, j: int, salt: float) -> float:
+	return fposmod(sin(i * 78.233 + j * 12.9898 + salt) * 43758.5453, 1.0)
+
+
+## Smoke and embers rising from the camp's burning huts, and the sparks and ash thrown up as each one caves in.
+func _draw_camp_fire(view: Rect2) -> void:
+	var cfg: Dictionary = sim.b.objectives.camp
+	var end := float(cfg.burn_seconds)
+	for o in sim.objectives.list:
+		if o.kind != "camp" or o.burnt_at < 0.0 or o.razed or not view.grow(150.0).has_point(o.pos):
+			continue
+		var t := sim.time - float(o.burnt_at)
+		for i in o.huts.size():
+			var h: Vector2 = o.huts[i]
+			var fall := Objectives.fall_at(cfg, i)
+			var standing := t < fall
+			var heat := clampf((t - Objectives.catch_at(cfg, i)) / 2.0, 0.0, 1.0) if standing else 0.45 * clampf((end - t) / 3.0, 0.0, 1.0)
+			_draw_hut_smoke(h, i, heat, standing)
+			_draw_hut_embers(h, i, heat if standing else heat * 0.4)
+			if t >= fall and t - fall < 1.0:
+				_draw_hut_burst(h, i, t - fall)
+
+
+func _draw_hut_smoke(h: Vector2, i: int, heat: float, standing: bool) -> void:
+	if heat <= 0.0:
+		return
+	var n := 14 if standing else 6
+	var life := 2.6 if standing else 3.2
+	var base := Vector2(0, -24) if standing else Vector2(0, -8)
+	var col := Color(0.4, 0.37, 0.36) if standing else Color(0.62, 0.6, 0.58)
+	for j in n:
+		var age := fposmod(sim.time / life + float(j) / n + i * 0.137, 1.0)
+		var start := base + Vector2((_speck(i, j, 1.0) - 0.5) * 20.0, 0)
+		var p := h + start + Vector2(sin(age * 3.0 + j) * 3.0 + age * 16.0, -age * (52.0 if standing else 40.0))
+		var a := heat * (0.75 if standing else 0.5) * (1.0 - age) * minf(age * 5.0, 1.0)
+		draw_circle(p.round(), (3.0 + age * 10.0) if standing else (2.0 + age * 5.0), Color(col, a))
+
+
+func _draw_hut_embers(h: Vector2, i: int, heat: float) -> void:
+	if heat <= 0.0:
+		return
+	for j in 12:
+		var age := fposmod(sim.time / 1.6 + float(j) / 12.0 + i * 0.29, 1.0)
+		var p := h + Vector2((_speck(i, j, 7.0) - 0.5) * 24.0 + sin(age * 6.0 + j) * 4.0 + age * 8.0, -12.0 - age * 44.0)
+		var col := Color(1.0, 0.85, 0.35).lerp(Color(0.9, 0.3, 0.1), age)
+		col.a = heat * (1.0 - age)
+		draw_rect(Rect2(p.round(), Vector2(1, 1) if j % 2 else Vector2(2, 2)), col)
+
+
+## Sparks flung up and falling back, and puffs of ash rolling out from the foot, as a hut caves in.
+func _draw_hut_burst(h: Vector2, i: int, a: float) -> void:
+	for j in 6:
+		var dir := Vector2.from_angle(TAU * j / 6.0 + _speck(i, j, 3.0))
+		var p := h + Vector2(0, -4) + dir * Vector2(10.0 + 16.0 * a, 4.0 + 6.0 * a) + Vector2(0, -6.0 * a)
+		draw_circle(p.round(), 3.0 + 7.0 * a, Color(0.42, 0.4, 0.4, 0.55 * (1.0 - a)))
+	for j in 16:
+		var ang := -PI * (0.1 + 0.8 * _speck(i, j, 5.0))
+		var v := Vector2.from_angle(ang) * (40.0 + 55.0 * _speck(i, j, 9.0))
+		var p := h + Vector2(0, -12) + v * a + Vector2(0, 80.0 * a * a)
+		var col := Color(1.0, 0.92, 0.5).lerp(Color(1.0, 0.4, 0.1), a)
+		col.a = 1.0 - a
+		draw_rect(Rect2(p.round(), Vector2(2, 2) if j % 4 == 0 else Vector2(1, 1)), col)
 
 
 ## Scorched ground where a camp's huts burnt, drawn on the ground under everything else.
@@ -1116,8 +1273,11 @@ func _draw_scorch(view: Rect2) -> void:
 	for o in sim.objectives.list:
 		if o.kind != "camp" or o.burnt_at < 0.0 or not view.grow(60.0).has_point(o.pos):
 			continue
-		var k := clampf((sim.time - float(o.burnt_at)) / float(sim.b.objectives.camp.burn_seconds), 0.0, 1.0)
-		for h in o.huts:
+		var cfg: Dictionary = sim.b.objectives.camp
+		var t := sim.time - float(o.burnt_at)
+		for i in o.huts.size():
+			var h: Vector2 = o.huts[i]
+			var k := clampf((t - Objectives.catch_at(cfg, i)) / (Objectives.fall_at(cfg, i) - Objectives.catch_at(cfg, i)), 0.0, 1.0)
 			draw_set_transform(h + Vector2(0, -4), 0.0, Vector2(1.0, 0.55))
 			draw_circle(Vector2.ZERO, 22.0, Color(0.12, 0.09, 0.07, 0.45 * k))
 			draw_circle(Vector2.ZERO, 14.0, Color(0.07, 0.05, 0.04, 0.6 * k))

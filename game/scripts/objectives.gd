@@ -53,7 +53,7 @@ func place_start(sim: Sim, near := false) -> void:
 ## Sets one objective at pos, clears its ground and stands its huts, oaks or guards there.
 func add(sim: Sim, kind: String, pos: Vector2) -> Dictionary:
 	var cfg: Dictionary = sim.b.objectives
-	var o := {"kind": kind, "pos": pos, "done": false, "woken": false, "hold": 0.0, "band_cd": 0.0, "guards": [], "held": {}, "oaks": [], "huts": [], "burnt_at": -1.0, "razed": false}
+	var o := {"kind": kind, "pos": pos, "done": false, "woken": false, "hold": 0.0, "band_cd": 0.0, "guards": [], "held": {}, "oaks": [], "huts": [], "burnt_at": -1.0, "razed": false, "fallen": 0}
 	var pieces: Array = []
 	match kind:
 		"camp":
@@ -321,13 +321,52 @@ func _take_eagle(o: Dictionary, sim: Sim) -> void:
 	_finish(o, sim)
 
 
-## The huts burn for a while after the eagle is taken, then fall in, leaving open ground.
+## The huts burn after the eagle is taken, cave in one by one and stop blocking, then smoulder and leave walk-through ruins.
 func _burn_camp(o: Dictionary, sim: Sim) -> void:
-	if sim.time - float(o.burnt_at) < float(sim.b.objectives.camp.burn_seconds):
+	var cfg: Dictionary = sim.b.objectives.camp
+	var t := sim.time - float(o.burnt_at)
+	var fell: Array = []
+	while o.fallen < o.huts.size() and t >= fall_at(cfg, o.fallen):
+		var at: Vector2 = o.huts[o.fallen]
+		fell.append(at)
+		o.fallen += 1
+		sim.event("hut_fall", at)
+		sim.shake = maxf(sim.shake, float(sim.b.shake.hut_fall))
+	if t >= float(cfg.burn_seconds):
+		o.razed = true
+		sim.terrain.change_extras(o.huts, "hut_ruin", 0.0)
+	elif not fell.is_empty():
+		sim.terrain.change_extras(fell, "hut_charred", 0.0)
+	else:
 		return
-	o.razed = true
-	sim.terrain.remove_extras(o.huts)
 	sim.terrain.refresh(sim.commander.pos)
+
+
+## Seconds after the eagle is taken that hut i first catches fire.
+static func catch_at(cfg: Dictionary, i: int) -> float:
+	return i * float(cfg.burn.catch_stagger)
+
+
+## Seconds after the eagle is taken that hut i caves in.
+static func fall_at(cfg: Dictionary, i: int) -> float:
+	return float(cfg.burn.collapse) + i * float(cfg.burn.collapse_stagger)
+
+
+## How many of hut i's three fires are lit t seconds after the eagle is taken, while it still stands.
+static func hut_flames(cfg: Dictionary, i: int, t: float) -> int:
+	if t < catch_at(cfg, i):
+		return 0
+	return mini(3, 1 + int((t - catch_at(cfg, i)) / float(cfg.burn.spread)))
+
+
+## Where hut i is in the burn t seconds after the eagle is taken: catching, blazing, collapsing, smouldering or ruins.
+static func hut_stage(cfg: Dictionary, i: int, t: float) -> String:
+	if t >= float(cfg.burn_seconds):
+		return "ruins"
+	var fall := fall_at(cfg, i)
+	if t >= fall:
+		return "collapsing" if t < fall + float(cfg.burn.cave) else "smouldering"
+	return "blazing" if hut_flames(cfg, i, t) >= 3 else "catching"
 
 
 func _column(o: Dictionary, dt: float, sim: Sim) -> void:
