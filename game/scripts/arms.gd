@@ -67,6 +67,11 @@ func torch_points(sim: Sim) -> Array:
 	return out
 
 
+## How many enemies a pilum passes through at a rank, before the hooked pila's extra one.
+static func pila_pierce(rank: int) -> int:
+	return 1 + rank / 2
+
+
 func stones_per_throw(sim: Sim) -> int:
 	return int(sim.b.onager.stones) + (int(sim.b.siege_train.extra_stones) if sim.rank("siege_train") > 0 else 0)
 
@@ -122,7 +127,7 @@ func _pilum(dt: float, sim: Sim) -> void:
 	var p: Dictionary = sim.b.pilum
 	timers.pilum = lv(p, "every", pr)
 	var hooked := sim.rank("hooked_pila") > 0
-	var pierce := 1 + pr / 2 + (int(sim.b.hooked_pila.extra_pierce) if hooked else 0)
+	var pierce := pila_pierce(pr) + (int(sim.b.hooked_pila.extra_pierce) if hooked else 0)
 	var extra := {"pin": float(sim.b.hooked_pila.pin)} if hooked else {}
 	var throwers := int(lv(p, "throwers", pr))
 	var thrown := 0

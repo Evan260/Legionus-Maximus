@@ -28,6 +28,12 @@ const BUILD_W_BIG := 172.0
 const BUILD_PAD := 4.0
 const BUILD_ICONS := [24.0, 22.0, 20.0, 18.0, 16.0]
 const PIP_DARK := Color(0.32, 0.26, 0.2)
+## The choice panel on the right of the level-up: the icon sides and the room between its lines it tries, roomiest first, its buttons' height and the gap between them, the room for the arrow between a number now and next, and the colour of its history.
+const PANEL_ROOMS := [[48.0, 2.0], [40.0, 1.0], [32.0, 0.0]]
+const PANEL_BUTTON_H := 16.0
+const PANEL_BUTTON_GAP := 3.0
+const ARROW_W := 9.0
+const HISTORY := Color(0.84, 0.78, 0.66)
 ## The level-up's rows at the normal text size: their width, the gap between them, the top of the first, and the height of each when there are three or four.
 const ROW_W := 320.0
 const ROW_GAP := 5.0
@@ -1048,6 +1054,9 @@ func _choices(sim: Sim) -> void:
 	var rows := choice_rows(n, big)
 	if shows_build(praying, big):
 		draw_build(sim, build_rect())
+	var side_panel := shows_choice_panel(praying, big)
+	if side_panel:
+		draw_choice_panel(sim, main.choices[clampi(main.selected, 0, n - 1)])
 	# With large text the heading takes the clock's place in the top bar, which already says the level.
 	var head_y := 16.0 + 8.0 * Ui.scale if big else ROW_TOP - 22.0
 	if praying:
@@ -1099,6 +1108,8 @@ func _choices(sim: Sim) -> void:
 		_centred_hint(Controls.hint("gods"), hint_y, CREAM)
 		return
 	_centred_hint(Controls.hint("level"), hint_y, CREAM)
+	if side_panel:
+		return
 	var extras: Array = []
 	if sim.rerolls > 0:
 		extras.append(Controls.hint("reroll", sim.rerolls))
@@ -1154,3 +1165,169 @@ func choice_at(p: Vector2) -> int:
 		if choice_rects[i].has_point(p):
 			return i
 	return -1
+
+
+
+## The panel on the right of a level-up that tells of the choice picked out: the build panel mirrored across the middle of the screen.
+static func choice_panel_rect() -> Rect2:
+	var left := build_rect()
+	return Rect2(W - left.end.x, left.position.y, left.size.x, left.size.y)
+
+
+## The choice panel shows where the build panel does, except on a phone, whose buttons under the rows do its work.
+static func shows_choice_panel(praying: bool, big: bool) -> bool:
+	return shows_build(praying, big) and not Touch.phone
+
+
+## The reroll and banish buttons at the foot of the choice panel, as {id: rect}, the lower one level with the foot of the build panel.
+static func choice_panel_buttons() -> Dictionary:
+	var r := choice_panel_rect()
+	var w := r.size.x - 2.0 * BUILD_PAD
+	var foot := r.end.y - BUILD_PAD
+	return {"reroll": Rect2(r.position.x + BUILD_PAD, foot - 2.0 * PANEL_BUTTON_H - PANEL_BUTTON_GAP, w, PANEL_BUTTON_H),
+		"banish": Rect2(r.position.x + BUILD_PAD, foot - PANEL_BUTTON_H, w, PANEL_BUTTON_H)}
+
+
+## A button's words: its key or pad button, what it does and how many are left, as the key hints write them.
+static func choice_button_label(sim: Sim, id: String) -> String:
+	return Controls.hint(id, sim.rerolls if id == "reroll" else sim.banishes).to_upper()
+
+
+## The choice panel's button at a point that has a use left, or "".
+static func choice_button_at(sim: Sim, p: Vector2) -> String:
+	var buttons := choice_panel_buttons()
+	for id in buttons:
+		if buttons[id].has_point(p) and (sim.rerolls if id == "reroll" else sim.banishes) > 0:
+			return id
+	return ""
+
+
+## Where each piece of the choice panel goes inside `r` for the choice `id`, as [kind, rect, ...]: its icon, its name and group, a line, what it does now and next as a name and its numbers, how it forges, another line and its history. Text lines carry their words and look, and numbers their now and next.
+static func choice_panel_items(sim: Sim, id: String, r: Rect2) -> Array:
+	var room: float = choice_panel_buttons().reroll.position.y - PANEL_BUTTON_GAP
+	var items: Array = []
+	for each in PANEL_ROOMS:
+		items = _choice_panel_at(sim, id, r, each[0], each[1])
+		if items[-1][1].end.y <= room:
+			break
+	return items
+
+
+static func _choice_panel_at(sim: Sim, id: String, r: Rect2, side: float, gap: float) -> Array:
+	var items: Array = []
+	var lead := Ui.leading()
+	var x := r.position.x + BUILD_PAD + 2.0
+	var inner := r.size.x - 2.0 * BUILD_PAD - 4.0
+	var y := r.position.y + BUILD_PAD + 2.0
+	var info: Dictionary = sim.content.upgrade(id)
+	var name := str(info.name).to_upper()
+	var group := TranslationServer.translate(sim.content.group_of(id)).to_upper()
+	# The name stands beside the icon when it fits in two lines there, and under it, across the panel, when it does not.
+	var beside := inner - side - 6.0
+	var lines := Ui.lines_of(name, beside)
+	var fits := lines.size() <= 2 and Ui.width_at(group, Ui.px) <= beside
+	for line in lines:
+		fits = fits and Ui.width_at(line, Ui.px) <= beside
+	if fits:
+		var block := (lines.size() + 1) * lead
+		var h := maxf(side, block)
+		items.append(["icon", Rect2(x, y + floorf((h - side) / 2.0), side, side), id])
+		var ty := y + floorf((h - block) / 2.0)
+		for line in lines:
+			items.append(["text", Rect2(x + side + 6.0, ty, beside, lead), line, "name"])
+			ty += lead
+		items.append(["text", Rect2(x + side + 6.0, ty, beside, lead), group, "group"])
+		y += h + 3.0 + gap
+	else:
+		items.append(["icon", Rect2(x + floorf((inner - side) / 2.0), y, side, side), id])
+		y += side + 3.0
+		for line in Ui.lines_of(name, inner):
+			items.append(["text", Rect2(x, y, inner, lead), line, "name"])
+			y += lead
+		items.append(["text", Rect2(x, y, inner, lead), group, "group"])
+		y += lead + 3.0 + gap
+	items.append(["line", Rect2(x, y, inner, 1.0)])
+	y += 4.0 + gap
+	for s in Upgrades.stat_lines(sim, id):
+		var vw: float = value_width(s[1], s[2])
+		var lw: float = Ui.width_at(s[0], Ui.px)
+		# A long name puts its numbers on the line under it, written from the right.
+		var two := lw + 6.0 + vw > inner
+		items.append(["text", Rect2(x, y, minf(lw, inner) if not two else inner, lead), s[0], "label"])
+		if two:
+			y += lead
+		items.append(["value", Rect2(x + inner - vw, y, vw, lead), s[1], s[2]])
+		y += lead + gap / 2.0
+	# Closing punctuation in Chinese and Japanese may run one glyph past the width it wraps at, so they wrap that much narrower.
+	var wrap: float = inner - (Ui.px if Lang.is_han() else 0.0)
+	var forge := Upgrades.forge_lines(sim, id)
+	if not forge.is_empty():
+		y += 2.0 + gap
+		for f in forge:
+			for line in Ui.lines_of(f, wrap):
+				items.append(["text", Rect2(x, y, inner, lead), line, "forge"])
+				y += lead
+	var history := str(info.get("history", ""))
+	if history != "":
+		y += 1.0 + gap
+		items.append(["line", Rect2(x, y, inner, 1.0)])
+		y += 4.0 + gap
+		for line in Ui.lines_of(history, wrap):
+			items.append(["text", Rect2(x, y, inner, lead), line, "history"])
+			y += lead
+	return items
+
+
+## How wide a stat's numbers are written: now, an arrow and next, or only one of them.
+static func value_width(now: String, next: String) -> float:
+	if now == "" or next == "":
+		return Ui.width_at(now + next, Ui.px)
+	return Ui.width_at(now, Ui.px) + ARROW_W + Ui.width_at(next, Ui.px)
+
+
+## The choice picked out on a dark plate on the right, with the reroll and banish buttons at its foot.
+func draw_choice_panel(sim: Sim, id: String) -> void:
+	var r := choice_panel_rect()
+	draw_rect(r, Color(0.08, 0.05, 0.04, 0.7))
+	draw_rect(r, Color(GOLD, 0.6), false, 1.0)
+	var colours := {"name": GOLD_LIGHT, "group": MUTED, "label": MUTED, "forge": GOLD, "history": HISTORY}
+	for it in choice_panel_items(sim, id, r):
+		var at: Rect2 = it[1]
+		var base := at.position.y + Ui.px
+		match it[0]:
+			"icon":
+				var icon := icon_of(it[2])
+				if icon != null:
+					draw_texture_rect(icon, at, false)
+			"line":
+				draw_rect(at, Color(GOLD, 0.45))
+			"text":
+				text(it[2], Vector2(at.position.x, base), colours[it[3]], HORIZONTAL_ALIGNMENT_LEFT, -1, it[3] == "name")
+			"value":
+				var now: String = it[2]
+				var next: String = it[3]
+				if next == "":
+					text(now, Vector2(at.position.x, base), CREAM, HORIZONTAL_ALIGNMENT_LEFT, -1, false)
+					continue
+				var vx := at.position.x
+				if now != "":
+					text(now, Vector2(vx, base), CREAM, HORIZONTAL_ALIGNMENT_LEFT, -1, false)
+					vx += Ui.width_at(now, Ui.px)
+					_arrow(Vector2(vx + ARROW_W / 2.0, at.position.y + floorf(Ui.leading() / 2.0)))
+					vx += ARROW_W
+				text(next, Vector2(vx, base), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_LEFT, -1, false)
+	var buttons := choice_panel_buttons()
+	var over := get_local_mouse_position() - Ui.offset
+	for b in buttons:
+		var br: Rect2 = buttons[b]
+		var live := choice_button_at(sim, br.get_center()) != ""
+		if live and br.has_point(over):
+			draw_rect(br.grow(2), GOLD)
+		panel(br, PARCH if live else Color(PARCH_DARK, 0.45))
+		text(choice_button_label(sim, b), Vector2(br.position.x, br.position.y + floorf((br.size.y + Ui.px) / 2.0) - 1.0), INK if live else Color(INK, 0.5), HORIZONTAL_ALIGNMENT_CENTER, br.size.x, false)
+
+
+## A small gold arrow pointing right from a stat's number now to its next.
+func _arrow(c: Vector2) -> void:
+	for k in 3:
+		draw_rect(Rect2(floorf(c.x) - 1.0 + k, floorf(c.y) - 2.0 + k, 1.0, 5.0 - 2.0 * k), GOLD)

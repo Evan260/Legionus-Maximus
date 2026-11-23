@@ -20,7 +20,7 @@ KINDS = ["recruits", "enemies", "arms", "forged", "drills", "provinces", "comman
 # Tables of words that screens look up with tr(entry), as (script, constant name).
 TABLES = [("screens/camp.gd", "BOARDS"), ("screens/map.gd", "LEVELS"), ("screens/map.gd", "MODES"), ("screens/settings.gd", "VOLUME_NAMES"),
           ("screens/settings.gd", "TOGGLES"), ("screens/tablinum.gd", "KINDS"), ("controls.gd", "ACTIONS"),
-          ("controls.gd", "PAD_NAMES"), ("content.gd", "GROUPS")]
+          ("controls.gd", "PAD_NAMES"), ("content.gd", "GROUPS"), ("upgrades.gd", "STAT_NAMES"), ("upgrades.gd", "FORGED_STATS")]
 # Tables whose every string is a word to translate, the lower-case ones too.
 WORD_TABLES = [("controls.gd", "HINT_WORDS"), ("controls.gd", "KEY_NAMES")]
 # Words built from ids in code: the difficulty and mode names, which the camp and the summary capitalise, and the objectives' names in hud.gd.

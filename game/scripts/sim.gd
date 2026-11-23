@@ -283,7 +283,7 @@ func base_pace() -> float:
 
 
 func speed() -> float:
-	var v: float = content.base_commander.speed * (1.0 + 0.08 * rank("march") + bonus_amount("move_speed")) * float(content.commanders[commander_id].get("speed_mult", 1.0))
+	var v: float = content.base_commander.speed * (1.0 + float(b.drills.march) * rank("march") + bonus_amount("move_speed")) * float(content.commanders[commander_id].get("speed_mult", 1.0))
 	# Barbarians locked in melee hold the legion back, so marching into a crowd bogs it down instead of passing through.
 	var held := 1.0 - float(b.press.per_enemy) * pressing
 	var cursed := 1.0 - horde.curse_slow if horde.curse_left > 0.0 else 1.0
@@ -310,8 +310,22 @@ func burn_seconds() -> float:
 	return float(b.greek_fire.seconds) if rank("greek_fire") > 0 else float(b.fire_arrows.seconds)
 
 
+## How long the testudo holds and how long it takes to charge again with that many ranks of the drill.
+func testudo_hold_at(drill: int) -> float:
+	return b.testudo_hold + float(b.drills.testudo_hold) * drill + bonus_amount("testudo_hold")
+
+
+func testudo_recharge_at(drill: int) -> float:
+	return maxf(5.0, b.testudo_recharge - float(b.drills.testudo_recharge) * drill - bonus_amount("testudo_charge"))
+
+
+## What the gladius drill does to a blow; missiles get half, since the drill trains sword work.
+func gladius_mult(missile: bool) -> float:
+	return 1.0 + float(b.drills.gladius) * rank("gladius") * (0.5 if missile else 1.0)
+
+
 func attack_rate() -> float:
-	return (1.0 + 0.12 * rank("discipline")) * (1.0 + bonus_amount("attack_speed")) * (float(b.gods.mars.rate_mult) if gods.frenzy_left > 0.0 else 1.0) * (1.0 - horde.blast_slow if horde.blast_left > 0.0 else 1.0)
+	return (1.0 + float(b.drills.discipline) * rank("discipline")) * (1.0 + bonus_amount("attack_speed")) * (float(b.gods.mars.rate_mult) if gods.frenzy_left > 0.0 else 1.0) * (1.0 - horde.blast_slow if horde.blast_left > 0.0 else 1.0)
 
 
 ## The share of harm the legion takes: less with the quartermaster's armour and while Mars's frenzy is on it.
@@ -320,7 +334,7 @@ func frenzy_guard() -> float:
 
 
 func pickup_radius() -> float:
-	return b.pickup_radius * (1.0 + 0.3 * rank("reach") + bonus_amount("pickup_radius"))
+	return b.pickup_radius * (1.0 + float(b.drills.reach) * rank("reach") + bonus_amount("pickup_radius"))
 
 
 func update(dt: float, move: Vector2, testudo_pressed: bool) -> void:
@@ -333,13 +347,13 @@ func update(dt: float, move: Vector2, testudo_pressed: bool) -> void:
 	terrain.clock = time
 	if testudo_pressed and testudo_charge >= 1.0 and testudo_left <= 0.0:
 		event("testudo", commander.pos)
-		testudo_left = b.testudo_hold + 1.0 * rank("testudo") + bonus_amount("testudo_hold")
+		testudo_left = testudo_hold_at(rank("testudo"))
 		testudo_charge = 0.0
 		shake = maxf(shake, float(b.shake.testudo))
 	if testudo_left > 0.0:
 		testudo_left -= dt
 	else:
-		testudo_charge = minf(1.0, testudo_charge + dt / maxf(5.0, b.testudo_recharge - 2.0 * rank("testudo") - bonus_amount("testudo_charge")))
+		testudo_charge = minf(1.0, testudo_charge + dt / testudo_recharge_at(rank("testudo")))
 	_move_legion(dt, move)
 	_bridge_look -= dt
 	if _bridge_look <= 0.0:
@@ -823,7 +837,7 @@ func melee(u: Dictionary, dmg: float, reach: float, cooldown: float, dt: float) 
 	if t < 0:
 		return
 	strike(u, horde.e_pos[t])
-	hit(t, dmg * (1.0 + 0.2 * rank("gladius")), 0.0, u.type, u.pos)
+	hit(t, dmg * gladius_mult(false), 0.0, u.type, u.pos)
 	u.cd = cooldown
 	effects.append({"kind": "slash", "pos": u.pos, "to": horde.e_pos[t], "t": 0.0})
 
@@ -1286,7 +1300,7 @@ func _regen(dt: float) -> void:
 	# The commander slowly recovers on his own, so stray axes wear him down only while the fighting is thick.
 	if commander.hp > 0.0:
 		commander.hp = minf(commander.max_hp, commander.hp + float(b.get("commander_regen", 0.0)) * dt)
-	var r := 0.6 * rank("rations")
+	var r := float(b.drills.rations) * rank("rations")
 	var own := bonus_amount("regeneration")
 	if r <= 0.0 and own <= 0.0:
 		return

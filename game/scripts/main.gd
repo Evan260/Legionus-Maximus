@@ -15,7 +15,7 @@ extends Node
 ##                      village or hedge stands it beside the nearest village or hedge, in a province that has them
 ##                      canal stands it before the nearest canal crossing, reeds, ruin or palms beside the nearest reed bed, obelisk or date palm
 ##                      grass, kurgan, wagons or birches beside the nearest feather grass, kurgan, wagon circle or birch
-##   --hold-choice      with --autoplay, give a level at once and leave its choices open
+##   --hold-choice      with --autoplay, give a level at once and leave its choices open; --select=N picks out choice N (from 0)
 ##   --easy, --hard     start the run at that difficulty
 ##   --endless, --decimatio   start the run in that mode
 ##   --screen=NAME      open a screen (camp, quartermaster, tablinum, map, commanders, settings, title, saves) with a sample profile, for screenshots;
@@ -715,20 +715,23 @@ func _pad(id: String) -> bool:
 
 
 func _reroll() -> void:
-	if sim.rerolls > 0:
-		choices = Upgrades.reroll(sim, choices)
-		selected = Upgrades.keep_in(selected, choices)
+	_press("reroll")
 
 
 func _banish() -> void:
 	if sim.banishes <= 0:
 		return
-	choices = Upgrades.banish(sim, choices[selected], choices)
-	selected = Upgrades.keep_in(selected, choices)
+	_press("banish")
 	if choices.is_empty():
 		sim.pending_levels = 0
 		sim.free_choices = 0
 		state = "play"
+
+
+func _press(id: String) -> void:
+	var after := Upgrades.press(sim, id, choices, selected)
+	choices = after.choices
+	selected = after.selected
 
 
 ## Leaves the gods' choice for later, with the favour kept.
@@ -869,7 +872,7 @@ func _open_choices() -> void:
 	choices = Upgrades.next_choices(sim)
 	if choices.is_empty():
 		return
-	selected = 0
+	selected = Upgrades.keep_in(int(args.get("select", "0")), choices)
 	opened_at = clock
 	state = "choose"
 
@@ -951,6 +954,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		if i >= 0:
 			selected = i
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		if state == "choose" and Hud.shows_choice_panel(false, Ui.scale > 1):
+			match Hud.choice_button_at(sim, at):
+				"reroll":
+					_reroll()
+					return
+				"banish":
+					_banish()
+					return
 		var i: int = hud.choice_at(at)
 		if i >= 0:
 			if state == "pray":

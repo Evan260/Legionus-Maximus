@@ -519,6 +519,22 @@ func _melee_damage(type: String) -> float:
 	return float(info.damage) * mult
 
 
+## The harm one blow of a soldier of a type does before the enemy's guard, worked out as his own attack works it out.
+func blow(type: String, sim: Sim) -> float:
+	var info: Dictionary = _content.recruits[type]
+	var dmg := 0.0
+	match info.attack:
+		"melee", "shout":
+			dmg = _melee_damage(type) * sim.gladius_mult(false)
+		"sortie":
+			dmg = float(info.damage) * sim.gladius_mult(false)
+		"missile":
+			dmg = float(info.damage) * sim.gladius_mult(true)
+		"bolt":
+			dmg = float(info.damage)
+	return dmg * (1.0 + sim.bonus_amount("damage"))
+
+
 func _auras() -> void:
 	commander.haste = 1.0
 	var at := PackedVector2Array()
@@ -552,8 +568,7 @@ func _missile(s: Dictionary, dt: float, sim: Sim) -> void:
 		return
 	s.cd = float(info.cooldown)
 	sim.strike(s, sim.horde.e_pos[t])
-	# Missiles get half the gladius bonus because the drill trains sword work.
-	var dmg := float(info.damage) * (1.0 + 0.2 * sim.rank("gladius") * 0.5)
+	var dmg := float(info.damage) * sim.gladius_mult(true)
 	if s.type == "archer":
 		var fire := sim.rank("fire_arrows")
 		sim.shoot("arrow", s.pos, sim.horde.e_pos[t], float(info.arrow_speed), dmg, int(stat(s.type, "pierce")),
@@ -651,7 +666,7 @@ func _sortie(s: Dictionary, dt: float, sim: Sim) -> void:
 			s.pos += to / d * move
 			s.facing = to / d
 		s.moving = true
-		var dmg := float(info.damage) * (1.0 + 0.2 * sim.rank("gladius"))
+		var dmg := float(info.damage) * sim.gladius_mult(false)
 		if promoted(s.type) and info.promotion.get("trample", false):
 			for j in sim.enemies_near(s.pos, strike):
 				if not s.struck.has(sim.horde.e_id[j]):

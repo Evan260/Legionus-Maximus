@@ -3058,6 +3058,140 @@ func test_every_choice_fits_its_row_in_every_language(b: Dictionary) -> void:
 	check(problems.is_empty(), "every choice's name, level and text fit its row in every language, at both text sizes, three or four rows (%d problems)" % problems.size())
 
 
+func test_the_choice_panel_mirrors_the_build_panel(b: Dictionary) -> void:
+	var before_scale := Ui.scale
+	Ui.set_text_size(1, b)
+	var left := Hud.build_rect()
+	var right := Hud.choice_panel_rect()
+	check(is_equal_approx(right.position.x, Ui.W - left.end.x) and right.position.y == left.position.y and right.size == left.size,
+		"the choice panel %s is the build panel %s mirrored across the middle of the screen" % [right, left])
+	for n in [3, 4]:
+		var rows: Array = Hud.choice_rows(n, false)
+		for r in rows:
+			check(left.end.x + 8.0 <= r.position.x and r.end.x + 8.0 <= right.position.x, "%d choices: neither panel reaches the row %s" % [n, r])
+	var buttons: Dictionary = Hud.choice_panel_buttons()
+	check(buttons.keys() == ["reroll", "banish"], "the panel has a reroll and a banish button")
+	for id in buttons:
+		check(right.grow(-1.0).encloses(buttons[id]), "the %s button sits inside the panel" % id)
+	check(is_equal_approx(buttons.banish.end.y, left.end.y - Hud.BUILD_PAD), "the lower button is level with the foot of the build panel, inside its margin")
+	check(Hud.shows_choice_panel(false, false) and not Hud.shows_choice_panel(true, false) and not Hud.shows_choice_panel(false, true),
+		"the panel shows beside a level-up's rows at the normal text size, but not for the gods or with large text")
+	Touch.phone = true
+	check(not Hud.shows_choice_panel(false, false), "and not on a phone")
+	Touch.phone = false
+	Ui.set_text_size(before_scale, b)
+
+
+func test_every_piece_of_the_choice_panel_fits_it_in_every_language(b: Dictionary) -> void:
+	var before: String = Lang.code
+	var before_scale := Ui.scale
+	Ui.set_text_size(1, b)
+	var words := Content.load_all(Content.available_art())
+	var ids: Array = words.recruits.keys() + words.arms.keys() + words.forged.keys() + words.drills.keys()
+	# A fresh legion shows each choice as new, and one built halfway shows a rank and the next side by side with two-figure counts.
+	var fresh := Sim.new(b, words, {"seed": 3})
+	var built := Sim.new(b, words, {"seed": 3})
+	for id in words.recruits:
+		for k in 6:
+			built.legion.pick(id)
+	for kind in ["arms", "drills"]:
+		for id in words.get(kind):
+			built.ranks[id] = maxi(1, int(words.get(kind)[id].max) - 1)
+	for s in [fresh, built]:
+		s.rerolls = 10
+		s.banishes = 10
+	var room := Hud.choice_panel_rect()
+	var buttons: Dictionary = Hud.choice_panel_buttons()
+	var problems := []
+	for loc in LANGUAGES:
+		Lang.apply(loc, false)
+		words.localize()
+		for id in buttons:
+			var label := Hud.choice_button_label(fresh, id)
+			if Ui.width_at(label, Ui.px) > buttons[id].size.x - 8.0:
+				problems.append("%s the %s button's '%s' does not fit" % [loc, id, label])
+		for s in [fresh, built]:
+			for id in ids:
+				var placed: Array = buttons.values()
+				var shown := {}
+				for it in Hud.choice_panel_items(s, id, room):
+					var r: Rect2 = it[1]
+					shown[it[0]] = true
+					if not room.grow(-1.0).encloses(r):
+						problems.append("%s %s: %s at %s spills out of the panel" % [loc, id, it.slice(2), r])
+					if it[0] == "text" and Ui.width_at(it[2], Ui.px) > r.size.x:
+						problems.append("%s %s: '%s' is wider than its place" % [loc, id, it[2]])
+					if it[0] == "icon" and r.size.x < 32.0:
+						problems.append("%s %s: the icon is only %d px" % [loc, id, r.size.x])
+					if it[0] != "line":
+						for other in placed:
+							if other.intersects(r):
+								problems.append("%s %s: %s at %s overlaps another piece" % [loc, id, it.slice(2), r])
+						placed.append(r)
+				for kind in ["icon", "text", "value"]:
+					if not shown.has(kind):
+						problems.append("%s %s shows no %s" % [loc, id, kind])
+	Lang.apply(before, false)
+	words.localize()
+	Ui.set_text_size(before_scale, b)
+	for p in problems.slice(0, 12):
+		print("  ", p)
+	check(problems.is_empty(), "every piece of the choice panel fits inside it for every choice in every language (%d problems)" % problems.size())
+
+
+func test_the_choice_panel_reads_the_games_own_numbers(b: Dictionary) -> void:
+	var s := Sim.new(b, content, {"seed": 3})
+	s.ranks["pilum"] = 2
+	var lines: Array = Upgrades.stat_lines(s, "pilum")
+	var p: Dictionary = b.pilum
+	check(lines[0] == ["Damage", str(int(p.damage) + int(p.damage_per_level)), str(int(p.damage) + 2 * int(p.damage_per_level))],
+		"the pilum's damage goes from its rank to the next (%s)" % [lines[0]])
+	check(lines.has(["Pierce", "2", "2"]) and lines.has(["Thrown", "5", "7"]), "with its pierce and throwers (%s)" % [lines])
+	var fresh: Array = Upgrades.stat_lines(s, "scorpio")
+	check(fresh[0] == ["Damage", "", str(int(b.scorpio.damage))], "an arm not yet taken shows its first rank alone (%s)" % [fresh[0]])
+	s.ranks["march"] = 1
+	check(Upgrades.stat_lines(s, "march") == [["Speed", "+8%", "+16%"]], "a drill shows its whole bonus now and next (%s)" % [Upgrades.stat_lines(s, "march")])
+	var legion: Array = Upgrades.stat_lines(s, "legionary")
+	var n := s.count("legionary")
+	check(legion[0] == ["In the legion", str(n), str(n + 2)], "a recruit counts the legion's men of his kind now and after (%s)" % [legion[0]])
+	check(legion.has(["Damage", "12", ""]) and legion.has(["Health", str(roundi(s.max_hp_of("legionary"))), ""]), "with a soldier's damage and health (%s)" % [legion])
+	check(Upgrades.stat_lines(s, "hooked_pila") == [["Pin", "", "1.6 s"], ["Pierce", "", "+1"]], "a forged arm shows what it adds (%s)" % [Upgrades.stat_lines(s, "hooked_pila")])
+	for kind in ["recruits", "arms", "forged", "drills"]:
+		for id in content.get(kind):
+			check(not Upgrades.stat_lines(s, id).is_empty(), "%s has numbers to show" % id)
+
+
+func test_the_forge_line_names_the_partner_and_its_rank(b: Dictionary) -> void:
+	var s := Sim.new(b, content, {"seed": 3})
+	s.ranks["scorpio"] = 3
+	s.ranks["onager"] = 1
+	check(Upgrades.forge_lines(s, "onager") == ["With Scorpio (3/5) forges Siege train"], "the onager names the scorpio's rank (%s)" % [Upgrades.forge_lines(s, "onager")])
+	check(Upgrades.forge_lines(s, "scorpio") == ["With Onager (1/5) forges Siege train"], "and the scorpio the onager's (%s)" % [Upgrades.forge_lines(s, "scorpio")])
+	check(Upgrades.forge_lines(s, "caltrops") == ["With Pilum volley (0/5) forges Hooked pila"], "a partner not yet taken is at 0 (%s)" % [Upgrades.forge_lines(s, "caltrops")])
+	check(Upgrades.forge_lines(s, "siege_train") == ["Made from Scorpio and Onager"], "a forged arm says what it is made from (%s)" % [Upgrades.forge_lines(s, "siege_train")])
+	check(Upgrades.forge_lines(s, "march").is_empty() and Upgrades.forge_lines(s, "legionary").is_empty(), "drills and recruits forge nothing")
+
+
+func test_the_choice_panels_buttons_reroll_and_banish(b: Dictionary) -> void:
+	var full := _full_content()
+	var s := _arms_sim(b, 34, {}, full)
+	s.rerolls = 1
+	s.banishes = 1
+	var buttons: Dictionary = Hud.choice_panel_buttons()
+	var first := Upgrades.offers(s)
+	var press := Hud.choice_button_at(s, buttons.reroll.get_center())
+	check(press == "reroll", "a click on the reroll button presses it (%s)" % press)
+	var after: Dictionary = Upgrades.press(s, press, first, 0)
+	check(s.rerolls == 0 and after.choices.size() == 3 and not after.choices.has(first[0]), "and rerolls the choices (%s to %s)" % [first, after.choices])
+	check(Hud.choice_button_at(s, buttons.reroll.get_center()) == "", "with none left the button does nothing")
+	var gone: String = after.choices[1]
+	press = Hud.choice_button_at(s, buttons.banish.get_center())
+	var banished: Dictionary = Upgrades.press(s, press, after.choices, 1)
+	check(press == "banish" and s.banishes == 0 and s.banished == [gone] and not banished.choices.has(gone), "a click on the banish button banishes the choice picked out")
+	check(Hud.choice_button_at(s, buttons.banish.get_center()) == "", "and with none left it does nothing")
+	check(Hud.choice_button_at(s, Hud.choice_panel_rect().position + Vector2(10, 10)) == "", "a click elsewhere on the panel presses nothing")
+
+
 const LANGUAGES := ["en", "fr", "de", "es", "it", "pt_BR", "pl", "tr", "ru", "uk", "ja", "ko", "zh_CN", "zh_TW"]
 
 
