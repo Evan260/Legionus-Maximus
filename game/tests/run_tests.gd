@@ -8160,6 +8160,34 @@ func test_raiders_in_melee_slash_at_their_own_pace(b: Dictionary) -> void:
 		check(got[1] > 5.0 and got[0] > got[1] * 0.6 and got[0] < got[1] * 1.5, "%s against %d men slash about as often as their pace (%d against %.0f)" % [t[0], t[2], got[0], got[1]])
 
 
+func test_a_stunned_king_never_lands_his_leap(b: Dictionary) -> void:
+	var s := Sim.new(b, Content.with_all_art(), {"seed": 9, "province": "dacia"})
+	s.terrain.clear()
+	s.b = b.duplicate()
+	s.b.spawn_per_second_start = 0.0
+	s.b.spawn_per_second_growth = 0.0
+	var h := s.horde
+	h.next_surge = 1e9
+	h.next_band = 1e9
+	h.next_cart = 1e9
+	h.next_boss = 1e9
+	h._p_next = 1e9
+	s.commander.hp = 1000.0
+	s.commander.max_hp = 1000.0
+	var ci := h.spawn_chieftain(s.commander.pos + Vector2(200, 0))
+	for t in ["cleave_cd", "sweep_cd", "rockfall_cd", "leap_cd"]:
+		h.set(t, 1e9)
+	h.chief_fury = true
+	h.release_guards()
+	s._rebuild_grids()
+	check(h.start_leap(ci, s), "the king leaps")
+	h.e_stun[ci] = 3.0
+	for f in 120:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+	check(s.commander.hp == 1000.0, "his ring does not land while he is stunned (%.1f lost)" % (1000.0 - s.commander.hp))
+	check(h.foe_lobs.is_empty(), "and its mark is gone")
+
+
 func test_a_wedge_broken_on_the_testudo_frees_its_riders(b: Dictionary) -> void:
 	var s := Sim.new(b, Content.with_all_art(), {"seed": 9, "province": "parthia"})
 	s.terrain.clear()

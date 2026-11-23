@@ -1276,7 +1276,7 @@ func start_leap(ci: int, sim: Sim) -> bool:
 		return false
 	var to: Vector2 = commander.pos
 	leap = {"from": p, "to": to, "t": 0.0, "dur": float(cfg.windup)}
-	foe_lobs.append({"from": p, "to": to, "t": 0.0, "dur": float(cfg.windup), "radius": float(cfg.radius), "dmg": k_dps[e_kind[ci]] * float(cfg.damage_mult), "slam": true})
+	foe_lobs.append({"from": p, "to": to, "t": 0.0, "dur": float(cfg.windup), "radius": float(cfg.radius), "dmg": k_dps[e_kind[ci]] * float(cfg.damage_mult), "slam": true, "by": e_id[ci]})
 	_hold(ci, float(cfg.windup) + 0.1)
 	e_face[ci] = (to - p).normalized() if to != p else e_face[ci]
 	e_strike[ci] = time + float(cfg.windup) - Atlas.ATTACK_FRAMES / Atlas.ATTACK_FPS
@@ -1767,7 +1767,7 @@ func slam(ci: int, sim: Sim) -> bool:
 	var reach := (r + Sim.UNIT_RADIUS) * (r + Sim.UNIT_RADIUS)
 	for u in sim.units:
 		if (u.pos - p).length_squared() < reach:
-			foe_lobs.append({"from": p, "to": p, "t": 0.0, "dur": float(atk.windup), "radius": r, "dmg": k_dps[kind] * float(atk.damage_mult), "slam": true})
+			foe_lobs.append({"from": p, "to": p, "t": 0.0, "dur": float(atk.windup), "radius": r, "dmg": k_dps[kind] * float(atk.damage_mult), "slam": true, "by": e_id[ci]})
 			_hold(ci, float(atk.windup))
 			# The chop is timed to come down as the ring fills.
 			e_strike[ci] = time + float(atk.windup) - Atlas.ATTACK_FRAMES / Atlas.ATTACK_FPS
@@ -2405,7 +2405,7 @@ func _whirl(i: int, cfg: Dictionary, sim: Sim) -> float:
 	for u in sim.units:
 		if (u.pos - p).length_squared() < reach:
 			var dur := float(cfg.windup)
-			foe_lobs.append({"from": p, "to": p, "t": 0.0, "dur": dur, "radius": r, "dmg": k_dps[e_kind[i]] * float(cfg.damage_mult) * e_power[i], "slam": true, "whirl": true, "ward": true})
+			foe_lobs.append({"from": p, "to": p, "t": 0.0, "dur": dur, "radius": r, "dmg": k_dps[e_kind[i]] * float(cfg.damage_mult) * e_power[i], "slam": true, "whirl": true, "ward": true, "by": e_id[i]})
 			_hold_boss(boss[e_id[i]], p, dur)
 			e_strike[i] = time + dur - Atlas.ATTACK_FRAMES / Atlas.ATTACK_FPS
 			sim.event("whirl", p)
@@ -2585,6 +2585,11 @@ func _foe_lobs(dt: float, sim: Sim) -> void:
 	var flying: Array = []
 	var guard := sim.frenzy_guard()
 	for l in foe_lobs:
+		# A blow from the caster's own body is called off when he is stunned or falls before it lands.
+		if l.has("by"):
+			var by := e_id.find(l.by)
+			if by < 0 or e_stun[by] > 0.0:
+				continue
 		l.t += dt
 		if l.t < l.dur:
 			flying.append(l)
