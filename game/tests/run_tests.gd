@@ -3248,6 +3248,32 @@ func _return_profile(kept: Dictionary) -> void:
 	_cleanup_profile_files()
 
 
+func test_the_load_list_reads_the_saves_once_rather_than_every_frame(b: Dictionary) -> void:
+	var kept := _borrow_profile()
+	var m := FakeMenuMain.new()
+	m.content = content
+	m.balance = b
+	var saves := SavesScreen.new(m)
+	Profile.new_game()
+	Profile.data.denarii = 11
+	Profile.save()
+	Profile.new_game()
+	Profile.save()
+	check(int(saves.slot(1).info.denarii) == 11 and saves.slot(2).taken and not saves.slot(3).taken, "the list reads each slot")
+	Profile.load_slot(1)
+	Profile.data.denarii = 12
+	Profile.save()
+	check(int(saves.slot(1).info.denarii) == 11, "and keeps what it read while it is open")
+	saves.refresh()
+	check(int(saves.slot(1).info.denarii) == 12, "reading the slots again when it opens")
+	saves.activate("delete:2")
+	_type_word(saves, "delete")
+	saves.activate("yes")
+	check(not saves.slot(2).taken, "and after a game is deleted")
+	m.free()
+	_return_profile(kept)
+
+
 func test_a_gamepad_deletes_a_game_by_holding_confirm(b: Dictionary) -> void:
 	var kept := _borrow_profile()
 	var pad := Controls.pad_in_use

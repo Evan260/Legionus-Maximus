@@ -13,6 +13,8 @@ var confirming := 0
 var typed := ""
 ## How long confirm has been held on Delete.
 var held := 0.0
+## Each slot as {taken, info}, read from its files once while the list is open rather than every frame.
+var _slots := {}
 
 
 func _init(owner_node: Node) -> void:
@@ -88,6 +90,19 @@ func capture(event: InputEvent) -> bool:
 	return true
 
 
+## Reads the slots' files afresh, when the list opens and after a game is deleted.
+func refresh() -> void:
+	_slots = {}
+
+
+## A slot as {taken, info}, read from its files the first time it is asked for.
+func slot(n: int) -> Dictionary:
+	if not _slots.has(n):
+		var taken := Profile.slot_taken(n)
+		_slots[n] = {"taken": taken, "info": Profile.slot_info(n) if taken else {}}
+	return _slots[n]
+
+
 ## Leaves the question for the list, or the list for the title; false when the screen itself should close.
 func back() -> bool:
 	if confirming == 0:
@@ -102,6 +117,7 @@ func _delete(n: int) -> void:
 	confirming = 0
 	_keyboard(false)
 	Profile.delete_slot(n)
+	refresh()
 	# With the open game deleted, Continue goes on to the game saved last of those left.
 	if Profile.slot == 0 and Profile.load_slot(Profile.latest_slot()):
 		main.use_profile()
@@ -143,10 +159,10 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 		var y := row.position.y + 8.0 + 8.0 * Ui.scale
 		var name := (tr("Slot %d") % n).to_upper()
 		ui.text(c, name, Vector2(x0, y), Ui.BROWN)
-		if not Profile.slot_taken(n):
+		if not slot(n).taken:
 			ui.text(c, tr("Empty"), Vector2(x0, y + Ui.leading()), Ui.MUTED)
 			continue
-		var info := Profile.slot_info(n)
+		var info: Dictionary = slot(n).info
 		if info.is_empty():
 			ui.fit_text(c, tr("This game could not be read."), room, Vector2(x0, y + Ui.leading()), Ui.RED)
 		else:
@@ -166,7 +182,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 func _draw_question(c: CanvasItem, ui: Ui) -> void:
 	var pad := Controls.pad_in_use and not Touch.phone
 	var r := ui.frame(c, tr("Delete a game").to_upper(), Controls.hint("hold" if pad else "type"))
-	var info := Profile.slot_info(confirming)
+	var info: Dictionary = slot(confirming).info
 	var said: Array = summary(info, main.content, main.balance) if not info.is_empty() else [tr("This game could not be read.")]
 	if pad:
 		said.append(tr("It will be gone for good. Hold the Delete button to delete it."))
@@ -226,4 +242,5 @@ func _field(c: CanvasItem, ui: Ui, field: Rect2) -> void:
 	if int(Time.get_ticks_msec() / 500) % 2 == 0:
 		var x := at.x + (Ui.width_at(typed.to_upper(), Ui.px) + 2.0 if typed != "" else 0.0)
 		c.draw_rect(Rect2(x, field.position.y + 5.0, 2.0, field.size.y - 10.0), Ui.INK)
+
 

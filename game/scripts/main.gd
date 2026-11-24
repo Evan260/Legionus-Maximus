@@ -522,6 +522,7 @@ func go_to_title(focus_id := "continue") -> void:
 
 func open_saves() -> void:
 	screens.saves.confirming = 0
+	screens.saves.refresh()
 	state = "saves"
 	ui.focus = ""
 
