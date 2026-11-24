@@ -409,7 +409,7 @@ func _favour(sim: Sim, W: float, H: float, bare := false) -> void:
 		return
 	plated_text(tr("Favour").to_upper(), Vector2(0, H - 6), GOLD_LIGHT if ready else Color(0.7, 0.66, 0.6), HORIZONTAL_ALIGNMENT_RIGHT, W - 46)
 	if ready and main.state == "play":
-		text(Controls.hint("pray").to_upper(), Vector2(0, H - 6 - Ui.leading()), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_RIGHT, W - 46)
+		plated_text(Controls.hint("pray").to_upper(), Vector2(0, H - 6 - Ui.leading() - 2.0), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_RIGHT, W - 46)
 
 
 ## Where each thing along the bottom of the screen stands, with the commander's health bar between them all.
