@@ -11,6 +11,9 @@ upgraded; `--livery-only` marks the existing atlas without rebuilding it.
 
 Usage: python tools/art/build_atlas.py [--livery-only]
 Writes game/assets/atlas.png, game/assets/atlas.json, the wheat tile and the province grounds in game/assets/grounds/.
+
+`--cut KEEP.json FOLDER` cuts the atlas in FOLDER down to the {"units", "props", "silhouettes"} that KEEP.json names, in
+place; tools/demo_stage.py uses it so the demo carries only its own pictures.
 """
 import json
 import shutil
@@ -356,7 +359,80 @@ def frames_of(unit, src, folder):
     return frames, [p.name for p in paths]
 
 
+def pack(sets, extra):
+    """Packs the (key, images, anchor) sets into one atlas and its meta, with each prop's `extra` fields in its entry."""
+    # Shelf packing, tallest first, with a pixel of space so filtering never bleeds between sprites.
+    flat = [(key, i, im) for key, images, _ in sets for i, im in enumerate(images)]
+    flat.sort(key=lambda f: -f[2].height)
+    x = y = shelf = 0
+    places = {}
+    for key, i, im in flat:
+        if x + im.width + 1 > WIDTH:
+            x, y, shelf = 0, y + shelf + 1, 0
+        places[(key, i)] = (x, y)
+        x += im.width + 1
+        shelf = max(shelf, im.height)
+    if y + shelf + 1 > MAX_SIDE:
+        raise SystemExit(f"atlas would be {WIDTH}x{y + shelf + 1}, over {MAX_SIDE}")
+    atlas = Image.new("RGBA", (WIDTH, y + shelf + 1), (0, 0, 0, 0))
+    meta = {"units": {}, "props": {}}
+    for key, images, anchor in sets:
+        frames = []
+        for i, im in enumerate(images):
+            px, py = places[(key, i)]
+            atlas.alpha_composite(im, (px, py))
+            frames.append([px, py, im.width, im.height])
+        entry = {"frames": frames, "anchor": anchor}
+        if key[0] == "props":
+            entry.update(extra.get(key[1], {}))
+        if key[0] == "units":
+            meta["units"].setdefault(key[1], {}).setdefault(key[2], {})[key[3]] = entry
+        else:
+            meta["props"][key[1]] = entry
+    return atlas, meta
+
+
+def silhouette(im):
+    """A picture's shape filled with the mean colour of its drawn pixels, so only its outline is left to see."""
+    a = np.asarray(im).copy()
+    drawn = a[..., 3] > 0
+    if drawn.any():
+        a[..., :3][drawn] = a[..., :3][drawn].mean(0).round().astype(np.uint8)
+    a[..., :3][~drawn] = 0
+    return Image.fromarray(a, "RGBA")
+
+
+def cut(keep, folder):
+    """Cuts the atlas in `folder` down to the units and props named in `keep` and the south-facing shapes of its
+    `silhouettes`, repacked from the atlas's own pixels so they match it exactly; the livery marks come along with them."""
+    atlas = Image.open(folder / "atlas.png").convert("RGBA")
+    meta = json.loads((folder / "atlas.json").read_text())
+    crop = lambda f: atlas.crop((f[0], f[1], f[0] + f[2], f[1] + f[3]))
+    sets = []
+    extra = {}
+    for unit in keep["units"]:
+        for action, dirs in meta["units"][unit].items():
+            for d, entry in dirs.items():
+                sets.append((("units", unit, action, d), [crop(f) for f in entry["frames"]], entry["anchor"]))
+    for name in keep["props"]:
+        entry = meta["props"][name]
+        sets.append((("props", name), [crop(f) for f in entry["frames"]], entry["anchor"]))
+        extra[name] = {k: v for k, v in entry.items() if k not in ("frames", "anchor")}
+    for unit in keep["silhouettes"]:
+        entry = meta["units"][unit]["idle"]["south"]
+        sets.append((("units", unit, "idle", "south"), [silhouette(crop(entry["frames"][0]))], entry["anchor"]))
+    out, out_meta = pack(sets, extra)
+    out.save(folder / "atlas.png")
+    (folder / "atlas.json").write_text(json.dumps(out_meta))
+    return out.size
+
+
 def main():
+    if "--cut" in sys.argv:
+        keep_file, folder = sys.argv[sys.argv.index("--cut") + 1:sys.argv.index("--cut") + 3]
+        size = cut(json.loads(Path(keep_file).read_text()), Path(folder))
+        print(f"atlas cut to {size[0]}x{size[1]}")
+        return
     if "--livery-only" in sys.argv:
         atlas = Image.open(OUT / "atlas.png").convert("RGBA")
         tag_livery(atlas, json.loads((OUT / "atlas.json").read_text())).save(OUT / "atlas.png")
@@ -422,34 +498,7 @@ def main():
                 images, anchor = crop_set(scaled, (scaled[0].width / 2, feet(scaled)))
                 sets.append((("props", small), images, anchor))
 
-    # Shelf packing, tallest first, with a pixel of space so filtering never bleeds between sprites.
-    flat = [(key, i, im) for key, images, _ in sets for i, im in enumerate(images)]
-    flat.sort(key=lambda f: -f[2].height)
-    x = y = shelf = 0
-    places = {}
-    for key, i, im in flat:
-        if x + im.width + 1 > WIDTH:
-            x, y, shelf = 0, y + shelf + 1, 0
-        places[(key, i)] = (x, y)
-        x += im.width + 1
-        shelf = max(shelf, im.height)
-    if y + shelf + 1 > MAX_SIDE:
-        raise SystemExit(f"atlas would be {WIDTH}x{y + shelf + 1}, over {MAX_SIDE}")
-    atlas = Image.new("RGBA", (WIDTH, y + shelf + 1), (0, 0, 0, 0))
-    meta = {"units": {}, "props": {}}
-    for key, images, anchor in sets:
-        frames = []
-        for i, im in enumerate(images):
-            px, py = places[(key, i)]
-            atlas.alpha_composite(im, (px, py))
-            frames.append([px, py, im.width, im.height])
-        entry = {"frames": frames, "anchor": anchor}
-        if key[0] == "props":
-            entry.update(extra.get(key[1], {}))
-        if key[0] == "units":
-            meta["units"].setdefault(key[1], {}).setdefault(key[2], {})[key[3]] = entry
-        else:
-            meta["props"][key[1]] = entry
+    atlas, meta = pack(sets, extra)
     atlas = tag_livery(atlas, meta)
     atlas.save(OUT / "atlas.png")
     (OUT / "atlas.json").write_text(json.dumps(meta))
@@ -463,7 +512,7 @@ def main():
     shutil.copy(RAW / "ground" / "aegyptus_tile.png", OUT / "grounds" / "aegyptus.png")
     shutil.copy(RAW / "ground" / "sarmatia_tile.png", OUT / "grounds" / "sarmatia.png")
     shutil.copy(RAW / "frozen_stream" / "ice_tile.png", OUT / "ice.png")
-    print(f"atlas {atlas.size[0]}x{atlas.size[1]}, {len(flat)} sprites")
+    print(f"atlas {atlas.size[0]}x{atlas.size[1]}, {sum(len(images) for _, images, _ in sets)} sprites")
 
 
 if __name__ == "__main__":
