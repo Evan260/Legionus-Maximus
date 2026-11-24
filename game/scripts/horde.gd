@@ -1670,9 +1670,14 @@ func in_fire_band(p: Vector2, span := Vector2(0.0, INF)) -> bool:
 func fire_span() -> Vector2:
 	if steppe_fire.is_empty():
 		return Vector2.ZERO
-	var lit: float = steppe_fire.t - steppe_fire.warn
-	var front: float = steppe_fire.depth * clampf(lit / steppe_fire.seconds, 0.0, 1.0)
-	var back: float = steppe_fire.depth * clampf((lit - steppe_fire.burn) / steppe_fire.seconds, 0.0, 1.0)
+	return fire_span_at(steppe_fire, steppe_fire.t)
+
+
+## The same for a fire `t` seconds after it was marked.
+static func fire_span_at(fire: Dictionary, t: float) -> Vector2:
+	var lit: float = t - fire.warn
+	var front: float = fire.depth * clampf(lit / fire.seconds, 0.0, 1.0)
+	var back: float = fire.depth * clampf((lit - fire.burn) / fire.seconds, 0.0, 1.0)
 	return Vector2(back, front)
 
 

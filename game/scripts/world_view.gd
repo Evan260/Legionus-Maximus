@@ -94,11 +94,17 @@ const HUT_WALL_FIRES := [Vector2(-18, -4), Vector2(16, -3)]
 const HUT_EMBER_FIRES := [Vector2(-8, -3), Vector2(9, -6)]
 ## The colour a hut darkens to as it burns.
 const CHARRED := Color(0.34, 0.25, 0.22)
+## Feather grass the fire has reached.
+const BURNT_GRASS := Color(0.32, 0.28, 0.26)
 ## How far a flood's or a fire's drawn edge strays from the true one, and the step between its points.
 const EDGE_REACH := 3.0
 const EDGE_STEP := 4.0
 ## How fast a flood's water drifts along its band, in px a second.
 const FLOOD_DRIFT := 12.0
+## The spacing of the spots a burning steppe's flames stand on, along the band and across it, and the puffs of smoke over it.
+const FLAME_ROW := 11.0
+const FLAME_COL := 13.0
+const SMOKE_PUFFS := 28
 # The rocky lip drawn along every ravine.
 var ravine_edge: Texture2D
 # The ice laid along every frozen stream, repeated across the world.
@@ -117,6 +123,8 @@ var _train_marks := PackedVector2Array()
 # The ground and the wheat fields are drawn by two layers behind this node, so the wheat can have a shader of its own that frays its edges.
 var _floor := Node2D.new()
 var _wheat := Node2D.new()
+# The grass a steppe fire has burnt, on a layer over the ground whose shader turns the ground's own picture to charcoal and ash.
+var _burnt := Node2D.new()
 # The triangles that fill a ragged band, by its number of outline points, worked out once each.
 static var _ring_triangles := {}
 # The wheat has a texture of its own so it repeats across a whole field in one piece, with no seams where atlas pieces would meet.
@@ -172,7 +180,7 @@ func _ready() -> void:
 	water = load("res://assets/water.png")
 	# The ravine lip repeats along each gorge; every other picture is drawn inside its own rectangle, so repeating changes nothing for it.
 	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
-	for layer in [_floor, _wheat, _water]:
+	for layer in [_floor, _wheat, _water, _burnt]:
 		layer.show_behind_parent = true
 		add_child(layer)
 	_floor.draw.connect(_draw_floor)
@@ -185,6 +193,10 @@ func _ready() -> void:
 	fray.shader = load("res://scripts/wheat_field.gdshader")
 	_wheat.material = fray
 	_wheat.draw.connect(_draw_fields)
+	var charcoal := ShaderMaterial.new()
+	charcoal.shader = load("res://scripts/burnt_ground.gdshader")
+	_burnt.material = charcoal
+	_burnt.draw.connect(_draw_burnt)
 	var dress := ShaderMaterial.new()
 	dress.shader = load("res://scripts/livery.gdshader")
 	dress.set_shader_parameter("wheat_tile", _wheat_tile)
@@ -223,6 +235,7 @@ func _process(dt: float) -> void:
 		_floor.queue_redraw()
 		_wheat.queue_redraw()
 		_water.queue_redraw()
+		_burnt.queue_redraw()
 
 
 func eye() -> Vector2:
@@ -385,6 +398,9 @@ func _draw() -> void:
 		for kind in atlas.props:
 			_prop_rise = maxf(_prop_rise, float(atlas.props[kind].anchor[1]))
 	var lowest := view.end.y + maxf(0.0, _prop_rise - margin)
+	var fire: Dictionary = sim.horde.steppe_fire
+	var burnt_to: float = sim.horde.fire_span().y if not fire.is_empty() and fire.t >= fire.warn else 0.0
+	var burnt_tint := Color.WHITE.lerp(BURNT_GRASS, _fire_fade(fire)) if burnt_to > 0.0 else Color.WHITE
 	# The chunks are read in place, in the order props_in() would join them.
 	for cx in range(floori(view.position.x / Terrain.CHUNK), floori(view.end.x / Terrain.CHUNK) + 1):
 		for cy in range(floori(view.position.y / Terrain.CHUNK), floori(lowest / Terrain.CHUNK) + 1):
@@ -438,6 +454,8 @@ func _draw() -> void:
 				elif pr[0].begins_with("fort_gate") and at.y > sim.commander.pos.y and Rect2(at - f[1], f[0].size).intersects(him):
 					mod = Color(1, 1, 1, 0.55)
 				if pr[0] == "feather_grass":
+					if burnt_to > 0.0 and sim.horde.in_fire_band(pr[1], Vector2(0.0, burnt_to)):
+						mod = Color(burnt_tint, mod.a)
 					_add_swaying(pr[1], f, mod)
 					continue
 				if not fields.is_empty() and stands_in_wheat(pr[0], at, fields, sim.terrain.field_turn):
@@ -568,6 +586,7 @@ func _draw() -> void:
 	_draw_lobs(tex)
 	_draw_effects()
 	_draw_camp_fire(view)
+	_draw_steppe_smoke(view)
 	_draw_triumph_wave()
 	_draw_objective_marks(view)
 	_draw_numbers(view)
@@ -1072,6 +1091,11 @@ static func flood_band(fl: Dictionary, t: float) -> PackedVector2Array:
 	return ragged_band(fl.pos, fl.dir, fl.dir.orthogonal(), -fl.half_len, fl.half_len, -fl.half_w, fl.half_w, EDGE_REACH, t)
 
 
+## The grass a steppe fire has reached when it has spread `span.y` px over its band.
+static func burnt_band(fire: Dictionary, span: Vector2) -> PackedVector2Array:
+	return ragged_band(fire.pos, fire.dir, fire.dir.orthogonal(), 0.0, span.y, -fire.half_len, fire.half_len, EDGE_REACH, 0.0)
+
+
 ## Pale broken foam along the edge of a ragged band, its gaps rolling along the edge with time.
 func _draw_foam(band: PackedVector2Array, a: float) -> void:
 	var foam := PackedVector2Array()
@@ -1190,8 +1214,8 @@ func _fill_ragged(pts: PackedVector2Array, edge: Color, core: Color, tex: Textur
 	RenderingServer.canvas_item_add_triangle_array(item, idx, pts, cols, uvs, PackedInt32Array(), PackedFloat32Array(), tex.get_rid())
 
 
-## The Roxolani king's burning band: marked in orange and filling from its starting edge while it is marked, then flames over the strip
-## alight with charred grass behind them.
+## The Roxolani king's burning band: marked in orange and filling from its starting edge while it is marked, then charred grass
+## behind a front of flames, glowing where it still burns, with the ground ahead still marked.
 func _draw_steppe_fire(fire: Dictionary) -> void:
 	var c: Vector2 = fire.pos
 	var d: Vector2 = fire.dir
@@ -1200,33 +1224,135 @@ func _draw_steppe_fire(fire: Dictionary) -> void:
 	var depth: float = fire.depth
 	var band := func(a: float, b: float) -> PackedVector2Array:
 		return PackedVector2Array([c + d * a - side * hl, c + d * b - side * hl, c + d * b + side * hl, c + d * a + side * hl])
-	var outline: PackedVector2Array = band.call(0.0, depth)
-	outline.append(outline[0])
 	if fire.t < fire.warn:
 		var k: float = clampf(fire.t / fire.warn, 0.0, 1.0)
+		var outline: PackedVector2Array = band.call(0.0, depth)
+		outline.append(outline[0])
 		draw_colored_polygon(band.call(0.0, depth), Color(0.85, 0.35, 0.05, 0.08 + 0.12 * k))
 		draw_colored_polygon(band.call(0.0, depth * 0.25 * k), Color(1.0, 0.5, 0.15, 0.3))
 		draw_polyline(outline, Color(1.0, 0.55, 0.15, 0.9), 1.0)
 		return
 	var span: Vector2 = sim.horde.fire_span()
-	var left: float = fire.warn + fire.seconds + fire.burn - fire.t
-	var fade := clampf(left / 0.8, 0.0, 1.0)
-	if span.y < depth:
+	if span.y < depth - 1.0:
 		draw_colored_polygon(band.call(span.y, depth), Color(0.85, 0.35, 0.05, 0.1))
-	draw_colored_polygon(band.call(0.0, span.x), Color(0.12, 0.1, 0.08, 0.35 * fade))
-	if span.y > span.x:
-		draw_colored_polygon(band.call(span.x, span.y), Color(0.2, 0.07, 0.03, 0.5 * fade))
-		var beat := int(sim.time * 10.0)
-		var n := int((span.y - span.x) * hl * 2.0 / 90.0) + 4
-		for i in n:
-			var a := float(i) * 0.618034
-			var along: float = lerpf(span.x, span.y, fmod(a, 1.0))
-			var across: float = (fmod(float(i) * 0.7548777, 1.0) * 2.0 - 1.0) * hl
-			var base: Vector2 = c + d * along + side * across
-			var h := 2 + (beat + i * 3) % 4
-			draw_rect(Rect2(base.round() + Vector2(0, -h), Vector2(2, h)), Color(1.0, 0.5, 0.12, 0.9 * fade))
-			draw_rect(Rect2(base.round() + Vector2(0, -h + 1), Vector2(1, maxi(1, h - 2))), Color(1.0, 0.86, 0.35, 0.9 * fade))
-	draw_polyline(outline, Color(1.0, 0.55, 0.15, 0.6 * fade), 1.0)
+		draw_polyline(PackedVector2Array([c + d * span.y - side * hl, c + d * depth - side * hl, c + d * depth + side * hl, c + d * span.y + side * hl]),
+			Color(1.0, 0.55, 0.15, 0.6), 1.0)
+
+
+## The grass a steppe fire has reached, burnt to charcoal and ash and glowing where it still burns, on its own layer over the ground.
+func _draw_burnt() -> void:
+	if not sim or sim.horde.steppe_fire.is_empty():
+		return
+	var fire: Dictionary = sim.horde.steppe_fire
+	if fire.t < fire.warn:
+		return
+	var span: Vector2 = sim.horde.fire_span()
+	var fade := _fire_fade(fire)
+	var mat: ShaderMaterial = _burnt.material
+	mat.set_shader_parameter("origin", fire.pos)
+	mat.set_shader_parameter("spread", fire.dir)
+	mat.set_shader_parameter("across", fire.dir.orthogonal())
+	mat.set_shader_parameter("span", span)
+	mat.set_shader_parameter("reach", EDGE_REACH)
+	_fill_ragged(burnt_band(fire, span), Color(1, 1, 1, fade), Color(1, 1, 1, fade), ground, Vector2.ZERO, _burnt)
+
+
+## How far a burning steppe has faded as its last grass burns out, from 1 to 0.
+static func _fire_fade(fire: Dictionary) -> float:
+	return clampf((fire.warn + fire.seconds + fire.burn - fire.t) / 1.2, 0.0, 1.0)
+
+
+## The flames on a burning steppe within `view`, tall where the grass has just caught and dying down behind, each on a fixed spot where the strip
+## from `span.x` to `span.y` burns: [ground points, sizes (1 for the atlas's full flame), alphas, numbers that set each one's flicker].
+static func steppe_flames(fire: Dictionary, span: Vector2, view: Rect2) -> Array:
+	var points := PackedVector2Array()
+	var sizes := PackedFloat32Array()
+	var alphas := PackedFloat32Array()
+	var seeds := PackedInt32Array()
+	var out := [points, sizes, alphas, seeds]
+	if span.y <= span.x:
+		return out
+	var c: Vector2 = fire.pos
+	var d: Vector2 = fire.dir
+	var side := d.orthogonal()
+	var hl: float = fire.half_len
+	var lit: float = fire.t - fire.warn
+	var per_px: float = fire.seconds / fire.depth / fire.burn
+	var cols := ceili(hl / FLAME_COL) + 1
+	var near := view.grow(FLAME_ROW)
+	for i in range(floori(span.x / FLAME_ROW), floori(span.y / FLAME_ROW) + 1):
+		var row := c + d * i * FLAME_ROW
+		if not near.intersects(Rect2(row - side * hl, Vector2.ZERO).expand(row + side * hl)):
+			continue
+		# Far behind the front the flames are few, so only every other spot of every other row is weighed there.
+		var sparse: bool = lit / fire.burn - i * FLAME_ROW * per_px > 0.4
+		if sparse and i % 2 == 1:
+			continue
+		for j in range(-cols, cols, 2 if sparse else 1):
+			var h := hash(Vector2i(i, j))
+			var a := i * FLAME_ROW + float(h % 11) - 5.0
+			# How far through its burning this spot is, from catching at 0 to burnt out at 1.
+			var k: float = lit / fire.burn - a * per_px
+			var keep := 0.8 if sparse else (1.0 if k < 0.1 else lerpf(0.75, 0.15, smoothstep(0.1, 0.4, k)))
+			# A pixel's margin keeps each flame's rounded foot on burning ground.
+			if a < span.x + 1.0 or a > span.y - 1.0 or float((h >> 8) % 100) / 100.0 >= keep:
+				continue
+			var b := (j + 0.5 * (i % 2)) * FLAME_COL + float((h >> 4) % 13) - 6.0
+			if absf(b) > hl - 1.0:
+				continue
+			var p := c + d * a + side * b
+			if not view.has_point(p):
+				continue
+			var size := 0.5
+			if k >= 0.04 and k < 0.2:
+				size = 1.0 if (h >> 12) % 3 == 0 else 0.75
+			elif k >= 0.2 and k < 0.45 and (h >> 12) % 2 == 0:
+				size = 0.75
+			points.append(p.round())
+			sizes.append(size)
+			alphas.append(clampf((1.0 - k) / 0.15, 0.0, 1.0))
+			seeds.append(h % 4)
+	return out
+
+
+## Smoke rolling off a burning steppe with the wind that spreads it, and embers rising from its flames.
+func _draw_steppe_smoke(view: Rect2) -> void:
+	var fire: Dictionary = sim.horde.steppe_fire
+	if fire.is_empty() or fire.t < fire.warn:
+		return
+	var c: Vector2 = fire.pos
+	var d: Vector2 = fire.dir
+	var side := d.orthogonal()
+	var hl: float = fire.half_len
+	var fade := _fire_fade(fire)
+	var started := sim.time - float(fire.t)
+	var life := 2.8
+	for j in SMOKE_PUFFS:
+		var turn := sim.time / life + float(j) / SMOKE_PUFFS
+		var age := fposmod(turn, 1.0)
+		# Each puff rises from where the fire burnt when it was given off, so it does not slide along with the front.
+		var born := Horde.fire_span_at(fire, (floorf(turn) - float(j) / SMOKE_PUFFS) * life - started)
+		if born.y <= born.x:
+			continue
+		var at := c + d * lerpf(born.x, born.y, 0.5 + 0.5 * _speck(j, int(turn), 2.0)) + side * hl * (2.0 * _speck(j, int(turn), 4.0) - 1.0)
+		var p := at + d * age * 30.0 + Vector2(sin(age * 3.0 + j) * 3.0, -14.0 - age * 60.0)
+		if not view.has_point(p):
+			continue
+		var a := 0.55 * fade * (1.0 - age) * minf(age * 4.0, 1.0)
+		draw_circle(p.round(), 5.0 + age * 13.0, Color(0.36, 0.33, 0.31, a))
+	var span: Vector2 = sim.horde.fire_span()
+	if span.y <= span.x:
+		return
+	for j in 24:
+		var turn := sim.time / 1.4 + float(j) / 24.0
+		var age := fposmod(turn, 1.0)
+		var at := c + d * lerpf(span.x, span.y, 0.5 + 0.5 * _speck(j, int(turn), 7.0)) + side * hl * (2.0 * _speck(j, int(turn), 5.0) - 1.0)
+		var p := at + d * age * 12.0 + Vector2(sin(age * 6.0 + j) * 4.0, -10.0 - age * 40.0)
+		if not view.has_point(p):
+			continue
+		var col := Color(1.0, 0.85, 0.35).lerp(Color(0.9, 0.3, 0.1), age)
+		col.a = fade * (1.0 - age)
+		draw_rect(Rect2(p.round(), Vector2(1, 1) if j % 3 else Vector2(2, 2)), col)
 
 
 ## A lasso swung at a soldier: a loop circling over the rider's head that shrinks round the soldier as the throw comes.
@@ -1430,6 +1556,20 @@ func _add_flames(view: Rect2) -> void:
 	if not atlas.props.has("flame"):
 		return
 	var cfg: Dictionary = sim.b.objectives.grove
+	var fire: Dictionary = sim.horde.steppe_fire
+	if not fire.is_empty() and fire.t >= fire.warn:
+		var fade := _fire_fade(fire)
+		var flames := steppe_flames(fire, sim.horde.fire_span(), view)
+		var points: PackedVector2Array = flames[0]
+		var sizes: PackedFloat32Array = flames[1]
+		var alphas: PackedFloat32Array = flames[2]
+		var seeds: PackedInt32Array = flames[3]
+		var kinds := [atlas.props.flame_half, atlas.props.flame_three_quarters, atlas.props.flame]
+		var beat := int(sim.time * 10.0)
+		for n in points.size():
+			var fl: Dictionary = kinds[0 if sizes[n] < 0.625 else (1 if sizes[n] < 0.875 else 2)]
+			var f: Array = fl.frames[(beat + seeds[n] * 3) % fl.frames.size()]
+			_add(points[n].y + 1.0, Rect2(f[0], f[1], f[2], f[3]), points[n] - Vector2(fl.anchor[0], fl.anchor[1]), Color(1, 1, 1, alphas[n] * fade))
 	for n in sim.horde.storms.size():
 		var st: Dictionary = sim.horde.storms[n]
 		if not st.get("fire", false) or not view.grow(st.radius).has_point(st.pos):

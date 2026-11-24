@@ -12369,6 +12369,54 @@ func test_the_roxolani_king_sets_the_steppe_on_fire(b: Dictionary) -> void:
 		check(h.steppe_fire.is_empty(), "and the fire burns out")
 
 
+func test_the_drawn_steppe_fire_shows_where_it_burns(b: Dictionary) -> void:
+	var view: GDScript = load("res://scripts/world_view.gd")
+	var reach: float = view.EDGE_REACH
+	var cfg: Dictionary = content.enemies.rasparaganus.attacks.steppe_fire
+	var s := _sarmatia_sim(b, 2134)
+	var h := s.horde
+	h.spawn_chieftain(Vector2(300, 0))
+	h.cleave_cd = 1e9
+	h.fire_cd = 0.0
+	h._chieftain(1.0 / 60.0, s)
+	check(not h.steppe_fire.is_empty(), "the king sets the grass alight")
+	if h.steppe_fire.is_empty():
+		return
+	var fire: Dictionary = h.steppe_fire
+	var c: Vector2 = fire.pos
+	var u: Vector2 = fire.dir
+	var v: Vector2 = u.orthogonal()
+	var hl: float = fire.half_len
+	var everywhere := Rect2(c, Vector2.ZERO).grow(float(cfg.depth) + hl)
+	var t := 0.0
+	var looked := 0
+	for until in [float(cfg.warn) + 0.5, float(cfg.warn) + 2.0, float(cfg.warn) + float(cfg.seconds) - 0.3, float(cfg.warn) + float(cfg.seconds) + 1.5]:
+		while t < until:
+			h._fire_on(1.0 / 60.0, s)
+			t += 1.0 / 60.0
+		if h.steppe_fire.is_empty():
+			break
+		looked += 1
+		var span := h.fire_span()
+		var burnt: PackedVector2Array = view.burnt_band(fire, span)
+		var misses := _band_misses(burnt, c, u, v, 0.0, span.y, -hl, hl, reach, 2.0 * reach + 3.0, 4.0)
+		check(misses.is_empty(), "the burnt grass is drawn as far as the fire has spread, %.0f px, and no further (%.1f s, wrong at %s)" % [span.y, t, misses.slice(0, 3)])
+		var flames: Array = view.steppe_flames(fire, span, everywhere)
+		var points: PackedVector2Array = flames[0]
+		var cold := 0
+		for p in points:
+			if not h.in_fire_band(p, span):
+				cold += 1
+		check(cold == 0, "every flame stands where the fire burns (%d of %d outside it at %.1f s)" % [cold, points.size(), t])
+		var front := 0
+		for p in points:
+			if (p - c).dot(u) > span.y - 30.0:
+				front += 1
+		var wanted := int(hl * 2.0 / 40.0) if span.y < float(cfg.depth) else 0
+		check(front >= wanted, "and the burning front is lined with flames (%d near it at %.1f s)" % [front, t])
+	check(looked == 4, "the fire was looked at while it burnt and as it burnt out")
+
+
 func test_the_roxolani_kings_stun_or_death_calls_off_what_he_marked(b: Dictionary) -> void:
 	for fate in ["stun", "death"]:
 		var s := _sarmatia_sim(b, 2133)
