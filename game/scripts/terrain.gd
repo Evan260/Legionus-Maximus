@@ -82,7 +82,7 @@ const ICE_N := 56
 var ice_cell := PackedByteArray()
 ## For a square along a bank, the bank as a straight line (x, y, c): x * p.x + y * p.y + c is about how far p is from it, negative on the ice.
 var ice_bank := PackedVector3Array()
-# The stream segments by a bank as (ax, ay, bx, by) with the half widths at each end, and the squares listing them.
+# The stream segments near the commander as (ax, ay, bx, by) with the half widths at each end, and the squares listing them.
 var ic_seg := PackedVector4Array()
 var ic_half := PackedVector2Array()
 var ic_start := PackedInt32Array()
