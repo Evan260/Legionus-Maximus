@@ -83,6 +83,14 @@ jobs:
       - name: Import
         run: godot --headless --path game --import || godot --headless --path game --import
 
+      # tools/demo_stage.py cuts the demo's atlas with tools/art/build_atlas.py, which needs these.
+      - name: Python packages for the demo
+        if: matrix.edition == 'demo'
+        run: |
+          python3 -m venv "$RUNNER_TEMP/python"
+          "$RUNNER_TEMP/python/bin/pip" install --quiet pillow numpy opencv-python-headless
+          echo "$RUNNER_TEMP/python/bin" >> "$GITHUB_PATH"
+
       - name: Export
         run: bash .github/scripts/export.sh ${{ matrix.platform }} ${{ matrix.edition }}
 
