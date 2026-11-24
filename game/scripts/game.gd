@@ -9,6 +9,10 @@ static var demo_forced := false
 ## The commanders the demo lists, which the demo hands out as unlocked; filled by commanders().
 static var demo_open: Array = []
 
+## Written into the demo's own export by tools/demo_stage.py, so the demo stays the demo whatever its feature tags say.
+const DEMO_MARK := "res://data/demo_build.json"
+static var _marked := FileAccess.file_exists(DEMO_MARK)
+
 
 ## How many steps a frame of `dt` seconds is played in, so that no step is longer than a sixtieth of a second
 ## and the crowd presses on the legion as it does at 60 frames a second, however slow the computer.
@@ -16,9 +20,9 @@ static func steps_for(dt: float) -> int:
 	return maxi(1, ceili(dt * 60.0 - 0.001))
 
 
-## Whether this is the demo: the project exported with the "demo" feature, or started with --as-demo.
+## Whether this is the demo: the demo's own export, the project exported with the "demo" feature, or started with --as-demo.
 static func is_demo() -> bool:
-	return demo_forced or OS.has_feature("demo") or "--as-demo" in OS.get_cmdline_user_args()
+	return demo_forced or _marked or OS.has_feature("demo") or "--as-demo" in OS.get_cmdline_user_args()
 
 
 ## The commanders this build lists: every one whose art is drawn, and in the demo only the first few of them.
