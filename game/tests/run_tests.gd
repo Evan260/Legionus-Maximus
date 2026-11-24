@@ -11706,6 +11706,91 @@ func test_achillas_opens_the_sluices_across_the_legions_path(b: Dictionary) -> v
 	check(h.flood.is_empty(), "and the water drains after %.0f seconds" % float(cfg.seconds))
 
 
+## How far `p` lies inside the rectangle from `a0` to `a1` along `u` and `b0` to `b1` along `v` from `c`, less than 0 outside it.
+func _depth_in_band(p: Vector2, c: Vector2, u: Vector2, v: Vector2, a0: float, a1: float, b0: float, b1: float) -> float:
+	var off := p - c
+	var a := off.dot(u)
+	var b := off.dot(v)
+	var inside := minf(minf(a - a0, a1 - a), minf(b - b0, b1 - b))
+	if inside >= 0.0:
+		return inside
+	return -Vector2(maxf(maxf(a0 - a, a - a1), 0.0), maxf(maxf(b0 - b, b - b1), 0.0)).length()
+
+
+## The places round a band, every `step` px, where the drawn band is wrong: drawn more than `out` px outside the rectangle, or not drawn
+## more than `deep` px inside it.
+func _band_misses(pts: PackedVector2Array, c: Vector2, u: Vector2, v: Vector2, a0: float, a1: float, b0: float, b1: float, out: float, deep: float, step: float) -> Array:
+	var outline := pts.slice(0, pts.size() / 2)
+	var misses: Array = []
+	var a := a0 - out - 4.0
+	while a <= a1 + out + 4.0:
+		var b := b0 - out - 4.0
+		while b <= b1 + out + 4.0:
+			var p := c + u * a + v * b
+			var depth := _depth_in_band(p, c, u, v, a0, a1, b0, b1)
+			var drawn := Geometry2D.is_point_in_polygon(p, outline)
+			if (drawn and depth < -out) or (not drawn and depth > deep):
+				misses.append(Vector2(a, b))
+			b += step
+		a += step
+	return misses
+
+
+func test_a_ragged_band_keeps_close_to_its_rectangle_and_fills_it_without_folds(_b: Dictionary) -> void:
+	var view: GDScript = load("res://scripts/world_view.gd")
+	var reach: float = view.EDGE_REACH
+	var u := Vector2.from_angle(0.7)
+	var v := u.orthogonal()
+	var c := Vector2(1234.5, -321.25)
+	for size in [Vector2(360, 80), Vector2(320, 340), Vector2(12, 340), Vector2(3, 340), Vector2(340, 2.5)]:
+		for t in [0.0, 1.3, 7.9]:
+			var pts: PackedVector2Array = view.ragged_band(c, u, v, -size.x / 2.0, size.x / 2.0, -size.y / 2.0, size.y / 2.0, reach, t)
+			var n := pts.size() / 2
+			var stray := 0.0
+			for k in n:
+				stray = maxf(stray, -_depth_in_band(pts[k], c, u, v, -size.x / 2.0, size.x / 2.0, -size.y / 2.0, size.y / 2.0))
+			check(n > 0 and stray <= reach + 0.01, "a %s band's edge strays at most %.0f px outside it (%.2f at %.1f s)" % [size, reach, stray, t])
+			var idx: PackedInt32Array = view.ragged_triangles(n)
+			var turns := {}
+			for k in range(0, idx.size(), 3):
+				var area := (pts[idx[k + 1]] - pts[idx[k]]).cross(pts[idx[k + 2]] - pts[idx[k]])
+				if absf(area) > 0.5:
+					turns[signf(area)] = true
+			check(turns.size() == 1, "its triangles all turn one way, so it is filled once with no folds (%s at %.1f s)" % [size, t])
+			var misses := _band_misses(pts, c, u, v, -size.x / 2.0, size.x / 2.0, -size.y / 2.0, size.y / 2.0, reach, 2.0 * reach + 3.0, 3.0)
+			check(misses.is_empty(), "and it covers the rectangle but for its edge (%s at %.1f s, wrong at %s)" % [size, t, misses.slice(0, 3)])
+
+
+func test_the_drawn_flood_lies_over_the_ground_that_slows_the_march(b: Dictionary) -> void:
+	var view: GDScript = load("res://scripts/world_view.gd")
+	var reach: float = view.EDGE_REACH
+	var s := _aegyptus_sim(b, 2004)
+	var h := s.horde
+	s.facing_angle = 0.6
+	h.spawn_chieftain(Vector2(-250, 0))
+	h.cleave_cd = 1e9
+	h.sluice_cd = 0.0
+	h._chieftain(1.0 / 60.0, s)
+	check(not h.flood.is_empty(), "the general marks a band to flood")
+	if h.flood.is_empty():
+		return
+	var fl: Dictionary = h.flood
+	var c: Vector2 = fl.pos
+	var u: Vector2 = fl.dir
+	var v: Vector2 = u.orthogonal()
+	var wrong: Array = []
+	for t in [0.0, 2.25, 4.6]:
+		var pts: PackedVector2Array = view.flood_band(fl, t)
+		var outline := pts.slice(0, pts.size() / 2)
+		for k in 400:
+			var p: Vector2 = c + u * (fl.half_len + 12.0) * (fmod(k * 0.618034, 1.0) * 2.0 - 1.0) + v * (fl.half_w + 12.0) * (fmod(k * 0.7548777, 1.0) * 2.0 - 1.0)
+			var depth := _depth_in_band(p, c, u, v, -fl.half_len, fl.half_len, -fl.half_w, fl.half_w)
+			var drawn := Geometry2D.is_point_in_polygon(p, outline)
+			if (depth > 2.0 * reach + 3.0 and not (drawn and h.in_flood(p))) or (depth < -reach and (drawn or h.in_flood(p))):
+				wrong.append(p)
+	check(wrong.is_empty(), "the water is drawn wherever the flood slows the march, and nowhere more than %.0f px past it (%s)" % [reach, wrong.slice(0, 3)])
+
+
 func test_the_shepherd_general_marks_rings_where_hidden_men_hurl_javelins(b: Dictionary) -> void:
 	var atk: Dictionary = content.enemies.viriathus.attacks
 	check(atk.has("javelins"), "the shepherd general has a javelin attack")

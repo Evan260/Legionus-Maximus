@@ -94,6 +94,11 @@ const HUT_WALL_FIRES := [Vector2(-18, -4), Vector2(16, -3)]
 const HUT_EMBER_FIRES := [Vector2(-8, -3), Vector2(9, -6)]
 ## The colour a hut darkens to as it burns.
 const CHARRED := Color(0.34, 0.25, 0.22)
+## How far a flood's or a fire's drawn edge strays from the true one, and the step between its points.
+const EDGE_REACH := 3.0
+const EDGE_STEP := 4.0
+## How fast a flood's water drifts along its band, in px a second.
+const FLOOD_DRIFT := 12.0
 # The rocky lip drawn along every ravine.
 var ravine_edge: Texture2D
 # The ice laid along every frozen stream, repeated across the world.
@@ -112,6 +117,8 @@ var _train_marks := PackedVector2Array()
 # The ground and the wheat fields are drawn by two layers behind this node, so the wheat can have a shader of its own that frays its edges.
 var _floor := Node2D.new()
 var _wheat := Node2D.new()
+# The triangles that fill a ragged band, by its number of outline points, worked out once each.
+static var _ring_triangles := {}
 # The wheat has a texture of its own so it repeats across a whole field in one piece, with no seams where atlas pieces would meet.
 var _wheat_tile: Texture2D = preload("res://assets/wheat_tile.png")
 # The legion's armour and cloth tiers drawn now, and tiers set from the command line for a look, or -1 to follow the upgrades.
@@ -1032,31 +1039,155 @@ func _draw_warnings() -> void:
 				draw_arc(at, m.radius * 0.6, a, a + 1.2, 8, Color(0.85, 0.55, 1.0, 0.8), 1.0)
 
 
-## The band the Egyptian general floods: a blue outline filling from the bank while it is marked, then muddy water with ripples until it drains.
+## The band the Egyptian general floods: a blue outline with water seeping in from one bank while it is marked, then canal water
+## lapping at a ragged, foaming edge until it drains.
 func _draw_flood(fl: Dictionary) -> void:
 	var c: Vector2 = fl.pos
 	var d: Vector2 = fl.dir
 	var side := d.orthogonal()
 	var hl: float = fl.half_len
 	var hw: float = fl.half_w
-	var corners := PackedVector2Array([c - d * hl - side * hw, c + d * hl - side * hw, c + d * hl + side * hw, c - d * hl + side * hw])
+	var shift := d * sim.time * FLOOD_DRIFT / water.get_size()
 	if fl.t < fl.warn:
 		var k: float = clampf(fl.t / fl.warn, 0.0, 1.0)
+		var corners := PackedVector2Array([c - d * hl - side * hw, c + d * hl - side * hw, c + d * hl + side * hw, c - d * hl + side * hw])
 		draw_colored_polygon(corners, Color(0.25, 0.5, 0.85, 0.1 + 0.15 * k))
-		draw_colored_polygon(PackedVector2Array([c - d * hl - side * hw, c + d * hl - side * hw, c + d * hl + side * hw * (2.0 * k - 1.0), c - d * hl + side * hw * (2.0 * k - 1.0)]), Color(0.35, 0.6, 0.95, 0.22))
+		var seep := ragged_band(c, d, side, -hl, hl, -hw, -hw + 2.0 * hw * k, EDGE_REACH, sim.time)
+		_fill_ragged(seep, Color(1, 1, 1, 0.55), Color(1, 1, 1, 0.55), water, shift)
+		_draw_foam(seep, 0.6)
 		corners.append(corners[0])
 		draw_polyline(corners, Color(0.5, 0.75, 1.0, 0.9), 1.0)
 		return
 	var left: float = fl.warn + fl.seconds - fl.t
 	var a := clampf(left / 0.8, 0.0, 1.0) * clampf((fl.t - fl.warn) / 0.3, 0.0, 1.0)
-	draw_colored_polygon(corners, Color(0.32, 0.42, 0.36, 0.75 * a))
-	for n in 6:
-		var along: float = -hl + hl * 2.0 * fmod(n * 0.37 + sim.time * 0.15, 1.0)
-		var across: float = hw * (n % 3 - 1) * 0.55
-		var at := c + d * along + side * across
-		draw_line(at - d * 6.0, at + d * 6.0, Color(0.7, 0.8, 0.78, 0.5 * a), 1.0)
-	corners.append(corners[0])
-	draw_polyline(corners, Color(0.24, 0.2, 0.14, 0.8 * a), 2.0)
+	var pool := flood_band(fl, sim.time)
+	# The water lies shallow along its edge, so the ground shows through there.
+	_fill_ragged(pool, Color(1, 1, 1, 0.55 * a), Color(1, 1, 1, 0.92 * a), water, shift)
+	_draw_foam(pool, a)
+	_draw_wading(fl, a)
+
+
+## The water of a flood at `t` seconds, laid over the band it floods.
+static func flood_band(fl: Dictionary, t: float) -> PackedVector2Array:
+	return ragged_band(fl.pos, fl.dir, fl.dir.orthogonal(), -fl.half_len, fl.half_len, -fl.half_w, fl.half_w, EDGE_REACH, t)
+
+
+## Pale broken foam along the edge of a ragged band, its gaps rolling along the edge with time.
+func _draw_foam(band: PackedVector2Array, a: float) -> void:
+	var foam := PackedVector2Array()
+	var m := band.size() / 2
+	for n in m:
+		if sin(n * 0.9 + sim.time * 2.2) + 0.6 * sin(n * 0.37 - sim.time * 1.3) > 0.1:
+			foam.append(band[n])
+			foam.append(band[(n + 1) % m])
+	if not foam.is_empty():
+		draw_multiline(foam, Color(0.8, 0.9, 0.82, 0.7 * a), 1.0)
+
+
+## Ripples round the feet of everyone standing in the flood, drawn in one call.
+func _draw_wading(fl: Dictionary, a: float) -> void:
+	var h := sim.horde
+	var lines := PackedVector2Array()
+	var feet: Array = [sim.commander.pos]
+	for u in sim.soldiers:
+		feet.append(u.pos)
+	for i in h.e_pos.size():
+		feet.append(h.e_pos[i])
+	var area := Rect2(fl.pos, Vector2.ZERO).grow(fl.half_len + fl.half_w)
+	for n in feet.size():
+		var p: Vector2 = feet[n]
+		if not area.has_point(p) or not h.in_flood(p):
+			continue
+		var w := 6.0 + roundf(2.0 * sin(sim.time * 4.0 + n))
+		var at := p.round() + Vector2(0, 1)
+		lines.append_array([at + Vector2(-w, 0), at + Vector2(-w + 3.0, 0), at + Vector2(w - 3.0, 0), at + Vector2(w, 0)])
+	if not lines.is_empty():
+		draw_multiline(lines, Color(0.85, 0.94, 0.88, 0.8 * a), 1.0)
+
+
+## The rectangle from `a0` to `a1` along `u` and `b0` to `b1` along `v` from `c` with rounded corners and an edge waving with `t`, never
+## more than `reach` px from the true one: its outline's points, then the point each stands over on a rectangle inside it.
+static func ragged_band(c: Vector2, u: Vector2, v: Vector2, a0: float, a1: float, b0: float, b1: float, reach: float, t: float) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	var inner := PackedVector2Array()
+	var thin := minf(a1 - a0, b1 - b0)
+	if thin < 2.0:
+		return pts
+	# A thin band gets a smaller wave and corner, so its opposite edges never cross and every point stays outside the inner rectangle.
+	reach = minf(reach, thin / 6.0)
+	var r := minf(reach * 2.0 + 2.0, thin / 2.0 - 0.01)
+	var lo := Vector2(a0 + r, b0 + r)
+	var hi := Vector2(a1 - r, b1 - r)
+	var corners := [Vector2(hi.x, lo.y), hi, Vector2(lo.x, hi.y), lo]
+	var edges := [[Vector2(lo.x, b0), Vector2(hi.x, b0), Vector2(0, -1)], [Vector2(a1, lo.y), Vector2(a1, hi.y), Vector2(1, 0)],
+		[Vector2(hi.x, b1), Vector2(lo.x, b1), Vector2(0, 1)], [Vector2(a0, hi.y), Vector2(a0, lo.y), Vector2(-1, 0)]]
+	for e in 4:
+		var from: Vector2 = edges[e][0]
+		var to: Vector2 = edges[e][1]
+		var out: Vector2 = edges[e][2]
+		var steps := maxi(1, ceili(from.distance_to(to) / EDGE_STEP))
+		for k in steps:
+			var q := from.lerp(to, float(k) / steps)
+			# The wave is read at the point's own place along the edge, so the edge stays put on the ground as the band grows.
+			var along := q.x if out.x == 0.0 else q.y
+			var w := q + out * reach * _wave(along, t, e)
+			pts.append(c + u * w.x + v * w.y)
+			q -= out * r
+			inner.append(c + u * q.x + v * q.y)
+		var corner: Vector2 = corners[e]
+		var mid := c + u * corner.x + v * corner.y
+		for k in 3:
+			var ang := (e - 1) * PI / 2.0 + (k + 1) * PI / 8.0
+			var q := corner + Vector2.from_angle(ang) * (r + reach * _wave(ang * 10.0, t, e + 4))
+			pts.append(c + u * q.x + v * q.y)
+			inner.append(mid)
+	pts.append_array(inner)
+	return pts
+
+
+## A wave from -1 to 1 along an edge, rolling with time.
+static func _wave(along: float, t: float, e: int) -> float:
+	return 0.6 * sin(along * 0.31 + t * 1.9 + e * 1.7) + 0.4 * sin(along * 0.83 - t * 2.7 + e * 0.9)
+
+
+## The triangles that fill a ragged band of `n` outline points: the ring between its outline and the rectangle inside, then the rectangle.
+static func ragged_triangles(n: int) -> PackedInt32Array:
+	var idx: PackedInt32Array = _ring_triangles.get(n, PackedInt32Array())
+	if not idx.is_empty():
+		return idx
+	for k in n:
+		var k1 := (k + 1) % n
+		idx.append_array([k, k1, n + k1, k, n + k1, n + k])
+	for k in range(1, n - 1):
+		idx.append_array([n, n + k, n + k + 1])
+	_ring_triangles[n] = idx
+	return idx
+
+
+## Fills a ragged band on `layer`, shading from `edge` at its outline to `core` on its inner rectangle, with `tex` laid over it
+## in world space and moved by `shift` texture widths when given.
+func _fill_ragged(pts: PackedVector2Array, edge: Color, core: Color, tex: Texture2D = null, shift := Vector2.ZERO, layer: CanvasItem = self) -> void:
+	if pts.is_empty():
+		return
+	var n := pts.size() / 2
+	var idx := ragged_triangles(n)
+	var cols := PackedColorArray()
+	cols.resize(n)
+	cols.fill(edge)
+	var inside := PackedColorArray()
+	inside.resize(n)
+	inside.fill(core)
+	cols.append_array(inside)
+	var item := layer.get_canvas_item()
+	if tex == null:
+		RenderingServer.canvas_item_add_triangle_array(item, idx, pts, cols)
+		return
+	var size := tex.get_size()
+	var uvs := PackedVector2Array()
+	uvs.resize(pts.size())
+	for k in pts.size():
+		uvs[k] = pts[k] / size - shift
+	RenderingServer.canvas_item_add_triangle_array(item, idx, pts, cols, uvs, PackedInt32Array(), PackedFloat32Array(), tex.get_rid())
 
 
 ## The Roxolani king's burning band: marked in orange and filling from its starting edge while it is marked, then flames over the strip
