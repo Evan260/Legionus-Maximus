@@ -8908,6 +8908,8 @@ func test_the_ice_round_the_commander_is_sorted_into_squares(b: Dictionary) -> v
 	r.seed = 961
 	var on := 0
 	var wrong := 0
+	var banks := 0
+	var astray := 0
 	for k in 3000:
 		var p := mid + Vector2(r.randf_range(-800.0, 800.0), r.randf_range(-800.0, 800.0))
 		var edge := t.stream_edge(p, 160.0)
@@ -8916,7 +8918,14 @@ func test_the_ice_round_the_commander_is_sorted_into_squares(b: Dictionary) -> v
 		# Read from every second point of the line, the bank strays under a pixel from the drawn one.
 		if absf(edge) > 1.0 and t.on_ice(p) != (edge < 0.0):
 			wrong += 1
+		var c := floori((p.x - t.origin.x) / Terrain.ICE_CELL) + floori((p.y - t.origin.y) / Terrain.ICE_CELL) * Terrain.ICE_N
+		if t.ice_cell[c] == 2:
+			banks += 1
+			var bank := t.ice_bank[c]
+			if absf(edge) > 5.0 and (bank.x * p.x + bank.y * p.y + bank.z < 0.0) != (edge < 0.0):
+				astray += 1
 	check(on > 100 and wrong == 0, "and read from them the ice lies where the stream is drawn (%d of %d on it, %d wrong)" % [on, 3000, wrong])
+	check(banks > 50 and astray == 0, "and the straight banks the horde reads stray no more than a few pixels (%d of %d astray)" % [astray, banks])
 	var far := mid + Vector2(5000, 5000)
 	t.add_stream([{"pts": PackedVector2Array([far - Vector2(300, 0), far + Vector2(300, 0)]), "half": PackedFloat32Array([50.0, 50.0])}])
 	check(t.on_ice(far) and not t.on_ice(far + Vector2(0, 80)), "and a stream laid by hand is ice at once")

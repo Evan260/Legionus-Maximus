@@ -76,10 +76,12 @@ var _henges := {}
 # The frozen stream of each stream region once worked out, {} for a region without one, and streams laid by hand.
 var _streams := {}
 var _laid_streams: Array = []
-# The ice near the commander in ICE_CELL squares: 0 where no stream reaches, 1 where it is ice throughout, 2 along a bank.
+# The ice near the commander in ICE_CELL squares: 0 where no stream reaches, 1 where it is ice throughout, 2 along a bank, 3 where both banks or a stream's tip cross the square.
 const ICE_CELL := 32.0
 const ICE_N := 56
 var ice_cell := PackedByteArray()
+## For a square along a bank, the bank as a straight line (x, y, c): x * p.x + y * p.y + c is about how far p is from it, negative on the ice.
+var ice_bank := PackedVector3Array()
 # The stream segments by a bank as (ax, ay, bx, by) with the half widths at each end, and the squares listing them.
 var ic_seg := PackedVector4Array()
 var ic_half := PackedVector2Array()
@@ -2052,7 +2054,7 @@ func on_ice(p: Vector2) -> bool:
 			if ice_cell.is_empty():
 				return false
 			var c := gx + gy * ICE_N
-			return ice_cell[c] == 1 or (ice_cell[c] == 2 and ice_edge(c, p) < 0.0)
+			return ice_cell[c] == 1 or (ice_cell[c] >= 2 and ice_edge(c, p) < 0.0)
 	return stream_edge(p, 160.0) < 0.0
 
 
@@ -2063,14 +2065,22 @@ func ice_ready() -> bool:
 
 ## How far p is from the bank along the stream segments listed for square c, negative on the ice.
 func ice_edge(c: int, p: Vector2) -> float:
-	var best := INF
+	return _ice_near(c, p).z
+
+
+## The nearest point of the stream's middle line to p among the segments listed for square c, and how far p is from the bank, as (x, y, edge).
+func _ice_near(c: int, p: Vector2) -> Vector3:
+	var best := Vector3(0.0, 0.0, INF)
 	for t in range(ic_start[c], ic_start[c + 1]):
 		var k := ic_items[t]
 		var sg := ic_seg[k]
 		var a := Vector2(sg.x, sg.y)
 		var ab := Vector2(sg.z, sg.w) - a
 		var u := clampf((p - a).dot(ab) / maxf(ab.length_squared(), 0.0001), 0.0, 1.0)
-		best = minf(best, p.distance_to(a + ab * u) - lerpf(ic_half[k].x, ic_half[k].y, u))
+		var q := a + ab * u
+		var e := p.distance_to(q) - lerpf(ic_half[k].x, ic_half[k].y, u)
+		if e < best.z:
+			best = Vector3(q.x, q.y, e)
 	return best
 
 
@@ -2078,6 +2088,7 @@ func ice_edge(c: int, p: Vector2) -> float:
 func _grid_ice(area: Rect2) -> void:
 	_ice_anchor = _anchor
 	ice_cell.clear()
+	ice_bank.clear()
 	ic_seg.clear()
 	ic_half.clear()
 	ic_items.clear()
@@ -2123,13 +2134,24 @@ func _grid_ice(area: Rect2) -> void:
 				fill[c] += 1
 	ice_cell.resize(ICE_N * ICE_N)
 	ice_cell.fill(0)
+	ice_bank.resize(ICE_N * ICE_N)
 	# A square whose middle is further from the bank than its corners, with a little over for the bank's width changing along it, lies all on one side.
 	var sure := ICE_CELL * 0.71 + 3.0
 	for c in ICE_N * ICE_N:
 		if ic_start[c] == ic_start[c + 1]:
 			continue
-		var e := ice_edge(c, origin + Vector2(c % ICE_N + 0.5, c / ICE_N + 0.5) * ICE_CELL)
-		ice_cell[c] = 1 if e < -sure else (0 if e > sure else 2)
+		var at := origin + Vector2(c % ICE_N + 0.5, c / ICE_N + 0.5) * ICE_CELL
+		var near := _ice_near(c, at)
+		if near.z < -sure:
+			ice_cell[c] = 1
+		elif near.z <= sure:
+			var off := at - Vector2(near.x, near.y)
+			if off.length() > sure:
+				var n := off.normalized()
+				ice_bank[c] = Vector3(n.x, n.y, near.z - n.dot(at))
+				ice_cell[c] = 2
+			else:
+				ice_cell[c] = 3
 
 
 ## Lists the ravine segments near the commander in every grid cell they could touch a unit from, as the solid props are.
