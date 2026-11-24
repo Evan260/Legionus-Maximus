@@ -4374,7 +4374,7 @@ func test_no_label_is_cut_in_any_language(b: Dictionary) -> void:
 
 
 func _fit(cuts: Array, loc: String, scale: int, what: String, s: String, width: float) -> void:
-	if not Ui.fits(s, width):
+	if Ui.width_at(s, Ui.fit_size(s, width)) > width:
 		cuts.append("%s x%d %s: '%s' needs %d of %d" % [loc, scale, what, s, Ui.width_at(s, Ui.small_px()), width])
 
 
@@ -4669,14 +4669,19 @@ func test_a_word_too_long_for_a_line_is_broken(b: Dictionary) -> void:
 	Lang.apply(before, false)
 
 
+## The most buttons the title shows: Continue, New game, Load, Settings and the demo's Wishlist.
+const TITLE_MOST_BUTTONS := 5
+
+
 ## The title's controls: every label in its cell, the goal in its two lines, and the box above the buttons.
 func _title_cuts(cuts: Array, loc: String, scale: int, what: String, b: Dictionary) -> void:
 	var g := TitleScreen.grid(b)
 	for cell in g.cells:
 		_lines(cuts, loc, scale, what, cell.label, cell.room, cell.lines)
 	_lines(cuts, loc, scale, what + " goal", Game.goal_text(b), g.goal_width, 2)
-	if g.box.end.y > TitleScreen.box_limit():
-		cuts.append("%s x%d %s: the box ends at %d, under the buttons' room" % [loc, scale, what, g.box.end.y])
+	var last: Rect2 = TitleScreen.button_rects(g.box, TITLE_MOST_BUTTONS)[-1]
+	if last.end.y > Ui.H - 2.0:
+		cuts.append("%s x%d %s: the box ends at %d and pushes the buttons off the screen" % [loc, scale, what, g.box.end.y])
 
 
 func test_title_controls_follow_the_bindings_and_the_gamepad(b: Dictionary) -> void:
@@ -4715,7 +4720,7 @@ func test_title_how_to_play_is_a_short_grid(b: Dictionary) -> void:
 		for phone in [false, true]:
 			Touch.phone = phone
 			g = TitleScreen.grid(b)
-			check(g.box.end.y <= TitleScreen.box_limit(), "the box leaves room for the buttons (x%d, phone %s, ends %d)" % [scale, phone, g.box.end.y])
+			check(TitleScreen.button_rects(g.box, TITLE_MOST_BUTTONS)[-1].end.y <= Ui.H - 2.0, "the box leaves room for the buttons (x%d, phone %s, ends %d)" % [scale, phone, g.box.end.y])
 			for i in g.cells.size():
 				var r: Rect2 = g.cells[i].rect
 				check(g.box.encloses(r), "cell %d is inside the box (x%d, phone %s)" % [i, scale, phone])
@@ -12486,6 +12491,10 @@ func test_touch_stick_takes_touches_on_the_left_of_the_screen(_b: Dictionary) ->
 	check(not Touch.in_stick_zone(Vector2(600, 300), view), "a touch on the right is left to the buttons")
 
 
+## The run's actions that have a touch button.
+const TOUCH_ACTIONS := ["testudo", "pray", "build", "wall", "bridge", "pause"]
+
+
 ## The touch buttons laid out for a screen, as the HUD lays them: below the top bar and above the favour, inside the safe area.
 func _touch_layout(view: Vector2, tl: Vector2, br: Vector2, tip: float) -> Dictionary:
 	var parts := Hud.bottom_layout(view - tl - br)
@@ -12495,7 +12504,7 @@ func _touch_layout(view: Vector2, tl: Vector2, br: Vector2, tip: float) -> Dicti
 func test_touch_buttons_are_found_where_they_are_drawn(b: Dictionary) -> void:
 	var view := Vector2(808, 360)
 	var layout := _touch_layout(view, Vector2(13, 13), Vector2(13, 13), 39.0)
-	for id in Touch.ACTIONS:
+	for id in TOUCH_ACTIONS:
 		check(layout.has(id), "there is a button for %s" % id)
 		if not layout.has(id):
 			continue

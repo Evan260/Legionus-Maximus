@@ -86,10 +86,21 @@ static func logo_top() -> float:
 	return 6.0 if Ui.scale > 1 else 26.0
 
 
-## The lowest the controls' box may end and still leave room for the buttons under it.
-static func box_limit() -> float:
-	# Large text sets the buttons side by side, normal text two to a row in up to three rows.
-	return Ui.H - 30.0 if Ui.scale > 1 else Ui.H - 96.0
+## The title's buttons under the box of controls: side by side with large text, else two to a row with the last one centred when it is alone.
+static func button_rects(box: Rect2, n: int) -> Array:
+	var rects: Array = []
+	if Ui.scale > 1:
+		var bw := minf(200.0, (Ui.W - 40.0 - (n - 1) * 10.0) / n)
+		var x0 := (Ui.W - n * bw - (n - 1) * 10.0) / 2.0
+		var y := box.end.y + 6.0
+		for i in n:
+			rects.append(Rect2(x0 + i * (bw + 10.0), y, bw, clampf(Ui.H - 2.0 - y, 22.0, 30.0)))
+	else:
+		for i in n:
+			var alone: bool = i == n - 1 and i % 2 == 0
+			var x := Ui.W / 2 - 85.0 if alone else Ui.W / 2 - 175.0 + (i % 2) * 180.0
+			rects.append(Rect2(x, box.end.y + 10.0 + (i / 2) * 30.0, 170.0, 24.0))
+	return rects
 
 
 ## Where the controls go: the box under the logo, each control's cell with its caps, icon and label, and the goal under them.
@@ -216,20 +227,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	var g := grid(main.balance)
 	var box: Rect2 = g.box
 	var ids := buttons(main.balance)
-	var rects: Array = []
-	if big:
-		# Large text sets the buttons side by side under the taller box.
-		var bw := minf(200.0, (Ui.W - 40.0 - (ids.size() - 1) * 10.0) / ids.size())
-		var x0 := (Ui.W - ids.size() * bw - (ids.size() - 1) * 10.0) / 2.0
-		var y := box.end.y + 6.0
-		for i in ids.size():
-			rects.append(Rect2(x0 + i * (bw + 10.0), y, bw, clampf(Ui.H - 2.0 - y, 22.0, 30.0)))
-	else:
-		# Two to a row, the last one centred when it is alone.
-		for i in ids.size():
-			var alone: bool = i == ids.size() - 1 and i % 2 == 0
-			var x := Ui.W / 2 - 85.0 if alone else Ui.W / 2 - 175.0 + (i % 2) * 180.0
-			rects.append(Rect2(x, box.end.y + 10.0 + (i / 2) * 30.0, 170.0, 24.0))
+	var rects := button_rects(box, ids.size())
 	_buttons_end = rects[-1].end.y
 	var t := _animate()
 	_clouds(c, t)

@@ -93,11 +93,6 @@ static func list_size(labels: Array) -> int:
 	return px
 
 
-## True when the label fits the width at the text size or the smallest size, so nothing is cut.
-static func fits(s: String, width: float) -> bool:
-	return width_at(s, fit_size(s, width)) <= width
-
-
 ## Text cut into lines no wider than the width at a size (the text size when 0), breaking at spaces, or between any two letters in languages written without them or in a word too long for a line.
 static func lines_of(s: String, width: float, size := 0) -> Array:
 	var sz := size if size > 0 else px

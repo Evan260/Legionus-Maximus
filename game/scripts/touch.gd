@@ -2,8 +2,6 @@ class_name Touch
 extends RefCounted
 ## A phone or tablet's touch screen as plain decisions the tests can check: the stick, the buttons, the back gesture and fingertip sizes.
 
-## The run's actions that have a button, in the order they are laid out.
-const ACTIONS := ["testudo", "pray", "build", "wall", "bridge", "pause"]
 ## Shares of the stick's radius: inside DEAD the legion stands, past FULL it marches at full speed, as on a gamepad's stick.
 const DEAD := 0.2
 const FULL := 0.8
