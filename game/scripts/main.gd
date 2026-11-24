@@ -384,6 +384,9 @@ func _go_to(kind: String) -> void:
 		sim.facing_angle = -PI / 2.0
 		sim.commander.facing = Vector2.UP
 		sim.legion.place_all(sim.facing_angle)
+		# A hedge or a wood across the approach would stop the march short of the gate, so the way in is cleared.
+		for k in 5:
+			sim.terrain.add_clearing(sim.commander.pos.lerp(sim.objectives.fort.pos, k / 4.0), 50.0, [])
 		sim.terrain.refresh(sim.commander.pos)
 		sim.horde.next_band = 1e9
 		look_march = Vector2.UP

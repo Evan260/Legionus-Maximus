@@ -12907,6 +12907,19 @@ func test_a_right_click_steps_back(b: Dictionary) -> void:
 	_free_main(m)
 
 
+func test_the_fort_gate_look_marches_into_the_fort(b: Dictionary) -> void:
+	var m := _bare_main(b)
+	m.sim = Sim.new(b, content, {"seed": 3, "province": "gaul", "difficulty": "medium"})
+	m._go_to("fort-gate")
+	var fort: Dictionary = m.sim.objectives.fort
+	for k in 60 * 12:
+		if m.sim.commander.pos.y <= fort.centre.y + 20.0:
+			break
+		m.sim.update(1.0 / 60.0, m.look_march, false)
+	check(m.sim.commander.pos.y <= fort.centre.y + 20.0, "the march reaches the middle of the fort (%d short)" % (m.sim.commander.pos.y - fort.centre.y))
+	_free_main(m)
+
+
 func test_a_mouse_click_waits_for_the_confirm_delay(b: Dictionary) -> void:
 	var rows := Hud.choice_rows(3, false)
 	var m := _bare_main(b, rows)
