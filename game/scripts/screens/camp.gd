@@ -10,6 +10,9 @@ const STATUE_SPOTS := [Vector2(30, 22), Vector2(52, 18), Vector2(74, 22), Vector
 ## The bottom left of the arch on the screen.
 const ARCH_FOOT := Vector2(96, 192)
 
+## The dark plate under the words that sit on the field.
+const PLATE := Color(0.12, 0.08, 0.06, 0.78)
+
 var main: Node
 var _arch: Texture2D
 var _statue: Texture2D
@@ -43,16 +46,15 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	_monument(c, ARCH_FOOT - Vector2(0, 0 if not big else 6))
 	if Touch.phone:
 		ui.corner_back(c)
-	var plate := Color(0.12, 0.08, 0.06, 0.78)
 	var title := tr("The camp").to_upper()
 	var tw := Ui.width_at(title, Ui.px)
-	c.draw_rect(Rect2(Ui.W / 2 - tw / 2 - 10, 8, tw + 20, 30 if big else 22), plate)
+	c.draw_rect(Rect2(Ui.W / 2 - tw / 2 - 10, 8, tw + 20, 30 if big else 22), PLATE)
 	ui.text(c, title, Vector2(0, 31 if big else 23), Ui.GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, Ui.W, true)
 	var money := (tr("%d denarii") % int(Profile.data.denarii)).to_upper()
 	var mw := Ui.width_at(money, Ui.px)
 	var coin_r := 5.0 if not big else 7.0
 	var money_box := Rect2(Ui.W - 24 - mw - coin_r * 2 - 14, 8, mw + coin_r * 2 + 24, 30 if big else 22)
-	c.draw_rect(money_box, plate)
+	c.draw_rect(money_box, PLATE)
 	var coin_at := Vector2(money_box.position.x + 6 + coin_r, money_box.get_center().y)
 	c.draw_circle(coin_at, coin_r + 1.0, Color(0.16, 0.1, 0.08))
 	c.draw_circle(coin_at, coin_r, Ui.GOLD)
@@ -77,7 +79,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	# The line runs just under the legion's feet, so it sits on a dark plate like the camp's title.
 	var line_y := 198.0 if big else 252.0
 	var lw := minf(Ui.width_at(line, Ui.fit_size(line, Ui.W - 16.0)), Ui.W - 16.0)
-	c.draw_rect(Rect2(Ui.W / 2 - lw / 2 - 8, line_y - Ui.px - 2, lw + 16, Ui.leading() + 2), plate)
+	c.draw_rect(Rect2(Ui.W / 2 - lw / 2 - 8, line_y - Ui.px - 2, lw + 16, Ui.leading() + 2), PLATE)
 	ui.fit_text(c, line, Ui.W - 16.0, Vector2(0, line_y), Ui.CREAM, HORIZONTAL_ALIGNMENT_CENTER, Ui.W, true)
 	ui.button(c, Rect2(Ui.W / 2 - 80, 204 if big else 258, 160, 28 if big else 24), "march", tr("March").to_upper(), "", true, null, true)
 	if big:
@@ -92,7 +94,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 		ui.button(c, r, id, "", "", true, null, true)
 		ui.text(c, tr(BOARDS[i][1]).to_upper(), Vector2(r.position.x, r.position.y + 16), Ui.INK, HORIZONTAL_ALIGNMENT_CENTER, bw)
 		ui.fit_text(c, sub_line(id), bw - 12, Vector2(r.position.x, r.position.y + 30), Ui.BROWN, HORIZONTAL_ALIGNMENT_CENTER, bw)
-	ui.text(c, Controls.hint("title"), Vector2(10, Ui.H - 8), Ui.CREAM, HORIZONTAL_ALIGNMENT_LEFT, -1, true)
+	_hint(c, ui, Ui.H - 8)
 
 
 ## Two rows of two boards, each with its name over a line of detail, for the large text.
@@ -104,7 +106,16 @@ func _boards_large(c: CanvasItem, ui: Ui) -> void:
 		ui.button(c, r, id, "", "", true, null, true)
 		ui.text(c, tr(BOARDS[i][1]).to_upper(), Vector2(r.position.x, r.position.y + 18), Ui.INK, HORIZONTAL_ALIGNMENT_CENTER, bw)
 		ui.fit_text(c, sub_line(id), bw - 12, Vector2(r.position.x, r.position.y + 38), Ui.BROWN, HORIZONTAL_ALIGNMENT_CENTER, bw)
-	ui.text(c, Controls.hint("title"), Vector2(10, Ui.H - 4), Ui.CREAM, HORIZONTAL_ALIGNMENT_LEFT, -1, true)
+	_hint(c, ui, Ui.H - 4)
+
+
+## The key back to the title at the bottom left, on a dark plate so it reads over the forest.
+func _hint(c: CanvasItem, ui: Ui, y: float) -> void:
+	var hint := Controls.hint("title")
+	if hint == "":
+		return
+	c.draw_rect(Rect2(6, y - Ui.px - 2, Ui.width_at(hint, Ui.px) + 8, Ui.leading() + 2), PLATE)
+	ui.text(c, hint, Vector2(10, y), Ui.CREAM, HORIZONTAL_ALIGNMENT_LEFT, -1, true)
 
 
 ## The triumphal arch risen as far as its bought stages, scaffolded until done, with a gilded statue per triumph; `foot` is its bottom left.
