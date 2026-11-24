@@ -12894,6 +12894,21 @@ func test_a_mouse_click_waits_for_the_confirm_delay(b: Dictionary) -> void:
 	_free_main(m)
 
 
+func test_the_commanders_rows_hold_no_empty_line(b: Dictionary) -> void:
+	var kept := _borrow_profile()
+	var before := Ui.scale
+	var ids := Game.commanders(content, b)
+	var width := Ui.frame_rect().size.x
+	Ui.set_text_size(2, b)
+	var h := CommandersScreen.row_height(ids, content, width)
+	check(h <= 58.0 + Ui.leading(), "at large text a row holds the name and two lines of description, with no line kept for a lock tag (%d tall)" % h)
+	check(int((Ui.frame_rect().size.y - 36.0) / (h + 4.0)) >= 3, "so three of the %d commanders fit the page" % ids.size())
+	Ui.set_text_size(1, b)
+	check(CommandersScreen.row_height(ids, content, width) <= 40.0 + Ui.leading(), "at normal text a row holds the name and two lines and no more")
+	Ui.set_text_size(before, b)
+	_return_profile(kept)
+
+
 func test_the_mouse_wheel_scrolls_the_tablinum_and_the_commanders(b: Dictionary) -> void:
 	var m := _bare_main(b)
 	m.screens = {"tablinum": TablinumScreen.new(m), "commanders": CommandersScreen.new(m)}

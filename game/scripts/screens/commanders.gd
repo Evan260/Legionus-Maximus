@@ -54,21 +54,8 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	var r := ui.frame(c, tr("Commanders").to_upper(), Controls.hint("pick"))
 	var ids := Game.commanders(content, main.balance)
 	var text_w: float = r.size.x - 40.0
-	# Every row is as tall as the longest description needs, so the list stays even.
-	var extra := 0.0
-	for id in ids:
-		var b: Dictionary = Ui.block(content.commanders[id].text, text_w, 2)
-		extra = maxf(extra, (mini(b.lines, 2) - 1) * Ui.lead_for(b.size))
-	# A lock tag too long for the name's line gets a line of its own under the name, and then every row makes room for it.
-	var tag_line := false
-	for id in ids:
-		var info: Dictionary = content.commanders[id]
-		if not Profile.commander_unlocked(id):
-			var room: float = r.size.x - 24.0 - Ui.width_at(str(info.name).to_upper(), Ui.px) - 32.0
-			tag_line = tag_line or Ui.width_at(locked_tag(info, content).to_upper(), Ui.px) > room
-	if tag_line:
-		extra += Ui.leading()
-	var h := (40.0 if Ui.scale == 1 else 58.0) + extra
+	var tag_line := needs_tag_line(ids, content, r.size.x)
+	var h := row_height(ids, content, r.size.x)
 	var step := h + 4.0
 	var visible := int((r.size.y - 36.0) / step)
 	var focused := ids.find(ui.focus.get_slice(":", 1))
@@ -91,8 +78,9 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 		ui.button(c, rect, button_id, "", "", open or affordable)
 		var tone := Ui.INK if open else Ui.MUTED
 		ui.text(c, info.name.to_upper(), Vector2(rect.position.x + 8, rect.position.y + 8 + 8 * Ui.scale), tone)
-		var b: Dictionary = Ui.block(info.text, text_w, 2)
-		ui.wrap_fit(c, info.text, Vector2(rect.position.x + 8, rect.end.y - 8 - (mini(b.lines, 2) - 1) * Ui.lead_for(b.size)), text_w, tone, 2)
+		# The description sits under the name, and under the lock tag when the tag has a line of its own, so a short one leaves room at the foot rather than a gap.
+		var text_y: float = rect.position.y + 8 + 8 * Ui.scale + Ui.leading() + (Ui.leading() if tag_line and not open else 0.0) + 2.0
+		ui.wrap_fit(c, info.text, Vector2(rect.position.x + 8, text_y), text_w, tone, 2)
 		var tag := locked_tag(info, content).to_upper()
 		if open:
 			tag = tr("Chosen").to_upper() if main.run_setup.commander == id else ""
@@ -102,7 +90,32 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 			if tag_line and not open:
 				ui.fit_text(c, tag, rect.size.x - 16, Vector2(rect.position.x + 8, name_y + Ui.leading()), tag_col)
 			else:
-				ui.fit_text(c, tag, rect.size.x - 150, Vector2(0, name_y), tag_col, HORIZONTAL_ALIGNMENT_RIGHT, rect.end.x - 8)
+				ui.fit_text(c, tag, tag_room(info, r.size.x), Vector2(0, name_y), tag_col, HORIZONTAL_ALIGNMENT_RIGHT, rect.end.x - 8)
+
+
+## Whether a lock tag is too long for its name's line even at the smallest size, so it takes a line of its own under the name.
+static func needs_tag_line(ids: Array, content: Content, frame_w: float) -> bool:
+	for id in ids:
+		var info: Dictionary = content.commanders[id]
+		if not Profile.commander_unlocked(id) and Ui.width_at(locked_tag(info, content).to_upper(), Ui.small_px()) > tag_room(info, frame_w):
+			return true
+	return false
+
+
+## The room for a lock tag beside the commander's name on a row of a frame `frame_w` wide.
+static func tag_room(info: Dictionary, frame_w: float) -> float:
+	return frame_w - 24.0 - Ui.width_at(str(info.name).to_upper(), Ui.px) - 32.0
+
+
+## The height of every row: as tall as the longest description needs, so the list stays even, with a line for the lock tags when one needs it.
+static func row_height(ids: Array, content: Content, frame_w: float) -> float:
+	var extra := 0.0
+	for id in ids:
+		var b: Dictionary = Ui.block(content.commanders[id].text, frame_w - 40.0, 2)
+		extra = maxf(extra, (mini(b.lines, 2) - 1) * Ui.lead_for(b.size))
+	if needs_tag_line(ids, content, frame_w):
+		extra += Ui.leading()
+	return (40.0 if Ui.scale == 1 else 58.0) + extra
 
 
 ## Small gold arrows at the top and foot of the list's frame while more commanders lie above or below.
