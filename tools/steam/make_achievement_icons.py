@@ -274,9 +274,29 @@ def locked(img):
 
 
 def table(achievements):
-    lines = ["| API name | Name | Description | Hidden |", "|---|---|---|---|"]
+    lines = ["# Steam achievements and stats", "",
+             "Enter these in Steamworks under App Admin, Stats & Achievements, in the full game's app (and the Playtest app if it",
+             "carries the achievements), then Publish. Each achievement's icons are the two pictures named after its API name.", "",
+             "## Achievements", "",
+             "| API name | Name | Description | Hidden | Progress stat |", "|---|---|---|---|---|"]
     for ach_id, a in achievements.items():
-        lines.append(f"| `{ach_id}` | {a['name']} | {a['text']} | {'yes' if a.get('hidden') else 'no'} |")
+        progress = f"`kills`, min 0, max {a['target']}" if a.get("kind") == "kills" else ""
+        lines.append(f"| `{ach_id}` | {a['name']} | {a['text']} | {'yes' if a.get('hidden') else 'no'} | {progress} |")
+    lines += ["", "## Stats", "",
+              "Make the stat first (Stats & Achievements, Stats, New Stat), then set it as the progress stat of the",
+              "achievements above. Until the changes are published, Steam refuses the stat and the game carries on without it.", "",
+              "| Field | Value |", "|---|---|",
+              "| API name | `kills` |",
+              "| Type | INT |",
+              "| Set by | Client |",
+              "| Increment only | on |",
+              "| Max change | empty (a player's first run after release adds their whole saved count at once) |",
+              "| Min value | 0 |",
+              "| Max value | empty |",
+              "| Default value | 0 |",
+              "| Display name | Barbarians defeated |",
+              "| Aggregated | optional, the game does not use it |", "",
+              "The demo's app needs neither the stat nor the progress settings."]
     return "\n".join(lines) + "\n"
 
 

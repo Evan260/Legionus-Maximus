@@ -56,7 +56,8 @@ a level-up offering cavalrymen and the campaign map of the five provinces.
 ACHIEVEMENTS
 
 The game defines its achievements in game/data/content.json. Their icons and the table to enter in Steamworks are
-in store/achievements/, made by python tools/steam/make_achievement_icons.py.
+in store/achievements/, made by python tools/steam/make_achievement_icons.py. That table also lists the Steam stat
+`kills` to create first and the progress settings of the three kill achievements; Publish afterwards.
 
 
 TRAILER (Trailers tab)
