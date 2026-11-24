@@ -24,7 +24,7 @@ var _clock := 0.0
 
 func _ready() -> void:
 	balance = JSON.parse_string(FileAccess.get_file_as_string("res://data/balance.json"))
-	if Profile.disabled or DisplayServer.get_name() == "headless" or not Engine.has_singleton("Steam"):
+	if not may_start(Profile.disabled, DisplayServer.get_name(), Engine.has_singleton("Steam")):
 		return
 	var found := Engine.get_singleton("Steam")
 	var started: Dictionary = found.call("steamInitEx")
@@ -65,6 +65,11 @@ func card_total() -> float:
 func card_slide() -> float:
 	var slide := float(balance.steam.card_slide)
 	return clampf(minf(card_age, card_total() - card_age) / slide, 0.0, 1.0)
+
+
+## Whether Steam is called at all: never in a look or a test (which keep the saves shut), headless, or in a build without GodotSteam.
+static func may_start(looking: bool, display: String, has_steam: bool) -> bool:
+	return not looking and display != "headless" and has_steam
 
 
 func running() -> bool:

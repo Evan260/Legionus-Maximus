@@ -3928,6 +3928,13 @@ func test_achievements_wait_in_the_profile_until_steam_is_there(b: Dictionary) -
 	Profile.data = saved
 
 
+func test_steam_is_never_started_in_a_look_or_a_test(_b: Dictionary) -> void:
+	check(Steamworks.may_start(false, "Windows", true), "a game being played starts Steam")
+	check(not Steamworks.may_start(true, "Windows", true), "a look or a test never does, so it sends no achievement or stat")
+	check(not Steamworks.may_start(false, "headless", true), "nor a headless run")
+	check(not Steamworks.may_start(false, "Windows", false), "nor a build without GodotSteam, as on Android")
+
+
 func test_no_card_draws_over_the_choice_or_the_summary(b: Dictionary) -> void:
 	Steamworks.card = {"id": "kills_1000", "name": "x", "text": "y"}
 	check(Steamworks.card_visible("play") and Steamworks.card_visible("camp"), "a card shows while playing and in the camp")
