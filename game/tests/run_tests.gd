@@ -3723,6 +3723,21 @@ func test_a_volume_bar_follows_the_pointer(_b: Dictionary) -> void:
 	check(SettingsScreen.value_at(bar, 20.0) == 0.0 and SettingsScreen.value_at(bar, 400.0) == 1.0, "a drag past either end stops at the end")
 
 
+func test_the_summarys_unlocks_keep_the_text_size(b: Dictionary) -> void:
+	var before := Ui.scale
+	Ui.set_text_size(2, b)
+	var names := ["Victory in Germania", "1000 barbarians", "Gaul opens", "The archer captain"]
+	var row_h := 16.0 * Ui.scale + 4.0
+	for rows in [1, 2]:
+		var area := Rect2(28, 150, 584, Ui.leading() + 8.0 + rows * row_h)
+		var lay := SummaryScreen.unlock_layout(names, area)
+		check(int(lay.size) == Ui.px, "%d row(s): the names keep the large size (%d, not %d)" % [rows, lay.size, Ui.px])
+		check(lay.shown + (1 if lay.more > 0 else 0) <= rows * lay.cols, "%d row(s): every place shown fits the band" % rows)
+		if rows == 2:
+			check(lay.shown == 4 and lay.more == 0, "two rows hold all four (%d shown)" % lay.shown)
+	Ui.set_text_size(before, b)
+
+
 func test_summary_lists_the_top_eight_sources(b: Dictionary) -> void:
 	var s := Sim.new(b, content, {"seed": 208})
 	for id in ["pilum", "fire_arrows", "scorpio", "onager", "caltrops", "stakes", "fire_pots", "war_dogs", "trumpets", "eagle"]:

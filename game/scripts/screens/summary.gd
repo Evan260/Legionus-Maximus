@@ -181,7 +181,8 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	for i in stats.size():
 		ui.fit_text(c, stats[i][0], left_w - ui.width_of("99999") - 8.0, Vector2(lx, top + i * srow), Ui.INK)
 		ui.text(c, stats[i][1], Vector2(0, top + i * srow), Ui.RED, HORIZONTAL_ALIGNMENT_RIGHT, lx + left_w)
-	var bar_rows := BARS + 1
+	# The bars take only the rows they fill, so the unlocks below have room to keep the text size.
+	var bar_rows := maxi(1, top_sources(sim).size()) + 1
 	if Touch.phone:
 		bar_rows = maxi(stats.size(), top_sources(sim).size() + 1)
 	_bars(c, ui, sim, Rect2(lx + left_w + 16.0, top, r.end.x - 12.0 - (lx + left_w + 16.0), brow * bar_rows), brow)
@@ -296,19 +297,36 @@ func _coin(c: CanvasItem, at: Vector2, r: float, spin := 1.0) -> void:
 
 
 ## The gold band of what the run unlocked, each with its picture, appearing one after another, kept within `area`'s height; returns the y below it.
+## How the unlocks named `names` sit in `area`: its columns, how many are shown, how many more are only counted, and the size of their names.
+static func unlock_layout(names: Array, area: Rect2) -> Dictionary:
+	var pic := 16.0 * Ui.scale
+	var row_h := pic + 4.0
+	var fit_rows := maxi(1, floori((area.size.y - Ui.leading() - 8.0) / row_h))
+	# A long list spreads into three columns while its names still fit them at the text size, and past that the last place says how many more there are.
+	var out := {}
+	for cols in [2, 3]:
+		var shown := names.size()
+		if names.size() > fit_rows * cols:
+			shown = fit_rows * cols - 1
+		var col_w := floorf(area.size.x / cols)
+		var size := Ui.list_size(names.slice(0, shown).map(func(n: String) -> Array: return [n, col_w - pic - 14.0]))
+		if cols == 3 and size < Ui.px and not out.is_empty():
+			break
+		out = {"cols": cols, "shown": shown, "more": names.size() - shown, "size": size}
+		if shown == names.size():
+			break
+	return out
+
+
 func _unlocked(c: CanvasItem, ui: Ui, gained: Array, area: Rect2) -> float:
 	var s := Ui.scale
 	var pic := 16.0 * s
 	var row_h := pic + 4.0
-	var fit_rows := maxi(1, floori((area.size.y - Ui.leading() - 8.0) / row_h))
-	# A long list spreads into three columns, and past that the last place says how many more there are.
-	var cols := 2 if gained.size() <= fit_rows * 2 else 3
+	var lay := unlock_layout(gained.map(func(u: Dictionary) -> String: return str(u.text)), area)
+	var cols: int = lay.cols
 	var col_w := floorf(area.size.x / cols)
-	var shown := gained
-	var more := 0
-	if gained.size() > fit_rows * cols:
-		shown = gained.slice(0, fit_rows * cols - 1)
-		more = gained.size() - shown.size()
+	var shown := gained.slice(0, lay.shown)
+	var more: int = lay.more
 	var rows := ceili((shown.size() + (1 if more > 0 else 0)) / float(cols))
 	var band := Rect2(area.position.x, area.position.y, area.size.x, Ui.leading() + rows * row_h + 8.0)
 	c.draw_rect(band.grow(1), Ui.GOLD)
@@ -321,7 +339,7 @@ func _unlocked(c: CanvasItem, ui: Ui, gained: Array, area: Rect2) -> float:
 		var at_more := Vector2(band.position.x + 6.0 + (k_more % cols) * col_w, band.position.y + Ui.leading() + 4.0 + (k_more / cols) * row_h)
 		var a_more := clampf((age - k_more * UNLOCK_STEP) * 4.0, 0.0, 1.0)
 		ui.fit_text(c, tr("And %d more") % more, col_w - 10.0, at_more + Vector2(0, pic / 2.0 + Ui.px * 0.4), Color(Ui.GOLD_LIGHT, a_more))
-	var size := Ui.list_size(shown.map(func(u: Dictionary) -> Array: return [str(u.text), col_w - pic - 14.0]))
+	var size: int = lay.size
 	for k in shown.size():
 		var a := clampf((age - k * UNLOCK_STEP) * 4.0, 0.0, 1.0)
 		if a <= 0.0:
