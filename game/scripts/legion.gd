@@ -32,6 +32,8 @@ var _order_of: Array = []
 # The places the cover was last paired for, and the updates since, so follow() pairs it anew only every few updates or when the roll changes.
 var _guard_of: Array = []
 var _guard_age := 0
+# Numbers each man the first time he sets foot on ice, so his own slip stays the same all run.
+var _slip_n := 0
 # The places formation_radius() last measured, and how far the farthest of them lies from the commander.
 var _radius_of: Array = []
 var _radius := 0.0
@@ -220,8 +222,9 @@ func follow(dt: float, sim: Sim) -> void:
 		var to: Vector2 = target - s.pos
 		var d := to.length()
 		s.moving = d > 1.5 or sim.moving
+		var way := Vector2.ZERO
 		if d > 0.01:
-			var way := to / d
+			way = to / d
 			# A soldier whose place lies across a ravine follows the route map round it or over a bridge; each looks every fourth update.
 			if (i + sim.horde.frame) % 4 == 0:
 				s.across = sim.terrain.crosses_ravine(s.pos, target)
@@ -229,12 +232,34 @@ func follow(dt: float, sim: Sim) -> void:
 				var f := sim.terrain.flow_at(s.pos)
 				if f != Vector2.ZERO:
 					way = f
+		if sim.terrain.on_ice(s.pos):
+			s.pos += _slip(s, way * minf(d * float(_b.ice.men_hold), step / dt), dt, sim)
+		else:
+			s.erase("slide")
 			s.pos += way * minf(d, step)
 		s.facing = to.normalized() if d > 3.0 else commander.facing
 	# A man moves only a pixel or two an update, so the cover is paired anew every fourth update, or at once when the roll changes.
 	_guard_age += 1
 	if _guard_age >= 4 or not is_same(places, _guard_of):
 		assign_guards()
+
+
+## How far a man on the ice moves this update: he carries the legion's march with his own grip, swaying a little in
+## direction and pace, while `pull` draws him gently back to his place, so the ranks loosen and ripple but never break.
+func _slip(s: Dictionary, pull: Vector2, dt: float, sim: Sim) -> Vector2:
+	var ice: Dictionary = _b.ice
+	if not s.has("slip"):
+		s.slip = _slip_n
+		_slip_n += 1
+	var k := float(s.slip)
+	var t := sim.time * float(ice.men_sway)
+	var turn := sin(t + k * 2.39) * float(ice.men_turn)
+	var pace := 1.0 + sin(t * 0.77 + k * 1.71) * float(ice.men_pace)
+	var grip := float(ice.grip) * (1.0 + (fposmod(k * 0.618, 1.0) * 2.0 - 1.0) * float(ice.men_grip))
+	var slide: Vector2 = s.get("slide", Vector2.ZERO)
+	slide = slide.lerp(sim.glide.rotated(turn) * pace, minf(1.0, dt * grip))
+	s.slide = slide
+	return (slide + pull) * dt
 
 
 ## Where the men head instead of their formation places, one place on the field each, or [] for the formation: a block filling the fort while the commander is inside it, or rows that fit a bridge's deck or the fort's gate while the legion crosses or comes up to one.

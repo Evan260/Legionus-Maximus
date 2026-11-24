@@ -8774,6 +8774,35 @@ func test_the_legion_slides_on_ice(b: Dictionary) -> void:
 	check(is_equal_approx(dry.commander.pos.x, start), "off the ice it stops where it stands")
 
 
+## The mean and the spread of the soldiers' distances from their places after the legion marches right for `secs`.
+func _formation_slack(b: Dictionary, on_ice: bool, secs: float, rest: float) -> Array:
+	var s := _dacia_sim(b, 944)
+	if on_ice:
+		s.terrain.add_stream([{"pts": PackedVector2Array([Vector2(-2000, 0), Vector2(2000, 0)]), "half": PackedFloat32Array([500.0, 500.0])}])
+	s.commander.pos = Vector2.ZERO
+	for k in 30:
+		s.add_soldier("legionary")
+	s.legion.place_all(s.facing_angle)
+	for k in int(secs * 60.0):
+		s.update(1.0 / 60.0, Vector2.RIGHT, false)
+	for k in int(rest * 60.0):
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+	var gaps: Array = s.soldiers.map(func(u: Dictionary) -> float: return u.pos.distance_to(u.target))
+	var mean: float = gaps.reduce(func(a: float, g: float) -> float: return a + g, 0.0) / gaps.size()
+	var spread: float = sqrt(gaps.reduce(func(a: float, g: float) -> float: return a + (g - mean) * (g - mean), 0.0) / gaps.size())
+	return [mean, spread, gaps.max()]
+
+
+func test_men_on_ice_slip_a_little_out_of_their_places(b: Dictionary) -> void:
+	var dry := _formation_slack(b, false, 3.0, 0.0)
+	var ice := _formation_slack(b, true, 3.0, 0.0)
+	check(dry[0] < 1.0, "off the ice the ranks hold their places (%.2f px)" % dry[0])
+	check(ice[0] > 2.0 and ice[1] > 0.8, "on the ice each man drifts his own way (mean %.1f px, spread %.1f)" % [ice[0], ice[1]])
+	check(ice[2] < 16.0, "but no man strays far from his place (%.1f px)" % ice[2])
+	var settled := _formation_slack(b, true, 3.0, 6.0)
+	check(settled[0] < 2.0, "and once the legion stands, they find their places again (%.1f px)" % settled[0])
+
+
 func test_a_falx_cuts_through_the_testudo(b: Dictionary) -> void:
 	var hurt := {}
 	for kind in ["falx_warrior", "barbarian_club"]:
