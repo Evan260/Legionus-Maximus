@@ -7609,6 +7609,27 @@ func test_the_hud_points_to_the_chieftain_off_screen(b: Dictionary) -> void:
 	check(not Hud.targets_of(s).any(func(t: Array) -> bool: return t[0] == "chieftain"), "once he falls the badge goes")
 
 
+func test_edge_badges_keep_off_the_timber_keys(b: Dictionary) -> void:
+	var before_view := Ui.view
+	Ui.fit_view(Vector2(640, 360))
+	var s := Sim.new(b, content, {"seed": 1510})
+	s.timber = 99
+	var keys: Array = Hud.timber_key_spots(s, Ui.view.x, Ui.view.y).map(func(spot: Array) -> Rect2: return spot[1])
+	check(keys.size() == 3, "the palisade, wall and bridge keys each have their place")
+	var avoid := Hud.badge_avoid(s, Ui.view, "play", {})
+	for k in keys:
+		check(avoid.any(func(r: Rect2) -> bool: return r.encloses(k)), "the badges keep off the key line at %s" % k)
+	var clash := []
+	for angle in range(-40, 50, 5):
+		var target: Vector2 = s.commander.pos + Vector2.from_angle(deg_to_rad(angle)) * 1200.0
+		for l in Hud.arrow_layout([["camp", target]], s.commander.pos, Ui.view, 40.0, 16.0, avoid):
+			for k in keys:
+				if l.badge.intersects(k) or (l.has("label") and l.label.intersects(k)):
+					clash.append(angle)
+	check(clash.is_empty(), "no badge or label lands on the keys, wherever the target lies to the east (%s)" % [clash])
+	Ui.fit_view(before_view)
+
+
 func test_the_build_panel_starts_below_the_level(b: Dictionary) -> void:
 	var before := Ui.scale
 	var before_view := Ui.view

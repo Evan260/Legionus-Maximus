@@ -365,12 +365,22 @@ func _timber_keys(sim: Sim, W: float, H: float) -> void:
 	# A phone's buttons show what each work costs and whether there is timber enough.
 	if main.state != "play" or Touch.phone:
 		return
+	for spot in timber_key_spots(sim, W, H):
+		var line: Dictionary = spot[0]
+		plated_text(str(line.text).to_upper(), Vector2(0, spot[1].position.y + Ui.px + 1.0), GOLD_LIGHT if line.enough else MUTED, HORIZONTAL_ALIGNMENT_RIGHT, W - 8.0)
+
+
+## Where the palisade, wall and bridge keys are written at the bottom right, from the bottom up, as [line, plate rect].
+static func timber_key_spots(sim: Sim, W: float, H: float) -> Array:
+	var out: Array = []
 	var y := H - 46.0
 	var lines := timber_keys(sim.b, sim.timber)
 	lines.reverse()
 	for line in lines:
-		plated_text(str(line.text).to_upper(), Vector2(0, y), GOLD_LIGHT if line.enough else MUTED, HORIZONTAL_ALIGNMENT_RIGHT, W - 8.0)
+		var w := Ui.width_at(str(line.text).to_upper(), Ui.px)
+		out.append([line, Rect2(W - 8.0 - w - 3.0, y - Ui.px - 1.0, w + 6.0, Ui.leading() + 1.0)])
 		y -= Ui.leading() + 2.0
+	return out
 
 
 ## The palisade, wall and bridge keys with the timber each costs, and whether the legion has that much.
@@ -841,16 +851,25 @@ static func _name_key(kind: String) -> String:
 	return "Roman fort"
 
 
+## What the edge badges keep off besides the bosses' names: a phone's corners and buttons, or a computer's timber keys.
+static func badge_avoid(sim: Sim, view: Vector2, state: String, buttons: Dictionary) -> Array:
+	var out: Array = []
+	if not Touch.phone and state == "play":
+		for spot in timber_key_spots(sim, view.x, view.y):
+			out.append(spot[1].grow(2.0))
+	if Touch.phone:
+		var parts := bottom_layout(view - Touch.inset_tl - Touch.inset_br)
+		out = [Rect2(parts.testudo.position + Touch.inset_tl, parts.testudo.size), Rect2(parts.favour.position + Touch.inset_tl, parts.favour.size)]
+		for id in buttons:
+			out.append(Rect2(buttons[id].centre - Vector2.ONE * buttons[id].radius, Vector2.ONE * buttons[id].radius * 2.0).grow(3.0))
+	return out
+
+
 ## Badges at the screen's edge pointing to each objective not yet done and to the fort, and a notice when one is done.
 func _objective_arrows(sim: Sim, avoid: Array) -> void:
 	var view := Ui.view
 	var top := badges_top(sim)
-	if Touch.phone:
-		var parts := bottom_layout(view - Touch.inset_tl - Touch.inset_br)
-		avoid = avoid + [Rect2(parts.testudo.position + Touch.inset_tl, parts.testudo.size), Rect2(parts.favour.position + Touch.inset_tl, parts.favour.size)]
-		var buttons := touch_layout()
-		for id in buttons:
-			avoid.append(Rect2(buttons[id].centre - Vector2.ONE * buttons[id].radius, Vector2.ONE * buttons[id].radius * 2.0).grow(3.0))
+	avoid = avoid + badge_avoid(sim, view, main.state, touch_layout())
 	var note: Dictionary = sim.objectives.notice
 	var lines: Array = []
 	var spot := Rect2()
