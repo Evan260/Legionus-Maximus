@@ -877,7 +877,7 @@ func _go_back() -> void:
 
 
 func _back() -> void:
-	# A pause pressed just as the commander falls must not throw away the summary of the run.
+	# A pause pressed just as the commander falls leaves the summary of the run open.
 	if state == "over" and not Game.confirm_allowed(state, opened_at, clock, balance):
 		return
 	Audio.play("back")

@@ -12,8 +12,7 @@ ROOT = Path(__file__).resolve().parents[2]
 GEO = ROOT / "tools" / "art" / "geo"
 OUT = ROOT / "game" / "assets" / "map.png"
 
-# The projection is equirectangular with longitude scaled by cos 42°, the same as in game/scripts/screens/map.gd, whose 640 by 360 box
-# starts at 11.5°W and 58.9°N; the picture runs MARGIN pixels past the box on every side, as MapScreen.MARGIN does, so it fills a wide or a tall screen.
+# The projection matches game/scripts/screens/map.gd: equirectangular, longitude scaled by cos 42°, its 640 by 360 box from 11.5°W and 58.9°N, with MARGIN round it.
 PX_PER_DEG = 13.8
 COS = math.cos(math.radians(42.0))
 MARGIN_X, MARGIN_Y = 110, 60

@@ -77,8 +77,7 @@ static func install(saved: Dictionary) -> void:
 
 ## Replaces one slot of an action, "keys" or "pads", with a new code, in `saved` and in the input map.
 ## The code is taken out of the action's other slots, so one key is never listed twice for one action and a list is never left empty.
-## An action read on the same screen that holds the code gives it up and takes this slot's old code instead; false, with nothing changed,
-## when that would leave it with no key or button at all.
+## An action read on the same screen that holds the code swaps it for this slot's old code; false, with nothing changed, when that leaves it none.
 static func rebind(saved: Dictionary, action: String, kind: String, slot: int, code: int) -> bool:
 	var trial := saved.duplicate(true)
 	var mine := effective(trial, action)

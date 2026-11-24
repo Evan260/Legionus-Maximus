@@ -375,8 +375,7 @@ func _labels(c: CanvasItem, ui: Ui, ids: Array) -> void:
 			ui.fit_text(c, line, room, Vector2(at.position.x, at.position.y + Ui.px + Ui.leading()), col, HORIZONTAL_ALIGNMENT_CENTER, at.size.x)
 
 
-## Where a plate goes of the `tries`, each held on the map above the key hints: of the sides clear of the `placed` plates and nodes, the one
-## covering the fewest of the road's `marks`, or, when none is clear, the one that covers the others least.
+## Where a plate goes, each of the `tries` held above the key hints: the clear side covering the fewest road `marks`, else the side covering the `placed` ones least.
 static func plate_spot(tries: Array, placed: Array, marks: Array) -> Rect2:
 	var at := Rect2()
 	var least := INF
