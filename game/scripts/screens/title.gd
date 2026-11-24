@@ -195,6 +195,8 @@ static func _two_line_width(s: String) -> float:
 	if parts.size() < (6 if han else 3):
 		return best + 2.0
 	for i in range(1, parts.size()):
+		if han and not Ui.can_break(parts[i - 1], parts[i]):
+			continue
 		best = minf(best, maxf(Ui.width_at(sep.join(parts.slice(0, i)), Ui.px), Ui.width_at(sep.join(parts.slice(i)), Ui.px)))
 	return best + 2.0
 

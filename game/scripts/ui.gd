@@ -103,8 +103,9 @@ static func lines_of(s: String, width: float, size := 0) -> Array:
 		for ch in s:
 			# Closing punctuation never starts a line, so it stays on the line before even when that runs one glyph over.
 			if line != "" and not ch in NO_LINE_START and f.get_string_size(line + ch, HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x > width:
-				out.append(line)
-				line = ""
+				var cut := _word_start(line, ch)
+				out.append(line.left(cut))
+				line = line.substr(cut)
 			if not (line == "" and ch == " "):
 				line += ch
 	else:
@@ -128,6 +129,26 @@ static func lines_of(s: String, width: float, size := 0) -> Array:
 	if line != "":
 		out.append(line)
 	return out
+
+
+## Whether Japanese may break a line between two characters: not inside a run of kanji, which is usually one word.
+static func can_break(before: String, after: String) -> bool:
+	return Lang.code != "ja" or not (_kanji(before) and _kanji(after))
+
+
+static func _kanji(ch: String) -> bool:
+	var c := ch.unicode_at(0) if ch != "" else 0
+	return (c >= 0x4E00 and c <= 0x9FFF) or (c >= 0x3400 and c <= 0x4DBF) or c == 0x3005
+
+
+## Where a full `line` is cut so `next` can start the next line: at its end, or in Japanese before the run of kanji that `next` would split, when the line has more before it.
+static func _word_start(line: String, next: String) -> int:
+	if can_break(line.right(1), next):
+		return line.length()
+	var i := line.length() - 1
+	while i > 0 and not can_break(line[i - 1], line[i]):
+		i -= 1
+	return i if i > 0 else line.length()
 
 
 ## How a paragraph is laid out in at most `max_lines` lines: the size it is drawn at (the smallest when the text size

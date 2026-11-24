@@ -4697,6 +4697,23 @@ func test_japanese_lines_never_start_with_a_full_stop(_b: Dictionary) -> void:
 	Lang.apply(before, false)
 
 
+func test_japanese_lines_keep_a_kanji_word_whole(_b: Dictionary) -> void:
+	var before: String = Lang.code
+	Lang.apply("ja", false)
+	var s := "兵士は自動で戦う"
+	var one := Ui.width_at("自", Ui.px)
+	var split := false
+	for n in range(2, 8):
+		var lines := Ui.lines_of(s, one * n + 1.0)
+		check("".join(lines) == s, "no character is lost at %d to a line (%s)" % [n, lines])
+		for i in lines.size() - 1:
+			split = split or (str(lines[i]).ends_with("自") and str(lines[i + 1]).begins_with("動"))
+	check(not split, "a line never breaks inside 自動 while it can break beside it")
+	var two := Ui.lines_of(s, TitleScreen._two_line_width(s))
+	check(two.size() == 2 and not str(two[0]).ends_with("自"), "the title's two lines break beside the word (%s)" % [two])
+	Lang.apply(before, false)
+
+
 func test_a_word_too_long_for_a_line_is_broken(b: Dictionary) -> void:
 	var before: String = Lang.code
 	Lang.apply("de", false)
