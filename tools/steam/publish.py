@@ -109,8 +109,9 @@ def main():
     if stage.exists():
         shutil.rmtree(stage)
     export.godot("--import")
-    for platform in depots:
-        export.export(platform, stage / platform, args.target == "demo")
+    with export.project_for(args.target == "demo") as project:
+        for platform in depots:
+            export.export(platform, stage / platform, args.target == "demo", project)
     work = f"{home}/{WSL_HOME}/{args.target}"
     commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
     note = f"{datetime.date.today()} {commit} {args.note}".strip().replace('"', "'")
