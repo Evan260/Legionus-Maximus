@@ -16,6 +16,8 @@ var quartermaster := {}
 var achievements := {}
 var gods := {}
 var base_commander := {}
+## Ids by kind that the tablinum shows only as dark shapes: the demo carries other provinces' enemies as outlines and nothing more.
+var glimpses := {}
 var available := {}
 # The English words as the file has them, which the translations are laid over by localize().
 var _english := {}
@@ -45,6 +47,7 @@ static func load_all(available_keys: Dictionary) -> Content:
 	c.available = available_keys
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/content.json"))
 	c.base_commander = data.base_commander
+	c.glimpses = data.get("glimpses", {})
 	for kind in KINDS:
 		c.set(kind, data[kind])
 	c._english = data.duplicate(true)

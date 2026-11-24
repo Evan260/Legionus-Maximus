@@ -13254,6 +13254,26 @@ func test_the_mouse_wheel_scrolls_the_tablinum_and_the_commanders(b: Dictionary)
 	_free_main(m)
 
 
+func test_the_tablinum_shows_a_glimpse_as_a_shape_that_is_never_found(b: Dictionary) -> void:
+	var kept := _borrow_profile()
+	var m := _bare_main(b)
+	var tab := TablinumScreen.new(m)
+	var c := Content.load_all(content.available)
+	c.enemies = {"wolf": c.enemies.wolf}
+	c.glimpses = {"enemies": ["gaul_king"]}
+	m.content = c
+	var list := tab.entries()
+	var at := list.map(func(e: Array) -> String: return e[0]).find("gaul_king")
+	check(at >= 0 and list[at][1] == "Enemy" and list[at - 1][0] == "wolf", "a glimpse is listed after the enemies that are drawn")
+	check(at + 1 < list.size() and list[at + 1][1] == "God", "and before the gods")
+	Profile.data.seen = {"wolf": true, "gaul_king": true}
+	check(TablinumScreen.met(list[at - 1]), "an enemy of the demo is found once seen")
+	check(not TablinumScreen.met(list[at]), "a glimpse stays unfound though a save from the full game has seen him")
+	check(not FileAccess.file_exists(Game.DEMO_MARK) and not Game._marked, "only the demo's own copy carries the demo mark")
+	_free_main(m)
+	_return_profile(kept)
+
+
 func test_touch_phone_hints_and_options_name_no_keys(b: Dictionary) -> void:
 	var saved: Dictionary = Profile.settings
 	Profile.settings = {"bindings": {}}

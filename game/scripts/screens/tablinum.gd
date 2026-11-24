@@ -41,21 +41,28 @@ func follow(focus: String, row: int) -> void:
 	scroll_by(0)
 
 
-## Every entry that is drawn, as [id, group, entry].
+## Every entry that is drawn, as [id, group, entry], each kind followed by its glimpses, which have an empty entry.
 func entries() -> Array:
 	var out: Array = []
 	for k in KINDS:
 		for id in main.content.get(k[0]):
 			if main.content.ready(k[0], id):
 				out.append([id, k[1], main.content.get(k[0])[id]])
+		for id in main.content.glimpses.get(k[0], []):
+			out.append([id, k[1], {}])
 	return out
+
+
+## Whether an entry of entries() has been met: seen in a run, and more than a glimpse.
+static func met(e: Array) -> bool:
+	return not e[2].is_empty() and Profile.data.seen.has(e[0])
 
 
 func draw(c: CanvasItem, ui: Ui) -> void:
 	var list := entries()
 	var found := 0
 	for e in list:
-		if Profile.data.seen.has(e[0]):
+		if met(e):
 			found += 1
 	var r := ui.frame(c, tr("Tablinum").to_upper(), Controls.hint("look"))
 	ui.text(c, tr("%d of %d found") % [found, list.size()], Vector2(0, r.position.y + 16), Ui.INK, HORIZONTAL_ALIGNMENT_RIGHT, r.end.x - 12)
@@ -84,14 +91,14 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 				ui.register(rect, "e:" + e[0], true, false)
 				continue
 			ui.button(c, rect, "e:" + e[0], "", "", true, null, true)
-			_picture(c, ui, e[0], e[2], Profile.data.seen.has(e[0]), rect.grow(-3))
+			_picture(c, ui, e[0], e[2], met(e), rect.grow(-3))
 		row_y += STEP
 	CommandersScreen._scroll_marks(c, Rect2(origin.x, origin.y - 24.0, COLS * STEP - 4.0, r.end.y - origin.y + 24.0), scroll > 0, scroll + visible < rows.size())
 	var box := box_of(r)
 	ui.panel(c, box, Ui.CREAM)
 	for e in list:
 		if "e:" + e[0] == ui.focus:
-			var known: bool = Profile.data.seen.has(e[0])
+			var known: bool = met(e)
 			var x := box.position.x + 8
 			var name: String = (e[2].name if known else tr("Not found yet")).to_upper()
 			var y := ui.wrap(c, name, Vector2(x, box.position.y + 8.0 + 8.0 * Ui.scale), box.size.x - 16, Ui.INK if known else Ui.MUTED)
