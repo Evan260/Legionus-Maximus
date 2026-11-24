@@ -1164,6 +1164,48 @@ func test_a_rider_rides_home_round_a_ravine(b: Dictionary) -> void:
 	check(cav.pos.distance_to(cav.target) < 8.0, "and reaches his place (%.0f px off)" % cav.pos.distance_to(cav.target))
 
 
+func test_a_wall_blocks_the_line_but_a_tree_does_not(b: Dictionary) -> void:
+	var s := _one_soldier(b, 1522, "cavalry", false)
+	var c: Vector2 = s.commander.pos
+	s.terrain.add_post(c + Vector2(40, 0), 6.0, 1e9, "wall")
+	s.terrain.extras.append(["oak", c + Vector2(0, 40), 9.0])
+	s.terrain.change_extras([c + Vector2(0, 40)], "oak", 9.0)
+	s.terrain.refresh(c)
+	check(s.terrain.push_out(c + Vector2(0, 40), 1.0) != c + Vector2(0, 40), "the oak stands")
+	check(s.terrain.wall_between(c, c + Vector2(80, 0), Sim.UNIT_RADIUS), "a wall stake on the way blocks it")
+	check(not s.terrain.wall_between(c, c + Vector2(80, 30), Sim.UNIT_RADIUS), "a way that passes clear of it does not")
+	check(not s.terrain.wall_between(c, c + Vector2(0, 80), Sim.UNIT_RADIUS), "and a tree does not, since a rider goes round or fells it")
+
+
+func test_a_rider_gives_up_an_enemy_behind_a_wall(b: Dictionary) -> void:
+	var s := _one_soldier(b, 1521, "cavalry", false)
+	s.legion.place_all(s.facing_angle)
+	var cav: Dictionary = s.soldiers[0]
+	var home: Vector2 = cav.pos
+	var ahead := Vector2(0, signf(home.y) if home.y != 0.0 else 1.0)
+	var e := s.horde.spawn("barbarian_club", home + ahead * 70.0)
+	s.horde.e_stun[e] = 1e9
+	s.horde.e_hp[e] = 1e9
+	for x in range(-90, 91, 8):
+		s.terrain.add_post(home + ahead * 35.0 + Vector2(x, 0), 6.0, 1e9, "wall")
+	var charging := 0.0
+	for k in 60 * 8:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+		s.commander.hp = 1e9
+		if cav.sortie == 1:
+			charging += 1.0 / 60.0
+	check(charging < 2.5, "he gives up the charge against the wall instead of galloping into it (%.1f s of 8)" % charging)
+	check(cav.pos.distance_to(cav.target) < 10.0, "and stands in his place (%.0f px off)" % cav.pos.distance_to(cav.target))
+	var t := s.horde.spawn("barbarian_club", home - ahead * 60.0)
+	s.horde.e_stun[t] = 1e9
+	var hit := false
+	for k in 60 * 4:
+		s.update(1.0 / 60.0, Vector2.ZERO, false)
+		s.commander.hp = 1e9
+		hit = hit or t >= s.horde.e_hp.size() or s.horde.e_hp[t] < s.horde.e_max[t] or s.kills > 0
+	check(hit, "while an enemy he can reach is still ridden down")
+
+
 func test_ballista_bolt_pierces_all(b: Dictionary) -> void:
 	var s := _legion_sim(b, 9, ["ballista"])
 	for k in 3:

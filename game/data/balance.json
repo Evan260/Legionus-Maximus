@@ -60,6 +60,10 @@
   "press": {"per_enemy": 0.1, "slowest": 0.45},
   "promotion_picks": 5,
   "legion": {
+    "balk_after": 0.5,
+    "balk_progress": 0.3,
+    "balk_seconds": 4.0,
+    "prey_looks": 6,
     "front_start": 22,
     "rear_start": -20,
     "col_gap": 16,

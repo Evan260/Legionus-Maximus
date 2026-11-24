@@ -1715,6 +1715,29 @@ func push_out(p: Vector2, r: float, chop := 0.0) -> Vector2:
 	return p
 
 
+## Whether a circle of radius r going straight from a to b would run into a solid that is not a tree, such as a wall,
+## a stake, a rock or a building; trees are left out, since a unit slides round a trunk or fells it.
+func wall_between(a: Vector2, b: Vector2, r: float) -> bool:
+	var lo := Vector2(minf(a.x, b.x), minf(a.y, b.y)) - origin
+	var hi := Vector2(maxf(a.x, b.x), maxf(a.y, b.y)) - origin
+	var x0 := maxi(0, floori(lo.x / CELL))
+	var y0 := maxi(0, floori(lo.y / CELL))
+	var x1 := mini(GN - 1, floori(hi.x / CELL))
+	var y1 := mini(GN - 1, floori(hi.y / CELL))
+	for gy in range(y0, y1 + 1):
+		for gx in range(x0, x1 + 1):
+			var cell := gx + gy * GN
+			for t in range(start[cell], start[cell + 1]):
+				if solid_tree[items[t]] == 1:
+					continue
+				var s := solid[items[t]]
+				var c := Vector2(s.x, s.y)
+				var reach := s.z + r
+				if Geometry2D.get_closest_point_to_segment(c, a, b).distance_squared_to(c) < reach * reach:
+					return true
+	return false
+
+
 ## Chopping by a barbarian pressed against the tree at `at`, which never earns the legion a log.
 func horde_chop(at: Vector2, dt: float) -> void:
 	_chop(at, dt, 0.0)

@@ -691,6 +691,31 @@ func _revive(medici: Array, dt: float, sim: Sim) -> void:
 		sim.effects.append({"kind": "heal", "pos": m.pos, "t": 0.0})
 
 
+## The nearest living enemy within reach a rider can charge: not one behind a wall or across a ravine, nor one he has lately given up.
+func _prey(s: Dictionary, reach: float, sim: Sim) -> int:
+	var balked: Dictionary = s.get("balked", {})
+	var near: Array = []
+	for j in sim.enemies_near(s.pos, reach):
+		if float(balked.get(sim.horde.e_id[j], -1.0)) <= sim.time:
+			near.append(Vector2((sim.horde.e_pos[j] - s.pos).length_squared(), j))
+	near.sort()
+	# Only the nearest few are looked at, so a rider in a crowd does not test a wall against every barbarian round him.
+	for k in mini(near.size(), int(_l.prey_looks)):
+		var j := int(near[k].y)
+		if not sim.terrain.crosses_ravine(s.pos, sim.horde.e_pos[j]) and not sim.terrain.wall_between(s.pos, sim.horde.e_pos[j], Sim.UNIT_RADIUS):
+			return j
+	return -1
+
+
+## Sets a rider on enemy i, counting his progress afresh.
+func _chase(s: Dictionary, i: int, sim: Sim) -> void:
+	s.prey = sim.horde.e_id[i]
+	s.prey_d = INF
+	s.stall = 0.0
+	if not s.has("balked"):
+		s.balked = {}
+
+
 func _sortie(s: Dictionary, dt: float, sim: Sim) -> void:
 	var info: Dictionary = s.info
 	var speed := float(info.ride_speed)
@@ -698,19 +723,35 @@ func _sortie(s: Dictionary, dt: float, sim: Sim) -> void:
 	if s.sortie == 0:
 		s.cd -= dt * _rate * s.haste
 		if s.cd <= 0.0:
-			if sim.nearest_enemy(s.pos, float(info.reach)) >= 0:
+			var first := _prey(s, float(info.reach), sim)
+			if first >= 0:
 				s.sortie = 1
 				s.struck = {}
+				_chase(s, first, sim)
 			else:
 				s.cd = 0.0
 		return
 	if s.sortie == 1:
-		var t := sim.nearest_enemy(s.pos, float(info.reach) + 30.0)
-		if t < 0:
-			s.sortie = 2
-			return
+		var t: int = sim.horde.e_id.find(s.get("prey", -1))
+		if t < 0 or (sim.horde.e_pos[t] - s.pos).length() > float(info.reach) + 30.0:
+			t = _prey(s, float(info.reach) + 30.0, sim)
+			if t < 0:
+				s.sortie = 2
+				return
+			_chase(s, t, sim)
 		var to: Vector2 = sim.horde.e_pos[t] - s.pos
 		var d := to.length()
+		# A rider who stops closing on his enemy, held back by a wall, a hedge or a rock, gives him up for a while and rides home.
+		if d > float(s.prey_d) - speed * dt * float(_l.balk_progress):
+			s.stall += dt
+			if s.stall >= float(_l.balk_after):
+				s.balked[sim.horde.e_id[t]] = sim.time + float(_l.balk_seconds)
+				s.prey = -1
+				s.sortie = 2
+				return
+		else:
+			s.stall = maxf(0.0, s.stall - dt)
+		s.prey_d = d
 		var move := minf(d, speed * dt)
 		if d > 0.001:
 			s.pos += to / d * move
