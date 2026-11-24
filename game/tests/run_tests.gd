@@ -1992,6 +1992,12 @@ func test_the_supply_cart_choice_pauses_the_run(b: Dictionary) -> void:
 	m.free()
 
 
+func test_a_cart_with_two_picks_says_choose_two(_b: Dictionary) -> void:
+	check(Hud.choose_hint(false, 2) == "Choose two", "a cart with two picks left says so")
+	check(Hud.choose_hint(false, 1) == "Choose one" and Hud.choose_hint(false, 0) == "Choose one", "one pick, or a level-up, says choose one")
+	check(Hud.choose_hint(true, 0) == "Call one", "the gods are called, not chosen")
+
+
 func test_a_free_level_up_from_a_supply_cart_chosen_twice_opens_at_once(b: Dictionary) -> void:
 	var before := Ui.scale
 	Ui.set_text_size(1, b)

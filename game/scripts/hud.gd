@@ -1175,14 +1175,19 @@ func _choices(sim: Sim) -> void:
 	var side_panel := shows_choice_panel(praying or supply, big)
 	if side_panel:
 		draw_choice_panel(sim, main.choices[clampi(main.selected, 0, n - 1)])
+	var picks := int(sim.supplies[0].picks) if supply and not sim.supplies.is_empty() else 1
 	# With large text the heading takes the clock's place in the top bar, which already says the level.
 	var head_y := Touch.inset_tl.y + 16.0 + 8.0 * Ui.scale - Ui.offset.y if big else ROW_TOP - 22.0
 	if praying:
 		ui.fit_text(self, tr("The gods hear you").to_upper(), 300.0 if big else W - 16.0, Vector2(0, head_y), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W, true)
 	elif supply or not big or sim.pending_levels == 0:
-		ui.fit_text(self, (tr("Level %d") % sim.level if sim.pending_levels > 0 and not supply else tr("Supplies")).to_upper(), 300.0 if big else W - 16.0, Vector2(0, head_y), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W, true)
+		var heading := tr("Level %d") % sim.level if sim.pending_levels > 0 and not supply else tr("Supplies")
+		# Large text has no room for the hint line, so a cart with two picks says so in its heading.
+		if big and supply and picks >= 2:
+			heading = choose_hint(false, picks)
+		ui.fit_text(self, heading.to_upper(), 300.0 if big else W - 16.0, Vector2(0, head_y), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W, true)
 	if not big:
-		text(tr("Call one") if praying else tr("Choose one"), Vector2(0, ROW_TOP - 10.0), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W)
+		text(choose_hint(praying, picks), Vector2(0, ROW_TOP - 10.0), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W)
 	choice_rects.clear()
 	var banishing: bool = main.banishing
 	for i in n:
@@ -1355,6 +1360,13 @@ func choice_at(p: Vector2) -> int:
 static func choice_panel_rect() -> Rect2:
 	var left := build_rect()
 	return Rect2(W - left.end.x, left.position.y, left.size.x, left.size.y)
+
+
+## The line under a choice's heading: the gods are called, and a supply cart with two picks left asks for two.
+static func choose_hint(praying: bool, picks: int) -> String:
+	if praying:
+		return TranslationServer.translate("Call one")
+	return TranslationServer.translate("Choose two") if picks >= 2 else TranslationServer.translate("Choose one")
 
 
 ## The choice panel shows where the build panel does, except on a phone, whose buttons under the rows do its work.

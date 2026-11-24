@@ -5339,6 +5339,10 @@
     "hold to delete": {
       "en": "hold to delete",
       "de": "zum Löschen halten"
+    },
+    "Choose two": {
+      "en": "Choose two",
+      "pt_BR": "Escolha dois"
     }
   }
 }
