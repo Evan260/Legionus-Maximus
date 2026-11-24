@@ -973,8 +973,15 @@ func _take(i: int) -> void:
 	state = "play"
 	# The confirm key is also the testudo key, so the press that took the choice must not raise the shields.
 	Input.action_release("testudo")
+	_open_next()
+
+
+## Opens what waits after a choice: a level-up first, so a free level-up taken from a cart opens at once, then a cart's picks still left.
+func _open_next() -> void:
 	if sim.pending_levels > 0 or sim.free_choices > 0:
 		_open_choices()
+	if state == "play" and not sim.supplies.is_empty():
+		_open_supplies()
 
 
 ## Opens the oldest supply cart's choice of rewards; the run waits while it is open.
@@ -993,10 +1000,7 @@ func _take_supply(i: int) -> void:
 	state = "play"
 	# The confirm key is also the testudo key, so the press that took the reward must not raise the shields.
 	Input.action_release("testudo")
-	if not sim.supplies.is_empty():
-		_open_supplies()
-	elif sim.pending_levels > 0 or sim.free_choices > 0:
-		_open_choices()
+	_open_next()
 
 
 ## Takes row `i` of whichever choice is open.
