@@ -8983,6 +8983,62 @@ func test_men_on_ice_slip_a_little_out_of_their_places(b: Dictionary) -> void:
 	check(settled[0] < 2.0, "and once the legion stands, they find their places again (%.1f px)" % settled[0])
 
 
+## Barbarians of `kind` run east at the commander for a second, then he stands north of them: returns how far they carry on east
+## in the next second and a half, as a share of their pace, the spread of the angles between the way each moves and the way to him
+## just before he moves, and how far they ran in that first second.
+func _foes_on_ice(b: Dictionary, kind: String, ice: bool, n := 4) -> Array:
+	var s := _dacia_sim(b, 971)
+	s.soldiers.clear()
+	if ice:
+		s.terrain.add_stream([{"pts": PackedVector2Array([Vector2(-1200, 0), Vector2(1200, 0)]), "half": PackedFloat32Array([320.0, 320.0])}])
+	s.commander.pos = Vector2(300, 0)
+	var h := s.horde
+	for k in n:
+		h.spawn(kind, Vector2(-200, -120 + k * 80))
+	var start := h.e_pos.duplicate()
+	var veer: Array = []
+	for f in 60:
+		s.terrain.refresh(s.commander.pos)
+		s._rebuild_grids()
+		var before := h.e_pos.duplicate()
+		h._move(1.0 / 60.0, s)
+		if f == 59:
+			for i in n:
+				veer.append((h.e_pos[i] - before[i]).angle_to(s.commander.pos - before[i]))
+	var ran := 0.0
+	var mid := Vector2.ZERO
+	for i in n:
+		ran += h.e_pos[i].distance_to(start[i]) / n
+		mid += h.e_pos[i] / n
+	s.commander.pos = mid + Vector2(0, -450)
+	var at := h.e_pos.duplicate()
+	for f in 90:
+		s.terrain.refresh(s.commander.pos)
+		s._rebuild_grids()
+		h._move(1.0 / 60.0, s)
+	var carry := 0.0
+	for i in n:
+		carry += (h.e_pos[i].x - at[i].x) / n / h.k_speed[h.e_kind[i]]
+	var mean: float = veer.reduce(func(a: float, x: float) -> float: return a + x, 0.0) / n
+	var spread: float = sqrt(veer.reduce(func(a: float, x: float) -> float: return a + (x - mean) * (x - mean), 0.0) / n)
+	return [carry, spread, ran]
+
+
+func test_barbarians_slide_on_ice_too(b: Dictionary) -> void:
+	var dry := _foes_on_ice(b, "falx_warrior", false)
+	var ice := _foes_on_ice(b, "falx_warrior", true)
+	check(dry[0] < 0.02, "off the ice a barbarian turns at once (%.3f s of his pace carried on)" % dry[0])
+	check(ice[0] > 0.15, "on the ice he keeps his way and overshoots before he turns (%.3f s of his pace)" % ice[0])
+	check(dry[1] < 0.01 and ice[1] > 0.04, "and each drifts a little his own way (spread %.3f against %.3f)" % [ice[1], dry[1]])
+	check(ice[2] <= dry[2] + 0.5, "but none runs faster for it (%.1f px against %.1f)" % [ice[2], dry[2]])
+	var elite := _foes_on_ice(b, "falx_band", true, 2)
+	var wagon := _foes_on_ice(b, "war_wagon", true, 2)
+	var king := _foes_on_ice(b, "dacian_king", true, 1)
+	check(elite[0] > 0.02 and elite[0] < ice[0] * 0.6, "an elite slides less (%.3f against %.3f)" % [elite[0], ice[0]])
+	check(wagon[0] < elite[0] * 0.6, "a heavy war wagon less still (%.3f)" % wagon[0])
+	check(absf(king[0]) < 0.02, "and the chieftain keeps his feet, so his marked charges end where they are marked (%.3f)" % king[0])
+
+
 func test_a_falx_cuts_through_the_testudo(b: Dictionary) -> void:
 	var hurt := {}
 	for kind in ["falx_warrior", "barbarian_club"]:

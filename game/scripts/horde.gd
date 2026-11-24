@@ -163,6 +163,8 @@ var e_stuck := PackedFloat32Array()
 var e_flee := PackedFloat32Array()
 # Each barbarian's real speed over the last moments in pixels a second, so one held in place shows his stance.
 var e_pace := PackedFloat32Array()
+# The way and speed a barbarian on the ice carries on with, or zero off it.
+var e_slide := PackedVector2Array()
 var next_id := 1
 var chieftain_id := -1
 
@@ -576,6 +578,7 @@ func spawn(kind_id: String, pos: Vector2, elite := false) -> int:
 	e_stuck.append(0.0)
 	e_flee.append(0.0)
 	e_pace.append(k_speed[kind])
+	e_slide.append(Vector2.ZERO)
 	e_fury.append(1.0)
 	e_power.append(power)
 	e_bare.append(0)
@@ -2757,6 +2760,29 @@ func _move(dt: float, sim: Sim) -> void:
 	var gs := g_start
 	var gi := g_items
 	var gr := g_rad
+	var ice_cells := sim.terrain.ice_cell
+	var ice_bank := sim.terrain.ice_bank
+	var slip := not ice_cells.is_empty() and sim.terrain.ice_ready()
+	var i_x := sim.terrain.origin.x
+	var i_y := sim.terrain.origin.y
+	var i_inv := 1.0 / Terrain.ICE_CELL
+	var i_n := Terrain.ICE_N
+	# Whether each barbarian stands on the ice is looked at every fourth update, soon enough for a step on or off it.
+	var ice_turn := frame & 3
+	var foe_grip := 0.0
+	var foe_spread := 0.0
+	var foe_turn := 0.0
+	var foe_sway := 0.0
+	var boss_grip := 1.0
+	var heavy_grip := 1.0
+	if slip:
+		var ice: Dictionary = b.ice
+		foe_grip = float(ice.foe_grip)
+		foe_spread = float(ice.foe_spread)
+		foe_turn = float(ice.foe_turn)
+		foe_sway = float(ice.foe_sway)
+		boss_grip = float(ice.boss_grip)
+		heavy_grip = float(ice.heavy_grip)
 	for i in e_pos.size():
 		var kind := e_kind[i]
 		var p := e_pos[i]
@@ -2770,6 +2796,8 @@ func _move(dt: float, sim: Sim) -> void:
 			e_stun[i] -= dt
 			e_fighting[i] = 0
 			e_pace[i] = 0.0
+			if slip:
+				e_slide[i] = Vector2.ZERO
 			if e_flash[i] > 0.0:
 				e_flash[i] -= dt
 			# A throw that stuns him still lands him outside trees and wheat; an ordinary one carried over a lip falls in, and one still at it is left to the throw.
@@ -3054,6 +3082,38 @@ func _move(dt: float, sim: Sim) -> void:
 				if v.length_squared() < spd * spd * 0.09:
 					# A barbarian with nobody to slide past sidesteps round the crowd to find a gap, rather than waiting behind it.
 					v += Vector2(-to.y, to.x) / maxf(d, 0.001) * spd * 0.6 * (1.0 if e_id[i] % 2 == 0 else -1.0)
+		# On the ice a barbarian keeps his way and steers late, each a little differently, until he grapples a Roman; the chieftain keeps his feet, so his marked charges end where they are marked.
+		if slip and ((i & 3) == ice_turn or e_slide[i] != Vector2.ZERO):
+			var sl := e_slide[i]
+			var on := sl != Vector2.ZERO
+			if (i & 3) == ice_turn:
+				on = false
+				if e_tag[i] != CHIEF and (d < solid_range or seen):
+					var ix := floori((p.x - i_x) * i_inv)
+					var iy := floori((p.y - i_y) * i_inv)
+					if ix >= 0 and iy >= 0 and ix < i_n and iy < i_n:
+						var ic := ix + iy * i_n
+						var kc := ice_cells[ic]
+						if kc == 2:
+							var bank := ice_bank[ic]
+							on = bank.x * p.x + bank.y * p.y + bank.z < 0.0
+						else:
+							on = kc == 1 or (kc == 3 and sim.terrain.ice_edge(ic, p) < 0.0)
+			if on and e_fighting[i] == 0:
+				if dashing or sl == Vector2.ZERO:
+					sl = v
+				else:
+					var k := float(e_id[i])
+					var grip := foe_grip * (1.0 + (fposmod(k * 0.618, 1.0) * 2.0 - 1.0) * foe_spread)
+					if k_heavy[kind] == 1:
+						grip *= heavy_grip
+					elif e_tag[i] == ELITE:
+						grip *= boss_grip
+					sl = sl.lerp(v.rotated(sin(time * foe_sway + k * 2.39) * foe_turn), minf(1.0, dt * grip))
+				e_slide[i] = sl
+				v = sl
+			elif sl != Vector2.ZERO:
+				e_slide[i] = Vector2.ZERO
 		var np := p + v * dt
 		# A painted warrior's charge carries him through the crowd without being shoved aside.
 		if push != Vector2.ZERO and not (dashing and k_fearless[kind] == 1):
@@ -3704,6 +3764,7 @@ func remove_at(i: int) -> void:
 	e_stuck[i] = e_stuck[last]; e_stuck.resize(last)
 	e_flee[i] = e_flee[last]; e_flee.resize(last)
 	e_pace[i] = e_pace[last]; e_pace.resize(last)
+	e_slide[i] = e_slide[last]; e_slide.resize(last)
 	e_fury[i] = e_fury[last]; e_fury.resize(last)
 	e_power[i] = e_power[last]; e_power.resize(last)
 	e_bare[i] = e_bare[last]; e_bare.resize(last)
