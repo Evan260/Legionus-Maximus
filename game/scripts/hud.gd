@@ -1046,7 +1046,8 @@ static func row_lines(r: Rect2, big := false) -> int:
 
 ## The build panel's room, taller than the level-up's rows; large text shows it only on the pause screen, where it is wider and starts below the larger top bar.
 static func build_rect() -> Rect2:
-	var top := BUILD_TOP + (10.0 if Ui.scale > 1 else 0.0)
+	# On a phone the top bar keeps in from the camera and the corners, so the panel starts lower to stay clear of the level.
+	var top := maxf(BUILD_TOP + (10.0 if Ui.scale > 1 else 0.0), 16.0 + 8.0 * Ui.scale + Touch.inset_tl.y + 4.0 - Ui.offset.y)
 	return Rect2(BUILD_X, top, BUILD_W_BIG if Ui.scale > 1 else BUILD_W, BUILD_FOOT - top)
 
 

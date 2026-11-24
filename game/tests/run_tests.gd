@@ -7609,6 +7609,23 @@ func test_the_hud_points_to_the_chieftain_off_screen(b: Dictionary) -> void:
 	check(not Hud.targets_of(s).any(func(t: Array) -> bool: return t[0] == "chieftain"), "once he falls the badge goes")
 
 
+func test_the_build_panel_starts_below_the_level(b: Dictionary) -> void:
+	var before := Ui.scale
+	var before_view := Ui.view
+	var inset := Touch.inset_tl
+	for screen in [[Vector2(640, 360), Vector2.ZERO], [Vector2(808, 360), Vector2(13, 13)], [Vector2(640, 480), Vector2(10, 10)]]:
+		Ui.fit_view(screen[0])
+		Touch.inset_tl = screen[1]
+		for scale in [1, 2]:
+			Ui.set_text_size(scale, b)
+			var level_foot: float = 16.0 + 8.0 * Ui.scale + Touch.inset_tl.y + 2.0
+			var panel_top := Hud.build_rect().position.y + Ui.offset.y
+			check(panel_top >= level_foot, "%s x%d: the build panel at %d starts below the level, which ends at %d" % [screen[0], scale, panel_top, level_foot])
+	Touch.inset_tl = inset
+	Ui.fit_view(before_view)
+	Ui.set_text_size(before, b)
+
+
 func test_the_chieftains_line_has_its_own_row_at_large_text(b: Dictionary) -> void:
 	var before := Ui.scale
 	var s := Sim.new(b, content, {"seed": 1509})
