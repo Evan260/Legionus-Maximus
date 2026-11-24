@@ -32,6 +32,8 @@ const ROUTES := {
 	"dacia>sarmatia": [Vector2(26.8, 46.5), Vector2(28.6, 46.9), Vector2(30.4, 47.4)],
 }
 const PICTURE := Vector2(640, 360)
+## How far the painted map runs past the 640 by 360 box on each side, so it fills a wide phone or a tall tablet.
+const MARGIN := Vector2(110, 60)
 const NODE_R := 9.0
 const ROAD := Color(0.72, 0.12, 0.1)
 const SHADE := Color(0.06, 0.04, 0.03, 0.72)
@@ -124,7 +126,7 @@ func state_text(id: String) -> String:
 	return locked_text(id)
 
 
-## Where the map is drawn: the whole 640 by 360 box.
+## Where the map's projection lies: the whole 640 by 360 box, with the picture running MARGIN past it.
 static func picture_rect() -> Rect2:
 	return Rect2(0, 0, Ui.W, Ui.H)
 
@@ -191,7 +193,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	Ui.veil(c, 0.85)
 	if _picture == null:
 		_picture = load("res://assets/map.png")
-	c.draw_texture_rect(_picture, picture_rect(), false)
+	c.draw_texture_rect(_picture, Rect2(picture_rect().position - MARGIN, picture_rect().size + 2.0 * MARGIN), false)
 	_road(c, ids, now)
 	# The chosen province's node goes first so it has focus when the map opens.
 	var order: Array = ids.duplicate()
