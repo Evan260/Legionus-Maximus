@@ -76,6 +76,16 @@ var _henges := {}
 # The frozen stream of each stream region once worked out, {} for a region without one, and streams laid by hand.
 var _streams := {}
 var _laid_streams: Array = []
+# The ice near the commander in ICE_CELL squares: 0 where no stream reaches, 1 where it is ice throughout, 2 along a bank.
+const ICE_CELL := 32.0
+const ICE_N := 56
+var ice_cell := PackedByteArray()
+# The stream segments by a bank as (ax, ay, bx, by) with the half widths at each end, and the squares listing them.
+var ic_seg := PackedVector4Array()
+var ic_half := PackedVector2Array()
+var ic_start := PackedInt32Array()
+var ic_items := PackedInt32Array()
+var _ice_anchor := Vector2i(1 << 30, 1)
 # The way round obstacles towards the commander: one step direction per FLOW_CELL square, or none where no way exists.
 const FLOW_CELL := 32.0
 const FN := 56
@@ -1540,6 +1550,7 @@ func refresh(p: Vector2) -> void:
 				fill[cell] += 1
 	_grid_ravines(area)
 	_grid_fields(area)
+	_grid_ice(area)
 	_mark_blocked()
 
 
@@ -2002,6 +2013,7 @@ func stream(rx: int, ry: int) -> Dictionary:
 ## Lays a frozen stream by hand, given as pieces of {pts, half}, for tests and looks.
 func add_stream(pieces: Array) -> void:
 	_laid_streams.append(_with_box(_cracked({"pieces": pieces})))
+	_anchor = Vector2i(1 << 30, 0)
 
 
 ## Every frozen stream whose ice reaches into the rectangle.
@@ -2029,11 +2041,95 @@ func stream_edge(p: Vector2, within := 300.0) -> float:
 	return best
 
 
-## Whether p stands on the ice of a frozen stream.
+## Whether p stands on the ice of a frozen stream, read from the squares round the commander when p lies among them.
 func on_ice(p: Vector2) -> bool:
 	if stream_cfg.is_empty() and _laid_streams.is_empty():
 		return false
+	if _ice_anchor == _anchor:
+		var gx := floori((p.x - origin.x) / ICE_CELL)
+		var gy := floori((p.y - origin.y) / ICE_CELL)
+		if gx >= 0 and gy >= 0 and gx < ICE_N and gy < ICE_N:
+			if ice_cell.is_empty():
+				return false
+			var c := gx + gy * ICE_N
+			return ice_cell[c] == 1 or (ice_cell[c] == 2 and ice_edge(c, p) < 0.0)
 	return stream_edge(p, 160.0) < 0.0
+
+
+## Whether the squares of ice are sorted for the place the commander stands now.
+func ice_ready() -> bool:
+	return _ice_anchor == _anchor
+
+
+## How far p is from the bank along the stream segments listed for square c, negative on the ice.
+func ice_edge(c: int, p: Vector2) -> float:
+	var best := INF
+	for t in range(ic_start[c], ic_start[c + 1]):
+		var k := ic_items[t]
+		var sg := ic_seg[k]
+		var a := Vector2(sg.x, sg.y)
+		var ab := Vector2(sg.z, sg.w) - a
+		var u := clampf((p - a).dot(ab) / maxf(ab.length_squared(), 0.0001), 0.0, 1.0)
+		best = minf(best, p.distance_to(a + ab * u) - lerpf(ic_half[k].x, ic_half[k].y, u))
+	return best
+
+
+## Sorts the frozen streams near the commander into squares, each marked dry, iced over or by a bank, so a look at a square says whether a point is on the ice.
+func _grid_ice(area: Rect2) -> void:
+	_ice_anchor = _anchor
+	ice_cell.clear()
+	ic_seg.clear()
+	ic_half.clear()
+	ic_items.clear()
+	if stream_cfg.is_empty() and _laid_streams.is_empty():
+		return
+	var streams := streams_in(area)
+	if streams.is_empty():
+		return
+	var box := PackedInt32Array()
+	ic_start.resize(ICE_N * ICE_N + 1)
+	ic_start.fill(0)
+	for st in streams:
+		for piece in st.pieces:
+			var pts: PackedVector2Array = piece.pts
+			var half: PackedFloat32Array = piece.half
+			# Every second point of the line strays under a pixel from the curve and lists half as many segments per square.
+			for i in range(0, pts.size() - 1, 2):
+				var j := mini(i + 2, pts.size() - 1)
+				var a := pts[i]
+				var z := pts[j]
+				var reach := maxf(half[i], half[j])
+				var x0 := maxi(floori((minf(a.x, z.x) - reach - origin.x) / ICE_CELL), 0)
+				var x1 := mini(floori((maxf(a.x, z.x) + reach - origin.x) / ICE_CELL), ICE_N - 1)
+				var y0 := maxi(floori((minf(a.y, z.y) - reach - origin.y) / ICE_CELL), 0)
+				var y1 := mini(floori((maxf(a.y, z.y) + reach - origin.y) / ICE_CELL), ICE_N - 1)
+				if x1 < x0 or y1 < y0:
+					continue
+				ic_seg.append(Vector4(a.x, a.y, z.x, z.y))
+				ic_half.append(Vector2(half[i], half[j]))
+				box.append_array([x0, x1, y0, y1])
+				for gx in range(x0, x1 + 1):
+					for gy in range(y0, y1 + 1):
+						ic_start[gx + gy * ICE_N + 1] += 1
+	for i in range(1, ICE_N * ICE_N + 1):
+		ic_start[i] += ic_start[i - 1]
+	ic_items.resize(ic_start[ICE_N * ICE_N])
+	var fill := ic_start.duplicate()
+	for k in ic_seg.size():
+		for gx in range(box[k * 4], box[k * 4 + 1] + 1):
+			for gy in range(box[k * 4 + 2], box[k * 4 + 3] + 1):
+				var c := gx + gy * ICE_N
+				ic_items[fill[c]] = k
+				fill[c] += 1
+	ice_cell.resize(ICE_N * ICE_N)
+	ice_cell.fill(0)
+	# A square whose middle is further from the bank than its corners, with a little over for the bank's width changing along it, lies all on one side.
+	var sure := ICE_CELL * 0.71 + 3.0
+	for c in ICE_N * ICE_N:
+		if ic_start[c] == ic_start[c + 1]:
+			continue
+		var e := ice_edge(c, origin + Vector2(c % ICE_N + 0.5, c / ICE_N + 0.5) * ICE_CELL)
+		ice_cell[c] = 1 if e < -sure else (0 if e > sure else 2)
 
 
 ## Lists the ravine segments near the commander in every grid cell they could touch a unit from, as the solid props are.

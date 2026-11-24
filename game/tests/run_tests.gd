@@ -8893,6 +8893,35 @@ func test_dacias_frozen_streams_wind_a_long_way(b: Dictionary) -> void:
 	check(by_start == 0, "and none comes near the start")
 
 
+func test_the_ice_round_the_commander_is_sorted_into_squares(b: Dictionary) -> void:
+	var t := Terrain.new(961, b.forest, b.ravines)
+	t.mountain = b.mountains.dacia
+	t.stream_cfg = b.streams.dacia
+	var mid := Vector2.INF
+	for st in t.streams_in(Rect2(-4000, -4000, 8000, 8000)):
+		var at: Vector2 = st.pieces[0].pts[st.pieces[0].pts.size() / 2]
+		if at.length() < mid.length():
+			mid = at
+	t.refresh(mid)
+	check(t.ice_cell.count(1) > 0 and t.ice_cell.count(2) > 0, "the squares round the commander know where the ice lies")
+	var r := RandomNumberGenerator.new()
+	r.seed = 961
+	var on := 0
+	var wrong := 0
+	for k in 3000:
+		var p := mid + Vector2(r.randf_range(-800.0, 800.0), r.randf_range(-800.0, 800.0))
+		var edge := t.stream_edge(p, 160.0)
+		if edge < 0.0:
+			on += 1
+		# Read from every second point of the line, the bank strays under a pixel from the drawn one.
+		if absf(edge) > 1.0 and t.on_ice(p) != (edge < 0.0):
+			wrong += 1
+	check(on > 100 and wrong == 0, "and read from them the ice lies where the stream is drawn (%d of %d on it, %d wrong)" % [on, 3000, wrong])
+	var far := mid + Vector2(5000, 5000)
+	t.add_stream([{"pts": PackedVector2Array([far - Vector2(300, 0), far + Vector2(300, 0)]), "half": PackedFloat32Array([50.0, 50.0])}])
+	check(t.on_ice(far) and not t.on_ice(far + Vector2(0, 80)), "and a stream laid by hand is ice at once")
+
+
 func test_the_legion_slides_on_ice(b: Dictionary) -> void:
 	var s := _dacia_sim(b, 942)
 	s.terrain.add_stream([{"pts": PackedVector2Array([Vector2(-600, 0), Vector2(600, 0)]), "half": PackedFloat32Array([400.0, 400.0])}])
