@@ -4910,6 +4910,91 @@ func test_the_titles_goal_on_two_lines_breaks_evenly(b: Dictionary) -> void:
 	check(lopsided.is_empty(), "the goal's two lines are about as long as each other (%s)" % [lopsided])
 
 
+## Whether a tree or another picture the world view fades stands in front of the men on the line `y` between `from` and `to`.
+func _canopy_over(world: GDScript, atlas: Atlas, terrain: Terrain, from: float, to: float, y: float) -> bool:
+	var men := Rect2(from - 5.0, y - 26.0, to - from + 10.0, 26.0)
+	for pr in terrain.props_in(Rect2(from - 60.0, y - 30.0, to - from + 120.0, 140.0)):
+		if pr[0] != "":
+			var f: Array = atlas.prop_frame(pr[0])
+			var drawn := Rect2(pr[1] - f[1], f[0].size)
+			if pr[1].y > y and world.can_hide(pr[0], pr[2] > 0.0, drawn) and world._solid_part(drawn).intersects(men):
+				return true
+	return false
+
+
+## The title's column takes a line with no canopy in front of it wherever the stretch it walks has one, at every window shape.
+func test_the_titles_column_takes_a_line_with_no_canopy_in_front(b: Dictionary) -> void:
+	var atlas := Atlas.new()
+	var world: GDScript = load("res://scripts/world_view.gd")
+	var before := Ui.view
+	var missed := []
+	var free := 0
+	var lines := 0
+	for province in ["germania", "dacia", "hispania", "sarmatia"]:
+		for seed_n in range(1, 4):
+			var s := Sim.new(b, content, {"seed": seed_n, "province": province})
+			for view: Vector2 in [Vector2(640, 360), Vector2(640, 480), Vector2(854, 360)]:
+				Ui.fit_view(view)
+				var highest := TitleScreen._room(TitleScreen.button_rects(TitleScreen.grid(b).box, 3)[-1].end.y)
+				for k in 3:
+					var from: float = s.commander.pos.x + k * 300.0 - 400.0
+					var foot: float = s.commander.pos.y + view.y / 2.0
+					var line := TitleScreen._open_line(s.terrain, atlas, from, from + 700.0, foot, highest)
+					var lift := 14.0
+					var any := false
+					while lift <= highest and not any:
+						any = not _canopy_over(world, atlas, s.terrain, from, from + 700.0, foot - lift)
+						lift += 8.0
+					lines += 1
+					free += int(any)
+					if any and (line.x < 0.0 or _canopy_over(world, atlas, s.terrain, from, from + 700.0, foot - line.x)):
+						missed.append("%s seed %d %s stretch %d" % [province, seed_n, view, k])
+					check(line.x < 0.0 or line.y > 0.0 or not _canopy_over(world, atlas, s.terrain, from, from + 700.0, foot - line.x), "a line told clear has no canopy in front")
+	Ui.fit_view(before)
+	check(missed.is_empty(), "a stretch with a clear line marches on one (%d of %d stretches have one, missed %s)" % [free, lines, missed])
+
+
+## The title's camera starts where the column's first pass has a line with no canopy in front, in every field a canal does not cut off.
+func test_the_titles_camera_starts_where_the_first_pass_is_clear(b: Dictionary) -> void:
+	var atlas := Atlas.new()
+	var world: GDScript = load("res://scripts/world_view.gd")
+	var before := Ui.view
+	var counts := {}
+	var second := [0, 0]
+	for province in ["germania", "dacia", "hispania", "gaul", "britannia", "sarmatia", "aegyptus", "parthia"]:
+		var clear := 0
+		var plain := 0
+		var away := 0
+		for seed_n in range(1, 5):
+			var s := Sim.new(b, content, {"seed": seed_n, "province": province})
+			var men := 1 + s.soldiers.size()
+			for view: Vector2 in [Vector2(640, 360), Vector2(640, 480), Vector2(854, 360)]:
+				Ui.fit_view(view)
+				var buttons_end: float = TitleScreen.button_rects(TitleScreen.grid(b).box, 3)[-1].end.y
+				var span := view.x + 80.0 + men * TitleScreen.COLUMN_GAP
+				var eyes := [s.commander.pos, TitleScreen.start_eye(s.terrain, atlas, s.commander.pos, men, TitleScreen.DRIFT, buttons_end)]
+				for k in 2:
+					var eye: Vector2 = eyes[k]
+					var route := TitleScreen._route(eye.x, span, men, TitleScreen.DRIFT)
+					var foot := eye.y + view.y / 2.0
+					var line := TitleScreen._open_line(s.terrain, atlas, route.x, route.y, foot, TitleScreen._room(buttons_end))
+					var ok := line.x >= 0.0 and not _canopy_over(world, atlas, s.terrain, route.x, route.y, foot - line.x)
+					var head2: float = eye.x + TitleScreen.DRIFT * (span - view.x / 2.0 - 40.0) / (TitleScreen.PACE + TitleScreen.DRIFT) + view.x / 2.0 + 40.0
+					var route2 := TitleScreen._route(head2, span, men, TitleScreen.DRIFT)
+					var line2 := TitleScreen._open_line(s.terrain, atlas, route2.x, route2.y, foot, TitleScreen._room(buttons_end))
+					if ok and line2.x >= 0.0 and not _canopy_over(world, atlas, s.terrain, route2.x, route2.y, foot - line2.x):
+						second[k] += 1
+					if k == 0:
+						plain += int(ok)
+					else:
+						clear += int(ok)
+						away += int(line.x < 0.0)
+		counts[province] = [plain, clear, away]
+	Ui.fit_view(before)
+	check(counts.values().all(func(c: Array) -> bool: return c[1] + c[2] == 12), "the first pass is clear wherever no canal keeps the column away (from the commander, from the start, kept away: %s)" % [counts])
+	check(second[1] > second[0] * 3 / 2, "and the first two passes are clear in more fields than from the commander's place (%d against %d)" % [second[1], second[0]])
+
+
 func test_title_goal_comes_from_the_balance(b: Dictionary) -> void:
 	check(str(int(float(b.chieftain_at) / 60.0)) in Game.goal_text(b) and "chieftain" in Game.goal_text(b), "the full game names the minutes to the chieftain")
 	Game.demo_forced = true

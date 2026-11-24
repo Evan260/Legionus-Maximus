@@ -4,12 +4,22 @@ extends RefCounted
 ## over the province's field drifting slowly by while the legion marches across it.
 
 const LOGO := preload("res://assets/logo.png")
+# The world view, for the part of a picture that can hide a man.
+const WORLD_VIEW := preload("res://scripts/world_view.gd")
 # The painted icon beside each control; the wall, the bridge and the pause are drawn as the touch buttons draw them.
 const ICONS := {"march": "march", "testudo": "testudo", "build": "stakes", "pray": "laurel", "fight": "gladius"}
 # How fast the camera drifts over the field and the column marches, in pixels a second.
 const DRIFT := 6.0
 const PACE := 16.0
 const COLUMN_GAP := 16.0
+# Props drawn flat on the ground, which the column walks over.
+const GROUND := ["dune", "bog", "heather", "dry_grass", "hut_ruin"]
+# How far apart the camera's trial starts lie across and down from the commander, how many each way, how many of the column's passes each is tried on,
+# and how many passes are weighed before only the first pass is tried, so the title opens without a pause.
+const START_STEP := Vector2(300.0, 40.0)
+const START_SHIFTS := Vector2i(2, 15)
+const START_PASSES := 2
+const START_TRIES := 80
 # A far-off bird's pixels with its wings raised and lowered.
 const BIRD_UP := [Vector2(-4, -3), Vector2(-3, -2), Vector2(-2, -1), Vector2(-1, 0), Vector2(0, 0), Vector2(0, 1), Vector2(1, 0), Vector2(2, -1), Vector2(3, -2), Vector2(4, -3)]
 const BIRD_DOWN := [Vector2(-4, 1), Vector2(-3, 0), Vector2(-2, -1), Vector2(-1, 0), Vector2(0, 0), Vector2(0, 1), Vector2(1, 0), Vector2(2, -1), Vector2(3, 0), Vector2(4, 1)]
@@ -335,11 +345,12 @@ func _animate() -> float:
 	var sim: Sim = world.sim
 	if sim == null:
 		return 0.0
+	var drift := DRIFT if bool(Profile.setting("shake")) else 0.0
 	if sim != _field:
 		_field = sim
 		_t = 0.0
 		_last = main.clock
-		_eye = sim.commander.pos
+		_eye = start_eye(sim.terrain, world.atlas, sim.commander.pos, 1 + sim.soldiers.size(), drift, _buttons_end)
 		_gone = Ui.view.x / 2.0 + 40.0
 		_pass = -1
 	# Time spent in the settings does not count, so the field does not leap on the way back.
@@ -347,7 +358,6 @@ func _animate() -> float:
 	_last = main.clock
 	_t += dt
 	sim.time = _t
-	var drift := DRIFT if bool(Profile.setting("shake")) else 0.0
 	_eye.x += drift * dt
 	_gone += (PACE + drift) * dt
 	world.eye_sim = sim
@@ -357,7 +367,7 @@ func _animate() -> float:
 
 
 ## The legion in a column marching left under the buttons, coming round again once the last man has passed,
-## each time along the line with the fewest trees and rocks in its way, and staying away while every line crosses a ravine.
+## each time along the line with the least of it behind trees and the fewest rocks in its way, and staying away while every line crosses a ravine.
 func _march(sim: Sim, eye: Vector2, t: float, drift: float) -> void:
 	var men: Array = [sim.commander] + sim.soldiers
 	var span := Ui.view.x + 80.0 + men.size() * COLUMN_GAP
@@ -366,8 +376,8 @@ func _march(sim: Sim, eye: Vector2, t: float, drift: float) -> void:
 	var foot := eye.y + Ui.view.y / 2.0
 	if pass_n != _pass:
 		_pass = pass_n
-		var room := Ui.view.y - (_buttons_end + Ui.offset.y) - 34.0
-		_lift = _open_line(sim.terrain, head - PACE * span / (PACE + drift) - 20.0, head + men.size() * COLUMN_GAP + 20.0, foot, room)
+		var route := _route(head, span, men.size(), drift)
+		_lift = _open_line(sim.terrain, main.world.atlas, route.x, route.y, foot, _room(_buttons_end)).x
 	for i in men.size():
 		var u: Dictionary = men[i]
 		u.pos = Vector2(head + i * COLUMN_GAP, foot - _lift if _lift >= 0.0 else foot + 200.0)
@@ -376,24 +386,91 @@ func _march(sim: Sim, eye: Vector2, t: float, drift: float) -> void:
 		u.anim = t * 8.0
 
 
-## How far above `foot` the column marches between `from` and `to`, at most `highest`: the lowest of a few lines with
-## the fewest props on it or just in front of it, or -1 when every line crosses a ravine or a canal or there is no room under the buttons.
-static func _open_line(terrain: Terrain, from: float, to: float, foot: float, highest: float) -> float:
-	var best := -1.0
-	var fewest := 50
+## Where the camera starts: as near `at` as lets the column's first passes march with nothing tall in front of them.
+static func start_eye(terrain: Terrain, atlas: Atlas, at: Vector2, men: int, drift: float, buttons_end: float) -> Vector2:
+	var best := at
+	var most := 0
+	var tries := START_TRIES
+	for i in START_SHIFTS.x * 2 + 1:
+		for j in START_SHIFTS.y * 2 + 1:
+			var eye := at + Vector2(_nth_shift(i) * START_STEP.x, _nth_shift(j) * START_STEP.y)
+			var clear := _clear_passes(terrain, atlas, eye, men, drift, buttons_end, START_PASSES if tries > 0 else 1)
+			tries -= clear + 1
+			if clear == START_PASSES:
+				return eye
+			if clear > most:
+				most = clear
+				best = eye
+			if tries <= 0 and most > 0:
+				return best
+	return best
+
+
+## How many of the column's first `passes` passes, counted from the first, find a line with nothing tall in front when the camera starts at `eye`.
+static func _clear_passes(terrain: Terrain, atlas: Atlas, eye: Vector2, men: int, drift: float, buttons_end: float, passes: int) -> int:
+	var span := Ui.view.x + 80.0 + men * COLUMN_GAP
+	for k in passes:
+		# The first pass sets off with its head in the middle of the screen, and each later one from just past the right edge.
+		var head := eye.x
+		if k > 0:
+			head += drift * (k * span - Ui.view.x / 2.0 - 40.0) / (PACE + drift) + Ui.view.x / 2.0 + 40.0
+		var route := _route(head, span, men, drift)
+		var line := _open_line(terrain, atlas, route.x, route.y, eye.y + Ui.view.y / 2.0, _room(buttons_end))
+		if line.x < 0.0 or line.y > 0.0:
+			return k
+	return passes
+
+
+## The steps of the `i`th trial start from the commander: 0, 1, -1, 2, -2 and so on.
+static func _nth_shift(i: int) -> float:
+	return ceili(i / 2.0) * (1.0 if i % 2 == 1 else -1.0)
+
+
+## The stretch of field, as its left and right ends, that the column crosses on a pass setting off with its head at `head` while the camera drifts.
+static func _route(head: float, span: float, men: int, drift: float) -> Vector2:
+	return Vector2(head - PACE * span / (PACE + drift) - 20.0, head + men * COLUMN_GAP + 20.0)
+
+
+## The highest above the foot of the screen the column may march and still keep below the buttons.
+static func _room(buttons_end: float) -> float:
+	return Ui.view.y - (buttons_end + Ui.offset.y) - 34.0
+
+
+## The line between `from` and `to` with the least of it behind trees, rocks and houses in front, then the fewest props on it, then the lowest, as how far above `foot`
+## it lies (at most `highest`, or -1 when every line crosses a ravine or a canal or there is no room under the buttons) and how much of it lies behind them.
+static func _open_line(terrain: Terrain, atlas: Atlas, from: float, to: float, foot: float, highest: float) -> Vector2:
+	var lifts := []
 	var lift := 14.0
 	while lift <= highest:
-		var band := Rect2(from, foot - lift - 10.0, to - from, 44.0)
+		if terrain.ravines_in(Rect2(from, foot - lift - 10.0, to - from, 44.0)).is_empty():
+			lifts.append(lift)
+		lift += 8.0
+	if lifts.is_empty():
+		return Vector2(-1.0, 0.0)
+	# Each prop as its foot, whether it stands taller than a man, and the middle of its picture.
+	var near := []
+	var area := Rect2(from - 60.0, foot - highest - 10.0, to - from + 120.0, highest + 130.0)
+	for pr in terrain.props_in(area):
+		if pr[0] == "" or not area.has_point(pr[1]) or pr[0] in GROUND:
+			continue
+		var f: Array = atlas.prop_frame(pr[0])
+		var tall: bool = pr[0] != "log" and f[0].size.y > 26.0
+		near.append([pr[1], tall, WORLD_VIEW._solid_part(Rect2(pr[1] - f[1], f[0].size))])
+	var best := Vector2(-1.0, 0.0)
+	var fewest := 0
+	for at: float in lifts:
+		var band := Rect2(from, foot - at - 10.0, to - from, 44.0)
+		var men := Rect2(from - 5.0, foot - at - 26.0, to - from + 10.0, 26.0)
+		var hidden := 0.0
 		var n := 0
-		for pr in terrain.props_in(band):
-			if pr[0] != "" and band.has_point(pr[1]) and not pr[0] in ["dune", "bog", "heather", "dry_grass"]:
+		for p in near:
+			if p[1] and p[0].y > foot - at and p[2].intersects(men):
+				hidden += p[2].intersection(men).size.x
+			elif band.has_point(p[0]):
 				n += 1
-		if not terrain.ravines_in(band).is_empty():
-			n += 50
-		if n < fewest:
+		if best.x < 0.0 or hidden < best.y or hidden == best.y and n < fewest:
+			best = Vector2(at, hidden)
 			fewest = n
-			best = lift
-		lift += 16.0
 	return best
 
 
