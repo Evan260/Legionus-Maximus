@@ -6074,6 +6074,15 @@ func test_horses_follow_the_legion_into_the_fort(b: Dictionary) -> void:
 	check(t.objectives.in_fort(late.pos, t), "a rider out on a charge when the run is won rides back in for the triumph")
 
 
+func test_the_victory_banner_shrinks_its_word_to_fit_the_wreaths_beside_it(_b: Dictionary) -> void:
+	var word := "VICTORY"
+	var beside := 38.0
+	check(Hud.victory_banner_size(word, 640.0, beside) == Ui.px * 5, "the word keeps five times the text size on a wide view")
+	var narrow := Ui.width_at(word, Ui.px * 5) + 2.0 * beside
+	var size := Hud.victory_banner_size(word, narrow, beside)
+	check(size < Ui.px * 5 and Ui.width_at(word, size) + 2.0 * beside <= narrow - 24.0, "on a narrow view it shrinks so the word and both wreaths fit (%d)" % size)
+
+
 func test_a_victory_opens_with_a_reveal_that_counts_the_denarii(b: Dictionary) -> void:
 	var s := _won_sim(b, 1653)
 	s.win(s.commander.pos)

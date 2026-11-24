@@ -560,23 +560,35 @@ func _god_banner(sim: Sim) -> void:
 	draw_string(Ui.font(), Vector2(0, y), name, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x, size, Color(GOLD_LIGHT, a))
 
 
-## The great VICTORY across the field while the legion holds its triumph, between two laurels, with the province's name below.
+## The great VICTORY across the field while the legion holds its triumph, between two laurel wreaths, with the province's name below.
 func _victory_banner(sim: Sim) -> void:
 	if sim.triumph_left <= 0.0 or main.state != "play":
 		return
 	var a := clampf(sim.triumph_t * 3.0, 0.0, 1.0)
 	var grow := 1.0 + 0.25 * (1.0 - clampf(sim.triumph_t * 2.5, 0.0, 1.0))
-	var size := int(Ui.px * 5 * grow)
 	var word := tr("Victory").to_upper()
+	var wreath := LAUREL.get_size() * Ui.scale
+	var gap := 6.0 * Ui.scale
+	var settled := victory_banner_size(word, Ui.view.x, wreath.x + gap)
+	var size := int(settled * grow)
 	var y := Ui.view.y * 0.3
 	var w := Ui.font().get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 	draw_rect(Rect2(0, y - size * 1.1, Ui.view.x, size * 1.6 + Ui.leading()), Color(INK, 0.45 * a))
 	draw_string(Ui.font(), Vector2(4, y + 4), word, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x, size, Color(INK, a))
 	draw_string(Ui.font(), Vector2(0, y), word, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x, size, Color(GOLD_LIGHT, a))
 	for side in [-1.0, 1.0]:
-		_laurel(Vector2(Ui.view.x / 2.0 + side * (w / 2.0 + 22.0), y - size * 0.35))
+		var at := Vector2(Ui.view.x / 2.0 + side * (w / 2.0 + gap + wreath.x / 2.0), y - size * 0.35)
+		draw_texture_rect(LAUREL, Rect2((at - wreath / 2.0).round(), wreath), false, Color(1, 1, 1, a))
 	var line := tr("%s is won") % str(sim.content.provinces[sim.province].name)
 	draw_string(Ui.font(), Vector2(0, y + Ui.leading() + Ui.px * 0.6), line.to_upper(), HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x, Ui.px, Color(CREAM, a))
+
+
+## The size the victory banner's word settles at: five times the text size, smaller when the word and a wreath of `beside` px either side would not fit across the view.
+static func victory_banner_size(word: String, view_w: float, beside: float) -> int:
+	var size := Ui.px * 5
+	while size > Ui.px * 2 and Ui.width_at(word, size) + 2.0 * beside > view_w - 24.0:
+		size -= 1
+	return size
 
 
 ## Whether the chieftain's fall is written across the screen.
