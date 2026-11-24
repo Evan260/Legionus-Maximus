@@ -8827,7 +8827,11 @@ func test_dacia_is_snowy_mountains_with_pines_rocks_and_ice(b: Dictionary) -> vo
 	check(kinds.has("pine") and kinds.has("rock"), "the mountains hold pines and rocks (%s)" % str(kinds.keys()))
 	check(not kinds.has("oak") and not kinds.has("fir") and not kinds.has("log"), "and none of Germania's oaks, firs or logs")
 	check(int(kinds.get("rock", 0)) > int(forest.get("rock", 0)), "more rock than Germania (%d against %d)" % [kinds.get("rock", 0), forest.get("rock", 0)])
-	check(int(kinds.get("pine", 0)) > int(forest.get("fir", 0)) + int(forest.get("oak", 0)), "and more trees in its ridges (%d against %d)" % [kinds.get("pine", 0), int(forest.get("fir", 0)) + int(forest.get("oak", 0))])
+	# The ice clears the trees along its banks, so the ridges are counted on the same mountains without it.
+	var dry := Terrain.new(941, b.forest, b.ravines)
+	dry.mountain = b.mountains.dacia
+	var pines := dry.props_in(area).filter(func(pr: Array) -> bool: return pr[0] == "pine").size()
+	check(pines > int(forest.get("fir", 0)) + int(forest.get("oak", 0)), "and more trees in its ridges (%d against %d)" % [pines, int(forest.get("fir", 0)) + int(forest.get("oak", 0))])
 	var streams := t.streams_in(area)
 	check(streams.size() >= 4, "frozen streams wind across the field (%d)" % streams.size())
 	check(g.streams_in(area).is_empty(), "and Germania has none")
@@ -8842,6 +8846,51 @@ func test_dacia_is_snowy_mountains_with_pines_rocks_and_ice(b: Dictionary) -> vo
 			for i in range(0, piece.pts.size(), 4):
 				clear = clear and t.ravine_edge(piece.pts[i], 400.0) > piece.half[i]
 	check(clear, "and no stream runs into a ravine")
+
+
+func test_dacias_frozen_streams_wind_a_long_way(b: Dictionary) -> void:
+	var cfg: Dictionary = b.streams.dacia
+	var lengths: Array = []
+	var bends: Array = []
+	var widths: Array = []
+	var tapered := 0
+	var coiled := 0
+	var by_start := 0
+	for sd in [951, 952, 953, 954]:
+		var t := Terrain.new(sd, b.forest, b.ravines)
+		t.mountain = b.mountains.dacia
+		t.stream_cfg = cfg
+		for st in t.streams_in(Rect2(-5000, -5000, 10000, 10000)):
+			for piece in st.pieces:
+				var pts: PackedVector2Array = piece.pts
+				var length := 0.0
+				for i in range(1, pts.size()):
+					length += pts[i].distance_to(pts[i - 1])
+				lengths.append(length)
+				bends.append(length / pts[0].distance_to(pts[pts.size() - 1]))
+				var mid: float = piece.half[pts.size() / 2]
+				widths.append(mid * 2.0)
+				if piece.half[0] < mid * 0.5 and piece.half[pts.size() - 1] < mid * 0.5:
+					tapered += 1
+				for i in pts.size():
+					if pts[i].length() < float(cfg.start_clear):
+						by_start += 1
+				# Two parts of one stream a long way apart along it never come near each other, so no stream loops back on itself.
+				for i in range(0, pts.size(), 3):
+					for j in range(i + 40, pts.size(), 3):
+						if pts[i].distance_to(pts[j]) < piece.half[i] + piece.half[j] + 40.0:
+							coiled += 1
+	var n := lengths.size()
+	var mean_length: float = lengths.reduce(func(a: float, x: float) -> float: return a + x, 0.0) / maxi(n, 1)
+	var mean_bend: float = bends.reduce(func(a: float, x: float) -> float: return a + x, 0.0) / maxi(n, 1)
+	var mean_width: float = widths.reduce(func(a: float, x: float) -> float: return a + x, 0.0) / maxi(n, 1)
+	check(n >= 12, "streams wind across the field (%d)" % n)
+	check(mean_length > 2000.0 and lengths.min() > 1600.0, "a stream runs a long way (mean %.0f px, shortest %.0f)" % [mean_length, lengths.min() if n > 0 else 0.0])
+	check(mean_width > 80.0 and widths.max() > 105.0 and widths.max() <= float(cfg.width[1]), "and is a little wider than a file of men (mean %.0f px, widest %.0f)" % [mean_width, widths.max() if n > 0 else 0.0])
+	check(mean_bend > 1.08, "winding as it goes (%.2f times the straight line)" % mean_bend)
+	check(coiled == 0, "without looping back on itself (%d)" % coiled)
+	check(tapered == n, "and narrowing at both ends (%d of %d)" % [tapered, n])
+	check(by_start == 0, "and none comes near the start")
 
 
 func test_the_legion_slides_on_ice(b: Dictionary) -> void:

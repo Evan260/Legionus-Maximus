@@ -1813,13 +1813,27 @@ func _gorge_line(r: RandomNumberGenerator, inner: Rect2, cfg: Dictionary) -> Dic
 	var turn := r.randf_range(-1.0, 1.0) * max_turn
 	var line := PackedVector2Array([Vector2.ZERO])
 	var p := Vector2.ZERO
+	var course := heading
+	var meander := float(cfg.get("meander", 0.0))
 	for i in int(length / ds):
-		turn = clampf(turn + r.randf_range(-1.0, 1.0) * float(cfg.wander) * ds, -max_turn, max_turn)
+		turn += r.randf_range(-1.0, 1.0) * float(cfg.wander) * ds
+		# A long stream is drawn back towards the way it set out, so it winds from side to side instead of curling up.
+		if meander > 0.0:
+			turn -= (heading - course) * meander * ds
+		turn = clampf(turn, -max_turn, max_turn)
 		heading += turn * ds
 		p += Vector2.from_angle(heading) * ds
 		line.append(p)
 	var centre := Vector2(r.randf_range(inner.position.x, inner.end.x), r.randf_range(inner.position.y, inner.end.y))
 	var shift := centre - (line[0] + line[line.size() - 1]) / 2.0
+	if meander > 0.0:
+		# A line nearly as long as its room is placed where it fits, rather than anywhere its middle could lie.
+		var extent := Rect2(line[0], Vector2.ZERO)
+		for q in line:
+			extent = extent.expand(q)
+		var room := inner.size - extent.size
+		var at := inner.position + Vector2(r.randf() * maxf(room.x, 0.0) + minf(room.x, 0.0) / 2.0, r.randf() * maxf(room.y, 0.0) + minf(room.y, 0.0) / 2.0)
+		shift = at - extent.position
 	var taper := float(cfg.end_taper)
 	var end_w := float(cfg.end_width)
 	var cut_from := INF
