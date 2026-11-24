@@ -56,6 +56,7 @@ var state := "title":
 	set(value):
 		state = value
 		_picked = ""
+		banishing = false
 var choices: Array = []
 var selected := 0
 ## The march an autoplay look holds to instead of circling, or INF.
@@ -89,6 +90,8 @@ var _back_at := -100000
 var _fingers := {}
 ## The button or choice row a tap last picked out, so a second tap on it acts; a new screen or choice starts with none.
 var _picked := ""
+## Whether the Banish button has readied a banish for the next row clicked, since the pointer picks out other rows on its way to the button.
+var banishing := false
 ## The volume whose bar the mouse is holding, empty when none is.
 var _sliding := ""
 ## Whether the phone's text size has been settled, which waits for the screen's size to be known.
@@ -729,6 +732,8 @@ func _process(dt: float) -> void:
 		"choose":
 			if args.has("autoplay") and clock > 0.5 and not args.has("hold-choice"):
 				_take(0)
+			elif banishing and Input.is_action_just_pressed("back"):
+				banishing = false
 			elif Input.is_action_just_pressed("up") or Input.is_action_just_pressed("left"):
 				selected = posmod(selected - 1, choices.size())
 			elif Input.is_action_just_pressed("down") or Input.is_action_just_pressed("right"):
@@ -776,6 +781,7 @@ func _press(id: String) -> void:
 	choices = after.choices
 	selected = after.selected
 	_picked = ""
+	banishing = false
 
 
 ## Leaves the gods' choice for later, with the favour kept.
@@ -1058,13 +1064,19 @@ func _pointer(event: InputEvent, at: Vector2) -> void:
 		return
 	if not Game.choosing(state):
 		return
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+	if event is InputEventMouseMotion:
+		var i: int = hud.choice_at(at)
+		if i >= 0:
+			selected = i
+	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		_click_choice(at)
 
 
 ## A right click steps back as Escape does, so the mouse alone can leave every screen and put off the gods.
 func _right_click() -> void:
-	if state == "over" and screens.over.revealing():
+	if banishing:
+		banishing = false
+	elif state == "over" and screens.over.revealing():
 		if Game.confirm_allowed(state, opened_at, clock, balance):
 			screens.over.skip()
 	elif state == "pray":
@@ -1073,7 +1085,7 @@ func _right_click() -> void:
 		_back()
 
 
-## A click on a choice: a reroll or banish button, or a row, which the pointer passing over never picks out, so a banish hits the row clicked.
+## A click on a choice takes the row under it or presses reroll or banish; Banish readies a banish for the row the next click lands on.
 func _click_choice(at: Vector2) -> void:
 	var button := ""
 	if state == "choose" and Hud.shows_choice_panel(false, Ui.scale > 1):
@@ -1083,16 +1095,24 @@ func _click_choice(at: Vector2) -> void:
 		for id in buttons:
 			if buttons[id].has_point(at):
 				button = id
+	var i: int = hud.choice_at(at)
+	if banishing:
+		banishing = false
+		if i >= 0:
+			selected = i
+			_banish()
+		if i >= 0 or button == "banish":
+			return
 	match button:
 		"reroll":
 			_reroll()
 			return
 		"banish":
-			_banish()
+			banishing = true
+			Audio.play("click")
 			return
-	var i: int = hud.choice_at(at)
-	if i >= 0:
-		_pick_row(i)
+	if i >= 0 and Game.confirm_allowed(state, opened_at, clock, balance):
+		_take_row(i)
 
 
 ## Follows each finger on a screen: a finger lifted where it landed taps, and one dragged up or down scrolls a list.
@@ -1187,7 +1207,7 @@ func _tap_choice(at: Vector2) -> void:
 		_pick_row(i)
 
 
-## A choice row is picked out by a first click or tap and taken by a second on it, once the choice has been open long enough.
+## A choice row is picked out by a first tap and taken by a second on it, once the choice has been open long enough.
 func _pick_row(i: int) -> void:
 	var id := "choice:%d" % i
 	if Touch.tap_acts(state, id, _picked):
@@ -1229,3 +1249,4 @@ func _bench() -> void:
 	var ms := spent / 1000.0 / frames
 	print("BENCH %d enemies, %d soldiers: %.2f ms per update, worst %.2f ms" % [s.horde.e_pos.size(), s.soldiers.size(), ms, worst / 1000.0])
 	get_tree().quit()
+

@@ -12800,29 +12800,59 @@ func _mouse_click(m: Node, at: Vector2, button := MOUSE_BUTTON_LEFT) -> void:
 	m._pointer(up, at)
 
 
+func test_a_click_takes_a_choice_and_the_pointer_picks_it_out(b: Dictionary) -> void:
+	var before := Ui.scale
+	Ui.set_text_size(1, b)
+	var rows := Hud.choice_rows(3, false)
+	var m := _bare_main(b, rows)
+	m.sim = _quiet_sim(b, 4407)
+	m.sim.gain(m.sim.xp_next - m.sim.xp)
+	m._open_choices()
+	m.clock = 5.0
+	_mouse_motion(m, rows[2].get_center())
+	check(m.selected == 2, "the pointer over a row picks it out, so the panel tells of it")
+	_mouse_click(m, rows[1].get_center())
+	check(m.state == "play", "one click on a row takes it")
+	_free_main(m)
+	Ui.set_text_size(before, b)
+
+
 func test_banishing_with_the_mouse_banishes_the_row_clicked(b: Dictionary) -> void:
 	var before := Ui.scale
 	Ui.set_text_size(1, b)
 	var rows := Hud.choice_rows(3, false)
 	var m := _bare_main(b, rows)
 	m.sim = _quiet_sim(b, 4402)
-	m.sim.banishes = 2
+	m.sim.banishes = 3
 	m.sim.gain(m.sim.xp_next - m.sim.xp)
 	m._open_choices()
 	m.clock = 5.0
 	var banish: Rect2 = Hud.choice_panel_buttons().banish
 	for p in [rows[0].get_center(), Vector2(rows[-1].end.x - 10.0, rows[-1].get_center().y), banish.get_center()]:
 		_mouse_motion(m, p)
-	check(m.selected == 0, "the pointer passing over the rows picks nothing out (%d)" % m.selected)
-	_mouse_click(m, rows[1].get_center())
-	check(m.state == "choose" and m.selected == 1, "a click on a row picks it out and takes nothing")
-	var want: String = m.choices[1]
-	_mouse_motion(m, Vector2(rows[-1].end.x - 10.0, rows[-1].get_center().y))
 	_mouse_click(m, banish.get_center())
-	check(m.sim.banished == [want], "the banish button banishes the row clicked (%s, not %s)" % [want, m.sim.banished])
-	_mouse_click(m, rows[0].get_center())
-	_mouse_click(m, rows[0].get_center())
-	check(m.state == "play", "a second click on a picked row takes it")
+	check(m.banishing and m.sim.banished.is_empty(), "the banish button readies a banish and banishes nothing yet")
+	var want: String = m.choices[1]
+	_mouse_click(m, rows[1].get_center())
+	check(m.sim.banished == [want] and m.state == "choose" and not m.banishing, "the next click banishes the row clicked (%s, not %s) and takes nothing" % [want, m.sim.banished])
+	_mouse_click(m, banish.get_center())
+	_mouse_click(m, Vector2(4, 4))
+	check(not m.banishing and m.sim.banished.size() == 1, "a click elsewhere puts the banish away")
+	_mouse_click(m, banish.get_center())
+	_mouse_click(m, Vector2(4, 4), MOUSE_BUTTON_RIGHT)
+	check(not m.banishing and m.state == "choose", "and so does a right click, which leaves the choice open")
+	_mouse_click(m, banish.get_center())
+	Input.action_press("back")
+	m._process(0.0)
+	Input.action_release("back")
+	check(not m.banishing and m.state == "choose", "and so does Back")
+	_mouse_click(m, banish.get_center())
+	_mouse_click(m, banish.get_center())
+	check(not m.banishing, "and a second click on the button")
+	m.selected = 0
+	var key_want: String = m.choices[0]
+	m._banish()
+	check(m.sim.banished.has(key_want), "the banish key still banishes the row picked out")
 	_free_main(m)
 	Ui.set_text_size(before, b)
 
@@ -12850,10 +12880,10 @@ func test_large_text_on_a_computer_rerolls_and_banishes_with_the_mouse(b: Dictio
 	var first: Array = m.choices.duplicate()
 	_mouse_click(m, buttons.reroll.get_center())
 	check(m.sim.rerolls == 0 and m.choices != first, "a click on the reroll button rerolls")
-	_mouse_click(m, lay.rows[2].get_center())
 	var want: String = m.choices[2]
 	_mouse_click(m, Hud.big_choice_buttons(m.sim).banish.get_center())
-	check(m.sim.banished == [want], "a click on the banish button banishes the row clicked (%s)" % [m.sim.banished])
+	_mouse_click(m, lay.rows[2].get_center())
+	check(m.sim.banished == [want], "the banish button, then a click on a row, banishes that row (%s)" % [m.sim.banished])
 	check(Hud.big_choice_buttons(m.sim).is_empty(), "with none left there are no buttons")
 	_free_main(m)
 	Ui.fit_view(before_view)

@@ -1172,21 +1172,15 @@ func _choices(sim: Sim) -> void:
 	if not big:
 		text(tr("Call one") if praying else tr("Choose one"), Vector2(0, ROW_TOP - 10.0), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W)
 	choice_rects.clear()
-	# The row under the mouse lights up, but only a click picks it out.
-	var under := -1
-	if not Touch.phone:
-		var mouse := get_local_mouse_position() - Ui.offset
-		for i in n:
-			if rows[i].has_point(mouse):
-				under = i
+	var banishing: bool = main.banishing
 	for i in n:
 		var id: String = main.choices[i]
 		var r: Rect2 = rows[i]
 		choice_rects.append(r)
 		var picked: bool = i == main.selected
 		if picked:
-			draw_rect(r.grow(3), GOLD)
-		panel(r, CREAM if picked or i == under else PARCH)
+			draw_rect(r.grow(3), RED if banishing else GOLD)
+		panel(r, CREAM if picked else PARCH)
 		var info: Dictionary = sim.content.gods[id] if praying else (supply_row(sim, id) if supply else sim.content.upgrade(id))
 		var icon := supply_icon(id) if supply else icon_of(id)
 		var side: float = lay.icon if big else ROW_ICON
@@ -1195,6 +1189,10 @@ func _choices(sim: Sim) -> void:
 		var area := row_text(r, big)
 		var words := _description(sim, id, praying)
 		var right := tr("God").to_upper() if praying else ("" if supply else Upgrades.level_text(sim, id))
+		# A readied banish marks every row with the word, so the click that follows plainly banishes.
+		if banishing:
+			right = tr("banish").to_upper()
+			draw_rect(r, Color(RED, 0.12))
 		var name_y: float
 		if big:
 			var fit := Ui.block(words, area.size.x, lay.lines)
@@ -1286,9 +1284,10 @@ func _big_choice_buttons(sim: Sim) -> void:
 	var over := get_local_mouse_position() - Ui.offset
 	for id in buttons:
 		var r: Rect2 = buttons[id]
-		if r.has_point(over):
-			draw_rect(r.grow(2), GOLD)
-		panel(r, PARCH)
+		var armed: bool = id == "banish" and main.banishing
+		if armed or r.has_point(over):
+			draw_rect(r.grow(2), RED if armed else GOLD)
+		panel(r, CREAM if armed else PARCH)
 		ui.fit_text(self, choice_button_label(sim, id), r.size.x - 12.0, Vector2(r.position.x, r.position.y + r.size.y / 2.0 + Ui.px * 3 / 8), INK, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
 
 
@@ -1493,9 +1492,10 @@ func draw_choice_panel(sim: Sim, id: String) -> void:
 	for b in buttons:
 		var br: Rect2 = buttons[b]
 		var live := choice_button_at(sim, br.get_center()) != ""
-		if live and br.has_point(over):
-			draw_rect(br.grow(2), GOLD)
-		panel(br, PARCH if live else Color(PARCH_DARK, 0.45))
+		var armed: bool = b == "banish" and main.banishing
+		if armed or (live and br.has_point(over)):
+			draw_rect(br.grow(2), RED if armed else GOLD)
+		panel(br, CREAM if armed else (PARCH if live else Color(PARCH_DARK, 0.45)))
 		text(choice_button_label(sim, b), Vector2(br.position.x, br.position.y + floorf((br.size.y + Ui.px) / 2.0) - 1.0), INK if live else Color(INK, 0.5), HORIZONTAL_ALIGNMENT_CENTER, br.size.x, false)
 
 
