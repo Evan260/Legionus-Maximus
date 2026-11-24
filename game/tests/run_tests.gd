@@ -12617,6 +12617,26 @@ func test_with_blood_off_a_kill_leaves_no_stain_or_spray(b: Dictionary) -> void:
 	check(ProfileScript.SETTING_DEFAULTS.blood == true, "blood is on by default")
 
 
+func test_turning_blood_off_washes_away_what_is_there(b: Dictionary) -> void:
+	var s := Sim.new(b, content, {"seed": 4})
+	s.terrain.clear()
+	for k in 3:
+		s.horde.spawn("barbarian_club", Vector2(150 + k * 20, 0))
+	for k in 3:
+		s.hit(0, 999.0)
+		s._remove_dead()
+	check(s.stains_alive() == 3 and _death_of(s).blood == true, "three kills leave stains and spray blood")
+	s.blood = false
+	check(s.stains_alive() == 0 and s.stain_pos.is_empty(), "turning blood off takes every stain away at once")
+	check(s.effects.all(func(e: Dictionary) -> bool: return e.get("blood", false) == false), "and the falling men spray no more blood")
+	s.blood = true
+	check(s.stains_alive() == 0, "turning it on again brings none back")
+	s.horde.spawn("barbarian_club", Vector2(300, 0))
+	s.hit(0, 999.0)
+	s._remove_dead()
+	check(s.stains_alive() == 1, "and the next kill stains the ground again")
+
+
 func test_a_boss_falls_harder_than_an_ordinary_barbarian(b: Dictionary) -> void:
 	var cfg: Dictionary = b.deaths
 	var s := Sim.new(b, content, {"seed": 4})

@@ -128,8 +128,12 @@ var damage_by_source: Dictionary:
 var history: Array = []
 var numbers: Array = []
 var show_numbers := false
-## The player's blood setting: with it off a kill sprays no blood and leaves no stain.
-var blood := true
+## The player's blood setting: with it off a kill sprays no blood and leaves no stain, and turning it off washes away what is there.
+var blood := true:
+	set(on):
+		blood = on
+		if not on:
+			_wash_blood()
 var shake := 0.0
 ## How far the screen shakes, in pixels, while it shakes harder than `shake.pixels`; 0 for the usual.
 var shake_pixels := 0
@@ -1279,6 +1283,20 @@ func flash() -> float:
 		return 0.0
 	var since := float(cfg.slow_seconds) - slow_left
 	return clampf(1.0 - since / float(cfg.flash_seconds), 0.0, 1.0)
+
+
+## Takes every stain off the ground and turns the blood of men still falling into dust.
+func _wash_blood() -> void:
+	stain_pos.clear()
+	stain_dir.clear()
+	stain_born.clear()
+	stain_life.clear()
+	stain_size.clear()
+	stain_seed.clear()
+	_stain_next = 0
+	for e in effects:
+		if e.get("blood", false):
+			e.blood = false
 
 
 ## Lays a stain on the ground unless it would hang over a gorge or canal, writing over the oldest once the cap is reached.
