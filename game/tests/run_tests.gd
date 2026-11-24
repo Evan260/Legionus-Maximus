@@ -4788,6 +4788,23 @@ func test_title_how_to_play_is_a_short_grid(b: Dictionary) -> void:
 	Ui.set_text_size(before, b)
 
 
+func test_the_titles_goal_on_two_lines_breaks_evenly(b: Dictionary) -> void:
+	var before := Ui.scale
+	var lopsided := []
+	for scale in [1, 2]:
+		Ui.set_text_size(scale, b)
+		for phone in [false, true]:
+			Touch.phone = phone
+			var g := TitleScreen.grid(b)
+			if g.goal.size() == 2:
+				var widths: Array = g.goal.map(func(l: String) -> float: return Ui.width_at(l, g.goal_size))
+				if minf(widths[0], widths[1]) < 0.5 * maxf(widths[0], widths[1]):
+					lopsided.append("x%d phone %s: %s" % [scale, phone, g.goal])
+	Touch.phone = false
+	Ui.set_text_size(before, b)
+	check(lopsided.is_empty(), "the goal's two lines are about as long as each other (%s)" % [lopsided])
+
+
 func test_title_goal_comes_from_the_balance(b: Dictionary) -> void:
 	check(str(int(float(b.chieftain_at) / 60.0)) in Game.goal_text(b) and "chieftain" in Game.goal_text(b), "the full game names the minutes to the chieftain")
 	Game.demo_forced = true

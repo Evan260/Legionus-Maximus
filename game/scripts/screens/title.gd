@@ -181,9 +181,25 @@ static func grid(balance: Dictionary) -> Dictionary:
 		size = mini(size, Ui.block(cell.label, cell.room, cell.lines).size)
 	var goal_width := box.size.x - pad * 2.0
 	var goal_size: int = Ui.block(goal, goal_width, 2).size
-	var goal_lines := Ui.lines_of(goal, goal_width, goal_size)
+	var goal_lines := even_lines(goal, goal_width, goal_size)
 	box.size.y = y - box.position.y + 1.0 + gap + goal_lines.size() * Ui.lead_for(goal_size) + pad - 2.0
 	return {"box": box, "cells": cells, "size": size, "rule_y": y, "goal": goal_lines, "goal_size": goal_size, "goal_y": y + 1.0 + gap, "goal_width": goal_width}
+
+
+## A text wrapped to `width`, and when it takes two lines, broken where the two come out about even rather than leaving a word alone below.
+static func even_lines(s: String, width: float, size: int) -> Array:
+	var lines := Ui.lines_of(s, width, size)
+	if lines.size() != 2:
+		return lines
+	var low := width / 2.0
+	var high := width
+	while high - low > 1.0:
+		var mid := (low + high) / 2.0
+		if Ui.lines_of(s, mid, size).size() <= 2:
+			high = mid
+		else:
+			low = mid
+	return Ui.lines_of(s, high, size)
 
 
 ## The narrowest a label of three words or more (six letters in Chinese and Japanese) can be set on two lines; a shorter one stays on one.
