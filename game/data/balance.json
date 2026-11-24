@@ -283,6 +283,7 @@
     "card_hold": 5.0,
     "card_slide": 0.35,
     "presence_every": 10.0,
-    "check_every": 1.0
+    "check_every": 1.0,
+    "progress_steps": 10
   }
 }

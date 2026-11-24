@@ -4,6 +4,9 @@ extends Node
 
 const HIDING_STATES := ["choose", "pray", "supply", "over", "pause", "settings"]
 const STORE_URL := "https://store.steampowered.com/app/%d"
+const KILLS_STAT := "kills"
+## Steam's code for a request that succeeded (k_EResultOK).
+const RESULT_OK := 1
 
 ## Sent when the player opens the Steam overlay, which draws over the game while its window keeps the focus.
 signal overlay_opened
@@ -17,6 +20,8 @@ var card: Dictionary = {}
 var card_age := 0.0
 ## True while a choice, the summary, the pause menu or the settings are open, so no card covers them.
 var blocked := false
+## What Steam's kill stat holds, or -1 until Steam has handed the stats over (and always without Steam).
+var kills_stat := -1
 var _presence := {}
 var _sent_at := -1000.0
 var _clock := 0.0
@@ -32,6 +37,7 @@ func _ready() -> void:
 	if int(started.get("status", -1)) == 0:
 		steam = found
 		steam.connect("overlay_toggled", _overlay_toggled)
+		_request_stats()
 		sync()
 	else:
 		print_verbose("Steam is not available: ", started.get("verbal", ""))
@@ -93,6 +99,48 @@ func _send(id: String) -> void:
 		steam.call("storeStats")
 
 
+## Asks Steam for the player's own stats, as GodotSteam reports them received only in answer to this request.
+func _request_stats() -> void:
+	steam.connect("user_stats_received", _stats_received)
+	steam.call("requestUserStats", steam.call("getSteamID"))
+
+
+func _stats_received(_game: int, result: int, user: int) -> void:
+	if steam and result == RESULT_OK and user == int(steam.call("getSteamID")):
+		kills_stat = int(steam.call("getUserStatInt", user, KILLS_STAT))
+
+
+## Every barbarian defeated: the larger of Steam's count and this save's, so a new save or a game without Steam loses nothing.
+func lifetime_kills() -> int:
+	return maxi(kills_stat, int(Profile.data.totals.kills))
+
+
+## Adds a finished run's kills to Steam's stat and shows each kill achievement's progress step; called before the profile banks the run.
+func bank_kills(kills: int) -> void:
+	if steam == null or kills_stat < 0:
+		return
+	# Counting on from the larger total brings the stat up to a save that counts more than Steam.
+	var before := lifetime_kills()
+	var after := before + kills
+	if not bool(steam.call("setStatInt", KILLS_STAT, after)):
+		return
+	kills_stat = after
+	steam.call("storeStats")
+	var steps := int(balance.steam.progress_steps)
+	for id in content_of().achievements:
+		var info: Dictionary = content_of().achievements[id]
+		var target := int(info.get("target", 0))
+		if info.get("kind", "") == "kills" and not Profile.data.achievements.has(id) and progress_due(before, after, target, steps):
+			steam.call("indicateAchievementProgress", id, after, target)
+
+
+## Whether going from `before` to `after` kills reaches a new one of the `steps` equal steps towards `target`, short of the target itself.
+static func progress_due(before: int, after: int, target: int, steps: int) -> bool:
+	if target <= 0 or steps <= 0 or after >= target:
+		return false
+	return after * steps / target > before * steps / target
+
+
 ## Earns an achievement: kept in the profile, queued as a card and sent to Steam. Does nothing when it is already earned.
 func unlock(id: String) -> bool:
 	if Profile.data.achievements.has(id) or not content_of().achievements.has(id):
@@ -124,7 +172,7 @@ func met(info: Dictionary, sim: Sim, banked: bool) -> bool:
 		"forged":
 			return sim.rank(str(target)) > 0
 		"kills":
-			return int(Profile.data.totals.kills) + (0 if banked else sim.kills) >= int(target)
+			return lifetime_kills() + (0 if banked else sim.kills) >= int(target)
 		"legion":
 			return maxi(sim.peak_soldiers, sim.soldiers.size()) + 1 >= int(target)
 		"maxed":

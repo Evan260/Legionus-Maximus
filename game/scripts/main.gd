@@ -619,6 +619,7 @@ func _finish_run() -> void:
 	state = "over"
 	opened_at = clock
 	ui.focus = "camp"
+	Steamworks.bank_kills(sim.kills)
 	Profile.record_run(sim)
 	Steamworks.check(sim, true)
 	if sim.victory and not sim.demo_over:

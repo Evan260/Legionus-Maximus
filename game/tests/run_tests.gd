@@ -3902,13 +3902,39 @@ func test_every_achievement_has_its_steam_icons_and_row(_b: Dictionary) -> void:
 
 class FakeSteam:
 	extends RefCounted
+	signal user_stats_received(game_id: int, result: int, user_id: int)
+	const ME := 76561190000000001
 	var sent: Array = []
+	var stats := {}
+	var stored := 0
+	var progress: Array = []
+	var requested: Array = []
+	var refuse := false
 
 	func setAchievement(id: String) -> void:
 		sent.append(id)
 
 	func storeStats() -> void:
-		pass
+		stored += 1
+
+	func getSteamID() -> int:
+		return ME
+
+	func requestUserStats(id: int) -> void:
+		requested.append(id)
+
+	func getUserStatInt(id: int, stat: String) -> int:
+		return int(stats.get(stat, 0)) if id == ME else 0
+
+	func setStatInt(stat: String, value: int) -> bool:
+		if refuse:
+			return false
+		stats[stat] = value
+		return true
+
+	func indicateAchievementProgress(id: String, now: int, most: int) -> bool:
+		progress.append([id, now, most])
+		return true
 
 
 func test_achievements_wait_in_the_profile_until_steam_is_there(b: Dictionary) -> void:
@@ -3925,6 +3951,78 @@ func test_achievements_wait_in_the_profile_until_steam_is_there(b: Dictionary) -
 	check(fake.sent.size() == 2 and "kills_1000" in fake.sent and "legion_25" in fake.sent, "sync sends every earned one")
 	Steamworks.steam = null
 	Steamworks.queue.clear()
+	Profile.data = saved
+
+
+func test_kill_achievements_count_the_larger_of_steam_and_the_save(b: Dictionary) -> void:
+	var saved: Dictionary = Profile.data
+	var was: int = Steamworks.kills_stat
+	Profile.data = Profile.defaults()
+	var s := Sim.new(b, content, {"seed": 30})
+	var thousand: Dictionary = content.achievements.kills_1000
+	Profile.data.totals.kills = 400
+	Steamworks.kills_stat = -1
+	check(not Steamworks.met(thousand, s, true) and Steamworks.lifetime_kills() == 400, "without Steam the save's total counts")
+	Steamworks.kills_stat = 1200
+	check(Steamworks.met(thousand, s, true) and Steamworks.lifetime_kills() == 1200, "Steam's count counts when it is the larger")
+	Steamworks.kills_stat = 300
+	Profile.data.totals.kills = 1100
+	check(Steamworks.met(thousand, s, true), "a smaller Steam count takes nothing from the save's")
+	Profile.data.totals.kills = 0
+	Steamworks.kills_stat = 900
+	s.kills = 100
+	check(Steamworks.met(thousand, s, false) and not Steamworks.met(thousand, s, true), "the run's kills are added while it is on")
+	Steamworks.kills_stat = was
+	Profile.data = saved
+
+
+func test_kill_progress_shows_at_each_step_towards_the_target(_b: Dictionary) -> void:
+	check(not Steamworks.progress_due(0, 99, 1000, 10), "nothing short of the first tenth")
+	check(Steamworks.progress_due(90, 100, 1000, 10), "shown on reaching a tenth")
+	check(not Steamworks.progress_due(100, 199, 1000, 10), "not again within the same tenth")
+	check(Steamworks.progress_due(150, 420, 1000, 10), "shown for a run that passes several tenths")
+	check(not Steamworks.progress_due(950, 1010, 1000, 10), "not when the run reaches the target, which earns it")
+	check(not Steamworks.progress_due(1200, 1300, 1000, 10), "not past the target")
+
+
+func test_a_finished_run_adds_its_kills_to_the_steam_stat(_b: Dictionary) -> void:
+	var saved: Dictionary = Profile.data
+	var was: int = Steamworks.kills_stat
+	Profile.data = Profile.defaults()
+	var fake := FakeSteam.new()
+	Steamworks.steam = fake
+	Steamworks.kills_stat = -1
+	Steamworks.bank_kills(50)
+	check(fake.stats.is_empty() and fake.stored == 0, "nothing is set before Steam hands over the stats")
+	Steamworks._request_stats()
+	check(fake.requested == [FakeSteam.ME], "the player's own stats are asked for at start-up")
+	fake.stats["kills"] = 940
+	fake.user_stats_received.emit(0, 1, FakeSteam.ME + 1)
+	check(Steamworks.kills_stat == -1, "another player's stats are not read")
+	fake.user_stats_received.emit(0, 2, FakeSteam.ME)
+	check(Steamworks.kills_stat == -1, "a failed read is not taken")
+	fake.user_stats_received.emit(0, 1, FakeSteam.ME)
+	check(Steamworks.kills_stat == 940, "the stat is read once Steam hands it over")
+	Profile.data.totals.kills = 300
+	Steamworks.bank_kills(120)
+	check(fake.stats.kills == 1060 and Steamworks.kills_stat == 1060 and fake.stored == 1, "a finished run's kills are added to the stat and stored")
+	check(fake.progress == [["kills_10000", 1060, 10000]], "progress shows for a target whose next tenth the run reached")
+	fake.progress.clear()
+	Profile.data.totals.kills = 5000
+	Steamworks.bank_kills(10)
+	check(fake.stats.kills == 5010 and fake.progress.is_empty(), "a save that counts more than Steam brings the stat up to it")
+	Profile.data.totals.kills = 5010
+	Profile.data.achievements.append("kills_10000")
+	Steamworks.bank_kills(1000)
+	check(fake.stats.kills == 6010 and fake.progress.is_empty(), "no progress shows for an achievement already earned")
+	fake.refuse = true
+	Steamworks.bank_kills(5)
+	check(Steamworks.kills_stat == 6010 and fake.stored == 3, "a stat Steam refuses is neither counted nor stored")
+	Steamworks.steam = null
+	Steamworks.kills_stat = -1
+	Steamworks.bank_kills(500)
+	check(fake.stats.kills == 6010 and Steamworks.kills_stat == -1, "nothing is sent without Steam")
+	Steamworks.kills_stat = was
 	Profile.data = saved
 
 
