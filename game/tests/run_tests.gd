@@ -8797,8 +8797,8 @@ func test_men_on_ice_slip_a_little_out_of_their_places(b: Dictionary) -> void:
 	var dry := _formation_slack(b, false, 3.0, 0.0)
 	var ice := _formation_slack(b, true, 3.0, 0.0)
 	check(dry[0] < 1.0, "off the ice the ranks hold their places (%.2f px)" % dry[0])
-	check(ice[0] > 2.0 and ice[1] > 0.8, "on the ice each man drifts his own way (mean %.1f px, spread %.1f)" % [ice[0], ice[1]])
-	check(ice[2] < 16.0, "but no man strays far from his place (%.1f px)" % ice[2])
+	check(ice[0] > 6.0 and ice[1] > 2.0, "on the ice each man drifts his own way (mean %.1f px, spread %.1f)" % [ice[0], ice[1]])
+	check(ice[2] < 24.0, "but no man strays more than a file and a half from his place (%.1f px)" % ice[2])
 	var settled := _formation_slack(b, true, 3.0, 6.0)
 	check(settled[0] < 2.0, "and once the legion stands, they find their places again (%.1f px)" % settled[0])
 
