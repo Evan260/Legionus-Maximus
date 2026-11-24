@@ -63,6 +63,8 @@ func activate(id: String) -> void:
 		main.go_to_title()
 	elif id == "wishlist":
 		Steamworks.open_store()
+	elif id == "unlock":
+		FullGame.buy()
 
 
 static func clock(seconds: float) -> String:
@@ -148,6 +150,31 @@ static func wide_button_width() -> float:
 	return maxf(150.0 if Ui.scale > 1 else 120.0, Ui.width_at(TranslationServer.translate("Wishlist").to_upper(), Ui.px) + 14.0)
 
 
+## The button beside Camp and Title when the demo's time limit ends a run: a phone's unlock, the Steam wishlist, or "" for none.
+static func store_button(sim: Sim, balance: Dictionary) -> String:
+	if not sim.demo_over:
+		return ""
+	if FullGame.locked():
+		return "unlock"
+	if int(balance.demo.store_app_id) > 0 and not Touch.phone and not FullGame.sold_here():
+		return "wishlist"
+	return ""
+
+
+static func store_label(id: String) -> String:
+	return (Ui.unlock_label() if id == "unlock" else TranslationServer.translate("Wishlist")).to_upper()
+
+
+## The width of that button: the wishlist's, or the unlock's as wide as its price needs, up to the room left of Camp.
+static func store_width(id: String) -> float:
+	if id == "":
+		return 0.0
+	if id == "wishlist":
+		return wide_button_width()
+	var most := Ui.frame_rect().size.x - 2.0 * button_width() - 40.0
+	return clampf(Ui.width_at(store_label(id), Ui.px) + 14.0, wide_button_width(), most)
+
+
 func draw(c: CanvasItem, ui: Ui) -> void:
 	var sim: Sim = main.sim
 	var s := Ui.scale
@@ -199,13 +226,14 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	var bw := button_width()
 	ui.button(c, Rect2(r.end.x - 12.0 - 2.0 * bw - 8.0, r.end.y - h - 6.0, bw, h), "camp", tr("Camp").to_upper(), "", true, null, true)
 	ui.button(c, Rect2(r.end.x - 12.0 - bw, r.end.y - h - 6.0, bw, h), "title", tr("Title").to_upper(), "", true, null, true)
-	if sim.demo_over and int(main.balance.demo.store_app_id) > 0 and not Touch.phone:
-		var wide := wide_button_width()
-		ui.button(c, Rect2(r.end.x - 12.0 - 2.0 * bw - 16.0 - wide, r.end.y - h - 6.0, wide, h), "wishlist", tr("Wishlist").to_upper(), "", true, null, true)
+	var store := store_button(sim, main.balance)
+	var wide := store_width(store)
+	if store != "":
+		ui.button(c, Rect2(r.end.x - 12.0 - 2.0 * bw - 16.0 - wide, r.end.y - h - 6.0, wide, h), store, store_label(store), "", true, null, true)
 	if Profile.last_save_failed:
 		var room := r.end.x - 12.0 - 2.0 * bw - 16.0 - lx
-		if sim.demo_over and int(main.balance.demo.store_app_id) > 0 and not Touch.phone:
-			room -= wide_button_width() + 8.0
+		if store != "":
+			room -= wide + 8.0
 		ui.fit_text(c, tr("Your progress could not be saved"), room, Vector2(lx, r.end.y - 6.0 - h / 2.0 + Ui.px / 2.0 - 1.0), Ui.RED)
 
 

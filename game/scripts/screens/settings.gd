@@ -29,7 +29,8 @@ static func toggles() -> Array:
 	return TOGGLES.filter(func(t: Array) -> bool: return not (Touch.phone and t[0] == "fullscreen"))
 
 
-## The rows of the main page, top to bottom; a phone keeps no music folder the player can reach and has no keys to bind.
+## The rows of the main page, top to bottom; a phone keeps no music folder the player can reach and has no keys to bind,
+## and offers to restore a purchase until it has the full game.
 static func rows() -> Array:
 	var out: Array = VOLUMES.duplicate()
 	if not Touch.phone:
@@ -38,6 +39,8 @@ static func rows() -> Array:
 	out.append_array(["text_size", "language"])
 	if not Touch.phone:
 		out.append("controls")
+	if FullGame.locked():
+		out.append("restore")
 	out.append("back")
 	return out
 
@@ -103,6 +106,8 @@ func activate(id: String) -> void:
 	elif id == "controls":
 		page = "controls"
 		main.ui.focus = ""
+	elif id == "restore":
+		FullGame.restore()
 	elif id == "back":
 		if not back():
 			main.close_settings()
@@ -204,6 +209,14 @@ func _draw_main(c: CanvasItem, ui: Ui) -> void:
 				ui.text(c, tr("Language"), Vector2(x + 6.0, rect.position.y + h / 2.0 + Ui.px * 3 / 8), Ui.INK)
 			"controls":
 				ui.button(c, rect, "controls", tr("Keys and buttons"), "")
+			"restore":
+				# The question goes beside the button only where it has room at the text size.
+				var ask := tr("Already bought the full game?")
+				var act := tr("Restore purchase")
+				if Ui.width_at(ask, Ui.px) <= Ui.label_room(rect, act, false):
+					ui.button(c, rect, "restore", ask, act)
+				else:
+					ui.button(c, rect, "restore", act, "")
 			"back":
 				ui.button(c, rect, "back", tr("Back").to_upper(), "", true, null, true)
 			_:

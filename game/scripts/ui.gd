@@ -271,6 +271,9 @@ static func frame_rect() -> Rect2:
 func frame(c: CanvasItem, title: String, hint: String, back := true) -> Rect2:
 	veil(c, 0.5)
 	var r := frame_rect()
+	# A phone's frame is taller for having no key hints, so a line shown under it, such as where the demo ends, takes that room back.
+	if Touch.phone and hint != "":
+		r.size.y = H - 40
 	panel(c, r)
 	var tx := r.position.x + 12
 	if Touch.phone and back and corner_room():
@@ -347,6 +350,13 @@ func button(c: CanvasItem, r: Rect2, id: String, label: String, right := "", ena
 		fit_text(c, label, r.size.x - 12.0, Vector2(r.position.x, y), ink, HORIZONTAL_ALIGNMENT_CENTER, r.size.x, false, label_size)
 	else:
 		fit_text(c, label, label_room(r, right, icon != null, right_reserve), Vector2(x, y), ink, HORIZONTAL_ALIGNMENT_LEFT, -1.0, false, label_size)
+
+
+## The words of a phone's button that buys the full game, with the store's price once the store has said it.
+static func unlock_label() -> String:
+	if FullGame.price() == "":
+		return TranslationServer.translate("Unlock the full game")
+	return TranslationServer.translate("Unlock the full game: %s") % FullGame.price()
 
 
 static func icon_side(r: Rect2) -> float:

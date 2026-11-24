@@ -55,6 +55,9 @@ const BIG_BUTTON_W := 210.0
 const BIG_BUTTON_LOW := 80.0
 ## The icon of each supply cart reward.
 const SUPPLY_ICONS := {"free_choice": "glory", "heal": "medicus", "magnet": "magnet"}
+## The most lines the store's card gives its first line and the line under it.
+const STORE_HEAD_LINES := 3
+const STORE_BODY_LINES := 4
 
 var main: Node
 var ui: Ui
@@ -62,6 +65,9 @@ var icons := {}
 var choice_rects: Array = []
 ## The buttons under a choice on a phone, which stand in for its keys, as {id: rect}.
 var touch_buttons := {}
+## The store's last answer about the full game, and when it came on the main clock.
+var store_result := ""
+var store_at := -1000.0
 
 
 ## The level-up icon of an id, loaded the first time it is drawn.
@@ -124,6 +130,16 @@ func _draw() -> void:
 	_scene()
 	draw_set_transform(Vector2.ZERO)
 	_card()
+	_store_card()
+
+
+## Where the cards that slide in at the top right start, below a phone's pause button.
+func _card_top() -> float:
+	var top := 44.0 if Ui.scale == 1 else 68.0
+	var pause: Dictionary = touch_layout().get("pause", {})
+	if not pause.is_empty():
+		top = maxf(top, pause.centre.y + pause.radius + 6.0)
+	return top
 
 
 ## An achievement card sliding in at the top right, a parchment panel with a laurel, over whatever is on screen.
@@ -139,17 +155,75 @@ func _card() -> void:
 	var name_lines := mini(Ui.block(str(card.name).to_upper(), room, 2).lines, 2)
 	var h := 16.0 + (1.0 + name_lines) * Ui.leading() + (4.0 if big else 0.0)
 	var slide := Steamworks.card_slide()
-	var top := 44.0 if not big else 68.0
-	var pause: Dictionary = touch_layout().get("pause", {})
-	if not pause.is_empty():
-		top = maxf(top, pause.centre.y + pause.radius + 6.0)
-	var r := Rect2(lerpf(W + 2.0, W - 6.0 - Touch.inset_br.x - w, slide), top, w, h)
+	var r := Rect2(lerpf(W + 2.0, W - 6.0 - Touch.inset_br.x - w, slide), _card_top(), w, h)
 	panel(r)
 	var wreath: Texture2D = LAUREL
 	draw_texture(wreath, (r.position + Vector2(18.0, h / 2.0) - wreath.get_size() / 2.0).round())
 	var tx := r.position.x + 34.0
 	ui.fit_text(self, tr("Achievement").to_upper(), room, Vector2(tx, r.position.y + 6.0 + Ui.px * 3 / 4), BROWN_TEXT)
 	ui.wrap_fit(self, str(card.name).to_upper(), Vector2(tx, r.position.y + 6.0 + Ui.px * 3 / 4 + Ui.leading()), room, INK, 2)
+
+
+## Shows what the store said about the full game on a card, with a flourish when the full game is bought or restored.
+func store_said(result: String) -> void:
+	if store_lines(result).is_empty():
+		return
+	store_result = result
+	store_at = main.clock
+	if result in ["purchased", "restored"]:
+		Audio.play("laurels")
+
+
+## What the card says for each answer of the store, and nothing for a purchase the player closed.
+static func store_lines(result: String) -> Array:
+	match result:
+		"purchased":
+			return [TranslationServer.translate("Thank you for buying the full game!"),
+				TranslationServer.translate("The whole campaign is open to you now, and your legion marches on just as you left it.")]
+		"restored":
+			return [TranslationServer.translate("The full game is unlocked again. Welcome back!")]
+		"pending":
+			return [TranslationServer.translate("Your purchase is waiting for its payment. The full game opens as soon as it goes through.")]
+		"error":
+			return [TranslationServer.translate("The purchase did not go through. Please try again later.")]
+		"unavailable":
+			return [TranslationServer.translate("The store cannot be reached right now. Please try again later.")]
+		"not_found":
+			return [TranslationServer.translate("No purchase of the full game was found for this account.")]
+	return []
+
+
+static func store_card_width() -> float:
+	return 240.0 if Ui.scale == 1 else 360.0
+
+
+## The store's answer on a card that slides in at the top right over every screen, the menus too, since the full game is bought from them.
+func _store_card() -> void:
+	var lines := store_lines(store_result)
+	var hold := float(main.balance.full_game.thanks_hold if store_result == "purchased" else main.balance.full_game.note_hold)
+	var slide_time := float(main.balance.steam.card_slide)
+	var age: float = main.clock - store_at
+	if lines.is_empty() or age > hold + 2.0 * slide_time:
+		return
+	var slide := clampf(minf(age, hold + 2.0 * slide_time - age) / slide_time, 0.0, 1.0)
+	var W := Ui.view.x
+	var w := store_card_width()
+	var laurel := store_result in ["purchased", "restored"]
+	var room := w - (42.0 if laurel else 16.0)
+	var head: Dictionary = Ui.block(str(lines[0]), room, STORE_HEAD_LINES)
+	var h := 12.0 + mini(head.lines, STORE_HEAD_LINES) * Ui.lead_for(head.size)
+	var body := {}
+	if lines.size() > 1:
+		body = Ui.block(str(lines[1]), room, STORE_BODY_LINES)
+		h += 3.0 + mini(body.lines, STORE_BODY_LINES) * Ui.lead_for(body.size)
+	var r := Rect2(lerpf(W + 2.0, W - 6.0 - Touch.inset_br.x - w, slide), _card_top(), w, h)
+	panel(r)
+	if laurel:
+		draw_texture(LAUREL, (r.position + Vector2(18.0, h / 2.0) - LAUREL.get_size() / 2.0).round())
+	var tx := r.position.x + (34.0 if laurel else 8.0)
+	var y := ui.wrap_fit(self, str(lines[0]), Vector2(tx, r.position.y + 6.0 + Ui.px * 3 / 4), room, BROWN_TEXT if not body.is_empty() else INK, STORE_HEAD_LINES)
+	if not body.is_empty():
+		ui.wrap_fit(self, str(lines[1]), Vector2(tx, y + 3.0), room, INK, STORE_BODY_LINES)
 
 
 ## A small wreath of gold leaves around a dot.

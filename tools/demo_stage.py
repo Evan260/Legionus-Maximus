@@ -172,8 +172,8 @@ def stage(folder, godot):
     import build_atlas
 
     project = Path(folder) / "game"
-    # The editor's own state is left behind; its long file names can pass Windows' path limit in a temporary folder.
-    shutil.copytree(GAME, project, ignore=lambda folder, names: ["editor"] if Path(folder).name == ".godot" else [])
+    # The editor's state, whose long file names can pass Windows' path limit, and the phone's Android build template stay behind.
+    shutil.copytree(GAME, project, ignore=lambda folder, names: ["editor"] if Path(folder).name == ".godot" else ["android"] if Path(folder) == GAME else [])
     content = json.loads((GAME / "data" / "content.json").read_text(encoding="utf-8"))
     balance = json.loads((GAME / "data" / "balance.json").read_text(encoding="utf-8"))
     atlas = json.loads((GAME / "assets" / "atlas.json").read_text(encoding="utf-8"))

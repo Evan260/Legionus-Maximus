@@ -289,5 +289,9 @@
     "presence_every": 10.0,
     "check_every": 1.0,
     "progress_steps": 10
+  },
+  "full_game": {
+    "thanks_hold": 7.0,
+    "note_hold": 5.0
   }
 }

@@ -57,9 +57,12 @@ func activate(id: String) -> void:
 			main.open_settings("title")
 		"wishlist":
 			Steamworks.open_store()
+		"unlock":
+			FullGame.buy()
 
 
-## The title's buttons as [id, label, enabled]: Continue with a game open, New game, Load while any slot holds a game, and the settings.
+## The title's buttons as [id, label, enabled]: Continue with a game open, New game, Load while any slot holds a game, the settings,
+## and last the demo's wishlist on Steam or, on a phone that has not bought the full game, the unlock in its place.
 static func buttons(balance: Dictionary) -> Array:
 	var out: Array = []
 	if Profile.slot > 0:
@@ -68,7 +71,9 @@ static func buttons(balance: Dictionary) -> Array:
 	if range(1, Profile.SLOTS + 1).any(Profile.slot_taken):
 		out.append(["load", TranslationServer.translate("Load"), true])
 	out.append(["settings", TranslationServer.translate("Settings"), true])
-	if Game.is_demo() and int(balance.demo.store_app_id) > 0 and not Touch.phone:
+	if FullGame.locked():
+		out.append(["unlock", Ui.unlock_label(), true])
+	elif Game.is_demo() and int(balance.demo.store_app_id) > 0 and not Touch.phone and not FullGame.sold_here():
 		out.append(["wishlist", TranslationServer.translate("Wishlist on Steam"), true])
 	return out
 
@@ -111,6 +116,38 @@ static func button_rects(box: Rect2, n: int) -> Array:
 			var x := Ui.W / 2 - 85.0 if alone else Ui.W / 2 - 175.0 + (i % 2) * 180.0
 			rects.append(Rect2(x, box.end.y + 10.0 + (i / 2) * 30.0, 170.0, 24.0))
 	return rects
+
+
+## The title's buttons when the last is a phone's unlock, whose price makes its label long: with normal text it takes a row of its own
+## across both columns, and with large text each button in the row is as wide as its label needs, with the room left shared out.
+static func unlock_rects(box: Rect2, labels: Array) -> Array:
+	var n := labels.size()
+	if Ui.scale == 1:
+		var rects := button_rects(box, n - 1)
+		rects.append(Rect2(Ui.W / 2 - 175.0, rects[-1].end.y + 6.0, 350.0, 24.0))
+		return rects
+	var room := Ui.W - 40.0 - (n - 1) * 10.0
+	var needs: Array = labels.map(func(s: String) -> float: return Ui.width_at(s, Ui.px) + 14.0)
+	var order: Array = range(n - 1)
+	order.sort_custom(func(a: int, z: int) -> bool: return needs[a] > needs[z])
+	# Labels step down to the smaller size until the row fits, the unlock first and then the widest, as each does when drawn.
+	for k: int in [n - 1] + order:
+		if _sum(needs) <= room:
+			break
+		needs[k] = Ui.width_at(labels[k], Ui.small_px()) + 14.0
+	var total := _sum(needs)
+	var widths: Array = needs.map(func(w: float) -> float: return floorf(w * room / total if total > room else w + (room - total) / n))
+	var x := (Ui.W - _sum(widths) - (n - 1) * 10.0) / 2.0
+	var y := box.end.y + 6.0
+	var rects: Array = []
+	for w: float in widths:
+		rects.append(Rect2(roundf(x), y, w, clampf(Ui.H - 2.0 - y, 22.0, 30.0)))
+		x += w + 10.0
+	return rects
+
+
+static func _sum(values: Array) -> float:
+	return values.reduce(func(a: float, b: float) -> float: return a + b, 0.0)
 
 
 ## Where the controls go: the box under the logo, each control's cell with its caps, icon and label, and the goal under them.
@@ -255,7 +292,8 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	var g := grid(main.balance)
 	var box: Rect2 = g.box
 	var ids := buttons(main.balance)
-	var rects := button_rects(box, ids.size())
+	var labels: Array = ids.map(func(b: Array) -> String: return str(b[1]).to_upper())
+	var rects := unlock_rects(box, labels) if ids[-1][0] == "unlock" else button_rects(box, ids.size())
 	_buttons_end = rects[-1].end.y
 	var t := _animate()
 	_clouds(c, t)
@@ -268,7 +306,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 		ui.text(c, tr("Demo").to_upper(), Vector2(tag.position.x, tag.end.y - 4.0 - Ui.px * 3 / 8), Ui.RED, HORIZONTAL_ALIGNMENT_CENTER, tag.size.x)
 	_draw_controls(c, ui, g)
 	for i in ids.size():
-		ui.button(c, rects[i], ids[i][0], str(ids[i][1]).to_upper(), "", ids[i][2], null, true)
+		ui.button(c, rects[i], ids[i][0], labels[i], "", ids[i][2], null, true)
 	if ui.focus == "new" and not ui.is_enabled("new"):
 		_full_note(c, ui, rects[ids.map(func(b: Array) -> String: return b[0]).find("new")])
 

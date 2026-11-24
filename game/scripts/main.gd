@@ -48,6 +48,7 @@ extends Node
 ##   --trailer-shot=NAME  stage a trailer shot with tools/trailer/shots.gd
 ##   --no-save          leave the real save unread and untouched, as every flag above also does
 ##   --phone            show the phone's layout and touch controls, with the mouse as a finger (--phone-insets=L,T,R,B for a camera)
+##   --store            sell the full game from a pretend store, as a phone that has not bought it; --store=owned as one that has
 
 var balance: Dictionary
 var content: Content
@@ -116,6 +117,7 @@ func _ready() -> void:
 	Lang.changed.connect(_language_changed)
 	if args.has("chieftain-at"):
 		balance.chieftain_at = float(args["chieftain-at"])
+	Game.follow_store()
 	if args.has("run-tests") or args.has("bench"):
 		world.process_mode = Node.PROCESS_MODE_DISABLED
 		hud.process_mode = Node.PROCESS_MODE_DISABLED
@@ -136,6 +138,8 @@ func _ready() -> void:
 		world.livery_force = Vector2i(int(tiers[0]), int(tiers[1] if tiers.size() > 1 else tiers[0]))
 	hud.main = self
 	hud.ui = ui
+	FullGame.finished.connect(hud.store_said)
+	FullGame.changed.connect(_store_changed)
 	if Touch.phone:
 		touch_pad = TouchPad.new()
 		touch_pad.main = self
@@ -539,6 +543,17 @@ func use_profile() -> void:
 	run_setup = RUN_SETUP.duplicate()
 	_load_run_setup()
 	Steamworks.sync()
+
+
+## Buying the full game, or a refund, applies at once: a run under way gains or loses the demo's time limit, and the camp's choices
+## are taken again from the save when the province or commander chosen is no longer open.
+func _store_changed() -> void:
+	if sim != null and not sim.over:
+		sim.demo_seconds = Game.run_cap(balance)
+	var offered := Game.commanders(content, balance)
+	if not Game.province_allowed(run_setup.province, balance) or not run_setup.commander in offered or not Profile.commander_unlocked(run_setup.commander):
+		run_setup = RUN_SETUP.duplicate()
+		_load_run_setup()
 
 
 func _new_sim() -> void:

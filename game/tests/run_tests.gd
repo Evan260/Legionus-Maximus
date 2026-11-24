@@ -4599,12 +4599,17 @@ func test_no_label_is_cut_in_any_language(b: Dictionary) -> void:
 	var cuts := []
 	var words := Content.load_all(Content.available_art())
 	var sim := Sim.new(b, words, {"seed": 1})
+	# A phone's unlock buttons show the store's price.
+	var store := _shop()
+	store.billing_connected.emit()
+	store.price_found.emit("full_game", STORE_PRICE)
 	for loc in LANGUAGES:
 		Lang.apply(loc, false)
 		words.localize()
 		for scale in [1, 2]:
 			Ui.set_text_size(scale, b)
 			_cuts_in(loc, scale, words, sim, cuts)
+	_shop_done()
 	Lang.apply(before, false)
 	Ui.set_text_size(before_scale, b)
 	for c in cuts:
@@ -4710,7 +4715,16 @@ func _cuts_in(loc: String, scale: int, c: Content, sim: Sim, cuts: Array) -> voi
 	var was_phone := Touch.phone
 	Touch.phone = true
 	_title_cuts(cuts, loc, scale, "how to play on a phone", sim.b)
+	_unlock_cuts(cuts, loc, scale, sim.b)
+	Touch.phone = false
+	_unlock_cuts(cuts, loc, scale, sim.b)
 	Touch.phone = was_phone
+	_fit(cuts, loc, scale, "summary unlock button", SummaryScreen.store_label("unlock"), SummaryScreen.store_width("unlock") - 12.0)
+	_fit(cuts, loc, scale, "restore button", tr_.call("Restore purchase"), 428.0)
+	for result in ["purchased", "restored", "pending", "error", "unavailable", "not_found"]:
+		var said: Array = Hud.store_lines(result)
+		for k in said.size():
+			_lines(cuts, loc, scale, "store card " + result, str(said[k]), Hud.store_card_width() - 42.0, Hud.STORE_HEAD_LINES if k == 0 else Hud.STORE_BODY_LINES)
 	_fit(cuts, loc, scale, "give-up prompt on a phone", tr_.call("Give up the run? Tap again to confirm"), 624.0)
 	for s in ["Master volume", "Music volume", "Effects volume"]:
 		_fit(cuts, loc, scale, "volume name on a phone", tr_.call(s), 440.0 - 6.0 - 12.0 - pct - SettingsScreen.PHONE_BAR_W - 6.0)
@@ -4927,6 +4941,17 @@ func test_a_word_too_long_for_a_line_is_broken(b: Dictionary) -> void:
 
 ## The most buttons the title shows: Continue, New game, Load, Settings and the demo's Wishlist.
 const TITLE_MOST_BUTTONS := 5
+
+
+## The title's buttons with a phone's unlock last: every label on its button, and the last button on the screen.
+func _unlock_cuts(cuts: Array, loc: String, scale: int, b: Dictionary) -> void:
+	var labels: Array = ["Continue", "New game", "Load", "Settings"].map(func(s: String) -> String: return TranslationServer.translate(s).to_upper())
+	labels.append(Ui.unlock_label().to_upper())
+	var rects := TitleScreen.unlock_rects(TitleScreen.grid(b).box, labels)
+	for k in labels.size():
+		_fit(cuts, loc, scale, "title button beside the unlock", labels[k], rects[k].size.x - 12.0)
+	if rects[-1].end.y > Ui.H - 2.0:
+		cuts.append("%s x%d the unlock ends at %d, off the screen" % [loc, scale, rects[-1].end.y])
 
 
 ## The title's controls: every label in its cell, the goal in its two lines, and the box above the buttons.
@@ -8300,7 +8325,7 @@ func test_the_old_centurion_can_be_earned_in_a_run_that_ends_at_the_fort(b: Dict
 
 
 func test_every_look_flag_keeps_the_profile_unsaved(_b: Dictionary) -> void:
-	for flag in ["easy", "hard", "endless", "decimatio", "commander=legate", "chieftain-at=60", "as-demo", "objectives-near", "boss=berserker", "boss-act=whirl", "god=vulcan", "god-at=3", "give=pilum:3", "go-to=fort", "hold-choice", "lang=fr", "card=kills_1000", "page=controls", "province=britannia", "seed=7", "men=20", "mortal", "trailer-shot=fort", "cart=twice", "cart-at=3", "select=1", "livery=2,1", "no-save"]:
+	for flag in ["easy", "hard", "endless", "decimatio", "commander=legate", "chieftain-at=60", "as-demo", "objectives-near", "boss=berserker", "boss-act=whirl", "god=vulcan", "god-at=3", "give=pilum:3", "go-to=fort", "hold-choice", "lang=fr", "card=kills_1000", "page=controls", "province=britannia", "seed=7", "men=20", "mortal", "trailer-shot=fort", "cart=twice", "cart-at=3", "select=1", "livery=2,1", "store", "store=owned", "no-save"]:
 		check(Profile.blocks_saving(PackedStringArray(["--" + flag])), "--%s is not saved" % flag)
 
 
@@ -13700,3 +13725,301 @@ func test_a_rock_in_a_field_sits_behind_the_row_of_wheat_in_front(b: Dictionary)
 	check(low, "moved down only as far as keeps the top showing")
 	check(view.wheat_cover(37.0, 16.0).x > 37.0, "a rock at the foot of a row stands in front of it, with nothing covering it")
 	check(view.wheat_cover(44.0, 16.0) == Vector2(40, 0), "a rock just behind a row's ears has its foot hidden by them where they stand")
+
+
+## The cache the store tests keep the purchase in, and the price their fake store gives.
+const STORE_CACHE := "user://test_store.cfg"
+const STORE_PRICE := "CA$6.99"
+
+## What each store test listens to on FullGame, let go of when the test is done.
+var _store_listening: Array[Callable] = []
+
+
+## FullGame with a fake store that has answered nothing yet, and a cache of its own.
+func _shop() -> FakeStore:
+	_forget_store()
+	FullGame.cache_path = STORE_CACHE
+	var store := FakeStore.new()
+	FullGame.use_store(store)
+	return store
+
+
+func _forget_store() -> void:
+	if FileAccess.file_exists(STORE_CACHE):
+		DirAccess.remove_absolute(STORE_CACHE)
+
+
+func _shop_done() -> void:
+	for c in _store_listening:
+		FullGame.finished.disconnect(c)
+	_store_listening.clear()
+	FullGame.use_store(null)
+	FullGame.cache_path = "user://store.cfg"
+	_forget_store()
+
+
+func _store_results() -> Array:
+	var heard := []
+	var listen := func(result: String) -> void: heard.append(result)
+	FullGame.finished.connect(listen)
+	_store_listening.append(listen)
+	return heard
+
+
+## The title's button with the id, as [id, label, enabled], or [] when the title does not offer it.
+func _offers(b: Dictionary, id: String) -> Array:
+	for button in TitleScreen.buttons(b):
+		if button[0] == id:
+			return button
+	return []
+
+
+func test_a_computer_sells_nothing_and_locks_nothing(b: Dictionary) -> void:
+	check(not Engine.has_singleton("SlowSundayPhone") and not FullGame.sold_here(), "a computer has no store to buy the full game from")
+	check(not FullGame.locked() and not Game.is_demo(), "so the full game plays in full")
+	check(_offers(b, "unlock").is_empty() and not SettingsScreen.rows().has("restore"), "and offers no unlock and no restore")
+	FullGame.buy()
+	FullGame.restore()
+	check(not FullGame.locked() and not FullGame.owned(), "and buying or restoring does nothing at all")
+
+
+func test_the_store_is_asked_for_the_price_once_it_connects(_b: Dictionary) -> void:
+	var store := _shop()
+	check(store.calls.has(["billing_start"]), "the store's connection is opened at start")
+	check(FullGame.price() == "", "the price is blank until the store says it")
+	store.billing_connected.emit()
+	check(store.calls.has(["query_price", "full_game"]), "once connected, the full game's price is asked for")
+	store.price_found.emit("full_game", STORE_PRICE)
+	check(FullGame.price() == STORE_PRICE, "and the store's own price text is kept (%s)" % FullGame.price())
+	store.price_found.emit("other", "CA$1.00")
+	check(FullGame.price() == STORE_PRICE, "a price for another product is not taken")
+	_shop_done()
+
+
+func test_a_phone_that_has_not_bought_the_full_game_plays_by_the_demos_limits(b: Dictionary) -> void:
+	var store := _shop()
+	check(FullGame.sold_here() and FullGame.locked(), "a phone that has not bought the full game is locked")
+	check(Game.is_demo(), "so it plays as the demo")
+	check(Game.province_allowed("germania", b) and not Game.province_allowed("gaul", b), "in Germania only")
+	check(Game.run_cap(b) == float(b.demo.seconds), "to the demo's time limit")
+	check(Game.commanders(content, b).size() == int(b.demo.commanders), "with the demo's commanders")
+	store.owned_found.emit(PackedStringArray())
+	check(FullGame.locked(), "a store that lists nothing owned keeps it locked")
+	_shop_done()
+	check(not Game.is_demo(), "and a computer is the full game again")
+
+
+func test_owning_the_full_game_opens_everything(b: Dictionary) -> void:
+	var store := _shop()
+	store.owned_found.emit(PackedStringArray(["full_game"]))
+	check(FullGame.owned() and not FullGame.locked(), "a store that lists the full game unlocks it")
+	check(not Game.is_demo(), "and the game is no longer the demo")
+	check(Game.province_allowed("gaul", b) and Game.run_cap(b) == 0.0, "so every province can be marched to, with no time limit")
+	check(Game.commanders(content, b).size() > int(b.demo.commanders), "and every commander is listed")
+	_shop_done()
+
+
+func test_buying_unlocks_at_once_and_keeps_the_save(b: Dictionary) -> void:
+	var kept := _borrow_profile()
+	Profile.new_game()
+	Profile.data.denarii = 1234
+	Profile.data.totals.kills = 4321
+	Profile.data.records["germania"] = {"best_time": 600.0, "longest": 640.0, "won": false, "hard_won": false}
+	var store := _shop()
+	var heard := _store_results()
+	var save := JSON.stringify(Profile.data)
+	var slot := Profile.slot
+	FullGame.buy()
+	check(store.calls.has(["buy", "full_game"]), "buying opens the store's purchase for the full game")
+	store.purchase_finished.emit("full_game", "purchased")
+	check(FullGame.owned() and not Game.is_demo(), "a finished purchase opens the full game straight away")
+	check(Game.province_allowed("gaul", b) and Game.run_cap(b) == 0.0, "so the road past Germania opens and runs have no time limit")
+	check(JSON.stringify(Profile.data) == save and Profile.slot == slot, "with the game in its slot exactly as it was")
+	check(heard == ["purchased"], "and the game hears it was bought, to say thank you (%s)" % str(heard))
+	_shop_done()
+	_return_profile(kept)
+
+
+func test_a_pending_purchase_waits_for_the_payment(_b: Dictionary) -> void:
+	var store := _shop()
+	var heard := _store_results()
+	FullGame.buy()
+	store.purchase_finished.emit("full_game", "pending")
+	check(FullGame.locked(), "a purchase waiting for payment does not unlock anything yet")
+	check(heard == ["pending"], "and the game hears that it waits (%s)" % str(heard))
+	store.owned_found.emit(PackedStringArray(["full_game"]))
+	check(not FullGame.locked(), "once the payment goes through the store lists it and the game opens")
+	check(heard == ["pending", "purchased"], "with the thank-you then (%s)" % str(heard))
+	_shop_done()
+
+
+func test_a_cancelled_or_failed_purchase_leaves_it_locked(_b: Dictionary) -> void:
+	var store := _shop()
+	var heard := _store_results()
+	for status in ["cancelled", "error", "unavailable"]:
+		FullGame.buy()
+		store.purchase_finished.emit("full_game", status)
+		check(FullGame.locked(), "a purchase that ended %s leaves the game locked" % status)
+	check(heard == ["cancelled", "error", "unavailable"], "and each ending is passed on (%s)" % str(heard))
+	store.purchase_finished.emit("other", "purchased")
+	check(FullGame.locked(), "buying some other product unlocks nothing")
+	_shop_done()
+
+
+func test_restoring_asks_the_store_what_was_bought(_b: Dictionary) -> void:
+	var store := _shop()
+	var heard := _store_results()
+	FullGame.restore()
+	check(store.calls.has(["query_owned"]), "restoring asks the store again what the player owns")
+	store.owned_found.emit(PackedStringArray(["full_game"]))
+	check(not FullGame.locked() and heard == ["restored"], "a purchase found unlocks the game and says so (%s)" % str(heard))
+	store = _shop()
+	heard = _store_results()
+	FullGame.restore()
+	store.owned_found.emit(PackedStringArray())
+	check(FullGame.locked() and heard == ["not_found"], "with nothing bought it says none was found (%s)" % str(heard))
+	heard.clear()
+	FullGame.restore()
+	store.billing_unavailable.emit("Billing service unavailable on device.")
+	check(heard == ["unavailable"], "and a store that cannot be reached says that (%s)" % str(heard))
+	heard.clear()
+	store.owned_found.emit(PackedStringArray(["full_game"]))
+	check(heard.is_empty() and not FullGame.locked(), "a later answer at start unlocks quietly, as on a new phone")
+	_shop_done()
+
+
+func test_the_answer_is_kept_for_when_the_store_cannot_be_reached(_b: Dictionary) -> void:
+	var store := _shop()
+	store.purchase_finished.emit("full_game", "purchased")
+	check(FileAccess.file_exists(STORE_CACHE), "owning the full game is written down")
+	var offline := FakeStore.new()
+	FullGame.use_store(offline)
+	offline.billing_unavailable.emit("Network is down")
+	check(FullGame.owned() and not FullGame.locked() and not Game.is_demo(), "so a later start without a connection still has the full game")
+	offline.owned_found.emit(PackedStringArray())
+	check(FullGame.locked() and Game.is_demo(), "a store that no longer lists it, as after a refund, locks it again")
+	FullGame.use_store(FakeStore.new())
+	check(FullGame.locked(), "and that is written down too")
+	_shop_done()
+
+
+func test_the_title_offers_the_unlock_with_its_price_in_place_of_the_wishlist(b: Dictionary) -> void:
+	var kept := _borrow_profile()
+	var shop := b.duplicate(true)
+	shop.demo.store_app_id = 123
+	var store := _shop()
+	check(_offers(shop, "unlock") == ["unlock", tr("Unlock the full game"), true], "before the store answers the unlock has no price (%s)" % str(_offers(shop, "unlock")))
+	check(_offers(shop, "wishlist").is_empty(), "and it takes the wishlist's place")
+	check(TitleScreen.buttons(shop)[-1][0] == "unlock", "as the last button")
+	store.billing_connected.emit()
+	store.price_found.emit("full_game", STORE_PRICE)
+	check(_offers(shop, "unlock") == ["unlock", tr("Unlock the full game: %s") % STORE_PRICE, true], "then it shows the store's price (%s)" % str(_offers(shop, "unlock")))
+	var m := FakeMenuMain.new()
+	TitleScreen.new(m).activate("unlock")
+	check(store.calls.has(["buy", "full_game"]), "pressing it buys the full game")
+	store.purchase_finished.emit("full_game", "purchased")
+	check(_offers(shop, "unlock").is_empty() and _offers(shop, "wishlist").is_empty(), "and once it is owned the title offers neither")
+	m.free()
+	_shop_done()
+	_return_profile(kept)
+
+
+func test_the_demos_last_summary_offers_the_unlock_on_a_phone(b: Dictionary) -> void:
+	var shop := b.duplicate(true)
+	shop.demo.store_app_id = 123
+	var s := _quiet_sim(b, 4471)
+	s.demo_over = true
+	var phone := Touch.phone
+	Touch.phone = false
+	check(SummaryScreen.store_button(s, shop) == "wishlist", "the Steam demo's last summary offers the wishlist")
+	check(SummaryScreen.store_button(s, b) == "", "and nothing while the store page has no id")
+	var store := _shop()
+	check(SummaryScreen.store_button(s, shop) == "unlock", "a phone that sells the full game offers the unlock there instead")
+	check(SummaryScreen.store_width("unlock") >= SummaryScreen.wide_button_width(), "on a button at least as wide as the wishlist's")
+	var m := FakeMenuMain.new()
+	SummaryScreen.new(m).activate("unlock")
+	check(store.calls.has(["buy", "full_game"]), "which buys the full game")
+	s.demo_over = false
+	check(SummaryScreen.store_button(s, shop) == "", "a run that ended any other way offers nothing")
+	s.demo_over = true
+	store.purchase_finished.emit("full_game", "purchased")
+	check(SummaryScreen.store_button(s, shop) == "", "and once it is owned nothing is offered")
+	m.free()
+	Touch.phone = phone
+	_shop_done()
+
+
+func test_phones_offer_to_restore_a_purchase_in_the_settings(_b: Dictionary) -> void:
+	var phone := Touch.phone
+	Touch.phone = true
+	var store := _shop()
+	var rows := SettingsScreen.rows()
+	check(rows.has("restore") and rows.find("restore") == rows.size() - 2, "a phone that has not bought the full game offers to restore a purchase, above Back")
+	var m := FakeMenuMain.new()
+	SettingsScreen.new(m).activate("restore")
+	check(store.calls.has(["query_owned"]), "which asks the store what was bought")
+	store.owned_found.emit(PackedStringArray(["full_game"]))
+	check(not SettingsScreen.rows().has("restore"), "once it is owned the settings stop offering it")
+	m.free()
+	_shop_done()
+	Touch.phone = phone
+
+
+func test_the_stores_answer_is_told_on_a_card(_b: Dictionary) -> void:
+	var said := func(result: String) -> Array: return Hud.store_lines(result).map(func(s: Variant) -> String: return str(s))
+	check(said.call("purchased") == [tr("Thank you for buying the full game!"), tr("The whole campaign is open to you now, and your legion marches on just as you left it.")], "a purchase is thanked for")
+	check(said.call("restored") == [tr("The full game is unlocked again. Welcome back!")], "a restore welcomes the player back")
+	check(said.call("unavailable") == [tr("The store cannot be reached right now. Please try again later.")], "a store out of reach says so")
+	for result in ["pending", "error", "not_found"]:
+		check(said.call(result).size() == 1, "%s has a short message" % result)
+	check(said.call("cancelled").is_empty(), "and a purchase the player closed says nothing")
+
+
+func test_buying_in_a_run_or_the_camp_lifts_the_demos_limits_at_once(b: Dictionary) -> void:
+	var kept := _borrow_profile()
+	Profile.new_game()
+	Profile.data.choices.commander = "archer_captain"
+	var store := _shop()
+	var m := _bare_main(b)
+	m._load_run_setup()
+	check(m.run_setup.commander == "archer_captain", "the demo lends its commanders")
+	m.sim = Sim.new(b, content, m._run_options())
+	m.state = "pause"
+	check(m.sim.demo_seconds == float(b.demo.seconds), "and a phone's run before buying stops at the demo's time limit")
+	store.purchase_finished.emit("full_game", "purchased")
+	m._store_changed()
+	check(m.sim.demo_seconds == 0.0, "buying mid-run lets the run go on to the chieftain")
+	check(m.run_setup.commander == "tribune", "and the next run takes the tribune, as the full game on Steam does for a commander only lent")
+	check(Profile.data.choices.commander == "archer_captain", "without changing the save")
+	m.run_setup.difficulty = "hard"
+	m._store_changed()
+	check(m.run_setup.difficulty == "hard", "a change that leaves the camp's choices open leaves them as they are")
+	_free_main(m)
+	_shop_done()
+	_return_profile(kept)
+
+
+## The SlowSundayPhone plugin's purchase methods and signals, answered by hand.
+class FakeStore:
+	signal billing_connected
+	signal billing_unavailable(message: String)
+	signal price_found(product_id: String, price: String)
+	signal purchase_finished(product_id: String, status: String)
+	signal owned_found(product_ids: PackedStringArray)
+
+	var calls: Array = []
+
+	func billing_start() -> void:
+		calls.append(["billing_start"])
+
+	func billing_ready() -> bool:
+		return true
+
+	func query_price(product_id: String) -> void:
+		calls.append(["query_price", product_id])
+
+	func buy(product_id: String) -> void:
+		calls.append(["buy", product_id])
+
+	func query_owned() -> void:
+		calls.append(["query_owned"])

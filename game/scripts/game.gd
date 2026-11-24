@@ -13,6 +13,9 @@ static var demo_open: Array = []
 const DEMO_MARK := "res://data/demo_build.json"
 static var _marked := FileAccess.file_exists(DEMO_MARK)
 
+## Whether this is a phone that has not bought the full game, kept equal to FullGame.locked() so the demo check reads a bool.
+static var store_locked := false
+
 
 ## How many steps a frame of `dt` seconds is played in, so that no step is longer than a sixtieth of a second
 ## and the crowd presses on the legion as it does at 60 frames a second, however slow the computer.
@@ -20,9 +23,15 @@ static func steps_for(dt: float) -> int:
 	return maxi(1, ceili(dt * 60.0 - 0.001))
 
 
-## Whether this is the demo: the demo's own export, the project exported with the "demo" feature, or started with --as-demo.
+## Whether this is the demo: its own export, the "demo" feature, --as-demo, or a phone that has not bought the full game.
 static func is_demo() -> bool:
-	return demo_forced or _marked or OS.has_feature("demo") or "--as-demo" in OS.get_cmdline_user_args()
+	return demo_forced or _marked or store_locked or OS.has_feature("demo") or "--as-demo" in OS.get_cmdline_user_args()
+
+
+## Keeps store_locked equal to FullGame.locked() from now on.
+static func follow_store() -> void:
+	store_locked = FullGame.locked()
+	FullGame.changed.connect(func() -> void: store_locked = FullGame.locked())
 
 
 ## The commanders this build lists: every one whose art is drawn, and in the demo only the first few of them.

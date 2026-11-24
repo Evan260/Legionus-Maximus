@@ -20,6 +20,7 @@ boot_splash/use_filter=false
 
 [autoload]
 
+FullGame="*res://scripts/full_game.gd"
 Profile="*res://scripts/profile.gd"
 Lang="*res://scripts/lang.gd"
 Audio="*res://scripts/audio.gd"
@@ -39,6 +40,10 @@ window/handheld/orientation=4
 [internationalization]
 
 locale/include_text_server_data=true
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/slowsunday_phone/plugin.cfg")
 
 [gui]
 
