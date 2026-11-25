@@ -13729,7 +13729,7 @@ func test_a_rock_in_a_field_sits_behind_the_row_of_wheat_in_front(b: Dictionary)
 
 ## The cache the store tests keep the purchase in, and the price their fake store gives.
 const STORE_CACHE := "user://test_store.cfg"
-const STORE_PRICE := "CA$6.99"
+const STORE_PRICE := "CA$4.99"
 
 ## What each store test listens to on FullGame, let go of when the test is done.
 var _store_listening: Array[Callable] = []
