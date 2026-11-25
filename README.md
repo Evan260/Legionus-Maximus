@@ -1,10 +1,10 @@
 # Legionus Maximus
 
-A survivors-style action game in pixel art about leading a Roman legion through the barbarian hordes of the Empire's frontiers, made for Steam (Windows, Mac, Linux and Steam Deck), in 14 languages. Fourth game from Slow Sunday Games, after Farmus, Fishus and Mosaicus Maximus.
+A survivors-style action game in pixel art about leading a Roman legion through the barbarian hordes of the Empire's frontiers, made for Steam (Windows, Mac, Linux and Steam Deck) and for phones (on Google Play now, the App Store being prepared: a free download that plays like the Steam demo, with one purchase that unlocks the full game), in 14 languages. Fourth game from Slow Sunday Games, after Farmus, Fishus and Mosaicus Maximus.
 
 You only steer. Every soldier fights on his own, and each level-up adds a recruit, a weapon or a drill, so a run that starts with the commander alone ends with a hundred men in formation holding off a screen full of enemies. Forest ridges and ravines leave only certain ways through, so the legion fells trees for timber to cut new roads, drive palisades and bridge the gorges. Elites with their own abilities come every 45 seconds, and the gods of Rome can be called on to clear the field. A run is won by retaking the eagles, burning the sacred grove and killing the chieftain who comes out at 15 minutes beside a Roman fort, then holding the fort.
 
-The campaign map runs through eight provinces, Germania, Gaul, Britannia, Hispania, Aegyptus, Parthia, Dacia and Sarmatia, each opened by winning the one before and each with its own ground, enemies, leader and difficulty. Each run is played on Easy, Medium or Hard, and winning a province also opens its Endless and Decimatio modes. Eight kinds of recruit and six commanders can join the legion. A legion that keeps marching while it kills, instead of holding and fighting, raises the pursuit, which sends beasts and sprinters after it.
+The campaign map runs through eight provinces, Germania, Gaul, Britannia, Hispania, Aegyptus, Parthia, Dacia and Sarmatia, each opened by winning the one before and each with its own ground, enemies, leader and difficulty. Each run is played on Easy, Medium or Hard, and winning a province also opens its Endless and Decimatio modes. Seven kinds of recruit and six commanders can join the legion. A legion that keeps marching while it kills, instead of holding and fighting, raises the pursuit, which sends beasts and sprinters after it.
 
 ## Playing it
 
@@ -42,6 +42,8 @@ It has to print `ALL TESTS PASSED`. After adding or changing any picture or soun
 ## Builds
 
 `python tools/export.py` exports Windows, Mac and Linux into `builds/`, and `--demo` exports the demo.
+
+Android builds are made with Godot's Android export: a debug APK from the "Android" preset and a signed bundle for Google Play from "Android release", both the full game. The commands are in [CLAUDE.md](CLAUDE.md).
 
 Pushing a version tag such as `v0.1.0` makes GitHub test the game, build the full game and the demo for Windows, Mac and Linux, sign the Mac app and attach every build to a release. The tag must match `config/version` in `game/project.godot`.
 
