@@ -114,7 +114,12 @@ func text(s: String, pos: Vector2, col: Color = CREAM, align := HORIZONTAL_ALIGN
 func plated_text(s: String, pos: Vector2, col: Color = CREAM, align := HORIZONTAL_ALIGNMENT_LEFT, width := -1.0, size := 0) -> void:
 	var sz := size if size > 0 else Ui.px
 	_plate(plate_rect(s, pos, align, width, sz))
-	text(s, pos, col, align, width, true, sz)
+	text(s, Vector2(pos.x, plate_baseline(s, pos.y, sz)), col, align, width, true, sz)
+
+
+## The baseline a plated text written at `y` is drawn at, its letters in the middle of a line's height.
+static func plate_baseline(s: String, y: float, size: int) -> float:
+	return Ui.middle(y - size - 1.0, Ui.lead_for(size) + 1.0, s, size)
 
 
 ## The plate under a text written at `pos` with its baseline there, as `plated_text` draws it.
@@ -125,7 +130,15 @@ static func plate_rect(s: String, pos: Vector2, align: HorizontalAlignment, widt
 		x = pos.x + width - w
 	elif align == HORIZONTAL_ALIGNMENT_CENTER:
 		x = pos.x + (width - w) / 2.0
-	return Rect2(x - 3.0, pos.y - size - 1.0, w + 6.0, Ui.lead_for(size) + 1.0)
+	return holding(Rect2(x - 3.0, pos.y - size - 1.0, w + 6.0, Ui.lead_for(size) + 1.0), s, plate_baseline(s, pos.y, size), size)
+
+
+## A plate grown to hold every letter of a text drawn on it with its baseline at `y`, since a tall accent can reach past a line's height.
+static func holding(r: Rect2, s: String, y: float, size: int) -> Rect2:
+	var rows := Ui.ink_rows(s, size)
+	if rows.x >= rows.y:
+		return r
+	return r.merge(Rect2(r.position.x, y + rows.x, r.size.x, rows.y - rows.x))
 
 
 ## A dim plate under a label, listed in `plates` in view pixels so the battle's numbers keep out from under it.
@@ -456,7 +469,7 @@ func _timber(sim: Sim, W: float, H: float) -> void:
 		var r: Rect2 = lay.rect
 		r.position -= Touch.inset_tl
 		_plate(r)
-		text(lay.text, Vector2(0, r.position.y + 1.0 + Ui.px), GOLD_LIGHT if hint.enough else MUTED, HORIZONTAL_ALIGNMENT_CENTER, W, true, lay.size)
+		text(lay.text, Vector2(0, lay.y - Touch.inset_tl.y), GOLD_LIGHT if hint.enough else MUTED, HORIZONTAL_ALIGNMENT_CENTER, W, true, lay.size)
 
 
 ## The hint at a ravine's lip: the key and the cost, or with too little timber the cost and what the legion has.
@@ -588,7 +601,12 @@ func _health(sim: Sim, safe: Vector2) -> void:
 	draw_rect(Rect2(r.position, Vector2(roundf(r.size.x * share), r.size.y)), fill)
 	draw_rect(Rect2(r.position, Vector2(roundf(r.size.x * share), 1)), fill.lightened(0.35))
 	var label := "%d / %d" % [ceili(c.hp), ceili(c.max_hp)]
-	text(label, Vector2(r.position.x, r.end.y - 2.0), CREAM, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
+	text(label, Vector2(r.position.x, health_label_y(r, label)), CREAM, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
+
+
+## The baseline of the numbers on the commander's health bar, their drawn letters in its middle at every text size.
+static func health_label_y(r: Rect2, label: String) -> float:
+	return Ui.middle(r.position.y, r.size.y, label)
 
 
 ## The name of this province's last enemy (the war chief, a king, the shah or the queen), as the HUD calls him.
@@ -697,14 +715,19 @@ func _victory_banner(sim: Sim) -> void:
 	var size := int(settled * grow)
 	var y := Ui.view.y * BANNER_Y
 	var w := Ui.font().get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
-	draw_rect(Rect2(0, y - size * 1.1, Ui.view.x, size * 1.6 + Ui.leading()), Color(INK, 0.45 * a))
+	var won := won_line_layout((tr("%s is won") % str(sim.content.provinces[sim.province].name)).to_upper(), Ui.view, _buttons())
+	var won_y := y + Ui.leading() + Ui.px * 0.6
+	# The band is set round the word and the line under it as one block, so the two sit in its middle.
+	var rows := Ui.letter_rows(word, size)
+	var block := Vector2(y + rows.x, won_y + Ui.letter_rows(won.text, won.size).y)
+	var band := size * 1.6 + Ui.leading()
+	draw_rect(Rect2(0, roundf((block.x + block.y - band) / 2.0), Ui.view.x, band), Color(INK, 0.45 * a))
 	draw_string(Ui.font(), Vector2(4, y + 4), word, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x, size, Color(INK, a))
 	draw_string(Ui.font(), Vector2(0, y), word, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x, size, Color(GOLD_LIGHT, a))
 	for side in [-1.0, 1.0]:
-		var at := Vector2(Ui.view.x / 2.0 + side * (w / 2.0 + gap + wreath.x / 2.0), y - size * 0.35)
+		var at := Vector2(Ui.view.x / 2.0 + side * (w / 2.0 + gap + wreath.x / 2.0), y + (rows.x + rows.y) / 2.0)
 		draw_texture_rect(LAUREL, Rect2((at - wreath / 2.0).round(), wreath), false, Color(1, 1, 1, a))
-	var won := won_line_layout((tr("%s is won") % str(sim.content.provinces[sim.province].name)).to_upper(), Ui.view, _buttons())
-	draw_string(Ui.font(), Vector2(0, y + Ui.leading() + Ui.px * 0.6), won.text, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x, won.size, Color(CREAM, a))
+	draw_string(Ui.font(), Vector2(0, won_y), won.text, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x, won.size, Color(CREAM, a))
 
 
 ## How the victory's word is written, as `banner_layout` gives it: five times the text size, smaller when it and a wreath either side would not fit.
@@ -735,9 +758,10 @@ static func chief_banner_layout(line: String, view: Vector2, buttons: Dictionary
 func chief_banner_rect(sim: Sim) -> Rect2:
 	if not chief_banner_shown(sim):
 		return Rect2()
-	var size: int = chief_banner_layout(chief_banner_line(sim).to_upper(), Ui.view, _buttons()).size
-	var y := Ui.view.y * BANNER_Y
-	return Rect2(0, y - size * 1.2, Ui.view.x, size * 1.7)
+	var line := chief_banner_line(sim).to_upper()
+	var size: int = chief_banner_layout(line, Ui.view, _buttons()).size
+	var rows := Ui.letter_rows(line, size)
+	return Rect2(0, roundf(Ui.view.y * BANNER_Y + (rows.x + rows.y - size * 1.7) / 2.0), Ui.view.x, size * 1.7)
 
 
 ## The chieftain's fall written large across the field over a dark band.
@@ -815,12 +839,14 @@ static func fitted_line(s: String, mid: float, y: float, view: Vector2, buttons:
 	return {"text": shown, "size": size, "rect": Rect2(mid - w / 2.0 - pad, y - Ui.px, w + 2.0 * pad, Ui.leading())}
 
 
-## How the hint at a ravine's lip is written, as `fitted_line` gives it, with its plate as the rect.
+## How the hint at a ravine's lip is written, as `fitted_line` gives it, with its plate as the rect and its baseline as `y`.
 static func bridge_hint_layout(said: String, view: Vector2, buttons: Dictionary) -> Dictionary:
 	var safe := view - Touch.inset_tl - Touch.inset_br
 	var row: Rect2 = bottom_layout(safe).bridge
 	var lay := fitted_line(said, Touch.inset_tl.x + safe.x / 2.0, Touch.inset_tl.y + row.position.y + Ui.px, view, buttons, 4.0)
-	lay.rect = Rect2(lay.rect.position.x, Touch.inset_tl.y + row.position.y - 1.0, lay.rect.size.x, row.size.y + 2.0)
+	var plate := Rect2(lay.rect.position.x, Touch.inset_tl.y + row.position.y - 1.0, lay.rect.size.x, row.size.y + 2.0)
+	lay.y = Ui.middle(plate.position.y, plate.size.y, lay.text, lay.size)
+	lay.rect = holding(plate, lay.text, lay.y, lay.size)
 	return lay
 
 
@@ -1102,9 +1128,12 @@ func _objective_arrows(sim: Sim, avoid: Array) -> void:
 			continue
 		if r.size.x == 0.0:
 			continue
-		_plate(r.grow(2.0))
-		text(l.name, Vector2(r.position.x, r.position.y + Ui.px), GOLD_LIGHT if l.kind != "fort" and l.kind != "chieftain" else CREAM, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
-		text(l.dist, Vector2(r.position.x, r.position.y + Ui.px + Ui.leading()), CREAM, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
+		var plate := r.grow(2.0)
+		_plate(plate)
+		# The name and the distance under it are set as one block in the middle of the plate.
+		var y := Ui.middle(plate.position.y, plate.size.y - Ui.leading() * (roundf(r.size.y / Ui.leading()) - 1.0), l.name)
+		text(l.name, Vector2(r.position.x, y), GOLD_LIGHT if l.kind != "fort" and l.kind != "chieftain" else CREAM, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
+		text(l.dist, Vector2(r.position.x, y + Ui.leading()), CREAM, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
 
 
 ## One edge badge: a thick outlined arrow head pointing at the target, and a bright ringed disc carrying its picture.
@@ -1455,7 +1484,6 @@ func _touch_choice_buttons(sim: Sim, praying: bool, one: Rect2) -> void:
 	if levelling and sim.banishes > 0:
 		ids.append(["banish", "%s (%d)" % [tr("banish"), sim.banishes]])
 	var w := one.size.x
-	var h := one.size.y
 	var row := button_row(ids.map(func(pair: Array) -> String: return pair[0]), one)
 	for k in ids.size():
 		var r: Rect2 = row[ids[k][0]]
@@ -1463,7 +1491,9 @@ func _touch_choice_buttons(sim: Sim, praying: bool, one: Rect2) -> void:
 		if k == 0:
 			draw_rect(r.grow(3), GOLD)
 		panel(r, CREAM if k == 0 else PARCH)
-		ui.fit_text(self, str(ids[k][1]).to_upper(), w - 12.0, Vector2(r.position.x, r.position.y + h / 2.0 + Ui.px * 3 / 8), INK, HORIZONTAL_ALIGNMENT_CENTER, w)
+		var label := str(ids[k][1]).to_upper()
+		var size := Ui.fit_size(label, w - 12.0)
+		ui.fit_text(self, label, w - 12.0, Vector2(r.position.x, Ui.label_y(r, label, size)), INK, HORIZONTAL_ALIGNMENT_CENTER, w, false, size)
 
 
 ## A row of buttons, one for each id, each the size of `one` and the row centred where `one` is, as {id: rect}.
@@ -1496,7 +1526,9 @@ func _big_choice_buttons(sim: Sim) -> void:
 		if armed or r.has_point(over):
 			draw_rect(r.grow(2), RED if armed else GOLD)
 		panel(r, CREAM if armed else PARCH)
-		ui.fit_text(self, choice_button_label(sim, id), r.size.x - 12.0, Vector2(r.position.x, r.position.y + r.size.y / 2.0 + Ui.px * 3 / 8), INK, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
+		var label := choice_button_label(sim, id)
+		var size := Ui.fit_size(label, r.size.x - 12.0)
+		ui.fit_text(self, label, r.size.x - 12.0, Vector2(r.position.x, Ui.label_y(r, label, size)), INK, HORIZONTAL_ALIGNMENT_CENTER, r.size.x, false, size)
 
 
 ## The width of each of `n` buttons in the row under a phone's choice at the normal text size.

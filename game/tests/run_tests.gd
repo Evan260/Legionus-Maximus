@@ -8104,6 +8104,113 @@ func test_the_health_bar_flashes_and_reddens(b: Dictionary) -> void:
 	check(Hud.health_colour(0.5, 10.0) != Hud.RED, "above it, not")
 
 
+## The rows the language's font fills when it draws a text at a size, read from its glyphs' own pixels, measured down from the baseline.
+func _drawn_rows(s: String, size: int) -> Vector2:
+	var ts := TextServerManager.get_primary_interface()
+	var out := Vector2(INF, -INF)
+	for ch in s:
+		var code := ch.unicode_at(0)
+		for rid in Ui.font().get_rids():
+			if not ts.font_has_char(rid, code):
+				continue
+			var at := Vector2i(size, 0)
+			var glyph := ts.font_get_glyph_index(rid, size, code, 0)
+			ts.font_render_glyph(rid, at, glyph)
+			var page := ts.font_get_glyph_texture_idx(rid, at, glyph)
+			if page >= 0:
+				var img := ts.font_get_texture_image(rid, at, page)
+				var uv := ts.font_get_glyph_uv_rect(rid, at, glyph)
+				var top := ts.font_get_glyph_offset(rid, at, glyph).y
+				for y in int(uv.size.y):
+					for x in int(uv.size.x):
+						if img.get_pixel(int(uv.position.x) + x, int(uv.position.y) + y).a > 0.5:
+							out = Vector2(minf(out.x, top + y), maxf(out.y, top + y + 1.0))
+			break
+	return out
+
+
+## How far a text drawn with its baseline at `y` sits from the middle of the rows `top` to `bottom`: the rows above its letters less the rows below.
+func _off_middle(s: String, size: int, y: float, top: float, bottom: float) -> float:
+	var rows := _drawn_rows(s, size)
+	return (y + rows.x - top) - (bottom - (y + rows.y))
+
+
+func test_the_health_numbers_sit_in_the_middle_of_their_bar(b: Dictionary) -> void:
+	var before: String = Lang.code
+	var before_scale := Ui.scale
+	var problems := []
+	for loc in LANGUAGES:
+		Lang.apply(loc, false)
+		for scale in [1, 2]:
+			Ui.set_text_size(scale, b)
+			for screen in _big_screens():
+				var bar: Rect2 = Hud.bottom_layout(screen.view - screen.tl - screen.br).health
+				for label in ["160 / 160", "7 / 160", "1250 / 1250"]:
+					var y := Hud.health_label_y(bar, label)
+					var off := _off_middle(label, Ui.px, y, bar.position.y, bar.end.y)
+					if absf(off) > 1.0 or y - bar.position.y != roundf(y - bar.position.y):
+						problems.append("%s x%d %s: '%s' at %.1f has %+.0f rows more above it than below in the bar %s" % [loc, scale, screen.name, label, y, off, bar])
+	Lang.apply(before, false)
+	Ui.set_text_size(before_scale, b)
+	for p in problems.slice(0, 12):
+		print("  ", p)
+	check(problems.is_empty(), "the health numbers' drawn letters sit in the middle of the bar within a pixel in every language, layout and text size (%d problems)" % problems.size())
+
+
+func test_a_timber_buttons_cost_stands_clear_of_its_picture_and_rim(b: Dictionary) -> void:
+	var before: String = Lang.code
+	var before_scale := Ui.scale
+	var problems := []
+	for loc in LANGUAGES:
+		Lang.apply(loc, false)
+		for scale in [1, 2]:
+			Ui.set_text_size(scale, b)
+			# A tablet's buttons, the smallest, have a radius of about 11.
+			for r in range(11, 31):
+				for id in ["build", "wall", "bridge"]:
+					var c := Vector2(400, 200.5)
+					var lay := TouchPad.cost_layout(id, c, r, "12")
+					var y: float = lay.y
+					var rows := _drawn_rows("12", lay.size)
+					var gap := y + rows.x - TouchPad.picture_rows(id, lay.at, lay.k).y
+					var rim := c.y + r - 2.0 - (y + rows.y)
+					if gap < 1.0 or rim < 0.0:
+						problems.append("%s x%d radius %d %s: %.0f rows under the picture, %.1f above the rim's inner ring" % [loc, scale, r, id, gap, rim])
+	Lang.apply(before, false)
+	Ui.set_text_size(before_scale, b)
+	for p in problems.slice(0, 12):
+		print("  ", p)
+	check(problems.is_empty(), "a timber button's cost stands clear of its picture and inside its rim's inner ring in every language and text size (%d problems)" % problems.size())
+
+
+func test_labels_sit_in_the_middle_of_their_plates_and_buttons(b: Dictionary) -> void:
+	var before: String = Lang.code
+	var before_scale := Ui.scale
+	var problems := []
+	for loc in LANGUAGES:
+		Lang.apply(loc, false)
+		for scale in [1, 2]:
+			Ui.set_text_size(scale, b)
+			for label in ["12:34", "LEGION 20"]:
+				for size in [Ui.px, Ui.small_px()]:
+					var plate := Hud.plate_rect(label, Vector2(10, 40), HORIZONTAL_ALIGNMENT_LEFT, -1.0, size)
+					var y := Hud.plate_baseline(label, 40.0, size)
+					var off := _off_middle(label, size, y, plate.position.y, plate.end.y)
+					if absf(off) > 1.0:
+						problems.append("%s x%d '%s' at %d px: %+.0f rows more above it than below on its plate" % [loc, scale, label, size, off])
+					for h in range(Ui.px + 2, Ui.px + 18):
+						var box := Rect2(30, 7, 120, h)
+						var at := Ui.label_y(box, label, size)
+						var off_box := _off_middle(label, size, at, box.position.y, box.end.y)
+						if absf(off_box) > 1.0 or at != roundf(at):
+							problems.append("%s x%d '%s' at %d px: %+.0f rows more above it than below in a box %d high" % [loc, scale, label, size, off_box, h])
+	Lang.apply(before, false)
+	Ui.set_text_size(before_scale, b)
+	for p in problems.slice(0, 12):
+		print("  ", p)
+	check(problems.is_empty(), "labels sit in the middle of their plates and buttons within a pixel in every language and text size (%d problems)" % problems.size())
+
+
 func test_the_arrows_are_badges_whose_labels_never_overlap(b: Dictionary) -> void:
 	var before := Ui.scale
 	var view := Vector2(640, 360)

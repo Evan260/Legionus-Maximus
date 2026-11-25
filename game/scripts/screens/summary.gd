@@ -235,7 +235,8 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 		var room := r.end.x - 12.0 - 2.0 * bw - 16.0 - lx
 		if store != "":
 			room -= wide + 8.0
-		ui.fit_text(c, tr("Your progress could not be saved"), room, Vector2(lx, r.end.y - 6.0 - h / 2.0 + Ui.px / 2.0 - 1.0), Ui.RED)
+		var size := Ui.fit_size(tr("Your progress could not be saved"), room)
+		ui.fit_text(c, tr("Your progress could not be saved"), room, Vector2(lx, Ui.middle(r.end.y - 6.0 - h, h, tr("Your progress could not be saved"), size)), Ui.RED, HORIZONTAL_ALIGNMENT_LEFT, -1.0, false, size)
 
 
 ## The victory reveal over the darkened field: gold rays turning behind a great VICTORY between laurels, coins raining,

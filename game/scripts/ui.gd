@@ -7,6 +7,9 @@ const W := 640.0
 const H := 360.0
 ## Marks that Chinese and Japanese never put at the start of a line.
 const NO_LINE_START := "。、，．！？）」』：；・…ー.,!?):;"
+## Letters that stand for a line of words when a label is set in the middle of a box: capitals and figures, and in Chinese, Japanese and Korean one of their characters, which reach a little below the line.
+const BODY := "H0"
+const HAN_BODY := {"ja": "H0国", "zh_CN": "H0国", "zh_TW": "H0國", "ko": "H0가"}
 const INK := Color(0.16, 0.1, 0.08)
 const CREAM := Color(1.0, 0.95, 0.82)
 const PARCH := Color(0.96, 0.9, 0.76)
@@ -22,7 +25,10 @@ static var scale := 1
 static var px := 8
 # A language whose text is drawn in its own font, for the picker that names every language in its own letters.
 static var _own: Font
+static var _own_loc := ""
 static var _balance_px := 8
+# The rows each letter fills, by font and then by letter and size, read once from the font's own picture of it.
+static var _ink := {}
 # The window shows at least 640 by 360 and more on whichever side it is longer; menus stay in a centred 640 by 360 box.
 static var view := Vector2(W, H)
 static var offset := Vector2.ZERO
@@ -59,6 +65,7 @@ static func font() -> Font:
 ## Draws the text that follows in a language's own font and size until `draw_in("")` puts the showing language back.
 static func draw_in(loc: String) -> void:
 	_own = Lang.font(loc) if loc != "" else null
+	_own_loc = loc
 	px = _px_for(loc if loc != "" else Lang.code)
 
 
@@ -78,6 +85,64 @@ static func small_px() -> int:
 
 static func width_at(s: String, size: int) -> float:
 	return font().get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+
+
+## The rows a text's letters fill when the font draws them at a size (the text size when 0), measured down from the baseline.
+static func ink_rows(s: String, size := 0) -> Vector2:
+	var sz := size if size > 0 else px
+	var f := font()
+	var known: Dictionary = _ink.get_or_add(f, {})
+	var out := Vector2(INF, -INF)
+	for i in s.length():
+		var code := s.unicode_at(i)
+		var key := code * 1024 + sz
+		if not known.has(key):
+			known[key] = _glyph_rows(f, code, sz)
+		var rows: Vector2 = known[key]
+		out = Vector2(minf(out.x, rows.x), maxf(out.y, rows.y))
+	return out
+
+
+# The rows a letter's pixels fill in the font's own picture of it, taken from the first of the font and its fallbacks that has it.
+static func _glyph_rows(f: Font, code: int, size: int) -> Vector2:
+	var ts := TextServerManager.get_primary_interface()
+	for rid in f.get_rids():
+		if not ts.font_has_char(rid, code):
+			continue
+		var at := Vector2i(size, 0)
+		var glyph := ts.font_get_glyph_index(rid, size, code, 0)
+		ts.font_render_glyph(rid, at, glyph)
+		var page := ts.font_get_glyph_texture_idx(rid, at, glyph)
+		var out := Vector2(INF, -INF)
+		if page < 0:
+			return out
+		var img := ts.font_get_texture_image(rid, at, page)
+		var uv := ts.font_get_glyph_uv_rect(rid, at, glyph)
+		var top := ts.font_get_glyph_offset(rid, at, glyph).y
+		# Without the picture, the glyph's box less the one pixel of margin round it is the nearest guess.
+		if img == null or img.is_empty():
+			return Vector2(top + 1.0, top + uv.size.y - 1.0)
+		for y in int(uv.size.y):
+			for x in int(uv.size.x):
+				if img.get_pixel(int(uv.position.x) + x, int(uv.position.y) + y).a > 0.5:
+					out = Vector2(minf(out.x, top + y), maxf(out.y, top + y + 1.0))
+		return out
+	return Vector2(INF, -INF)
+
+
+## The rows a label's letters stand in, measured down from the baseline, as it is set in a box: its own rows within those of the capitals, figures and characters.
+static func letter_rows(s: String, size := 0) -> Vector2:
+	var own := ink_rows(s, size)
+	# Only the rows of the capitals, figures and characters count, so an accent or a tail never moves a label off its neighbours' line.
+	var body := ink_rows(HAN_BODY.get(_own_loc if _own != null else Lang.code, BODY), size)
+	var rows := Vector2(maxf(own.x, body.x), minf(own.y, body.y))
+	return rows if rows.x < rows.y else body
+
+
+## The baseline that sets a label's letters in the middle of `height` rows from `top`, any odd row going under them, where their shading falls.
+static func middle(top: float, height: float, s: String, size := 0) -> float:
+	var rows := letter_rows(s, size)
+	return top + floorf((height - (rows.y - rows.x)) / 2.0) - rows.x
 
 
 ## The size a label is drawn at to fit the width: the text size, or the smallest one when it does not fit.
@@ -252,11 +317,12 @@ func field(c: CanvasItem, r: Rect2, typed: String, placeholder: String) -> void:
 	c.draw_rect(r, CREAM)
 	c.draw_rect(Rect2(r.position, Vector2(r.size.x, 2)), PARCH_DARK)
 	c.draw_rect(Rect2(r.position, Vector2(2, r.size.y)), PARCH_DARK)
-	var at := Vector2(r.position.x + 8.0, r.get_center().y + px / 2.0 - 1.0)
+	var at := Vector2(r.position.x + 8.0, label_y(r, placeholder))
 	if typed == "":
 		text(c, placeholder, at, MUTED)
 	else:
-		fit_text(c, typed, r.size.x - 24.0, at, INK)
+		var size := fit_size(typed, r.size.x - 24.0)
+		fit_text(c, typed, r.size.x - 24.0, Vector2(at.x, label_y(r, typed, size)), INK, HORIZONTAL_ALIGNMENT_LEFT, -1.0, false, size)
 	if int(Time.get_ticks_msec() / 500) % 2 == 0:
 		var x := at.x + (width_at(typed, px) + 2.0 if typed != "" else 0.0)
 		c.draw_rect(Rect2(x, r.position.y + 5.0, 2.0, r.size.y - 10.0), INK)
@@ -369,13 +435,19 @@ func button(c: CanvasItem, r: Rect2, id: String, label: String, right := "", ena
 		var side := icon_side(r)
 		c.draw_texture_rect(icon, Rect2(x - 2.0, r.position.y + (r.size.y - side) / 2.0, side, side), false)
 		x += side + 2.0
-	var y := r.position.y + r.size.y / 2.0 + px * 3 / 8
 	if right != "":
-		text(c, right, Vector2(r.end.x - width_of(right) - 6.0, y), right_col if enabled else MUTED)
+		text(c, right, Vector2(r.end.x - width_of(right) - 6.0, label_y(r, right)), right_col if enabled else MUTED)
+	var room := r.size.x - 12.0 if centered else label_room(r, right, icon != null, right_reserve)
+	var size := label_size if label_size > 0 else fit_size(label, room)
 	if centered:
-		fit_text(c, label, r.size.x - 12.0, Vector2(r.position.x, y), ink, HORIZONTAL_ALIGNMENT_CENTER, r.size.x, false, label_size)
+		fit_text(c, label, room, Vector2(r.position.x, label_y(r, label, size)), ink, HORIZONTAL_ALIGNMENT_CENTER, r.size.x, false, size)
 	else:
-		fit_text(c, label, label_room(r, right, icon != null, right_reserve), Vector2(x, y), ink, HORIZONTAL_ALIGNMENT_LEFT, -1.0, false, label_size)
+		fit_text(c, label, room, Vector2(x, label_y(r, label, size)), ink, HORIZONTAL_ALIGNMENT_LEFT, -1.0, false, size)
+
+
+## The baseline of a label in the middle of a box, at the size it is drawn at (the text size when 0).
+static func label_y(r: Rect2, s: String, size := 0) -> float:
+	return middle(r.position.y, r.size.y, s, size)
 
 
 ## The words of a phone's button that buys the full game, with the store's price once the store has said it.

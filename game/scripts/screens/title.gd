@@ -382,7 +382,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	if Game.is_demo() and not FullGame.sold_here():
 		var tag := Rect2(logo_pos.x + LOGO.get_width() - 56.0, logo_pos.y + LOGO.get_height() - 8.0, 56.0, 8.0 + 8.0 * Ui.scale)
 		ui.panel(c, tag)
-		ui.text(c, tr("Demo").to_upper(), Vector2(tag.position.x, tag.end.y - 4.0 - Ui.px * 3 / 8), Ui.RED, HORIZONTAL_ALIGNMENT_CENTER, tag.size.x)
+		ui.text(c, tr("Demo").to_upper(), Vector2(tag.position.x, Ui.label_y(tag, tr("Demo").to_upper())), Ui.RED, HORIZONTAL_ALIGNMENT_CENTER, tag.size.x)
 	_draw_controls(c, ui, g)
 	for i in ids.size():
 		ui.button(c, rects[i], ids[i][0], labels[i], "", ids[i][2], null, true)
@@ -440,7 +440,7 @@ func _keycap(c: CanvasItem, ui: Ui, r: Rect2, name: String) -> void:
 	var face := Rect2(r.position, Vector2(r.size.x, r.size.y - lip))
 	c.draw_rect(face, Ui.CREAM)
 	c.draw_rect(Rect2(face.position.x, face.end.y - 1.0, face.size.x, 1.0), Ui.PARCH_DARK)
-	ui.text(c, name, Vector2(r.position.x, roundf(face.get_center().y + Ui.px * 3 / 8.0)), Ui.INK, HORIZONTAL_ALIGNMENT_CENTER, r.size.x, false, Ui.px)
+	ui.text(c, name, Vector2(r.position.x, Ui.label_y(face, name)), Ui.INK, HORIZONTAL_ALIGNMENT_CENTER, r.size.x, false, Ui.px)
 
 
 func _icon(c: CanvasItem, ui: Ui, id: String, r: Rect2) -> void:

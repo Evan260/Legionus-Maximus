@@ -111,11 +111,11 @@ func _draw() -> void:
 				var cost := int(sim.b[{"build": "palisade", "wall": "wall", "bridge": "bridge"}[id]].cost)
 				var enough := sim.timber >= cost
 				disc(self, c, r, enough, held.has(id))
-				var size := Ui.px if r >= 16.0 else Ui.small_px()
-				picture(self, id, c + Vector2(0, -r * 0.2), r, enough)
 				var label := str(cost)
-				var w := Ui.width_at(label, size)
-				draw_string(Ui.font(), Vector2(roundf(c.x - w / 2.0), roundf(c.y + r * 0.78)), label, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Ui.INK)
+				var lay := cost_layout(id, c, r, label)
+				picture(self, id, lay.at, r, enough, lay.k)
+				var w := Ui.width_at(label, lay.size)
+				draw_string(Ui.font(), Vector2(roundf(c.x - w / 2.0), lay.y), label, HORIZONTAL_ALIGNMENT_LEFT, -1, lay.size, Ui.INK)
 			"pause":
 				disc(self, c, r, true, held.has(id))
 				picture(self, id, c, r, true)
@@ -166,9 +166,10 @@ func _icon(tex: Texture2D, c: Vector2, side: float, lit: bool) -> void:
 
 
 ## A drawn sign for each timber work: a few pointed stakes for the palisade, a railed row of them for the wall, planks for the bridge; and the pause's two bars.
-static func picture(ci: CanvasItem, id: String, c: Vector2, r: float, lit: bool) -> void:
+static func picture(ci: CanvasItem, id: String, c: Vector2, r: float, lit: bool, k := 0.0) -> void:
 	var wood := WOOD if lit else WOOD.darkened(0.3)
-	var k := maxf(1.0, roundf(r / 10.0))
+	if k <= 0.0:
+		k = maxf(1.0, roundf(r / 10.0))
 	match id:
 		"build", "wall":
 			var n := 3 if id == "build" else 5
@@ -196,6 +197,35 @@ static func picture(ci: CanvasItem, id: String, c: Vector2, r: float, lit: bool)
 			var bar := Vector2(maxf(2.0, roundf(r * 0.22)), roundf(r * 0.8))
 			for side in [-1.0, 1.0]:
 				ci.draw_rect(Rect2((c + Vector2(side * bar.x * 1.1 - bar.x / 2.0, -bar.y / 2.0)).round(), bar), Ui.INK)
+
+
+## A timber button's picture and the timber its work costs, set one over the other in the middle of the face inside its rim, as {at (the picture's centre), k (its scale), size, y (the cost's baseline)}.
+static func cost_layout(id: String, c: Vector2, r: float, label: String) -> Dictionary:
+	var face := Vector2(c.y - r + 3.0, c.y + r - 3.0)
+	var home := roundf(c.y)
+	var out := {}
+	# The picture keeps its size before the figures do, and both step down until the palisade, the tallest, leaves a row clear above and below, so the three buttons match.
+	for k in range(maxi(1, roundi(r / 10.0)), 0, -1):
+		var pic := picture_rows(id, Vector2(c.x, home), float(k)) - Vector2.ONE * home
+		var tallest := picture_rows("build", Vector2(c.x, home), float(k))
+		for size in [Ui.px, Ui.small_px()]:
+			var figures := Ui.letter_rows(label, size)
+			var tall := pic.y - pic.x + 1.0 + figures.y - figures.x
+			# On the smallest buttons the stakes' points, rather than the figures, run into the rim.
+			var top := floorf(face.x + (face.y - face.x - tall) / 2.0) if tall <= face.y - face.x else floorf(face.y - tall)
+			out = {"at": Vector2(c.x, top - pic.x), "k": float(k), "size": size, "y": top + pic.y - pic.x + 1.0 - figures.x}
+			if tallest.y - tallest.x + 1.0 + figures.y - figures.x + 2.0 <= face.y - face.x:
+				return out
+	return out
+
+
+## The rows a picture drawn by `picture` at `c` with scale `k` covers, outline included, as (first, the first under it).
+static func picture_rows(id: String, c: Vector2, k: float) -> Vector2:
+	if id == "bridge":
+		var top := roundf(c.y - 3.5 * k)
+		return Vector2(top - 1.0, top + 7.0 * k + 1.0)
+	var foot := roundf(c.y + 4.0 * k)
+	return Vector2(foot - (9.0 if id == "build" else 7.0) * k - 1.0, foot + 1.0)
 
 
 ## One sharpened stake standing at `at`, its top left corner, in an ink outline with a lit left edge.

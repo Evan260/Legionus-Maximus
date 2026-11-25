@@ -515,7 +515,8 @@ func _panel(c: CanvasItem, ui: Ui, id: String) -> void:
 		if on:
 			c.draw_rect(box.grow(-2.0), Ui.RED)
 		var room := b.size.x - Ui.px - 14.0
-		ui.fit_text(c, tr(MODES[k][1]), room, Vector2(box.end.x + 4.0, b.position.y + bh / 2.0 + Ui.px * 3 / 8), Ui.INK)
+		var size := Ui.fit_size(tr(MODES[k][1]), room)
+		ui.fit_text(c, tr(MODES[k][1]), room, Vector2(box.end.x + 4.0, Ui.label_y(b, tr(MODES[k][1]), size)), Ui.INK, HORIZONTAL_ALIGNMENT_LEFT, -1.0, false, size)
 
 
 ## The best times from `y` down: a row for each difficulty with the chosen one marked, or with large text the chosen one's alone, across.
@@ -560,8 +561,9 @@ func _levels(c: CanvasItem, ui: Ui, id: String, row: Rect2) -> void:
 		var chosen: bool = main.run_setup.difficulty == LEVELS[k][0]
 		if chosen:
 			c.draw_rect(b.grow(-2.0), Ui.RED)
-		ui.fit_text(c, tr(LEVELS[k][1]), bw - 4.0, Vector2(b.position.x, b.position.y + b.size.y / 2.0 + Ui.px * 3 / 8), Ui.CREAM if chosen else Ui.INK,
-			HORIZONTAL_ALIGNMENT_CENTER, bw)
+		var size := Ui.fit_size(tr(LEVELS[k][1]), bw - 4.0)
+		ui.fit_text(c, tr(LEVELS[k][1]), bw - 4.0, Vector2(b.position.x, Ui.label_y(b, tr(LEVELS[k][1]), size)), Ui.CREAM if chosen else Ui.INK,
+			HORIZONTAL_ALIGNMENT_CENTER, bw, false, size)
 
 
 ## The widths of the three difficulty buttons in a row `width` wide: each name's own width and an even share of the room left, so a long name keeps its size.

@@ -213,7 +213,7 @@ func _draw_main(c: CanvasItem, ui: Ui) -> void:
 				Ui.draw_in("" if Profile.setting("language") == "" else str(Profile.setting("language")))
 				ui.button(c, rect, "language", "", lang)
 				Ui.draw_in("")
-				ui.text(c, tr("Language"), Vector2(x + 6.0, rect.position.y + h / 2.0 + Ui.px * 3 / 8), Ui.INK)
+				ui.text(c, tr("Language"), Vector2(x + 6.0, Ui.middle(rect.position.y, h, tr("Language"))), Ui.INK)
 			"controls":
 				ui.button(c, rect, "controls", tr("Keys and buttons"), "")
 			"privacy":
@@ -295,7 +295,7 @@ func _draw_controls(c: CanvasItem, ui: Ui) -> void:
 	var step: float = rows.step
 	var slots := [["keys", 0], ["keys", 1], ["pads", 0]]
 	for a in Controls.ACTIONS:
-		ui.text(c, tr(a[1]), Vector2(r.position.x + 12, y + h / 2 + Ui.px * 3 / 8), Ui.INK)
+		ui.text(c, tr(a[1]), Vector2(r.position.x + 12, Ui.middle(y, h, tr(a[1]))), Ui.INK)
 		for k in slots.size():
 			var is_waiting: bool = waiting.get("action", "") == a[0] and waiting.kind == slots[k][0] and waiting.slot == slots[k][1]
 			var label := tr("Press...") if is_waiting else Controls.slot_text(saved, a[0], slots[k][0], slots[k][1])
