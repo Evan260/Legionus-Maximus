@@ -1,0 +1,54 @@
+LEGIONUS MAXIMUS: GOOGLE PLAY LISTING TEXT
+
+For Play Console > Store presence > Main store listing > App details. Each count is the number of
+characters Play counts for that field, line breaks included, against the field's limit. The text avoids
+"demo" and "trial", so it can be reused for the App Store.
+
+
+APP NAME (30 of 30 characters)
+
+Legionus Maximus: Roman Legion
+
+
+SHORT DESCRIPTION (75 of 80 characters)
+
+Steer a Roman legion through barbarian hordes as it grows to a hundred men.
+
+
+FULL DESCRIPTION (3,596 of 4,000 characters)
+
+You steer. The legion fights.
+
+Legionus Maximus is a survivors-style action game in pixel art. Lead a Roman legion across eight provinces of the ancient world, from the forests of Germania to the steppes of Sarmatia. You move the commander and nothing else. Every legionary stabs, every archer shoots and every weapon fires on its own, while the barbarians pour in from every side. Each level-up adds men, a weapon or a drill, so a run that starts with a handful of soldiers ends with a hundred men in formation holding off a screen full of enemies.
+
+Free to start, one purchase for the whole game
+Download Legionus Maximus for free and march into Germania with the first three commanders. One purchase opens the whole road from Rome: all eight provinces, all six commanders, full campaigns with the chieftain and the fort, and the Endless and Decimatio modes. Your upgrades and records carry straight on. No ads, ever, and nothing else for sale.
+
+Made for touch
+Steer with a floating stick under your left thumb. Round buttons under your right thumb raise the testudo, call on the gods and build palisades, walls and bridges. Tap a choice to look at it and tap again to take it, and use the back gesture to pause whenever you need a moment.
+
+At a glance
+• One control that matters: where you march. The formation turns as you turn, shields to the front and archers behind.
+• Seven kinds of soldier to recruit, from legionaries and archers to cavalry, a medicus, a ballista crew and a centurion.
+• Twelve weapons that fire on their own, six forged forms to make from them, and fifteen drills for the whole legion.
+• Five gods of Rome to call on when their favour is full: Jupiter's lightning, Neptune's earthquake, Mars's war frenzy, Vulcan's rain of fire and Apollo's healing light.
+• Fell trees for timber, drive palisades across the barbarians' path and lay bridges over the ravines.
+• Retake the eagles, burn the sacred grove and march into the Roman fort to win the province.
+
+Eight provinces on the road from Rome
+The campaign map follows the real geography of the empire, and winning a province opens the road to the next: the dark forests of Germania, the wheat fields and hedges of Gaul, the moors and stone circles of Britannia, the olive terraces of Hispania, the canals of Aegyptus, the desert dunes of Parthia, the frozen streams of Dacia and the feather grass of the Sarmatian steppe. Each has its own ground, its own warriors, its own elites and its own chieftain, from Arminius and Vercingetorix to Boudica and Decebalus.
+
+Bosses that warn you
+Elites come on their own timer, and every ability is marked on the ground before it lands, so a legion that is watching can step out of it. The berserker spins in a whirlwind inside a red ring, the war elephant tramples down a marked line, and every chieftain fights differently, from Vercingetorix's ring of stakes to Boudica's war chariot and the Sarmatian king's charging lancers.
+
+Between runs
+• The denarii you carry home buy permanent upgrades from the quartermaster.
+• Six commanders to unlock, each starting the run his own way.
+• The tablinum keeps every soldier, weapon, enemy and god you have met, with a line of real history for each.
+• A run summary with your time, kills, denarii, the damage each weapon did and the size of your legion over time.
+
+Made to play your way
+• Three difficulties: Easy, Medium and Hard.
+• Larger text, screen shake, damage numbers and blood can each be turned on or off in the options.
+• Pixel art that stays sharp on every screen.
+• 28 achievements, three save slots, and play in 14 languages.
