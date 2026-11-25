@@ -293,5 +293,6 @@
   "full_game": {
     "thanks_hold": 7.0,
     "note_hold": 5.0
-  }
+  },
+  "privacy_policy": "https://evan260.github.io/slowsunday/privacy.html"
 }

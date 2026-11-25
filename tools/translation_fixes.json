@@ -5519,6 +5519,38 @@
       "ko": "구매가 결제를 기다리고 있습니다. 결제가 끝나는 대로 정식판이 열립니다.",
       "zh_CN": "您的购买正在等待付款。付款完成后，完整版会立即开放。",
       "zh_TW": "您的購買正在等待付款。付款完成後，完整版會立即開放。"
+    },
+    "Privacy policy": {
+      "en": "Privacy policy",
+      "fr": "Politique de confidentialité",
+      "de": "Datenschutzerklärung",
+      "es": "Política de privacidad",
+      "it": "Informativa sulla privacy",
+      "pt_BR": "Política de privacidade",
+      "pl": "Polityka prywatności",
+      "tr": "Gizlilik politikası",
+      "ru": "Политика конфиденциальности",
+      "uk": "Політика конфіденційності",
+      "ja": "プライバシーポリシー",
+      "ko": "개인정보 처리방침",
+      "zh_CN": "隐私政策",
+      "zh_TW": "隱私權政策"
+    },
+    "This run ends here": {
+      "en": "This run ends here",
+      "fr": "Cette expédition s’arrête ici",
+      "de": "Dieser Feldzug endet hier",
+      "es": "Esta campaña termina aquí",
+      "it": "Questa campagna finisce qui",
+      "pt_BR": "Esta campanha termina aqui",
+      "pl": "Ta wyprawa kończy się tutaj",
+      "tr": "Sefer burada sona eriyor",
+      "ru": "Этот поход заканчивается здесь",
+      "uk": "Цей похід закінчується тут",
+      "ja": "この遠征はここで終了します",
+      "ko": "이번 원정은 여기서 끝납니다",
+      "zh_CN": "这次远征到此结束",
+      "zh_TW": "這次遠征就此結束"
     }
   }
 }

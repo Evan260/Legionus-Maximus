@@ -4721,6 +4721,7 @@ func _cuts_in(loc: String, scale: int, c: Content, sim: Sim, cuts: Array) -> voi
 	Touch.phone = was_phone
 	_fit(cuts, loc, scale, "summary unlock button", SummaryScreen.store_label("unlock"), SummaryScreen.store_width("unlock") - 12.0)
 	_fit(cuts, loc, scale, "restore button", tr_.call("Restore purchase"), 428.0)
+	_fit(cuts, loc, scale, "privacy policy button", tr_.call("Privacy policy"), 428.0)
 	for result in ["purchased", "restored", "pending", "error", "unavailable", "not_found"]:
 		var said: Array = Hud.store_lines(result)
 		for k in said.size():
@@ -13962,6 +13963,24 @@ func test_phones_offer_to_restore_a_purchase_in_the_settings(_b: Dictionary) -> 
 	check(not SettingsScreen.rows().has("restore"), "once it is owned the settings stop offering it")
 	m.free()
 	_shop_done()
+	Touch.phone = phone
+
+
+func test_phones_link_the_privacy_policy_in_the_settings(b: Dictionary) -> void:
+	var phone := Touch.phone
+	Touch.phone = false
+	check(not SettingsScreen.rows().has("privacy"), "a computer's settings look as they always have, with no privacy policy")
+	Touch.phone = true
+	var rows := SettingsScreen.rows()
+	check(rows.has("privacy") and rows.find("privacy") < rows.find("back"), "a phone's settings link the privacy policy, as the stores ask: %s" % [rows])
+	var m := FakeMenuMain.new()
+	m.balance = b
+	var settings := SettingsScreen.new(m)
+	var opened := []
+	settings.open_url = func(url: String) -> void: opened.append(url)
+	settings.activate("privacy")
+	check(opened == ["https://evan260.github.io/slowsunday/privacy.html"], "which opens the policy's page: %s" % [opened])
+	m.free()
 	Touch.phone = phone
 
 

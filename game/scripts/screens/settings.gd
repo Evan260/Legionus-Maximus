@@ -18,6 +18,8 @@ var page := "main"
 var _bars := {}
 # The slot being rebound as {"action", "kind", "slot"}, empty when none is.
 var waiting := {}
+## Opens a web page; the tests replace it so no browser starts.
+var open_url := func(url: String) -> void: OS.shell_open(url)
 
 
 func _init(owner_node: Node) -> void:
@@ -39,6 +41,9 @@ static func rows() -> Array:
 	out.append_array(["text_size", "language"])
 	if not Touch.phone:
 		out.append("controls")
+	# Google Play and the App Store ask for the privacy policy to be reachable from inside the game.
+	if Touch.phone:
+		out.append("privacy")
 	if FullGame.locked():
 		out.append("restore")
 	out.append("back")
@@ -106,6 +111,8 @@ func activate(id: String) -> void:
 	elif id == "controls":
 		page = "controls"
 		main.ui.focus = ""
+	elif id == "privacy":
+		open_url.call(String(main.balance.privacy_policy))
 	elif id == "restore":
 		FullGame.restore()
 	elif id == "back":
@@ -209,6 +216,8 @@ func _draw_main(c: CanvasItem, ui: Ui) -> void:
 				ui.text(c, tr("Language"), Vector2(x + 6.0, rect.position.y + h / 2.0 + Ui.px * 3 / 8), Ui.INK)
 			"controls":
 				ui.button(c, rect, "controls", tr("Keys and buttons"), "")
+			"privacy":
+				ui.button(c, rect, "privacy", tr("Privacy policy"), "")
 			"restore":
 				# The question goes beside the button only where it has room at the text size.
 				var ask := tr("Already bought the full game?")
