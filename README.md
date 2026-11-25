@@ -25,7 +25,7 @@ Move with WASD, the arrow keys or the left stick. Space or the south face button
 | `game/` | The Godot project: scenes, GDScript, art, sound and the data files |
 | `game/data/` | Every number in `balance.json`, and every recruit, weapon, enemy, province and achievement in `content.json` |
 | `game/tests/` | Automated checks and the balance bots |
-| `tools/` | Scripts for art, sound, translations, exporting and Steam |
+| `tools/` | Scripts for art, sound, translations, exporting, Steam and the phone stores' pictures |
 | `docs/` | The trailer plan |
 | `builds/` | Exported builds (not kept in git) |
 
