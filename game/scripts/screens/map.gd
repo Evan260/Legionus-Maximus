@@ -367,12 +367,15 @@ func _labels(c: CanvasItem, ui: Ui, ids: Array) -> void:
 		var at := plate_spot(tries, placed, marks)
 		placed.append(at.grow(2.0))
 		var state := state_of(id)
-		c.draw_rect(at.grow(3.0), SHADE)
+		var plate := at.grow(3.0)
+		c.draw_rect(plate, SHADE)
 		var name_col := Ui.GOLD_LIGHT if state == "won" or state == "open" else Color(0.78, 0.74, 0.68)
-		ui.text(c, name, Vector2(at.position.x, at.position.y + Ui.px), name_col, HORIZONTAL_ALIGNMENT_CENTER, at.size.x)
+		# The name and the state under it are set as one block in the middle of the plate.
+		var y := Ui.middle(plate.position.y, plate.size.y - (Ui.leading() if two else 0.0), name)
+		ui.text(c, name, Vector2(at.position.x, y), name_col, HORIZONTAL_ALIGNMENT_CENTER, at.size.x)
 		if two:
 			var col := Ui.CREAM if state == "open" else (Color(0.6, 0.85, 0.5) if state == "won" else Color(0.72, 0.66, 0.6))
-			ui.fit_text(c, line, room, Vector2(at.position.x, at.position.y + Ui.px + Ui.leading()), col, HORIZONTAL_ALIGNMENT_CENTER, at.size.x)
+			ui.fit_text(c, line, room, Vector2(at.position.x, y + Ui.leading()), col, HORIZONTAL_ALIGNMENT_CENTER, at.size.x)
 
 
 ## Where a plate goes, each of the `tries` held above the key hints: the clear side covering the fewest road `marks`, else the side covering the `placed` ones least.
