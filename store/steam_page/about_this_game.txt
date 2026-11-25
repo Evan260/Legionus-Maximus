@@ -1,26 +1,29 @@
 [h2]You steer. The legion fights.[/h2]
 
-Legionus Maximus is a survivors-style action game in pixel art. You lead a Roman legion across five provinces of the ancient world, from the forests of Germania to the moors of Britannia. You move the commander and nothing else. Every legionary stabs, every archer shoots and every weapon fires on its own, while the barbarians pour in from every side. Each level-up adds men, a weapon or a drill, so a run that starts with a handful of soldiers ends with a hundred men in formation holding off a screen full of enemies.
+Legionus Maximus is a survivors-style action game in pixel art. You lead a Roman legion across eight provinces of the ancient world, from the forests of Germania to the steppe of Sarmatia. You move the commander and nothing else. Every legionary stabs, every archer shoots and every weapon fires on its own, while the barbarians pour in from every side. Each level-up adds men, a weapon or a drill, so a run that starts with a handful of soldiers ends with a hundred men in formation holding off a screen full of enemies.
 
 [h2]At a glance[/h2]
 [list]
 [*]One control that matters: where you march. The formation turns as you turn, shields to the front and archers behind.
-[*]Five provinces, each with its own ground, its own warriors, its own elites and its own chieftain: Arminius in Germania, Vercingetorix in Gaul, Decebalus in Dacia, the shah of Parthia and Boudica in Britannia.
+[*]Eight provinces, each with its own ground, its own warriors, its own elites and its own chieftain: Arminius in Germania, Vercingetorix in Gaul, Boudica in Britannia, Viriathus in Hispania, Achillas in Aegyptus, the shah of Parthia, Decebalus in Dacia and Rasparaganus in Sarmatia.
 [*]Seven kinds of soldier to recruit, from legionaries and archers to cavalry, a medicus, a ballista crew and a centurion.
 [*]From a handful of men to a legion of a hundred, every one of them on the field and fighting.
 [*]Five gods of Rome to call on when their favour is full: lightning, an earthquake, war frenzy, a rain of fire and healing light.
-[*]Fell trees for timber, drive palisades across the barbarians' path and lay bridges over the ravines.
+[*]Fell trees for timber, drive palisades across the barbarians' path and lay bridges over ravines and canals.
 [*]Retake the eagles, burn the sacred grove and march into the Roman fort to win the province.
 [/list]
 
-[h2]Five provinces on the road from Rome[/h2]
+[h2]Eight provinces on the road from Rome[/h2]
 The campaign map follows the real geography of the empire. Win a province and the road opens to the next.
 [list]
 [*][b]Germania:[/b] dark forests in long ridges and deep ravines. Club warriors, spearmen, axe throwers and wolves, with the berserker, the war band leader and the war priest, and Arminius at their head.
 [*][b]Gaul:[/b] farmland of wheat fields, hedges and villages. Swordsmen, horsemen, archers and charging boars, with the champion who calls your commander to a duel and the horn blower, under Vercingetorix and his sworn bodyguard.
-[*][b]Dacia:[/b] snowy mountains and frozen streams the legion slides across. Falx warriors whose blades cut through shields, archers who loose together, bears from the high passes, the falx band leader who charges down a marked lane and the priest who calls a blizzard, under Decebalus behind his wall of falx warriors.
-[*][b]Parthia:[/b] desert dunes that slow the march, oases and ruined walls. Horse archers who ride away shooting, armoured cataphracts, camel riders and slingers, the cataphract wedge and the war elephant, under the shah and his storm of arrows.
 [*][b]Britannia:[/b] wet moorland, bogs and stone circles at the edge of the known world. Painted warriors, chariots, slingers and druids, the scythed chariot and the druid who calls fire from the sky, under Boudica in her war chariot.
+[*][b]Hispania:[/b] sunbaked hills, olive groves and dry-stone walls. Celtiberian warriors, Balearic slingers, light caetrati and war hounds, the Celtiberian chief who rouses his warriors and the Lusitanian raider who leads an ambush charge down a marked lane, under Viriathus the shepherd general, who sends war bands at both flanks.
+[*][b]Aegyptus:[/b] the Nile valley, with palm groves, reed beds and irrigation canals to bridge. Spearmen behind tall shields, Nubian archers, khopesh raiders and crocodiles, the priest of Sobek who hardens his warriors' skin and the camel captain who charges down a marked lane, under Achillas, who floods the legion's path.
+[*][b]Parthia:[/b] desert dunes that slow the march, oases and ruined walls. Horse archers who ride away shooting, armoured cataphracts, camel riders and slingers, the cataphract wedge and the war elephant, under the shah and his storm of arrows.
+[*][b]Dacia:[/b] snowy mountains and frozen streams the legion slides across. Falx warriors whose blades cut through shields, archers who loose together, bears from the high passes, the falx band leader who charges down a marked lane and the priest who calls a blizzard, under Decebalus behind his wall of falx warriors.
+[*][b]Sarmatia:[/b] open steppe of feather grass, burial mounds and wagon camps. Lancers whose armour turns arrows, steppe archers, lasso riders who drag soldiers from the ranks and steppe wolves, the draco bearer whose dragon standard speeds his riders and the armoured war wagon with archers behind its sides, under Rasparaganus, king of the Roxolani, and his armoured lancers.
 [/list]
 
 [h2]A legion that grows with every level[/h2]
@@ -40,7 +43,7 @@ Elites come on their own timer, more of them as the run goes on, and every provi
 [*][b]The falx band leader[/b] marks a lane and charges down it with his warriors.
 [*][b]The war elephant[/b] tramples down a marked line, throwing soldiers aside, while the archers in its tower shoot.
 [*][b]The druid[/b] calls fire down on a line of marked rings across the legion.
-[*][b]Each chieftain[/b] fights in his own way: Vercingetorix rings the legion with stakes, Decebalus brings rocks down from the heights and leaps onto the legion, the shah calls in his war elephants and Boudica drives her chariot through the outer ranks and sets the land on fire.
+[*][b]Each chieftain[/b] fights in his own way: Vercingetorix rings the legion with stakes, Boudica drives her chariot through the outer ranks and sets the land on fire, Viriathus hides javelin throwers on marked rings over the legion, Achillas floods a band of ground in your path, the shah calls in his war elephants, Decebalus brings rocks down from the heights and leaps onto the legion, and Rasparaganus sends a line of lancers down a marked lane and sets the steppe alight.
 [/list]
 
 [h2]The gods of Rome[/h2]
@@ -54,7 +57,7 @@ Every barbarian killed fills the favour of the gods. When it is full, call on th
 [/list]
 
 [h2]Cut your own road[/h2]
-In Germania the forest grows in long ridges too thick to pass, and deep ravines split the field into regions joined at narrow crossings, so there are only certain ways to go and a legion can be cornered. Soldiers pressed against a tree fell it, and every tree they bring down is a log of timber. Spend timber to drive a line of stakes across the barbarians' path, or to lay a plank bridge over a ravine and open a way no one else can take.
+In Germania the forest grows in long ridges too thick to pass, and deep ravines split the field into regions joined at narrow crossings, so there are only certain ways to go and a legion can be cornered. Soldiers pressed against a tree fell it, and every tree they bring down is a log of timber. Spend timber to drive a line of stakes across the barbarians' path, or to lay a plank bridge over a ravine or canal and open a way no one else can take.
 
 [h2]A mission, not just a timer[/h2]
 Every run is a campaign to win back the eagle standards Rome has lost.
@@ -69,7 +72,7 @@ Every run is a campaign to win back the eagle standards Rome has lost.
 [list]
 [*]The denarii you carry home buy permanent upgrades from the quartermaster.
 [*]Six commanders to unlock, each starting the run his own way.
-[*]Win a province to open its Hard, Endless and Decimatio modes.
+[*]Play each province on Easy, Medium or Hard, and win it to open its Endless and Decimatio modes.
 [*]The tablinum keeps every soldier, weapon, enemy and god you have met, with a line of real history for each.
 [*]A run summary with your time, kills, denarii, the damage each weapon did and the size of your legion over time.
 [/list]

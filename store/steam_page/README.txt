@@ -12,7 +12,7 @@ folder is the only one it writes to.
 
 TEXT
 
-short_description.txt       Description tab > Short description (296 of 300 characters)
+short_description.txt       Description tab > Short description (297 of 300 characters)
 about_this_game.txt         Description tab > About This Game (written in Steam's [h2], [list] and [b] formatting;
                             its "At a glance" list is the features list)
 tags.txt                    Basic Info > Tags and Genres
@@ -50,7 +50,7 @@ screenshots/01 to 10, all 1920x1080, taken from the game as it draws. Upload the
 in the store page's sidebar and in search, so they lead with a legion of a hundred in a late run in Germania, the war
 elephant's trample in Parthia, Boudica's chariot in Britannia and the legion on a bridge over a ravine. Then
 come the falx band's charge in Dacia, the Gaulish king and his stakes, Jupiter's storm, the fort held in Parthia,
-a level-up offering cavalrymen and the campaign map of the five provinces.
+a level-up offering cavalrymen and the campaign map of the provinces.
 
 
 ACHIEVEMENTS
@@ -82,5 +82,5 @@ STILL TO DECIDE BEFORE SUBMITTING
 - Release date: "Coming soon", or a season and year such as "Summer 2027".
 - Price in CAD, which Steamworks asks for separately and which Valve reviews.
 - The system requirements are estimates; check them on an older computer and a Steam Deck before release.
-- The page describes the five provinces, the seven recruits, the six commanders and the three modes now in the game.
+- The page describes the eight provinces, the seven recruits, the six commanders and the three difficulties and two extra modes now in the game.
   When more land, add them to about_this_game.txt.
