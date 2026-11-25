@@ -18,7 +18,10 @@ func _scene() -> void:
 	var choosing: bool = main.state == "choose" or main.state == "pray"
 	var staged: Node = main.get_node_or_null("TrailerShots")
 	if staged != null and staged.hud_shown():
-		_staged_bar(sim, staged, choosing)
+		if Touch.phone:
+			_phone_bar(sim, staged)
+		else:
+			_staged_bar(sim, staged, choosing)
 	# The names are placed for the field at its own size, so a field drawn larger leaves them out.
 	if not choosing and (staged == null or not staged.zoomed()):
 		for b in boss_names(sim):
@@ -28,6 +31,19 @@ func _scene() -> void:
 	_victory_banner(sim)
 	if choosing:
 		_choices(sim)
+
+
+## A phone's own top bar and bottom row, which keep clear of its buttons, showing the staged moment's level, clock and kills.
+func _phone_bar(sim: Sim, staged: Node) -> void:
+	var run := [sim.level, sim.time, sim.kills]
+	var shown := [staged.level(sim), staged.seconds(sim), staged.kills(sim)]
+	sim.level = shown[0]
+	sim.time = shown[1]
+	sim.kills = shown[2]
+	_top_bar(sim)
+	sim.level = run[0]
+	sim.time = run[1]
+	sim.kills = run[2]
 
 
 ## The top bar as a run at the staged moment shows it: experience, level, clock, legion and kills, and the chieftain's health.

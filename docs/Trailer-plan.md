@@ -47,3 +47,26 @@ The top bar shows a run at that point of the story (level, clock, legion and kil
 - The end card is the game's logo, `game/assets/logo.png`, over the legion beside the wheat, the parchment scroll reading "Wishlist now on Steam", drawn by `tools/trailer/make_scroll.py` with the logo script's scroll, and below it the "Download on the App Store" and "Get it on Google Play" badges side by side, 96 pixels tall, from `tools/trailer/badge_app_store.png` and `badge_google_play.png`.
 - The finished trailer, `steam_trailer.avi` and an `.mp4` copy with its sound brought to -16 LUFS, goes to `marketing/recordings/videos/steam_trailer/`, beside its `title.txt`, `description.txt` and `thumbnail.png`: a frame of `thumb`, the opening battle recorded again without the top bar, at full brightness with the logo four times its size over a soft dark glow, and no badges or text, so it reads at a thumbnail's size. Git ignores it for its size.
 - The `.mp4` uploaded to Steam is encoded again from the `.avi` at a steady bit rate: `ffmpeg -i steam_trailer.avi -c:v libx264 -b:v 12M -maxrate 16M -bufsize 24M -preset slow -pix_fmt yuv420p -c:a aac -b:a 192k -movflags +faststart steam_trailer.mp4`, run in `marketing/recordings/videos/steam_trailer/`.
+
+## The Google Play video
+
+The video for the Google Play listing's Video field, 40 seconds at 1920 by 1080, is made the same way with `python tools/trailer/make_trailer.py --cut=play_store`, and shows the game as a phone gives it. Its shots, `PHONE_SHOTS` in `make_trailer.py`, are the trailer's own recorded again with `--phone` into `marketing/recordings/content/phone_shots/`, and it goes to `marketing/recordings/videos/play_store_trailer/` beside its `title.txt`, `description.txt` and `thumbnail.png`, a frame of the end card.
+
+- The phone's touch controls are on screen: the stick under the left thumb and the round buttons under the right, with the phone's own top bar and its bottom row (the testudo, the legion's health and the favour), showing each shot's staged level, clock and kills (`trailer_hud.gd`).
+- `shots.gd` holds a thumb on the stick, leaning the way the legion marches, as the store pictures do. A tap is drawn as a fingertip with a ring spreading from it: the testudo's button as the shields go up, and in the gods' shot the laurel, then Jupiter's card, then Call. At the ravine the bridge's cost, which a phone writes at the lip, is left out, since the cliff's caption sits there.
+- It names no other store: the end card is the logo and the scroll reading "Lead a Roman legion", with no badges, over the legion beside the wheat with the controls put away.
+- The music plays the track's opening, then its quiet bar under the gods' choice, its return as Jupiter's lightning strikes, and its own last bars under the end card, with the same three stings. The `.mp4` is brought to -16 LUFS like the trailer's.
+
+| # | Shot | Caption | Beats |
+|---|---|---|---|
+| 1 | `hook`, the logo landing over its last four beats; the testudo is tapped as the horde closes in | | 7 + 4 |
+| 2 | `skirmish` | START WITH A FEW MEN | 4 |
+| 3 | `march` | GROW A LEGION OF 100 | 4 |
+| 4 | `archers` | YOU MARCH. THEY FIGHT. | 4 |
+| 5 | `dodge`: the thumb leans the stick away from the berserker's ring | DODGE BOSS ATTACKS | 4 |
+| 6 | `ravine` | SHOVE THEM OFF CLIFFS | 4 |
+| 7 | `p_gaul`, `p_aegyptus`, `p_parthia`, `p_dacia` | CONQUER 8 PROVINCES | 2 each |
+| 8 | `gods`: the laurel, Jupiter and Call tapped, in the music's quiet bar | | 4 |
+| 9 | `reveal`: Jupiter's lightning, on the music's return | | 6 |
+| 10 | `chief` | TOPPLE THEIR WARLORDS | 6 |
+| 11 | `endcard` | | 14 |

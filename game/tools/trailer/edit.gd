@@ -1,5 +1,5 @@
 extends Node
-## The trailer's edit, cut from the recorded shots on the beat of the war theme; tools/trailer/make_trailer.py renders it.
+## The edits of the trailer and the Google Play video, cut from the recorded shots on the beat of the war theme.
 
 const FPS := 30.0
 ## One beat of the war theme, at 103.36 beats a minute, and where its first beat falls in the track, in seconds.
@@ -80,8 +80,34 @@ const TRAILER := [
 	{"shot": "fort", "from": 3.878, "beats": 8},
 	{"end": "endcard", "from": 1.0, "beats": 14},
 ]
+## The Google Play video, with the phone's touch controls; the gods are called with taps in the music's quiet bar.
+const PLAY_STORE := [
+	{"shot": "hook", "from": 3.0, "beats": 7},
+	{"shot": "hook", "follows": true, "beats": 4, "logo": true},
+	{"shot": "skirmish", "from": 1.5, "beats": 4, "caption": "START WITH A FEW MEN"},
+	{"shot": "march", "from": 1.0, "beats": 4, "caption": "GROW A LEGION OF 100"},
+	{"shot": "archers", "from": 1.4, "beats": 4, "caption": "YOU MARCH. THEY FIGHT."},
+	{"shot": "dodge", "from": 0.3, "beats": 4, "caption": "DODGE BOSS ATTACKS"},
+	{"shot": "ravine", "from": 0.2, "beats": 4, "caption": "SHOVE THEM OFF CLIFFS"},
+	{"shot": "p_gaul", "from": 1.0, "beats": 2, "caption": "CONQUER 8 PROVINCES", "label": "GAUL"},
+	{"shot": "p_aegyptus", "from": 1.0, "beats": 2, "caption": "CONQUER 8 PROVINCES", "label": "AEGYPTUS"},
+	{"shot": "p_parthia", "from": 1.2, "beats": 2, "caption": "CONQUER 8 PROVINCES", "label": "PARTHIA"},
+	{"shot": "p_dacia", "from": 0.6, "beats": 2, "caption": "CONQUER 8 PROVINCES", "label": "DACIA"},
+	{"shot": "gods", "from": 0.6, "beats": 4},
+	{"shot": "reveal", "from": 2.0, "beats": 6, "flash": true},
+	{"shot": "chief", "from": 0.6, "beats": 6, "caption": "TOPPLE THEIR WARLORDS"},
+	{"end": "endcard", "from": 1.0, "beats": 14},
+]
+## Each cut's edit, the music's stretches and the sounds laid over it, the end card's line and whether the badges show.
+const CUTS := {
+	"trailer": {"edit": TRAILER, "music": MUSIC_CUTS, "stings": STINGS, "line": "Wishlist now on Steam", "badges": true},
+	"play_store": {"edit": PLAY_STORE, "music": [[0, 0], [39, 275], [43, 279], [55, 471]],
+		"stings": [[7, "boom_1", 0.0], [39, "boom_2", -8.0], [55, "horn_1", -5.0]], "line": "Lead a Roman legion", "badges": false},
+}
 
 var _shots_dir := ""
+var _cut: Dictionary = CUTS["trailer"]
+var _edit: Array = TRAILER
 var _frame := 0
 ## Each segment's first frame and the second of its recording it starts from.
 var _starts: Array[int] = []
@@ -97,7 +123,7 @@ var _caption: Label
 var _label: Label
 var _logo: TextureRect
 var _scroll: TextureRect
-var _wishlist: Label
+var _line: Label
 var _badges: Array[TextureRect] = []
 var _vignette: TextureRect
 var _music: Array[AudioStreamPlayer] = []
@@ -120,8 +146,11 @@ func _ready() -> void:
 			_shots_dir = arg.trim_prefix("--shots=")
 		elif arg.begins_with("--from="):
 			from = float(arg.trim_prefix("--from="))
+		elif arg.begins_with("--cut="):
+			_cut = CUTS[arg.trim_prefix("--cut=")]
+	_edit = _cut["edit"]
 	var beats := 0.0
-	for seg in TRAILER:
+	for seg in _edit:
 		var start := _beat_frame(beats)
 		_froms.append(_froms[-1] + float(start - _starts[-1]) / FPS if seg.get("follows", false) else float(seg.get("from", 0.0)))
 		_starts.append(start)
@@ -225,16 +254,16 @@ func _build() -> void:
 	_scroll.texture = _outside("scroll.png")
 	_scroll.position = Vector2(roundf((area.x - _scroll.texture.get_width()) / 2.0), SCROLL_Y)
 	_overlay.add_child(_scroll)
-	_wishlist = Label.new()
-	_wishlist.add_theme_font_override("font", Ui.font())
-	_wishlist.add_theme_font_size_override("font_size", 16)
-	_wishlist.add_theme_color_override("font_color", Color(0.29, 0.18, 0.14))
-	_wishlist.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_wishlist.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_wishlist.position = _scroll.position + Vector2(0, SCROLL_TEXT_TOP)
-	_wishlist.size = Vector2(_scroll.texture.get_width(), SCROLL_TEXT_HEIGHT)
-	_wishlist.text = "Wishlist now on Steam"
-	_overlay.add_child(_wishlist)
+	_line = Label.new()
+	_line.add_theme_font_override("font", Ui.font())
+	_line.add_theme_font_size_override("font_size", 16)
+	_line.add_theme_color_override("font_color", Color(0.29, 0.18, 0.14))
+	_line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_line.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_line.position = _scroll.position + Vector2(0, SCROLL_TEXT_TOP)
+	_line.size = Vector2(_scroll.texture.get_width(), SCROLL_TEXT_HEIGHT)
+	_line.text = String(_cut["line"])
+	_overlay.add_child(_line)
 	_white = ColorRect.new()
 	_white.color = Color(1, 1, 1, 0)
 	_white.size = area
@@ -290,7 +319,7 @@ func _process(_delta: float) -> void:
 		get_tree().quit()
 		return
 	var k := _segment_index(_frame)
-	var seg: Dictionary = TRAILER[k]
+	var seg: Dictionary = _edit[k]
 	var now := float(_frame) / FPS
 	var local := float(_frame - _starts[k]) / FPS
 	var end_frame := _starts[k + 1] if k + 1 < _starts.size() else _total_frames
@@ -316,8 +345,9 @@ func _process(_delta: float) -> void:
 
 ## Starts the music piece the moment falls in, from the matching point of the track, and lets the one before it go.
 func _play_music(now: float) -> void:
-	var k := MUSIC_CUTS.size() - 1
-	while k > 0 and float(_beat_frame(MUSIC_CUTS[k][0])) / FPS > now:
+	var cuts: Array = _cut["music"]
+	var k := cuts.size() - 1
+	while k > 0 and float(_beat_frame(cuts[k][0])) / FPS > now:
 		k -= 1
 	if k == _piece:
 		return
@@ -325,13 +355,13 @@ func _play_music(now: float) -> void:
 		_leaving = _music[_piece % 2]
 		_leaving_frames = 3
 	_piece = k
-	var track_beat := int(MUSIC_CUTS[k][1])
+	var track_beat := int(cuts[k][1])
 	var track_from := 0.0 if track_beat == 0 else FIRST_BEAT + track_beat * BEAT
-	_music[k % 2].play(track_from + now - float(_beat_frame(MUSIC_CUTS[k][0])) / FPS)
+	_music[k % 2].play(track_from + now - float(_beat_frame(cuts[k][0])) / FPS)
 
 
 func _play_stings() -> void:
-	for s in STINGS:
+	for s in _cut["stings"]:
 		if _beat_frame(float(s[0])) == _frame:
 			var p := AudioStreamPlayer.new()
 			p.stream = load("res://assets/audio/sfx/%s.ogg" % s[1])
@@ -343,7 +373,7 @@ func _play_stings() -> void:
 
 ## Plays the shot's own sound from the point of the recording the segment opens on, unless the segment carries on the one before.
 func _start_segment(k: int, local: float, resumed: bool) -> void:
-	var seg: Dictionary = TRAILER[k]
+	var seg: Dictionary = _edit[k]
 	if seg.get("follows", false) and not resumed:
 		return
 	_sound.stop()
@@ -386,18 +416,18 @@ func _draw_segment(k: int, seg: Dictionary, now: float, local: float, length: fl
 		var s := lerpf(POP_SCALE, 1.0, _ease(since / POP))
 		_logo.scale = Vector2(s, s)
 	_scroll.visible = is_end
-	_wishlist.visible = is_end
+	_line.visible = is_end
 	for b in _badges:
-		b.visible = is_end
+		b.visible = is_end and _cut["badges"]
 	if is_end:
 		var scroll := clampf((local - 1.2) / 0.4, 0.0, 1.0)
 		_scroll.modulate.a = scroll
-		_wishlist.modulate.a = scroll
+		_line.modulate.a = scroll
 		for b in _badges:
 			b.modulate.a = clampf((local - 1.8) / 0.4, 0.0, 1.0)
 	_draw_caption(k, seg, now)
 	# The shot's own sound fades in and out quickly at its cuts, so cuts never click.
-	var next_follows: bool = k + 1 < TRAILER.size() and TRAILER[k + 1].get("follows", false)
+	var next_follows: bool = k + 1 < _edit.size() and _edit[k + 1].get("follows", false)
 	var fade_in := 1.0 if seg.get("follows", false) else clampf(local / 0.05, 0.0, 1.0)
 	var fade_out := 1.0 if next_follows else clampf((length - local) / 0.05, 0.0, 1.0)
 	_sound.volume_db = SOUND_DB + linear_to_db(maxf(minf(fade_in, fade_out), 0.0001))
@@ -413,7 +443,7 @@ func _draw_caption(k: int, seg: Dictionary, now: float) -> void:
 	if not shown:
 		return
 	var first := k
-	while first > 0 and String(TRAILER[first - 1].get("caption", "")) == text:
+	while first > 0 and String(_edit[first - 1].get("caption", "")) == text:
 		first -= 1
 	var age := now - float(_starts[first]) / FPS
 	_caption.text = text

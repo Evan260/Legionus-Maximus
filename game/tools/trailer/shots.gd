@@ -43,6 +43,10 @@ const HORDE_INFLOW := 8
 ## Where the chieftain comes from in his shot and how far in front of the legion's ranks he starts, in game pixels.
 const CHIEF_FROM := Vector2(1.0, 0.3)
 const CHIEF_AHEAD := 60.0
+## On a phone the gods' shot taps the laurel, Jupiter's card and Call at these seconds; the edit cuts away after the last.
+const GOD_TAPS := [0.85, GOD_PICK_AT, 2.7]
+## The touch index the staged taps light a button with, apart from any finger the game itself follows.
+const TAP_FINGER := 9
 
 var main: Node
 var shot := ""
@@ -56,6 +60,15 @@ var _rng := RandomNumberGenerator.new()
 ## The top bar's level, seconds and kills from --hud, and the run's own at the start, which they count on from.
 var _hud := PackedStringArray()
 var _from := Vector3.ZERO
+## A recording with the phone's interface shows its controls as a player works them: a thumb on the stick and each tap.
+var _touch := false
+var _tip: Sprite2D
+var _ring: Sprite2D
+## The ring spreading from a tap, one picture for each whole pixel it grows.
+var _ripples: Array[Texture2D] = []
+var _fade: Tween
+var _shielded := false
+var _god_taps := 0
 
 
 func _init() -> void:
@@ -85,6 +98,10 @@ func kills(sim: Sim) -> int:
 func _ready() -> void:
 	main = get_parent()
 	shot = str(main.args.get("trailer-shot", ""))
+	# A store picture shows the game alone, so only a recording shows the thumb and the taps.
+	_touch = Touch.phone and Engine.get_write_movie_path() != ""
+	if _touch:
+		_build_touch()
 	# This node runs after main.gd each frame, so a choice panel main has just opened is closed before it is drawn.
 	process_priority = 10
 	AudioServer.set_bus_mute(AudioServer.get_bus_index("Music"), true)
@@ -133,6 +150,8 @@ func _process(dt: float) -> void:
 	var sim: Sim = main.sim
 	if sim == null:
 		return
+	if _touch and main.touch_pad != null:
+		_touch_controls(sim, main.touch_pad)
 	if _zoom != 1.0:
 		# The field is drawn larger round the middle of the view, which the commander stands at.
 		var world: Node2D = main.world
@@ -429,3 +448,121 @@ func _wave(sim: Sim, at: Vector2, angle: float, spread: float, near: float, far:
 		var a := angle + spread * (fmod(i * 0.618034, 1.0) - 0.5)
 		var r := lerpf(near, far, fmod(i * 0.381966 + 0.13, 1.0))
 		sim.horde.spawn(kinds[i % kinds.size()], at + Vector2.from_angle(a) * r)
+
+
+# The phone's controls ------------------------------------------------------
+
+func _build_touch() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 128
+	add_child(layer)
+	_ring = Sprite2D.new()
+	_ring.modulate.a = 0.0
+	layer.add_child(_ring)
+	_tip = Sprite2D.new()
+	_tip.texture = _fingertip()
+	_tip.modulate.a = 0.0
+	layer.add_child(_tip)
+	for radius in range(6, 12):
+		_ripples.append(_ripple_texture(radius))
+
+
+## A thumb holds the stick the way the legion marches, the testudo is tapped as its shields go up, and the gods are called.
+func _touch_controls(sim: Sim, pad: TouchPad) -> void:
+	# The end card's legion stands under the logo with no controls over it.
+	if shot == "endcard":
+		pad.visible = false
+		return
+	if main.state == "play":
+		var march: Vector2 = main.look_march
+		if march == Vector2.INF:
+			march = Vector2(cos(sim.time * 0.4), sin(sim.time * 0.4))
+		var r := pad.radius()
+		var view := pad.get_viewport_rect().size
+		pad._stick = 0
+		pad._base = Vector2(Touch.inset_tl.x + r * 1.5, view.y - Touch.inset_br.y - r * 1.9)
+		pad._finger = pad._base + march.limit_length(1.0) * r * 0.75
+	# A phone writes a bridge's cost at a ravine's lip, where the cliff's caption goes, and this legion builds no bridge.
+	if shot == "ravine":
+		sim.bridge_here = false
+	var raised := sim.testudo_left > 0.0
+	if raised and not _shielded:
+		_tap_button(pad, "testudo")
+	_shielded = raised
+	if shot == "gods" and _god_taps < GOD_TAPS.size() and _clock >= float(GOD_TAPS[_god_taps]):
+		_tap_god(pad, _god_taps)
+		_god_taps += 1
+
+
+## The laurel button, then Jupiter's card, then Call.
+func _tap_god(pad: TouchPad, step: int) -> void:
+	if step == 0:
+		_tap_button(pad, "pray")
+		return
+	var hud: Hud = main.hud
+	var r := Rect2()
+	if step == 1:
+		var i: int = main.choices.find("jupiter")
+		if i >= 0 and i < hud.choice_rects.size():
+			r = hud.choice_rects[i]
+	else:
+		r = hud.touch_buttons.get("call", Rect2())
+	if r.has_area():
+		_touch_down(hud.get_global_transform_with_canvas() * (Ui.offset + r.get_center()))
+
+
+## A round button lit as a finger presses it, with the fingertip on it.
+func _tap_button(pad: TouchPad, id: String) -> void:
+	var b: Dictionary = pad.layout.get(id, {})
+	if b.is_empty():
+		return
+	pad._held[TAP_FINGER] = id
+	get_tree().create_timer(0.25).timeout.connect(func() -> void: pad._held.erase(TAP_FINGER))
+	_touch_down(pad.get_global_transform_with_canvas() * Vector2(b.centre))
+
+
+## A fingertip where the screen is tapped, with a ring spreading from it a pixel at a time, then both fade.
+func _touch_down(at: Vector2) -> void:
+	if _fade:
+		_fade.kill()
+	_tip.position = at.round()
+	_tip.modulate.a = 1.0
+	_ring.position = _tip.position
+	var spread := create_tween()
+	for k in _ripples.size():
+		spread.tween_callback(func() -> void:
+			_ring.texture = _ripples[k]
+			_ring.modulate.a = 1.0 - float(k) / _ripples.size())
+		spread.tween_interval(0.05)
+	spread.tween_callback(func() -> void: _ring.modulate.a = 0.0)
+	_fade = create_tween()
+	_fade.tween_property(_tip, "modulate:a", 0.0, 0.2).set_delay(0.15)
+
+
+## A fingertip pressed on the glass: a pale disc ringed in cream and then ink, so it shows on light and dark alike.
+static func _fingertip() -> Texture2D:
+	var img := Image.create(11, 11, false, Image.FORMAT_RGBA8)
+	for y in 11:
+		for x in 11:
+			var d := Vector2(x - 5, y - 5).length()
+			if d < 3.5:
+				img.set_pixel(x, y, Color(Ui.CREAM, 0.45))
+			elif d < 4.5:
+				img.set_pixel(x, y, Color(Ui.CREAM, 0.95))
+			elif d < 5.5:
+				img.set_pixel(x, y, Color(Ui.INK, 0.6))
+	return ImageTexture.create_from_image(img)
+
+
+static func _ripple_texture(radius: int) -> Texture2D:
+	var side := radius * 2 + 3
+	var img := Image.create(side, side, false, Image.FORMAT_RGBA8)
+	var middle := float(radius + 1)
+	for y in side:
+		for x in side:
+			var d := Vector2(x - middle, y - middle).length()
+			if absf(d - radius) < 0.5:
+				img.set_pixel(x, y, Color(Ui.CREAM, 0.9))
+			elif absf(d - radius - 1.0) < 0.5:
+				img.set_pixel(x, y, Color(Ui.INK, 0.45))
+	return ImageTexture.create_from_image(img)

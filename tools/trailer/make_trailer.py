@@ -1,5 +1,5 @@
-"""Make the Steam trailer: record each staged shot in movie mode, then cut them together with the captions, the end card
-and the game's own music, all in Godot, and keep an .mp4 copy beside the .avi.
+"""Make the Steam trailer and the Google Play listing's video: record each staged shot in movie mode, then cut them
+together with the captions, the end card and the game's own music, all in Godot, and keep an .mp4 copy beside the .avi.
 
 Usage:
   python tools/trailer/make_trailer.py              records any shot not yet recorded, then renders the trailer
@@ -8,6 +8,8 @@ Usage:
   python tools/trailer/make_trailer.py render 40    renders a preview from 40 seconds in, into recordings/content/
   python tools/trailer/make_trailer.py stills DIR   records any missing shot, then saves into DIR a contact sheet of
                                                     one frame per segment of the edit and the end card at 1920x1080
+  Add --cut=play_store to the first four for the Google Play video, whose shots, named in PHONE_SHOTS, are recorded
+  with the phone's touch controls (--phone) into marketing/recordings/content/phone_shots/.
 
 The finished trailer goes to marketing/recordings/videos/steam_trailer/, beside its title, description and thumbnail;
 the shot frames it is cut from, at the game's own 640 by 360, are kept in marketing/recordings/content/trailer_shots/, so a change to the edit renders
@@ -88,6 +90,12 @@ SHOTS = {
                           "--livery=2,2"]),
 }
 SHOTS_DIR = WORK / "trailer_shots"
+# The Google Play video shows the game as a phone gives it: these shots again with the phone's touch controls, a thumb on
+# the stick, and no store but Google Play's named.
+PHONE_SHOTS = ["hook", "skirmish", "march", "archers", "dodge", "ravine", "p_gaul", "p_aegyptus", "p_parthia", "p_dacia",
+               "gods", "reveal", "chief", "endcard"]
+PHONE_DIR = WORK / "phone_shots"
+PHONE_OUT = VIDEOS / "play_store_trailer" / "play_store_trailer.avi"
 # The thumbnail: the second of the thumb shot it is taken from, the logo's size in screen pixels to its own, and its top.
 THUMB_AT = 5.5
 THUMB_LOGO_SCALE = 4
@@ -111,26 +119,30 @@ def godot(args, size=SIZE, full=False):
         override.unlink()
 
 
-def record(name):
-    folder = SHOTS_DIR / name
+def record(name, phone=False):
+    folder = (PHONE_DIR if phone else SHOTS_DIR) / name
     if folder.exists():
         shutil.rmtree(folder)
     folder.mkdir(parents=True)
     seconds, _, flags = SHOTS[name]
     # A .png movie is written as numbered frames with the sound beside them in a .wav of the same name.
-    godot(["--write-movie", str(folder / "f.png"), "--fixed-fps", str(FPS), "--quit-after", str(seconds * FPS), "--", *flags])
+    godot(["--write-movie", str(folder / "f.png"), "--fixed-fps", str(FPS), "--quit-after", str(seconds * FPS), "--", *flags,
+           *(["--phone"] if phone else [])])
 
 
-def render(start=0.0):
-    """Renders the trailer, or with a start time a preview from that moment on into the work folder."""
-    out = WORK / "preview.avi" if start else OUT
+def render(start=0.0, phone=False):
+    """Renders the trailer, or the Google Play video, or with a start time a preview from that moment on into the work
+    folder."""
+    out = WORK / "preview.avi" if start else (PHONE_OUT if phone else OUT)
     out.parent.mkdir(parents=True, exist_ok=True)
+    shots = PHONE_DIR if phone else SHOTS_DIR
     # The edit quits when it ends; the frame limit only stops a run whose script failed to load from going on forever.
     godot(["--write-movie", str(out), "--fixed-fps", str(FPS), "--quit-after", str(200 * FPS), "res://tools/trailer/edit.tscn",
-           "--", "--no-save", f"--shots={SHOTS_DIR}", f"--from={start}"], full=True)
+           "--", "--no-save", f"--shots={shots}", f"--from={start}", f"--cut={'play_store' if phone else 'trailer'}"], full=True)
     if not start:
         mp4_copy(out)
-        thumbnail(out.parent / "thumbnail.png")
+        if not phone:
+            thumbnail(out.parent / "thumbnail.png")
     print(f"ready: {out}")
 
 
@@ -225,18 +237,20 @@ def stills(folder):
 
 def main():
     args = sys.argv[1:]
+    phone = "--cut=play_store" in args
+    args = [a for a in args if a != "--cut=play_store"]
     if args[:1] == ["stills"]:
         stills(args[1])
         return
     if args[:1] == ["shots"]:
-        for shot in args[1:] or SHOTS:
-            record(shot)
+        for shot in args[1:] or (PHONE_SHOTS if phone else SHOTS):
+            record(shot, phone)
         return
     if args[:1] != ["render"]:
-        for shot in SHOTS:
-            if not (SHOTS_DIR / shot / "f.wav").exists():
-                record(shot)
-    render(float(args[1]) if args[:1] == ["render"] and len(args) > 1 else 0.0)
+        for shot in PHONE_SHOTS if phone else SHOTS:
+            if not ((PHONE_DIR if phone else SHOTS_DIR) / shot / "f.wav").exists():
+                record(shot, phone)
+    render(float(args[1]) if args[:1] == ["render"] and len(args) > 1 else 0.0, phone)
 
 
 if __name__ == "__main__":
