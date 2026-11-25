@@ -58,6 +58,15 @@ const SUPPLY_ICONS := {"free_choice": "glory", "heal": "medicus", "magnet": "mag
 ## The most lines the store's card gives its first line and the line under it.
 const STORE_HEAD_LINES := 3
 const STORE_BODY_LINES := 4
+## The dim plate under a label, which lets the field show through.
+const PLATE := Color(0.08, 0.05, 0.04, 0.55)
+## How far text keeps from a phone's round buttons.
+const BUTTON_CLEAR := 4.0
+## The most lines a notice takes at the text size before it steps down to the smallest size.
+const NOTICE_LINES := 4
+## How far down the view the god's name, and the chieftain's fall and the victory, are written, as a share of its height.
+const GOD_Y := 0.24
+const BANNER_Y := 0.3
 
 var main: Node
 var ui: Ui
@@ -68,6 +77,10 @@ var touch_buttons := {}
 ## The store's last answer about the full game, and when it came on the main clock.
 var store_result := ""
 var store_at := -1000.0
+## The dim plates under this frame's labels, in view pixels, which the world reads to keep its damage numbers out from under them.
+var plates: Array[Rect2] = []
+# Where the drawing in progress has its origin, so a plate drawn inside a phone's insets is listed where it shows.
+var _drawn_at := Vector2.ZERO
 
 
 ## The level-up icon of an id, loaded the first time it is drawn.
@@ -100,14 +113,25 @@ func text(s: String, pos: Vector2, col: Color = CREAM, align := HORIZONTAL_ALIGN
 ## A text on a dim plate, for the corner labels that sit over snow, sand and dark trees alike.
 func plated_text(s: String, pos: Vector2, col: Color = CREAM, align := HORIZONTAL_ALIGNMENT_LEFT, width := -1.0, size := 0) -> void:
 	var sz := size if size > 0 else Ui.px
-	var w := Ui.width_at(s, sz)
+	_plate(plate_rect(s, pos, align, width, sz))
+	text(s, pos, col, align, width, true, sz)
+
+
+## The plate under a text written at `pos` with its baseline there, as `plated_text` draws it.
+static func plate_rect(s: String, pos: Vector2, align: HorizontalAlignment, width: float, size: int) -> Rect2:
+	var w := Ui.width_at(s, size)
 	var x := pos.x
 	if align == HORIZONTAL_ALIGNMENT_RIGHT:
 		x = pos.x + width - w
 	elif align == HORIZONTAL_ALIGNMENT_CENTER:
 		x = pos.x + (width - w) / 2.0
-	draw_rect(Rect2(x - 3.0, pos.y - sz - 1.0, w + 6.0, Ui.lead_for(sz) + 1.0), Color(0.08, 0.05, 0.04, 0.55))
-	text(s, pos, col, align, width, true, sz)
+	return Rect2(x - 3.0, pos.y - size - 1.0, w + 6.0, Ui.lead_for(size) + 1.0)
+
+
+## A dim plate under a label, listed in `plates` in view pixels so the battle's numbers keep out from under it.
+func _plate(r: Rect2) -> void:
+	draw_rect(r, PLATE)
+	plates.append(Rect2(r.position + _drawn_at, r.size))
 
 
 func wrap_text(s: String, pos: Vector2, width: float, col: Color) -> void:
@@ -127,6 +151,7 @@ func _draw() -> void:
 	if main == null:
 		return
 	Ui.fit_view(get_viewport_rect().size)
+	plates.clear()
 	_scene()
 	draw_set_transform(Vector2.ZERO)
 	_card()
@@ -279,13 +304,20 @@ func _scene() -> void:
 func _top_bar(sim: Sim) -> void:
 	var safe := Ui.view - Touch.inset_tl - Touch.inset_br
 	draw_set_transform(Touch.inset_tl)
+	_drawn_at = Touch.inset_tl
 	_top_bar_in(sim, safe.x, safe.y)
 	draw_set_transform(Vector2.ZERO)
+	_drawn_at = Vector2.ZERO
 
 
 ## The touch buttons laid out this frame, or none off a phone.
 func touch_layout() -> Dictionary:
 	return main.touch_pad.layout if main.touch_pad != null else {}
+
+
+## The touch buttons on screen, which the run's warnings keep clear of; they are drawn only while the battle goes on.
+func _buttons() -> Dictionary:
+	return touch_layout() if main.state == "play" else {}
 
 
 ## Where the right-hand words of the top bar end, left of a phone's pause button.
@@ -322,7 +354,7 @@ func _top_bar_in(sim: Sim, W: float, H: float) -> void:
 		if not main.screens.has(main.state):
 			var line := run_line(sim)
 			var size := Ui.fit_size(line, RUN_LINE_ROOM)
-			plated_text(ui.clip(line, RUN_LINE_ROOM, size), Vector2(10, y2), MUTED, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size)
+			plated_text(Ui.clip(line, RUN_LINE_ROOM, size), Vector2(10, y2), MUTED, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size)
 	# The pause and summary screens write their key hints along the bottom, so the bottom row is left to them.
 	if main.screens.has(main.state):
 		_chieftain_line(sim, W, y1, big)
@@ -370,15 +402,27 @@ static func badges_top(sim: Sim) -> float:
 func _chieftain_line(sim: Sim, W: float, y1: float, big: bool) -> void:
 	var ci := sim.horde.chieftain_index()
 	var y3 := chieftain_y(y1, big)
+	var line := ""
 	if ci >= 0:
-		text(chief_name(sim).to_upper(), Vector2(0, y3), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
-		draw_rect(Rect2(W / 2 - 101, y3 + 4, 202, 6), INK)
-		draw_rect(Rect2(W / 2 - 100, y3 + 5, 200 * clampf(sim.horde.e_hp[ci] / sim.horde.e_max[ci], 0, 1), 4), RED)
+		line = chief_name(sim).to_upper()
 	elif sim.endless and sim.endless_since >= 0.0:
 		var extra := int(sim.endless_seconds())
-		text((tr("Endless  +%d:%02d") % [extra / 60, extra % 60]).to_upper(), Vector2(0, y3), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
+		line = (tr("Endless  +%d:%02d") % [extra / 60, extra % 60]).to_upper()
 	elif sim.time > float(sim.b.chieftain_at) - 30.0 and sim.horde.chieftain_id == -1:
-		text((tr("The %s is coming") % chief_name(sim)).to_upper(), Vector2(0, y3), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
+		line = (tr("The %s is coming") % chief_name(sim)).to_upper()
+	if line == "":
+		return
+	var lay := chieftain_line_layout(line, Ui.view, _buttons())
+	text(lay.text, Vector2(0, y3), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W, true, lay.size)
+	if ci >= 0:
+		draw_rect(Rect2(W / 2 - 101, y3 + 4, 202, 6), INK)
+		draw_rect(Rect2(W / 2 - 100, y3 + 5, 200 * clampf(sim.horde.e_hp[ci] / sim.horde.e_max[ci], 0, 1), 4), RED)
+
+
+## How the chieftain's line is written, as `fitted_line` gives it, centred in the safe area under the top bar.
+static func chieftain_line_layout(line: String, view: Vector2, buttons: Dictionary) -> Dictionary:
+	var safe := view - Touch.inset_tl - Touch.inset_br
+	return fitted_line(line, Touch.inset_tl.x + safe.x / 2.0, Touch.inset_tl.y + chieftain_y(16.0 + 8.0 * Ui.scale, Ui.scale > 1), view, buttons)
 
 
 ## The logs of timber the legion carries, above the testudo's name, gold once there are enough for a palisade, and the notice when there are not.
@@ -404,14 +448,15 @@ func _timber(sim: Sim, W: float, H: float) -> void:
 	elif sim.palisade_refused_at >= 0.0 and sim.time - sim.palisade_refused_at < float(sim.b.palisade.notice_seconds):
 		line = tr("Not enough timber: %d needed") % cost
 	if line != "":
-		text(line.to_upper(), Vector2(0, H * 0.7), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, W)
+		var said := notice_layout(line.to_upper(), Ui.view, _buttons())
+		_notice(said, -Touch.inset_tl)
 	if sim.bridge_here and main.state == "play":
 		var hint := bridge_hint(sim.timber, bridge_cost)
-		var r: Rect2 = bottom_layout(Vector2(W, H)).bridge
-		var said := str(hint.text).to_upper()
-		var w := Ui.width_at(said, Ui.px)
-		draw_rect(Rect2((W - w) / 2.0 - 4.0, r.position.y - 1.0, w + 8.0, r.size.y + 2.0), Color(0.08, 0.05, 0.04, 0.55))
-		text(said, Vector2(0, r.position.y + Ui.px), GOLD_LIGHT if hint.enough else MUTED, HORIZONTAL_ALIGNMENT_CENTER, W)
+		var lay := bridge_hint_layout(str(hint.text).to_upper(), Ui.view, _buttons())
+		var r: Rect2 = lay.rect
+		r.position -= Touch.inset_tl
+		_plate(r)
+		text(lay.text, Vector2(0, r.position.y + 1.0 + Ui.px), GOLD_LIGHT if hint.enough else MUTED, HORIZONTAL_ALIGNMENT_CENTER, W, true, lay.size)
 
 
 ## The hint at a ravine's lip: the key and the cost, or with too little timber the cost and what the legion has.
@@ -614,9 +659,14 @@ func _god_banner_shown(sim: Sim) -> bool:
 func god_banner_rect(sim: Sim) -> Rect2:
 	if not _god_banner_shown(sim):
 		return Rect2()
-	var size := Ui.px * 3
-	var w := Ui.font().get_string_size(str(sim.content.gods[sim.gods.last.id].name).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
-	return Rect2((Ui.view.x - w) / 2.0, Ui.view.y * 0.24 - size, w + 3.0, size * 1.2 + 3.0).grow(4.0)
+	var lay := god_banner_layout(str(sim.content.gods[sim.gods.last.id].name).to_upper(), Ui.view, _buttons())
+	var r: Rect2 = lay.rect
+	return Rect2(r.position, Vector2(r.size.x + 3.0, lay.size * 1.2 + 3.0)).grow(4.0)
+
+
+## How the god's name is written, as `banner_layout` gives it: three times the text size, smaller for a long name.
+static func god_banner_layout(name: String, view: Vector2, buttons: Dictionary) -> Dictionary:
+	return banner_layout(name, Ui.px * 3, Ui.px, view.y * GOD_Y, view, buttons)
 
 
 ## The name of the god just called, written large across the screen as his power lands.
@@ -627,9 +677,9 @@ func _god_banner(sim: Sim) -> void:
 	var age := sim.time - float(last.at)
 	var secs := float(sim.b.gods.banner_seconds)
 	var a := clampf(minf(age * 4.0, (secs - age) * 2.0), 0.0, 1.0)
-	var size := Ui.px * 3
 	var name := str(sim.content.gods[last.id].name).to_upper()
-	var y := Ui.view.y * 0.24
+	var size: int = god_banner_layout(name, Ui.view, _buttons()).size
+	var y := Ui.view.y * GOD_Y
 	draw_string(Ui.font(), Vector2(3, y + 3), name, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x, size, Color(INK, a))
 	draw_string(Ui.font(), Vector2(0, y), name, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x, size, Color(GOLD_LIGHT, a))
 
@@ -643,9 +693,9 @@ func _victory_banner(sim: Sim) -> void:
 	var word := tr("Victory").to_upper()
 	var wreath := LAUREL.get_size() * Ui.scale
 	var gap := 6.0 * Ui.scale
-	var settled := victory_banner_size(word, Ui.view.x, wreath.x + gap)
+	var settled: int = victory_layout(word, Ui.view, _buttons()).size
 	var size := int(settled * grow)
-	var y := Ui.view.y * 0.3
+	var y := Ui.view.y * BANNER_Y
 	var w := Ui.font().get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 	draw_rect(Rect2(0, y - size * 1.1, Ui.view.x, size * 1.6 + Ui.leading()), Color(INK, 0.45 * a))
 	draw_string(Ui.font(), Vector2(4, y + 4), word, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x, size, Color(INK, a))
@@ -653,16 +703,18 @@ func _victory_banner(sim: Sim) -> void:
 	for side in [-1.0, 1.0]:
 		var at := Vector2(Ui.view.x / 2.0 + side * (w / 2.0 + gap + wreath.x / 2.0), y - size * 0.35)
 		draw_texture_rect(LAUREL, Rect2((at - wreath / 2.0).round(), wreath), false, Color(1, 1, 1, a))
-	var line := tr("%s is won") % str(sim.content.provinces[sim.province].name)
-	draw_string(Ui.font(), Vector2(0, y + Ui.leading() + Ui.px * 0.6), line.to_upper(), HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x, Ui.px, Color(CREAM, a))
+	var won := won_line_layout((tr("%s is won") % str(sim.content.provinces[sim.province].name)).to_upper(), Ui.view, _buttons())
+	draw_string(Ui.font(), Vector2(0, y + Ui.leading() + Ui.px * 0.6), won.text, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x, won.size, Color(CREAM, a))
 
 
-## The size the victory banner's word settles at: five times the text size, smaller when the word and a wreath of `beside` px either side would not fit across the view.
-static func victory_banner_size(word: String, view_w: float, beside: float) -> int:
-	var size := Ui.px * 5
-	while size > Ui.px * 2 and Ui.width_at(word, size) + 2.0 * beside > view_w - 24.0:
-		size -= 1
-	return size
+## How the victory's word is written, as `banner_layout` gives it: five times the text size, smaller when it and a wreath either side would not fit.
+static func victory_layout(word: String, view: Vector2, buttons: Dictionary) -> Dictionary:
+	return banner_layout(word, Ui.px * 5, Ui.px * 2, view.y * BANNER_Y, view, buttons, (LAUREL.get_size().x + 6.0) * Ui.scale)
+
+
+## How the line under the victory naming the province won is written, as `fitted_line` gives it.
+static func won_line_layout(line: String, view: Vector2, buttons: Dictionary) -> Dictionary:
+	return fitted_line(line, view.x / 2.0, view.y * BANNER_Y + Ui.leading() + Ui.px * 0.6, view, buttons)
 
 
 ## Whether the chieftain's fall is written across the screen.
@@ -674,20 +726,17 @@ static func chief_banner_line(sim: Sim) -> String:
 	return TranslationServer.translate("The %s has fallen") % chief_name(sim)
 
 
-## The size the chieftain's banner is written at: as large as a god's name, smaller for a long name.
-static func _chief_banner_size(line: String) -> int:
-	var size := Ui.px * 3
-	while size > Ui.px and Ui.width_at(line, size) > Ui.view.x - 24.0:
-		size -= 1
-	return size
+## How the chieftain's banner is written, as `banner_layout` gives it: as large as a god's name, smaller for a long name.
+static func chief_banner_layout(line: String, view: Vector2, buttons: Dictionary) -> Dictionary:
+	return banner_layout(line, Ui.px * 3, Ui.px, view.y * BANNER_Y, view, buttons)
 
 
 ## The dark band the chieftain's banner lies on, so the objective badges stand clear of it; empty when it is not shown.
 func chief_banner_rect(sim: Sim) -> Rect2:
 	if not chief_banner_shown(sim):
 		return Rect2()
-	var size := _chief_banner_size(chief_banner_line(sim).to_upper())
-	var y := Ui.view.y * 0.3
+	var size: int = chief_banner_layout(chief_banner_line(sim).to_upper(), Ui.view, _buttons()).size
+	var y := Ui.view.y * BANNER_Y
 	return Rect2(0, y - size * 1.2, Ui.view.x, size * 1.7)
 
 
@@ -699,8 +748,8 @@ func _chief_banner(sim: Sim) -> void:
 	var secs := float(sim.b.chief_death.banner_seconds)
 	var a := clampf(minf(age * 6.0, (secs - age) * 2.0), 0.0, 1.0)
 	var line := chief_banner_line(sim).to_upper()
-	var size := _chief_banner_size(line)
-	var y := Ui.view.y * 0.3
+	var size: int = chief_banner_layout(line, Ui.view, _buttons()).size
+	var y := Ui.view.y * BANNER_Y
 	draw_rect(chief_banner_rect(sim), Color(INK, 0.5 * a))
 	draw_string(Ui.font(), Vector2(3, y + 3), line, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x, size, Color(INK, a))
 	draw_string(Ui.font(), Vector2(0, y), line, HORIZONTAL_ALIGNMENT_CENTER, Ui.view.x, size, Color(GOLD_LIGHT, a))
@@ -708,6 +757,80 @@ func _chief_banner(sim: Sim) -> void:
 
 func _notice_text(kind: String, sim: Sim) -> String:
 	return notice_line(kind, sim)
+
+
+## The widest span centred on `mid` (the view's middle when left out) that the rows from `top` to `bottom` have inside the screen's edges and clear of any of a phone's round buttons standing in those rows.
+static func room_across(view: Vector2, buttons: Dictionary, top: float, bottom: float, mid := -1.0) -> float:
+	var c := view.x / 2.0 if mid < 0.0 else mid
+	var half := minf(c - maxf(12.0, Touch.inset_tl.x + 4.0), view.x - c - maxf(12.0, Touch.inset_br.x + 4.0))
+	for id in buttons:
+		var at: Vector2 = buttons[id].centre
+		var reach: float = buttons[id].radius + BUTTON_CLEAR
+		if at.y + reach > top and at.y - reach < bottom:
+			half = minf(half, absf(at.x - c) - reach)
+	return maxf(0.0, half * 2.0)
+
+
+## How a notice under the legion is written, as {lines, size, rect} in view pixels, wrapped to the room its rows have.
+static func notice_layout(s: String, view: Vector2, buttons: Dictionary) -> Dictionary:
+	var size := Ui.px
+	var lines := Ui.lines_of(s, room_across(view, {}, 0.0, 0.0), size)
+	var rect := _notice_rect(lines, size, view)
+	# A narrower notice takes more lines and rises into rows where other buttons stand, so it is fitted again until it clears them.
+	for k in 6:
+		var room := room_across(view, buttons, rect.position.y, rect.end.y)
+		if rect.size.x <= room:
+			break
+		size = Ui.block(s, room, NOTICE_LINES).size
+		lines = Ui.lines_of(s, room, size)
+		rect = _notice_rect(lines, size, view)
+	return {"lines": lines, "size": size, "rect": rect}
+
+
+## The rect a notice's lines cover: from under the legion down to just above the bottom row, rising when it is too tall to fit.
+static func _notice_rect(lines: Array, size: int, view: Vector2) -> Rect2:
+	var w := 0.0
+	for line in lines:
+		w = maxf(w, Ui.width_at(line, size))
+	var h := Ui.lead_for(size) * lines.size()
+	var safe := view - Touch.inset_tl - Touch.inset_br
+	var low := Touch.inset_tl.y + safe.y - bottom_band(safe)
+	return Rect2((view.x - w) / 2.0, minf(view.y * 0.7 - size, low - h - 2.0), w, h)
+
+
+## Writes a notice laid out by `notice_layout`, moved by `shift` when drawn inside the insets.
+func _notice(lay: Dictionary, shift := Vector2.ZERO) -> void:
+	var r: Rect2 = lay.rect
+	var size: int = lay.size
+	for k in lay.lines.size():
+		text(lay.lines[k], Vector2(r.position.x, r.position.y + size + Ui.lead_for(size) * k) + shift, GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, r.size.x, true, size)
+
+
+## A line centred on `mid` with its baseline at `y`, in view pixels, as {text, size, rect}: at the text size, or at the smallest size and then cut with dots when it does not fit its room.
+static func fitted_line(s: String, mid: float, y: float, view: Vector2, buttons: Dictionary, pad := 0.0) -> Dictionary:
+	var room := room_across(view, buttons, y - Ui.px, y - Ui.px + Ui.leading(), mid) - 2.0 * pad
+	var size := Ui.fit_size(s, room)
+	var shown := Ui.clip(s, room, size)
+	var w := Ui.width_at(shown, size)
+	return {"text": shown, "size": size, "rect": Rect2(mid - w / 2.0 - pad, y - Ui.px, w + 2.0 * pad, Ui.leading())}
+
+
+## How the hint at a ravine's lip is written, as `fitted_line` gives it, with its plate as the rect.
+static func bridge_hint_layout(said: String, view: Vector2, buttons: Dictionary) -> Dictionary:
+	var safe := view - Touch.inset_tl - Touch.inset_br
+	var row: Rect2 = bottom_layout(safe).bridge
+	var lay := fitted_line(said, Touch.inset_tl.x + safe.x / 2.0, Touch.inset_tl.y + row.position.y + Ui.px, view, buttons, 4.0)
+	lay.rect = Rect2(lay.rect.position.x, Touch.inset_tl.y + row.position.y - 1.0, lay.rect.size.x, row.size.y + 2.0)
+	return lay
+
+
+## How a banner across the view with its baseline at `y` is written, as {size, rect}: at `most` when it fits, smaller down to `least` until it and `beside` px either side fit the room its rows have.
+static func banner_layout(line: String, most: int, least: int, y: float, view: Vector2, buttons: Dictionary, beside := 0.0) -> Dictionary:
+	var size := most
+	while size > least and Ui.width_at(line, size) + 2.0 * beside > room_across(view, buttons, y - size, y - size + Ui.lead_for(size)):
+		size -= 1
+	var w := Ui.width_at(line, size) + 2.0 * beside
+	return {"size": size, "rect": Rect2((view.x - w) / 2.0, y - size, w, Ui.lead_for(size))}
 
 
 ## The words of a notice, translated; the desert's sacred well is seized where an altar is burnt.
@@ -957,17 +1080,11 @@ func _objective_arrows(sim: Sim, avoid: Array) -> void:
 	var top := badges_top(sim)
 	avoid = avoid + badge_avoid(sim, view, main.state, touch_layout())
 	var note: Dictionary = sim.objectives.notice
-	var lines: Array = []
-	var spot := Rect2()
+	var said := {}
 	if not note.is_empty() and sim.time >= float(note.at) and sim.time - float(note.at) < float(note.get("seconds", sim.b.objectives.notice_seconds)):
-		lines = Ui.lines_of(_notice_text(note.kind, sim).to_upper(), view.x - 24.0)
-		var nw := 0.0
-		for line in lines:
-			nw = maxf(nw, Ui.width_at(line, Ui.px))
-		var h := Ui.leading() * lines.size()
-		spot = Rect2((view.x - nw) / 2.0, minf(view.y * 0.7 - Ui.px, view.y - bottom_band(view) - h - 2.0), nw, h)
+		said = notice_layout(_notice_text(note.kind, sim).to_upper(), view, _buttons())
 		# The notice keeps its place under the legion and the badges and labels step round it.
-		avoid = avoid + [spot]
+		avoid = avoid + [said.rect]
 	var laid := arrow_layout(targets_of(sim), sim.commander.pos, view, top, float(sim.b.objectives.metre_px), avoid)
 	var atlas: Atlas = main.world.atlas
 	var radius := badge_radius()
@@ -976,8 +1093,8 @@ func _objective_arrows(sim: Sim, avoid: Array) -> void:
 	for l in laid:
 		if not l.on_screen:
 			_badge(l, atlas, radius, reach, sim.time)
-	for k in lines.size():
-		text(lines[k], Vector2(spot.position.x, spot.position.y + Ui.px + Ui.leading() * k), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, spot.size.x)
+	if not said.is_empty():
+		_notice(said)
 	for l in laid:
 		var r: Rect2 = l.label
 		if l.on_screen:
@@ -985,7 +1102,7 @@ func _objective_arrows(sim: Sim, avoid: Array) -> void:
 			continue
 		if r.size.x == 0.0:
 			continue
-		draw_rect(r.grow(2.0), Color(0.08, 0.05, 0.04, 0.55))
+		_plate(r.grow(2.0))
 		text(l.name, Vector2(r.position.x, r.position.y + Ui.px), GOLD_LIGHT if l.kind != "fort" and l.kind != "chieftain" else CREAM, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
 		text(l.dist, Vector2(r.position.x, r.position.y + Ui.px + Ui.leading()), CREAM, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
 

@@ -6,9 +6,11 @@ Apps, the game, the version being prepared, then Previews and Screenshots, with 
 The pictures are made by python tools/phone/make_store_art.py, which has the game render each scene with its phone
 interface and touch controls (--phone) in a window of the store's size, so they always match the game. Run it again
 after the art or the interface changes, then look at every picture: the game lays out a fresh field from each scene's
-seed and barbarians walk about, so one can land in front of another. Like the Steam screenshots, they carry no
-captions, and they are taken as the Google Play ones are (see store/google_play/README.txt): the objectives already
-won, no achievement cards, a thumb on the stick where the legion marches.
+seed and barbarians walk about, so one can land in front of another. Naming a scene (python
+tools/phone/make_store_art.py a_hundred_men) takes only that picture again, here and in store/google_play/. Like the
+Steam screenshots, they carry no captions, and they are taken as the Google Play ones are (see
+store/google_play/README.txt): the objectives already won, no achievement cards, a thumb on the stick where the legion
+marches.
 
 The game draws 640x360 game pixels, widened to 782x360 on the iPhone's long screen and deepened to 640x480 on the
 iPad's squarer one, and an iPhone or iPad blows that view up by a scale that is not a whole number. So that every game

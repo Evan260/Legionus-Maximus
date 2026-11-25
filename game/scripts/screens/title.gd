@@ -327,7 +327,7 @@ func _draw_controls(c: CanvasItem, ui: Ui, g: Dictionary) -> void:
 			_icon(c, ui, cell.id, cell.icon)
 		var lines := Ui.lines_of(cell.label, cell.room, size)
 		if lines.size() > cell.lines:
-			lines = lines.slice(0, cell.lines - 1) + [ui.clip(" ".join(lines.slice(cell.lines - 1)), cell.room, size)]
+			lines = lines.slice(0, cell.lines - 1) + [Ui.clip(" ".join(lines.slice(cell.lines - 1)), cell.room, size)]
 		var mid: float = cell.rect.get_center().y
 		for i in lines.size():
 			var y := roundf(mid - (lines.size() - 1) * lead / 2.0 + i * lead + size * 3 / 8.0)

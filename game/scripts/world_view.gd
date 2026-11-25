@@ -20,6 +20,8 @@ const STAIN_SHAPES := 4
 
 var sim: Sim
 var atlas: Atlas
+## The HUD drawn over the field, whose label plates the damage numbers keep out from under.
+var hud: Hud
 var ground: Texture2D
 var _ground_of := "germania"
 # Every shadow width the field needs, one row each, so all the shadows draw from one texture; row 0 is the 16 px shadow of a man.
@@ -2047,12 +2049,17 @@ func _draw_effects() -> void:
 func _draw_numbers(view: Rect2) -> void:
 	var life := float(sim.b.damage_numbers.seconds)
 	var rise := float(sim.b.damage_numbers.rise)
+	var plates: Array[Rect2] = []
+	if hud != null:
+		plates = hud.plates
 	for n in sim.numbers:
 		if not view.has_point(n.pos):
 			continue
 		var text := str(n.v)
 		var k: float = n.t / life
 		var at: Vector2 = (n.pos + Vector2(-(text.length() * 4 - 1) / 2.0, -rise * k)).round()
+		if not number_shown(Rect2(at + position, Vector2(text.length() * 4, 6)), plates):
+			continue
 		var a := clampf((1.0 - k) * 3.0, 0.0, 1.0)
 		for pass_index in 2:
 			var tint := Ui.INK if pass_index == 0 else Ui.CREAM
@@ -2061,6 +2068,14 @@ func _draw_numbers(view: Rect2) -> void:
 			for i in text.length():
 				var d := text.unicode_at(i) - 48
 				draw_texture_rect_region(digits, Rect2(at + o + Vector2(i * 4, 0), Vector2(3, 5)), Rect2(d * 4, 0, 3, 5), tint)
+
+
+## Whether a damage number covering `box` on the screen is drawn: not under one of the HUD's dim plates, where it would show through and read as part of the label.
+static func number_shown(box: Rect2, plates: Array[Rect2]) -> bool:
+	for p in plates:
+		if p.intersects(box):
+			return false
+	return true
 
 
 func _draw_bars() -> void:

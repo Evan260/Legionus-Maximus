@@ -6281,9 +6281,10 @@ func test_horses_follow_the_legion_into_the_fort(b: Dictionary) -> void:
 func test_the_victory_banner_shrinks_its_word_to_fit_the_wreaths_beside_it(_b: Dictionary) -> void:
 	var word := "VICTORY"
 	var beside := 38.0
-	check(Hud.victory_banner_size(word, 640.0, beside) == Ui.px * 5, "the word keeps five times the text size on a wide view")
+	var y := 360.0 * Hud.BANNER_Y
+	check(Hud.banner_layout(word, Ui.px * 5, Ui.px * 2, y, Vector2(640, 360), {}, beside).size == Ui.px * 5, "the word keeps five times the text size on a wide view")
 	var narrow := Ui.width_at(word, Ui.px * 5) + 2.0 * beside
-	var size := Hud.victory_banner_size(word, narrow, beside)
+	var size: int = Hud.banner_layout(word, Ui.px * 5, Ui.px * 2, y, Vector2(narrow, 360), {}, beside).size
 	check(size < Ui.px * 5 and Ui.width_at(word, size) + 2.0 * beside <= narrow - 24.0, "on a narrow view it shrinks so the word and both wreaths fit (%d)" % size)
 
 
@@ -13304,6 +13305,233 @@ func test_touch_buttons_fit_the_right_thumb_and_clear_the_corners(b: Dictionary)
 			check(layout.testudo.centre.y > layout.wall.centre.y and layout.testudo.centre.y > layout.bridge.centre.y, "%s: the testudo sits lowest, under the thumb" % what)
 			check(layout.pause.centre.y < view.y * 0.25, "%s: pause sits at the top" % what)
 	Ui.set_text_size(before, b)
+
+
+## Every kind of notice the HUD writes under the legion in a battle.
+const NOTICE_KINDS := ["camp", "column", "grove", "cart_tip", "grove_tip", "chieftain", "roar", "testudo", "ambush", "feint", "feint_turn",
+	"volleys", "javelins", "sluice", "lancers", "steppe_fire", "canal", "ravine", "fort_barred", "fort"]
+
+
+## Every warning and banner a battle writes across the screen in the language showing, by where it goes: the notices with each province's last enemy named (the timber lines go there too), the chieftain's line, the bridge hint, the gods' names, the chieftain's fall, the victory and the province won.
+func _battle_warnings(b: Dictionary, s: Sim) -> Dictionary:
+	var out := {"notice": {}, "chief_line": {}, "bridge": {}, "god": {}, "fallen": {}, "victory": {}, "won": {}}
+	var words: Content = s.content
+	var grove := {}
+	for o in s.objectives.list:
+		if o.kind == "grove":
+			grove = o
+	var standing := s.horde.e_id[s.horde.spawn("barbarian_club", Vector2(900, 0))]
+	for id in words.provinces:
+		s.horde.chief_kind = str(words.provinces[id].chieftain)
+		# The fort's notice names the chieftain only while he lives, and the desert's grove is a sacred well.
+		for alive in [false, true]:
+			s.horde.chieftain_id = standing if alive else -1
+			for well in [false, true]:
+				grove.centre = "well" if well else "altar"
+				for kind in NOTICE_KINDS:
+					out.notice[Hud.notice_line(kind, s).to_upper()] = true
+		s.horde.chieftain_id = -1
+		out.chief_line[Hud.chief_name(s).to_upper()] = true
+		out.chief_line[(TranslationServer.translate("The %s is coming") % Hud.chief_name(s)).to_upper()] = true
+		out.fallen[Hud.chief_banner_line(s).to_upper()] = true
+		out.won[(TranslationServer.translate("%s is won") % str(words.provinces[id].name)).to_upper()] = true
+	grove.centre = "altar"
+	out.chief_line[(TranslationServer.translate("Endless  +%d:%02d") % [99, 59]).to_upper()] = true
+	out.notice[TranslationServer.translate("No ravine ahead to bridge").to_upper()] = true
+	for work in [s.b.palisade, s.b.wall, s.b.bridge]:
+		out.notice[(TranslationServer.translate("Not enough timber: %d needed") % int(work.cost)).to_upper()] = true
+	var cost := int(s.b.bridge.cost)
+	for timber in [cost - 1, 99]:
+		out.bridge[str(Hud.bridge_hint(timber, cost).text).to_upper()] = true
+	for id in words.gods:
+		out.god[str(words.gods[id].name).to_upper()] = true
+	out.victory[TranslationServer.translate("Victory").to_upper()] = true
+	return out
+
+
+## Where each of a battle's warnings is written on the screen showing, as [what, rect, how wide its words are, whether they were cut short].
+static func _warnings_laid_out(said: Dictionary, view: Vector2, buttons: Dictionary) -> Array:
+	var out: Array = []
+	for t in said.notice:
+		var lay := Hud.notice_layout(t, view, buttons)
+		var widest := 0.0
+		for line in lay.lines:
+			widest = maxf(widest, Ui.width_at(line, lay.size))
+		out.append(["notice '%s'" % t, lay.rect, widest, false])
+	for t in said.chief_line:
+		var lay := Hud.chieftain_line_layout(t, view, buttons)
+		out.append(["chieftain's line '%s'" % t, lay.rect, Ui.width_at(lay.text, lay.size), lay.text != t])
+	for t in said.bridge:
+		var lay := Hud.bridge_hint_layout(t, view, buttons)
+		out.append(["bridge hint '%s'" % t, lay.rect, Ui.width_at(lay.text, lay.size) + 8.0, lay.text != t])
+	for t in said.won:
+		var lay := Hud.won_line_layout(t, view, buttons)
+		out.append(["line under the victory '%s'" % t, lay.rect, Ui.width_at(lay.text, lay.size), lay.text != t])
+	for t in said.god:
+		var lay := Hud.god_banner_layout(t, view, buttons)
+		out.append(["god's name '%s'" % t, lay.rect, Ui.width_at(t, lay.size), false])
+	for t in said.fallen:
+		var lay := Hud.chief_banner_layout(t, view, buttons)
+		out.append(["banner '%s'" % t, lay.rect, Ui.width_at(t, lay.size), false])
+	for t in said.victory:
+		var lay := Hud.victory_layout(t, view, buttons)
+		out.append(["victory '%s'" % t, lay.rect, Ui.width_at(t, lay.size) + 2.0 * (Hud.LAUREL.get_size().x + 6.0) * Ui.scale, false])
+	return out
+
+
+## The phones and the tablet a battle's warnings are laid out for: those large text is laid out for, and a 20:9 phone with its camera on the right.
+static func _phone_screens() -> Array:
+	var out: Array = _big_screens().filter(func(e: Dictionary) -> bool: return e.phone)
+	var camera: Dictionary = out[0].duplicate()
+	camera.name += ", camera on the right"
+	camera.br = Vector2(40, camera.br.y)
+	out.append(camera)
+	return out
+
+
+func test_every_battle_warning_fits_between_a_phones_buttons_in_every_language(b: Dictionary) -> void:
+	var before: String = Lang.code
+	var before_scale := Ui.scale
+	var before_view := Ui.view
+	var kept := [Touch.phone, Touch.inset_tl, Touch.inset_br]
+	var words := Content.load_all(Content.available_art())
+	var s := Sim.new(b, words, {"seed": 3})
+	Touch.phone = true
+	var problems := []
+	for loc in LANGUAGES:
+		Lang.apply(loc, false)
+		words.localize()
+		var said := _battle_warnings(b, s)
+		for scale in [1, 2]:
+			Ui.set_text_size(scale, b)
+			for screen in _phone_screens():
+				var view: Vector2 = screen.view
+				Ui.fit_view(view)
+				Touch.inset_tl = screen.tl
+				Touch.inset_br = screen.br
+				var buttons := _touch_layout(view, screen.tl, screen.br, screen.tip)
+				var safe := Rect2(screen.tl, view - screen.tl - screen.br)
+				var parts := Hud.bottom_layout(safe.size)
+				var low: float = safe.position.y + minf(parts.bridge.position.y, minf(parts.testudo.position.y, parts.favour.position.y))
+				var tag := "%s x%d %s" % [loc, scale, screen.name]
+				for p in _warnings_laid_out(said, view, buttons):
+					var r: Rect2 = p[1]
+					if p[2] > r.size.x + 0.5:
+						problems.append("%s: the %s is %d wide in a room of %d" % [tag, p[0], p[2], r.size.x])
+					if p[3]:
+						problems.append("%s: the %s is cut short" % [tag, p[0]])
+					if not safe.encloses(r):
+						problems.append("%s: the %s at %s leaves the safe area %s" % [tag, p[0], r, safe])
+					if str(p[0]).begins_with("notice") and r.end.y > low:
+						problems.append("%s: the %s reaches %d, into the row along the bottom at %d" % [tag, p[0], r.end.y, low])
+					for id in buttons:
+						var box := Rect2(buttons[id].centre - Vector2.ONE * buttons[id].radius, Vector2.ONE * buttons[id].radius * 2.0)
+						if box.intersects(r):
+							problems.append("%s: the %s at %s runs under the %s button %s" % [tag, p[0], r, id, box])
+	Lang.apply(before, false)
+	words.localize()
+	Ui.set_text_size(before_scale, b)
+	Ui.fit_view(before_view)
+	Touch.phone = kept[0]
+	Touch.inset_tl = kept[1]
+	Touch.inset_br = kept[2]
+	for p in problems.slice(0, 16):
+		print("  ", p)
+	check(problems.is_empty(), "every warning and banner of a battle stays between a phone's buttons and inside its screen in every language, at both text sizes (%d problems)" % problems.size())
+
+
+func test_battle_warnings_keep_their_layout_on_a_computer(b: Dictionary) -> void:
+	var before: String = Lang.code
+	var before_scale := Ui.scale
+	var before_view := Ui.view
+	var kept := [Touch.phone, Touch.inset_tl, Touch.inset_br]
+	var words := Content.load_all(Content.available_art())
+	var s := Sim.new(b, words, {"seed": 3})
+	Touch.phone = false
+	Touch.inset_tl = Vector2.ZERO
+	Touch.inset_br = Vector2.ZERO
+	var problems := []
+	for loc in LANGUAGES:
+		Lang.apply(loc, false)
+		words.localize()
+		var said := _battle_warnings(b, s)
+		for scale in [1, 2]:
+			Ui.set_text_size(scale, b)
+			# A 16:9 window, a wide one and a 16:10 one.
+			for view in [Vector2(640, 360), Vector2(853, 360), Vector2(640, 400)]:
+				Ui.fit_view(view)
+				var tag := "%s x%d %s" % [loc, scale, view]
+				for t in said.notice:
+					var lay := Hud.notice_layout(t, view, {})
+					var lines := Ui.lines_of(t, view.x - 24.0)
+					var nw := 0.0
+					for line in lines:
+						nw = maxf(nw, Ui.width_at(line, Ui.px))
+					var h := Ui.leading() * lines.size()
+					var spot := Rect2((view.x - nw) / 2.0, minf(view.y * 0.7 - Ui.px, view.y - Hud.bottom_band(view) - h - 2.0), nw, h)
+					if lay.lines != lines or lay.size != Ui.px or lay.rect != spot:
+						problems.append("%s: the notice '%s' moved from %s to %s" % [tag, t, spot, lay.rect])
+				for t in said.chief_line:
+					var lay := Hud.chieftain_line_layout(t, view, {})
+					if lay.text != t or lay.size != Ui.px:
+						problems.append("%s: the chieftain's line '%s' is written as '%s' at %d" % [tag, t, lay.text, lay.size])
+				for t in said.won:
+					var lay := Hud.won_line_layout(t, view, {})
+					if lay.text != t or lay.size != Ui.px:
+						problems.append("%s: the line '%s' is written as '%s' at %d" % [tag, t, lay.text, lay.size])
+				for t in said.bridge:
+					var lay := Hud.bridge_hint_layout(t, view, {})
+					if lay.text != t or lay.size != Ui.px:
+						problems.append("%s: the bridge hint '%s' is written as '%s' at %d" % [tag, t, lay.text, lay.size])
+				for t in said.god:
+					if Hud.god_banner_layout(t, view, {}).size != Ui.px * 3:
+						problems.append("%s: the god's name '%s' is not three times the text size" % [tag, t])
+				for t in said.fallen:
+					var size := Ui.px * 3
+					while size > Ui.px and Ui.width_at(t, size) > view.x - 24.0:
+						size -= 1
+					if Hud.chief_banner_layout(t, view, {}).size != size:
+						problems.append("%s: the banner '%s' is not at %d" % [tag, t, size])
+				for t in said.victory:
+					var beside := (Hud.LAUREL.get_size().x + 6.0) * Ui.scale
+					var size := Ui.px * 5
+					while size > Ui.px * 2 and Ui.width_at(t, size) + 2.0 * beside > view.x - 24.0:
+						size -= 1
+					if Hud.victory_layout(t, view, {}).size != size:
+						problems.append("%s: the victory '%s' is not at %d" % [tag, t, size])
+	Lang.apply(before, false)
+	words.localize()
+	Ui.set_text_size(before_scale, b)
+	Ui.fit_view(before_view)
+	Touch.phone = kept[0]
+	Touch.inset_tl = kept[1]
+	Touch.inset_br = kept[2]
+	for p in problems.slice(0, 16):
+		print("  ", p)
+	check(problems.is_empty(), "a computer writes every warning and banner of a battle where and as large as it always has (%d problems)" % problems.size())
+
+
+func test_the_battles_numbers_never_show_under_the_huds_labels(_b: Dictionary) -> void:
+	var state := (load("res://scenes/main.tscn") as PackedScene).get_state()
+	var layers := {}
+	var parents := {}
+	for i in state.get_node_count():
+		var name := str(state.get_node_name(i))
+		parents[name] = str(state.get_node_path(i, true))
+		if state.get_node_type(i) == "CanvasLayer":
+			layers[name] = 1
+			for k in state.get_node_property_count(i):
+				if state.get_node_property_name(i, k) == "layer":
+					layers[name] = int(state.get_node_property_value(i, k))
+	check(str(parents.get("Hud", "")).trim_prefix("./") == "UI" and int(layers.get("UI", 0)) >= 1, "the HUD is drawn on a layer of its own (%s, %s)" % [parents, layers])
+	check(parents.get("World", "") == "." and not layers.has("World"), "over the battle, which is drawn beneath it on the field's own layer")
+	var view: GDScript = load("res://scripts/world_view.gd")
+	var size := 16
+	var plate := Hud.plate_rect("GAUL, MEDIUM", Vector2(23, 65), HORIZONTAL_ALIGNMENT_LEFT, -1.0, size)
+	var plates: Array[Rect2] = [plate]
+	var between := Vector2(plate.position.x + 3.0 + Ui.width_at("GAUL,", size) + 2.0, plate.position.y + 4.0)
+	check(not view.number_shown(Rect2(between, Vector2(8, 6)), plates), "a damage number between the words of a label is left out, as it would show through the label's dim plate")
+	check(view.number_shown(Rect2(Vector2(300, 200), Vector2(8, 6)), plates), "one out on the field is drawn")
 
 
 func test_touch_back_gesture_steps_back_one_place(_b: Dictionary) -> void:

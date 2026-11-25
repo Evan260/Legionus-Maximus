@@ -71,7 +71,7 @@ SCENES = {
     "the_falx_band_charges": [*EARLY, "--province=dacia", "--seed=3", "--men=20", TAKEN, "--boss=falx_band",
                               "--boss-act=onrush", "--at=0.5"],
     "a_bridge_over_the_ravine": [*EARLY, "--province=hispania", "--seed=7", TAKEN, "--go-to=bridge", "--thumb", "--at=3"],
-    # The king's warning would run under the right-hand buttons, so the fire is taken once it has gone.
+    # The fire is taken once it has spread and the king's warning has gone, so the burning steppe fills the picture.
     "the_steppe_on_fire": ["--autoplay", "--skip=80", f"--give={HARDY},archer:3,cavalry:10,ballista:1,centurion:1,"
                            "standard_bearer:1", "--province=sarmatia", "--seed=9", "--commander=cavalry_prefect", TAKEN,
                            "--boss=rasparaganus", "--boss-act=fire", "--at=4.5"],

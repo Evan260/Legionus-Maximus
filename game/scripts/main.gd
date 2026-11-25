@@ -138,6 +138,7 @@ func _ready() -> void:
 		world.livery_force = Vector2i(int(tiers[0]), int(tiers[1] if tiers.size() > 1 else tiers[0]))
 	hud.main = self
 	hud.ui = ui
+	world.hud = hud
 	FullGame.finished.connect(hud.store_said)
 	FullGame.changed.connect(_store_changed)
 	if Touch.phone:

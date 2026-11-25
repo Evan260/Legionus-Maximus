@@ -6,9 +6,11 @@ app, then Store presence > Main store listing > Graphics.
 The pictures are made by python tools/phone/make_store_art.py, which has the game render each scene with its phone
 interface and touch controls (--phone) in a window of the store's size, so they always match the game. Run it again
 after the art or the interface changes, then look at every picture: the game lays out a fresh field from each scene's
-seed and barbarians walk about, so one can land in front of another. Like the Steam screenshots, they carry no
-captions. The battle is drawn at a whole number of screen pixels to the game pixel in every picture (3 on the phone and
-the 7-inch tablet, 4 on the 10-inch tablet), and nothing is resized with smoothing.
+seed and barbarians walk about, so one can land in front of another. Naming a scene (python
+tools/phone/make_store_art.py a_hundred_men) takes only that picture again, in every folder here and in
+store/app_store/ that holds it. Like the Steam screenshots, they carry no captions. The battle is drawn at a whole
+number of screen pixels to the game pixel in every picture (3 on the phone and the 7-inch tablet, 4 on the 10-inch
+tablet), and nothing is resized with smoothing.
 
 The phone's interface is the one a player sees: the top bar, the health bar, the testudo and the favour, the round
 buttons for the testudo, the gods, the palisade, the wall, the bridge and pause, and large text, which a phone starts

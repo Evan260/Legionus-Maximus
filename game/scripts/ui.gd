@@ -193,7 +193,7 @@ func width_of(s: String) -> float:
 
 
 ## The text cut with dots so it fits the width.
-func clip(s: String, width: float, size := 0) -> String:
+static func clip(s: String, width: float, size := 0) -> String:
 	var sz := size if size > 0 else px
 	if width_at(s, sz) <= width:
 		return s
