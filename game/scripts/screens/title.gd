@@ -300,7 +300,8 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	_birds(c, t)
 	var logo_pos := Vector2((Ui.W - LOGO.get_width()) / 2.0, logo_top())
 	c.draw_texture(LOGO, logo_pos)
-	if Game.is_demo():
+	# A phone selling the full game shows its limits without calling itself a demo, which App Review refuses.
+	if Game.is_demo() and not FullGame.sold_here():
 		var tag := Rect2(logo_pos.x + LOGO.get_width() - 56.0, logo_pos.y + LOGO.get_height() - 8.0, 56.0, 8.0 + 8.0 * Ui.scale)
 		ui.panel(c, tag)
 		ui.text(c, tr("Demo").to_upper(), Vector2(tag.position.x, tag.end.y - 4.0 - Ui.px * 3 / 8), Ui.RED, HORIZONTAL_ALIGNMENT_CENTER, tag.size.x)

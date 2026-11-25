@@ -193,7 +193,8 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	if sim.demo_over:
 		hint = tr("The full game continues past %d minutes") % (int(main.balance.demo.seconds) / 60)
 	if sim.demo_over:
-		title = tr("The demo ends here").to_upper()
+		# A phone selling the full game shows its limits without calling itself a demo, which App Review refuses.
+		title = tr("This run ends here").to_upper() if FullGame.sold_here() else tr("The demo ends here").to_upper()
 	var r := ui.frame(c, title, hint, false)
 	if not modes.is_empty():
 		var room := r.size.x - 36.0 - ui.width_of(title)
