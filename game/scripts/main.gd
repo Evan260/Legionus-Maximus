@@ -882,8 +882,11 @@ func _notification(what: int) -> void:
 			SettingsScreen.apply_audio(Profile.settings_of(Profile.settings))
 
 
-## The phone's back gesture: one step back from where the player is, and from the title the game is put away.
+## The phone's back gesture: one step back from where the player is, and from the title the reviewer's box is closed or else the game is put away.
 func _go_back() -> void:
+	if state == "title" and screens.title.reviewing:
+		screens.title.close_review()
+		return
 	match Touch.back_step(state, state == "over" and screens.over.revealing()):
 		"pause":
 			_pause()
@@ -1035,7 +1038,7 @@ func _input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if (state == "settings" and screens.settings.capture(event)) or (state == "saves" and screens.saves.capture(event)):
+	if (state == "settings" and screens.settings.capture(event)) or (state == "saves" and screens.saves.capture(event)) or (state == "title" and screens.title.capture(event)):
 		swallow_input = true
 		get_viewport().set_input_as_handled()
 		return
@@ -1188,6 +1191,8 @@ func _tap(at: Vector2) -> void:
 	if state == "over" and screens.over.revealing():
 		if Game.confirm_allowed(state, opened_at, clock, balance):
 			screens.over.skip()
+		return
+	if state == "title" and screens.title.knock(at, clock):
 		return
 	var id := ui.at(at)
 	if id == "":

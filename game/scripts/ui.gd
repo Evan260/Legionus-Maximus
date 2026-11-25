@@ -246,6 +246,32 @@ func panel(c: CanvasItem, r: Rect2, fill: Color = PARCH) -> void:
 	c.draw_rect(Rect2(r.position + Vector2(2, 2), r.size - Vector2(4, 4)), PARCH_DARK, false, 1.0)
 
 
+## The sunken box a word is typed into, with a blinking cursor, so it reads as the place to type and not as another button.
+func field(c: CanvasItem, r: Rect2, typed: String, placeholder: String) -> void:
+	c.draw_rect(r.grow(1), INK)
+	c.draw_rect(r, CREAM)
+	c.draw_rect(Rect2(r.position, Vector2(r.size.x, 2)), PARCH_DARK)
+	c.draw_rect(Rect2(r.position, Vector2(2, r.size.y)), PARCH_DARK)
+	var at := Vector2(r.position.x + 8.0, r.get_center().y + px / 2.0 - 1.0)
+	if typed == "":
+		text(c, placeholder, at, MUTED)
+	else:
+		fit_text(c, typed, r.size.x - 24.0, at, INK)
+	if int(Time.get_ticks_msec() / 500) % 2 == 0:
+		var x := at.x + (width_at(typed, px) + 2.0 if typed != "" else 0.0)
+		c.draw_rect(Rect2(x, r.position.y + 5.0, 2.0, r.size.y - 10.0), INK)
+
+
+## Shows a phone's own keyboard holding `typed`, or hides it.
+static func keyboard(up: bool, typed := "") -> void:
+	if not Touch.phone or not DisplayServer.has_feature(DisplayServer.FEATURE_VIRTUAL_KEYBOARD):
+		return
+	if up:
+		DisplayServer.virtual_keyboard_show(typed, Rect2(), DisplayServer.KEYBOARD_TYPE_DEFAULT, 20)
+	else:
+		DisplayServer.virtual_keyboard_hide()
+
+
 static func fit_view(size: Vector2) -> void:
 	view = size
 	Horde.view = size

@@ -57,12 +57,7 @@ func hold(dt: float, pressed: bool, focus: String) -> void:
 
 ## Shows or hides a phone's own keyboard for the word.
 func _keyboard(up: bool) -> void:
-	if not Touch.phone or not DisplayServer.has_feature(DisplayServer.FEATURE_VIRTUAL_KEYBOARD):
-		return
-	if up:
-		DisplayServer.virtual_keyboard_show(typed, Rect2(), DisplayServer.KEYBOARD_TYPE_DEFAULT, 20)
-	else:
-		DisplayServer.virtual_keyboard_hide()
+	Ui.keyboard(up, typed)
 
 
 ## Whether the word that deletes a game has been typed; the English word works in every language too, for a keyboard that cannot easily type the translated one.
@@ -203,7 +198,7 @@ func _draw_question(c: CanvasItem, ui: Ui) -> void:
 	var cx := r.get_center().x
 	var field := Rect2(cx - bw - 6.0, y + 12.0, 2.0 * bw + 12.0, bh)
 	# A sunken box with a blinking cursor, so it reads as the place to type and not as another button.
-	_field(c, ui, field)
+	ui.field(c, field, typed.to_upper(), tr("delete").to_upper())
 	y += bh + 6.0
 	var yes := Rect2(cx - bw - 6.0, y + 12.0, bw, bh)
 	ui.button(c, yes, "yes", tr("Delete").to_upper(), "", word_typed() or pad, null, true)
@@ -223,24 +218,8 @@ func _draw_touch_question(c: CanvasItem, ui: Ui, r: Rect2, said: Array, bh: floa
 	var top := y + 10.0
 	var field := Rect2(r.position.x + 12.0, top, r.size.x - 24.0 - 2.0 * bw - 16.0, bh)
 	ui.register(field, "field")
-	_field(c, ui, field)
+	ui.field(c, field, typed.to_upper(), tr("delete").to_upper())
 	ui.button(c, Rect2(field.end.x + 8.0, top, bw, bh), "yes", tr("Delete").to_upper(), "", word_typed(), null, true)
 	ui.button(c, Rect2(field.end.x + 16.0 + bw, top, bw, bh), "no", tr("Cancel").to_upper(), "", true, null, true)
-
-
-## The sunken box the word is typed into, with a blinking cursor, so it reads as the place to type and not as another button.
-func _field(c: CanvasItem, ui: Ui, field: Rect2) -> void:
-	c.draw_rect(field.grow(1), Ui.INK)
-	c.draw_rect(field, Ui.CREAM)
-	c.draw_rect(Rect2(field.position, Vector2(field.size.x, 2)), Ui.PARCH_DARK)
-	c.draw_rect(Rect2(field.position, Vector2(2, field.size.y)), Ui.PARCH_DARK)
-	var at := Vector2(field.position.x + 8.0, field.get_center().y + Ui.px / 2.0 - 1.0)
-	if typed == "":
-		ui.text(c, tr("delete").to_upper(), at, Ui.MUTED)
-	else:
-		ui.fit_text(c, typed.to_upper(), field.size.x - 24.0, at, Ui.INK)
-	if int(Time.get_ticks_msec() / 500) % 2 == 0:
-		var x := at.x + (Ui.width_at(typed.to_upper(), Ui.px) + 2.0 if typed != "" else 0.0)
-		c.draw_rect(Rect2(x, field.position.y + 5.0, 2.0, field.size.y - 10.0), Ui.INK)
 
 

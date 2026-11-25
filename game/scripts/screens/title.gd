@@ -23,8 +23,14 @@ const START_TRIES := 80
 # A far-off bird's pixels with its wings raised and lowered.
 const BIRD_UP := [Vector2(-4, -3), Vector2(-3, -2), Vector2(-2, -1), Vector2(-1, 0), Vector2(0, 0), Vector2(0, 1), Vector2(1, 0), Vector2(2, -1), Vector2(3, -2), Vector2(4, -3)]
 const BIRD_DOWN := [Vector2(-4, 1), Vector2(-3, 0), Vector2(-2, -1), Vector2(-1, 0), Vector2(0, 0), Vector2(0, 1), Vector2(1, 0), Vector2(2, -1), Vector2(3, 0), Vector2(4, 1)]
+# What the box for Google Play's reviewer code says to a wrong code; the box is in English, since only the reviewers see it.
+const WRONG := "That code isn't right."
 
 var main: Node
+## Whether the box for Google Play's reviewer code is open, what has been typed into it, and whether the last code was wrong.
+var reviewing := false
+var code := ""
+var wrong := false
 # The field the drift began on, the seconds shown of it, the clock when last drawn, where the camera looks and how far the column has gone.
 var _field: Sim
 var _t := 0.0
@@ -59,6 +65,59 @@ func activate(id: String) -> void:
 			Steamworks.open_store()
 		"unlock":
 			FullGame.buy()
+		"review_field":
+			Ui.keyboard(true, code)
+		"review_ok":
+			enter_code()
+		"review_cancel":
+			close_review()
+
+
+## A tap at `at` on the logo, where five quick ones open the box for Google Play's reviewer code while the full game is locked; true when it opens.
+func knock(at: Vector2, now: float) -> bool:
+	if reviewing or not logo_rect().has_point(at) or not FullGame.review_tap(now):
+		return false
+	reviewing = true
+	code = ""
+	wrong = false
+	main.ui.focus = "review_ok"
+	Ui.keyboard(true, code)
+	return true
+
+
+## Takes every key pressed while the box is open, so letters go into the code and never move the menu; true when the event was used.
+func capture(event: InputEvent) -> bool:
+	if not reviewing or not event is InputEventKey or not event.pressed:
+		return false
+	match event.keycode:
+		KEY_ESCAPE:
+			if not event.echo:
+				Audio.play("back")
+				close_review()
+		KEY_BACKSPACE:
+			code = code.left(-1)
+		KEY_ENTER, KEY_KP_ENTER:
+			if not event.echo:
+				enter_code()
+		_:
+			if event.unicode >= 32 and code.length() < 20:
+				code += char(event.unicode)
+	return true
+
+
+func enter_code() -> void:
+	if FullGame.redeem(code):
+		close_review()
+	else:
+		wrong = true
+
+
+func close_review() -> void:
+	reviewing = false
+	code = ""
+	wrong = false
+	Ui.keyboard(false)
+	main.ui.focus = ""
 
 
 ## The title's buttons as [id, label, enabled]: Continue with a game open, New game, Load while any slot holds a game, the settings,
@@ -99,6 +158,22 @@ static func controls() -> Array:
 
 static func logo_top() -> float:
 	return 6.0 if Ui.scale > 1 else 26.0
+
+
+static func logo_rect() -> Rect2:
+	return Rect2(Vector2((Ui.W - LOGO.get_width()) / 2.0, logo_top()), LOGO.get_size())
+
+
+## The box for Google Play's reviewer code, in the logo's place so it stays above a phone's keyboard: the box, its field, OK and Cancel.
+static func review_rects() -> Dictionary:
+	var bh := 24.0 if Ui.scale == 1 else 30.0
+	var bw := 80.0 if Ui.scale == 1 else 120.0
+	var w := minf(Ui.W - 40.0, 400.0 if Ui.scale == 1 else 560.0)
+	var box := Rect2(roundf((Ui.W - w) / 2.0), logo_top(), w, 22.0 + Ui.leading() * 2.0 + bh)
+	var row := box.end.y - 8.0 - bh
+	var cancel := Rect2(box.end.x - 8.0 - bw, row, bw, bh)
+	var ok := Rect2(cancel.position.x - 8.0 - bw, row, bw, bh)
+	return {"box": box, "field": Rect2(box.position.x + 8.0, row, ok.position.x - box.position.x - 16.0, bh), "ok": ok, "cancel": cancel}
 
 
 ## The title's buttons under the box of controls: side by side with large text, else two to a row with the last one centred when it is alone.
@@ -298,7 +373,10 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	var t := _animate()
 	_clouds(c, t)
 	_birds(c, t)
-	var logo_pos := Vector2((Ui.W - LOGO.get_width()) / 2.0, logo_top())
+	if reviewing:
+		_draw_review(c, ui)
+		return
+	var logo_pos := logo_rect().position
 	c.draw_texture(LOGO, logo_pos)
 	# A phone selling the full game shows its limits without calling itself a demo, which App Review refuses.
 	if Game.is_demo() and not FullGame.sold_here():
@@ -310,6 +388,20 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 		ui.button(c, rects[i], ids[i][0], labels[i], "", ids[i][2], null, true)
 	if ui.focus == "new" and not ui.is_enabled("new"):
 		_full_note(c, ui, rects[ids.map(func(b: Array) -> String: return b[0]).find("new")])
+
+
+func _draw_review(c: CanvasItem, ui: Ui) -> void:
+	var r := review_rects()
+	var box: Rect2 = r.box
+	ui.panel(c, box)
+	var y := box.position.y + 6.0 + Ui.px
+	ui.text(c, "REVIEWER CODE", Vector2(box.position.x, y), Ui.BROWN, HORIZONTAL_ALIGNMENT_CENTER, box.size.x)
+	if wrong:
+		ui.text(c, WRONG, Vector2(box.position.x, y + Ui.leading()), Ui.RED, HORIZONTAL_ALIGNMENT_CENTER, box.size.x)
+	ui.register(r.field, "review_field")
+	ui.field(c, r.field, code.to_upper(), "XXXX-XXXX-XXXX")
+	ui.button(c, r.ok, "review_ok", "OK", "", true, null, true)
+	ui.button(c, r.cancel, "review_cancel", "CANCEL", "", true, null, true)
 
 
 ## The box of controls: each one's keys, icon and label, a rule, and the goal of the run under them.

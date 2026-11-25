@@ -13959,6 +13959,8 @@ func test_a_rock_in_a_field_sits_behind_the_row_of_wheat_in_front(b: Dictionary)
 ## The cache the store tests keep the purchase in, and the price their fake store gives.
 const STORE_CACHE := "user://test_store.cfg"
 const STORE_PRICE := "CA$4.99"
+## A reviewer's code of the tests' own, since the game's real one is kept only as a hash.
+const REVIEW_CODE := "QX7P-29HD-MM4F"
 
 ## What each store test listens to on FullGame, let go of when the test is done.
 var _store_listening: Array[Callable] = []
@@ -13973,6 +13975,13 @@ func _shop() -> FakeStore:
 	return store
 
 
+## FullGame with a fake store, taking the tests' own reviewer code.
+func _reviewer_shop() -> FakeStore:
+	var store := _shop()
+	FullGame.review_hash = (FullGame.package_name + ":" + REVIEW_CODE.replace("-", "")).sha256_text()
+	return store
+
+
 func _forget_store() -> void:
 	if FileAccess.file_exists(STORE_CACHE):
 		DirAccess.remove_absolute(STORE_CACHE)
@@ -13984,6 +13993,7 @@ func _shop_done() -> void:
 	_store_listening.clear()
 	FullGame.use_store(null)
 	FullGame.cache_path = "user://store.cfg"
+	FullGame.review_hash = str(ProjectSettings.get_setting("slowsunday/review_code_sha256", ""))
 	_forget_store()
 
 
@@ -14245,6 +14255,173 @@ func test_buying_in_a_run_or_the_camp_lifts_the_demos_limits_at_once(b: Dictiona
 	_shop_done()
 	_return_profile(kept)
 
+
+func test_the_game_keeps_only_a_hash_of_its_reviewer_code(_b: Dictionary) -> void:
+	var hash := str(ProjectSettings.get_setting("slowsunday/review_code_sha256", ""))
+	check(hash.length() == 64 and hash.is_valid_hex_number(), "project.godot holds the SHA-256 of Google Play's reviewer code (%s)" % hash)
+	var presets := ConfigFile.new()
+	presets.load("res://export_presets.cfg")
+	var package := ""
+	for section in presets.get_sections():
+		if presets.get_value(section, "name", "") == "Android release":
+			package = str(presets.get_value(section + ".options", "package/unique_name", ""))
+	check(package != "" and FullGame.package_name == package, "hashed after the package name Google Play knows (%s, %s)" % [FullGame.package_name, package])
+
+
+func test_the_reviewer_code_opens_the_full_game_and_is_kept(b: Dictionary) -> void:
+	var kept := _borrow_profile()
+	Profile.new_game()
+	Profile.data.denarii = 1234
+	var store := _reviewer_shop()
+	var save := JSON.stringify(Profile.data)
+	check(FullGame.locked() and Game.is_demo() and not Game.province_allowed("gaul", b), "a phone that has not bought the full game plays Germania only")
+	check(FullGame.redeem(REVIEW_CODE), "Google Play's reviewer code is taken")
+	check(not FullGame.locked() and not Game.is_demo(), "and opens the full game at once, as buying it does")
+	check(Game.province_allowed("gaul", b) and Game.run_cap(b) == 0.0, "so the road past Germania opens and runs have no time limit")
+	check(JSON.stringify(Profile.data) == save, "with the game in its slot exactly as it was")
+	check(not store.calls.any(func(c: Array) -> bool: return c[0] == "buy"), "and nothing bought")
+	FullGame.use_store(FakeStore.new())
+	check(not FullGame.locked() and not Game.is_demo(), "a later start keeps the full game open before the store has said anything")
+	_shop_done()
+	_return_profile(kept)
+
+
+func test_the_reviewer_code_may_be_typed_in_lower_case_with_spaces_or_dashes(_b: Dictionary) -> void:
+	for typed in ["qx7p-29hd-mm4f", "QX7P 29HD MM4F", "qx7p29hdmm4f", " Qx7P - 29hD - mM4f "]:
+		_reviewer_shop()
+		check(FullGame.redeem(typed) and not FullGame.locked(), "\"%s\" is taken" % typed)
+		_shop_done()
+
+
+func test_a_wrong_reviewer_code_opens_nothing(_b: Dictionary) -> void:
+	_reviewer_shop()
+	for typed in ["", "QX7P-29HD-MM4G", "QX7P-29HD", "QX7P-29HD-MM4F-2", "QX7P_29HD_MM4F"]:
+		check(not FullGame.redeem(typed), "\"%s\" is not taken" % typed)
+	check(FullGame.locked() and not FileAccess.file_exists(STORE_CACHE), "the game stays locked with nothing written down")
+	FullGame.review_hash = ("com.slowsunday.othergame:" + REVIEW_CODE.replace("-", "")).sha256_text()
+	check(not FullGame.redeem(REVIEW_CODE), "and another game's code is not taken here")
+	_shop_done()
+
+
+func test_the_store_saying_not_owned_never_locks_a_reviewers_phone_again(_b: Dictionary) -> void:
+	var store := _reviewer_shop()
+	FullGame.redeem(REVIEW_CODE)
+	store.owned_found.emit(PackedStringArray())
+	check(not FullGame.locked(), "the store listing nothing owned, since the reviewer bought nothing, leaves the full game open")
+	var later := FakeStore.new()
+	FullGame.use_store(later)
+	later.owned_found.emit(PackedStringArray())
+	check(not FullGame.locked() and not Game.is_demo(), "and so does its answer at the next start")
+	_shop_done()
+
+
+func test_only_five_quick_taps_open_the_reviewer_box(_b: Dictionary) -> void:
+	_reviewer_shop()
+	var opened := []
+	for i in 5:
+		opened.append(FullGame.review_tap(i * 1.0))
+	check(not opened.has(true), "five taps a second apart open nothing (%s)" % str(opened))
+	opened.clear()
+	for t in [10.0, 10.5, 11.0, 11.5]:
+		opened.append(FullGame.review_tap(t))
+	check(not opened.has(true), "nor do four quick ones (%s)" % str(opened))
+	check(FullGame.review_tap(12.5), "a fifth within three seconds opens it")
+	check(not FullGame.review_tap(12.6), "and the count starts again after it")
+	_shop_done()
+
+
+## The real main script on the title, as a phone's taps reach it.
+func _title_main(b: Dictionary) -> Node:
+	var m := _bare_main(b)
+	m.screens = {"title": TitleScreen.new(m)}
+	m.state = "title"
+	return m
+
+
+func test_five_quick_taps_on_the_logo_open_the_reviewer_box(b: Dictionary) -> void:
+	_reviewer_shop()
+	var m := _title_main(b)
+	var title: TitleScreen = m.screens.title
+	var logo := TitleScreen.logo_rect().get_center()
+	for i in 4:
+		m._tap(logo)
+	check(not title.reviewing, "four taps on the logo open nothing")
+	m._tap(logo)
+	check(title.reviewing, "a fifth within three seconds opens the box for Google Play's reviewer code")
+	var r := TitleScreen.review_rects()
+	check(r.has("field") and r.has("ok") and r.has("cancel"), "with a field, OK and Cancel")
+	check(r.box.end.y <= Ui.H / 3.0, "high on the screen, above a phone's keyboard (%d)" % r.box.end.y)
+	title.activate("review_cancel")
+	check(not title.reviewing, "Cancel closes it")
+	_free_main(m)
+	_shop_done()
+
+
+func test_slow_taps_on_the_logo_or_taps_beside_it_open_nothing(b: Dictionary) -> void:
+	_reviewer_shop()
+	var m := _title_main(b)
+	var title: TitleScreen = m.screens.title
+	var logo := TitleScreen.logo_rect().get_center()
+	for i in 5:
+		m.clock = 100.0 + i
+		m._tap(logo)
+	check(not title.reviewing, "five taps a second apart open nothing")
+	for i in 5:
+		m._tap(Vector2(logo.x, TitleScreen.logo_rect().end.y + 40.0))
+	check(not title.reviewing, "nor do five quick taps beside the logo")
+	_free_main(m)
+	_shop_done()
+
+
+func test_the_logo_opens_no_box_on_a_computer_or_once_the_full_game_is_owned(b: Dictionary) -> void:
+	var m := _title_main(b)
+	var title: TitleScreen = m.screens.title
+	var logo := TitleScreen.logo_rect().get_center()
+	for i in 5:
+		m._tap(logo)
+	check(not title.reviewing, "a computer, which sells nothing, opens no box")
+	var store := _reviewer_shop()
+	store.owned_found.emit(PackedStringArray(["full_game"]))
+	for i in 5:
+		m._tap(logo)
+	check(not title.reviewing, "nor does a phone that owns the full game")
+	_free_main(m)
+	_shop_done()
+
+
+func test_the_reviewer_box_takes_the_right_code_and_refuses_a_wrong_one(b: Dictionary) -> void:
+	_reviewer_shop()
+	var m := _title_main(b)
+	var title: TitleScreen = m.screens.title
+	for i in 5:
+		m._tap(TitleScreen.logo_rect().get_center())
+	_type(title, "QX7P-29HD-MM4G")
+	title.activate("review_ok")
+	check(title.reviewing and title.wrong and TitleScreen.WRONG == "That code isn't right.", "a wrong code says so and leaves the box open")
+	check(FullGame.locked(), "and the game locked")
+	for i in 14:
+		title.capture(_key(KEY_BACKSPACE, 0))
+	check(title.code == "", "Backspace takes the code back letter by letter")
+	_type(title, "qx7p 29hd mm4f")
+	check(title.capture(_key(KEY_ENTER, 0)) and not title.reviewing, "Enter takes the right code and closes the box")
+	check(not FullGame.locked() and not Game.is_demo(), "which opens the full game at once")
+	check(not TitleScreen.buttons(b).any(func(x: Array) -> bool: return x[0] == "unlock"), "and the title no longer offers the unlock")
+	check(not title.capture(_key(KEY_A, KEY_A)), "and keys go back to the menu")
+	_free_main(m)
+	_shop_done()
+
+
+func _type(title: TitleScreen, text: String) -> void:
+	for ch in text:
+		title.capture(_key(KEY_NONE, ch.unicode_at(0)))
+
+
+func _key(code: Key, unicode: int) -> InputEventKey:
+	var e := InputEventKey.new()
+	e.keycode = code
+	e.unicode = unicode
+	e.pressed = true
+	return e
 
 ## The SlowSundayPhone plugin's purchase methods and signals, answered by hand.
 class FakeStore:
