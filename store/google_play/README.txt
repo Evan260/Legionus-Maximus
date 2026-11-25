@@ -12,9 +12,9 @@ store/app_store/ that holds it. Like the Steam screenshots, they carry no captio
 number of screen pixels to the game pixel in every picture (3 on the phone and the 7-inch tablet, 4 on the 10-inch
 tablet), and nothing is resized with smoothing.
 
-The phone's interface is the one a player sees: the top bar, the health bar, the testudo and the favour, the round
-buttons for the testudo, the gods, the palisade, the wall, the bridge and pause, and large text, which a phone starts
-on. Where the legion marches, a thumb holds the stick. The achievement cards a skipped run earns and the tip a first run
+The phone's interface is the one a player sees: the top bar, the health bar with the commander's health written in
+its middle, the testudo and the favour, the round buttons for the testudo, the gods, the palisade, the wall, the bridge
+(each with the timber it costs under its picture) and pause, and large text, which a phone starts on. Where the legion marches, a thumb holds the stick. The achievement cards a skipped run earns and the tip a first run
 gets at its first ravine are left out, as in the trailer, and the battles are taken with the camp, the column and the
 grove already won, so their badges stand off the fighting.
 
@@ -70,12 +70,17 @@ TABLET SCREENSHOTS
 tablet_7_inch_screenshots/    1920x1080 landscape (16:9), 24-bit PNG
 tablet_10_inch_screenshots/   2560x1440 landscape (16:9), 24-bit PNG
 
-Each folder holds the same four scenes, taken with the phone interface:
+Each folder holds the phone's eight scenes, in the same order, taken with the phone interface, so every one of the
+eight places Google Play allows for each tablet size is filled:
 
 01_a_hundred_men.png
 02_the_war_elephant.png
-03_the_steppe_on_fire.png
-04_the_campaign_map.png
+03_boudicas_chariot.png
+04_the_steppe_on_fire.png
+05_raise_the_testudo.png
+06_a_bridge_over_the_ravine.png
+07_the_falx_band_charges.png
+08_the_campaign_map.png
 
 The game's phone preview lays out every 16:9 screen as a phone, so both sizes show the same 640x360 game pixels with
 the phone's buttons and large text: the 7-inch pictures are the phone's, and the 10-inch ones the same view at four

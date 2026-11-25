@@ -83,7 +83,8 @@ SCENES = {
 # elephant and Boudica's chariot.
 PHONE = ["a_hundred_men", "the_war_elephant", "boudicas_chariot", "the_steppe_on_fire", "raise_the_testudo",
          "a_bridge_over_the_ravine", "the_falx_band_charges"]
-TABLET = ["a_hundred_men", "the_war_elephant", "the_steppe_on_fire", "the_campaign_map"]
+# Google Play takes eight pictures for each tablet size, so both take the phone's eight in its order.
+TABLET = [*PHONE, "the_campaign_map"]
 # folder: (the store's size, the scenes in upload order, flags per scene laid over its own). Apple's sizes trim the
 # view's edges, which would cut the map's names at the top on the iPhone, and both the map's panel and the level-up's
 # list of arms at the sides on the iPad, so neither is taken there; the iPhone takes the level-up, whose cards keep
