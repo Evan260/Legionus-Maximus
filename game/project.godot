@@ -25,6 +25,7 @@ Profile="*res://scripts/profile.gd"
 Lang="*res://scripts/lang.gd"
 Audio="*res://scripts/audio.gd"
 Steamworks="*res://scripts/steam.gd"
+Landscape="*res://scripts/landscape.gd"
 
 [display]
 
