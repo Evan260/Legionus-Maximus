@@ -26,7 +26,7 @@ Move with WASD, the arrow keys or the left stick. Space or the south face button
 | `game/data/` | Every number in `balance.json`, and every recruit, weapon, enemy, province and achievement in `content.json` |
 | `game/tests/` | Automated checks and the balance bots |
 | `tools/` | Scripts for art, sound, translations, exporting, Steam and the phone stores' pictures |
-| `docs/` | The trailer plan |
+| `docs/` | The Steam setup, Steam publishing and release build notes, and the trailer plan |
 | `builds/` | Exported builds (not kept in git) |
 
 ## Checking changes
@@ -41,11 +41,11 @@ It has to print `ALL TESTS PASSED`. After adding or changing any picture or soun
 
 ## Builds
 
-`python tools/export.py` exports Windows, Mac and Linux into `builds/`, and `--demo` exports the demo.
+`python tools/export.py` exports Windows, Mac and Linux into `builds/`, and `--demo` exports the demo. `python tools/steam/publish.py playtest` builds and uploads to Steam; see [Steam setup](docs/Steam-setup.md) and [Steam publishing](docs/Steam-publishing.md) for the one-time setup.
 
 Android builds are made with Godot's Android export: a debug APK from the "Android" preset and a signed bundle for Google Play from "Android release", both the full game. The commands are in [CLAUDE.md](CLAUDE.md).
 
-Pushing a version tag such as `v0.1.0` makes GitHub test the game, build the full game and the demo for Windows, Mac and Linux, sign the Mac app and attach every build to a release. The tag must match `config/version` in `game/project.godot`.
+Pushing a version tag such as `v0.1.0` makes GitHub test the game, build the full game and the demo for Windows, Mac and Linux, sign the Mac app and attach every build to a release. The tag must match `config/version` in `game/project.godot`; see [Release builds](docs/Release-builds.md).
 
 ## Art and sound
 

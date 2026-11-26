@@ -94,3 +94,4 @@ All art is PixelLab, made with `tools/art/pixellab.py` (token in `.env`, never i
 - Mac builds ship unsigned until the Apple secrets (`MACOS_CERTIFICATE_P12` and the rest, see `.github/scripts/sign_macos.sh`) are set on the repo.
 - Steam uploads stay off until `tools/steam/steam.json` has real app and depot ids and the repo variable `STEAM_UPLOAD` is `true`. Every id is 0 for now.
 - Local export: `python tools/export.py [--demo] [--out DIR] [windows|macos|linux]` (into `builds/` unless `--out` names another folder).
+- `docs/Steam-setup.md` has GodotSteam, the store page, the achievements and the `kills` stat, Steam Cloud (off), rich presence and the demo's Steamworks app; `docs/Steam-publishing.md` the one-time setup in WSL and Steamworks, the Apple credentials and uploading; `docs/Release-builds.md` the workflow, its secrets and switching on the Steam upload.
