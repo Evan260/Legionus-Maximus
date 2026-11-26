@@ -98,16 +98,101 @@ const PLAY_STORE := [
 	{"shot": "chief", "from": 0.6, "beats": 6, "caption": "TOPPLE THEIR WARLORDS"},
 	{"end": "endcard", "from": 1.0, "beats": 14},
 ]
-## Each cut's edit, the music's stretches and the sounds laid over it, the end card's line and whether the badges show.
+## The shorts, each in a tall frame. A quiz asks its question over the track's opening, waits in the quiet bar before the
+## track's big return and answers on the return. A caption's {stat} is read from the shot's stats.jsonl at the frame shown,
+## {stat@S} at second S of the recording and {stat@} at the segment's first frame, plus or minus a number after it;
+## `count` counts its numbers up as it lands, `choices` are revealed one at a time and `answer` lights the right one.
+const QUIZ_MUSIC := [[0, 0], [16, 275], [20, 279], [28, 475]]
+const QUIZ_STINGS := [[20, "boom_1", -3.0], [28, "horn_1", -5.0]]
+const HOW_MANY := [
+	{"shot": "how_many", "from": 1.0, "beats": 8, "caption": "GUESS HOW MANY\nBARBARIANS"},
+	{"shot": "how_many", "follows": true, "beats": 8, "caption": "GUESS HOW MANY\nBARBARIANS", "sub": "VS {men@+1} ROMANS"},
+	{"shot": "how_many", "follows": true, "beats": 4, "caption": "ANY GUESSES?"},
+	{"shot": "how_many", "follows": true, "beats": 8, "caption": "{seen@}", "size": 48, "count": true, "sub": "BARBARIANS"},
+	{"end": "endcard", "from": 1.0, "beats": 10},
+]
+const JUPITER := [
+	{"shot": "storm", "from": 1.0, "beats": 6, "caption": "SURROUNDED"},
+	{"shot": "storm", "follows": true, "beats": 10, "caption": "WHAT DO YOU DO?", "choices": ["RUN", "RAISE SHIELDS", "PRAY"]},
+	{"shot": "storm", "follows": true, "beats": 4, "caption": "WHAT DO YOU DO?", "choices": ["RUN", "RAISE SHIELDS", "PRAY"]},
+	{"shot": "storm", "follows": true, "beats": 8, "caption": "PRAY TO JUPITER", "choices": ["RUN", "RAISE SHIELDS", "PRAY"], "answer": 2,
+		"counter": "{seen} LEFT ON SCREEN"},
+	{"end": "endcard", "from": 1.0, "beats": 10},
+]
+const CLIFF := [
+	{"shot": "whirl", "from": 0.2, "beats": 4, "caption": "HOW DO YOU BEAT\nA BERSERKER?"},
+	{"shot": "cliff", "from": 3.4, "beats": 12, "caption": "HOW DO YOU BEAT\nA BERSERKER?", "choices": ["ARROWS", "SWORDS", "A CLIFF"]},
+	{"shot": "cliff", "follows": true, "beats": 4, "caption": "HOW DO YOU BEAT\nA BERSERKER?", "choices": ["ARROWS", "SWORDS", "A CLIFF"]},
+	{"shot": "cliff", "follows": true, "beats": 8, "caption": "PUSH HIM\nOFF A CLIFF", "choices": ["ARROWS", "SWORDS", "A CLIFF"], "answer": 2},
+	{"end": "endcard", "from": 1.0, "beats": 10},
+]
+const VOLLEY := [
+	{"shot": "volley", "from": 0.3, "beats": 6, "caption": "{seen@} BARBARIANS\nCHARGE {men@}\nARCHERS"},
+	{"shot": "volley", "follows": true, "beats": 8, "caption": "HOW MANY\nREACH THEM?", "choices": ["ALL OF THEM", "HALF", "NONE"]},
+	{"shot": "volley", "follows": true, "beats": 4, "caption": "HOW MANY\nREACH THEM?", "choices": ["ALL OF THEM", "HALF", "NONE"]},
+	{"shot": "volley", "follows": true, "beats": 8, "caption": "{reached@}", "size": 48, "choices": ["ALL OF THEM", "HALF", "NONE"], "answer": 2,
+		"sub": "ALL {kills@} SHOT DOWN"},
+	{"end": "endcard", "from": 1.0, "beats": 10},
+]
+const TESTUDO := [
+	{"shot": "trample", "from": 0.2, "beats": 10, "caption": "WAR ELEPHANT\nVS ROMAN LEGION"},
+	{"shot": "trample_testudo", "from": 0.13, "beats": 3, "caption": "RAISE THE\nTESTUDO!"},
+	{"shot": "trample_testudo", "follows": true, "beats": 8, "caption": "STOPPED DEAD", "flash": true},
+	{"end": "endcard", "from": 1.0, "beats": 10},
+]
+const FIRST_LAST := [
+	{"shot": "first", "from": 0.5, "beats": 8, "label": "GERMANIA", "caption": "MY FIRST\nPROVINCE", "counter": "{men} MEN"},
+	{"shot": "last", "from": 1.0, "beats": 14, "label": "SARMATIA", "caption": "MY LAST\nPROVINCE", "counter": "{men} MEN"},
+	{"end": "endcard", "from": 1.0, "beats": 10},
+]
+const CLOSE_CALL := [
+	{"shot": "close", "from": 1.0, "beats": 6, "caption": "{men@} MEN\nSURROUNDED", "counter": "{men} LEFT"},
+	# Apollo is called 14.9 seconds into the recording, on the track's return.
+	{"shot": "close", "from": 9.1, "beats": 6, "caption": "THEY'RE FALLING", "counter": "{men} LEFT"},
+	{"shot": "close", "follows": true, "beats": 4, "caption": "ALMOST GONE", "counter": "{men} LEFT"},
+	{"shot": "close", "follows": true, "beats": 8, "caption": "CALL APOLLO!", "sub": "THE FALLEN\nRISE AGAIN", "counter": "BACK TO {men} MEN"},
+	{"end": "endcard", "from": 1.0, "beats": 10},
+]
+## Each cut's edit, the music's stretches and the sounds laid over it, the end card's line and whether the badges show;
+## the shorts' badges are drawn when make_trailer.py passes --badges.
 const CUTS := {
 	"trailer": {"edit": TRAILER, "music": MUSIC_CUTS, "stings": STINGS, "line": "Wishlist now on Steam", "badges": true},
 	"play_store": {"edit": PLAY_STORE, "music": [[0, 0], [39, 275], [43, 279], [55, 471]],
 		"stings": [[7, "boom_1", 0.0], [39, "boom_2", -8.0], [55, "horn_1", -5.0]], "line": "Lead a Roman legion", "badges": false},
+	"how_many": {"edit": HOW_MANY, "music": QUIZ_MUSIC, "stings": QUIZ_STINGS, "line": "Wishlist now on Steam", "badges": false, "tall": true},
+	"jupiter": {"edit": JUPITER, "music": QUIZ_MUSIC, "stings": QUIZ_STINGS, "line": "Wishlist now on Steam", "badges": false, "tall": true},
+	"cliff": {"edit": CLIFF, "music": QUIZ_MUSIC, "stings": QUIZ_STINGS, "line": "Wishlist now on Steam", "badges": false, "tall": true},
+	"archers": {"edit": VOLLEY, "music": [[0, 0], [14, 275], [18, 279], [26, 475]], "stings": [[18, "boom_1", -3.0], [26, "horn_1", -5.0]],
+		"line": "Wishlist now on Steam", "badges": false, "tall": true},
+	"testudo": {"edit": TESTUDO, "music": [[0, 0], [10, 276], [13, 279], [21, 475]], "stings": [[13, "boom_1", -3.0], [21, "horn_1", -5.0]],
+		"line": "Wishlist now on Steam", "badges": false, "tall": true},
+	"first_vs_last": {"edit": FIRST_LAST, "music": [[0, 0], [8, 279], [22, 475]], "stings": [[8, "boom_1", -3.0], [22, "horn_1", -5.0]],
+		"line": "Wishlist now on Steam", "badges": false, "tall": true},
+	"close_call": {"edit": CLOSE_CALL, "music": [[0, 0], [12, 275], [16, 279], [24, 475]], "stings": [[16, "boom_1", -3.0], [24, "horn_1", -5.0]],
+		"line": "Wishlist now on Steam", "badges": false, "tall": true},
 }
+## The shorts' frame and layout, in the game pixels of their 360 by 640 view: the top of the text, below the bar a phone's
+## video app lays over a video, the gap between its lines, and the end card's logo, scroll and store badges.
+const TALL := Vector2(1080, 1920)
+const STACK_TOP := 64.0
+const STACK_GAP := 6.0
+const SUB_SIZE := 24
+## A choice appears this many seconds after the question, then one more every CHOICE_EVERY seconds.
+const CHOICE_FIRST := 0.6
+const CHOICE_EVERY := 1.161
+## A caption's numbers count up from nothing over this many seconds as it lands.
+const COUNT_TIME := 0.6
+const TALL_LOGO_Y := 100.0
+const TALL_SCROLL_Y := 215.0
+const TALL_BADGE_Y := 900.0
+const TALL_BADGE_HEIGHT := 110.0
 
 var _shots_dir := ""
 var _cut: Dictionary = CUTS["trailer"]
 var _edit: Array = TRAILER
+var _size := SIZE
+var _tall := false
+var _badges_on := true
 var _frame := 0
 ## Each segment's first frame and the second of its recording it starts from.
 var _starts: Array[int] = []
@@ -125,6 +210,12 @@ var _logo: TextureRect
 var _scroll: TextureRect
 var _line: Label
 var _badges: Array[TextureRect] = []
+var _sub: Label
+var _counter: Label
+var _choices: Array[Label] = []
+## Each shot's stats.jsonl, a dictionary per recorded frame, read once.
+var _stats := {}
+var _token := RegEx.create_from_string("\\{(\\w+)(@[\\d.]*)?([+-]\\d+)?\\}")
 var _vignette: TextureRect
 var _music: Array[AudioStreamPlayer] = []
 var _piece := -1
@@ -139,7 +230,8 @@ func _ready() -> void:
 	# The game's own music and sounds start with this scene too; only the trailer's play.
 	RenderingServer.set_default_clear_color(Color.BLACK)
 	for bus in ["Music", "Effects"]:
-		AudioServer.set_bus_mute(AudioServer.get_bus_index(bus), true)
+		if AudioServer.get_bus_index(bus) >= 0:
+			AudioServer.set_bus_mute(AudioServer.get_bus_index(bus), true)
 	var from := 0.0
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--shots="):
@@ -149,6 +241,9 @@ func _ready() -> void:
 		elif arg.begins_with("--cut="):
 			_cut = CUTS[arg.trim_prefix("--cut=")]
 	_edit = _cut["edit"]
+	_tall = _cut.get("tall", false)
+	_size = TALL if _tall else SIZE
+	_badges_on = _cut["badges"] or "--badges" in OS.get_cmdline_user_args()
 	var beats := 0.0
 	for seg in _edit:
 		var start := _beat_frame(beats)
@@ -183,14 +278,15 @@ static func _outside(name: String) -> Texture2D:
 
 
 func _build() -> void:
-	# The shots are recorded at the game's own 640 by 360 and shown three times larger in whole pixels, as the game is.
-	_texture = ImageTexture.create_from_image(Image.create(int(SIZE.x) / PIXEL, int(SIZE.y) / PIXEL, false, Image.FORMAT_RGB8))
+	# The shots are recorded at the game's own 640 by 360, or 360 by 640 for the shorts, and shown three times larger in
+	# whole pixels, as the game is.
+	_texture = ImageTexture.create_from_image(Image.create(int(_size.x) / PIXEL, int(_size.y) / PIXEL, false, Image.FORMAT_RGB8))
 	_picture = TextureRect.new()
 	_picture.texture = _texture
 	_picture.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_picture.stretch_mode = TextureRect.STRETCH_SCALE
-	_picture.size = SIZE
+	_picture.size = _size
 	add_child(_picture)
 	# A soft dark oval behind the logo, so the lettering reads over the field.
 	var gradient := Gradient.new()
@@ -207,10 +303,10 @@ func _build() -> void:
 	_vignette.texture = oval
 	_vignette.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_vignette.stretch_mode = TextureRect.STRETCH_SCALE
-	_vignette.size = Vector2(1500, 900)
+	_vignette.size = Vector2(1100, 660) if _tall else Vector2(1500, 900)
 	add_child(_vignette)
 	# Captions, the logo and the end card are drawn in the game's own pixels and scaled up, like the game.
-	var area := SIZE / float(PIXEL)
+	var area := _size / float(PIXEL)
 	_overlay = SubViewport.new()
 	_overlay.size = Vector2i(area)
 	_overlay.transparent_bg = true
@@ -220,7 +316,7 @@ func _build() -> void:
 	var shown := TextureRect.new()
 	shown.texture = _overlay.get_texture()
 	shown.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	shown.size = SIZE
+	shown.size = _size
 	shown.stretch_mode = TextureRect.STRETCH_SCALE
 	add_child(shown)
 	_shade = ColorRect.new()
@@ -229,7 +325,8 @@ func _build() -> void:
 	_overlay.add_child(_shade)
 	# A dark band fading out above and below keeps the caption readable over a crowd.
 	var fade := Gradient.new()
-	fade.offsets = PackedFloat32Array([0.0, 0.3, 0.7, 1.0])
+	# A short's band holds several lines, so it darkens more of its height.
+	fade.offsets = PackedFloat32Array([0.0, 0.18, 0.82, 1.0] if _tall else [0.0, 0.3, 0.7, 1.0])
 	fade.colors = PackedColorArray([Color(0, 0, 0, 0), Color(0.04, 0.02, 0.02, 0.55), Color(0.04, 0.02, 0.02, 0.55), Color(0, 0, 0, 0)])
 	var strip := GradientTexture2D.new()
 	strip.gradient = fade
@@ -246,13 +343,19 @@ func _build() -> void:
 	# The text is the game's own pixel font in whole multiples of its size, so it stays as crisp as the game.
 	_label = _text(LABEL_SIZE, CREAM, 4)
 	_caption = _text(CAPTION_SIZE, GOLD, 6)
+	_sub = _text(SUB_SIZE, CREAM, 6)
+	if _tall:
+		_label.add_theme_constant_override("outline_size", 6)
+	_counter = _text(CAPTION_SIZE, CREAM, 6)
+	for k in 3:
+		_choices.append(_text(CAPTION_SIZE, CREAM, 6))
 	_logo = TextureRect.new()
 	_logo.texture = load("res://assets/logo.png")
 	_logo.pivot_offset = _logo.texture.get_size() / 2.0
 	_overlay.add_child(_logo)
 	_scroll = TextureRect.new()
 	_scroll.texture = _outside("scroll.png")
-	_scroll.position = Vector2(roundf((area.x - _scroll.texture.get_width()) / 2.0), SCROLL_Y)
+	_scroll.position = Vector2(roundf((area.x - _scroll.texture.get_width()) / 2.0), TALL_SCROLL_Y if _tall else SCROLL_Y)
 	_overlay.add_child(_scroll)
 	_line = Label.new()
 	_line.add_theme_font_override("font", Ui.font())
@@ -269,13 +372,15 @@ func _build() -> void:
 	_white.size = area
 	_overlay.add_child(_white)
 	# The store badges are drawn at the frame's own resolution, as the stores supply them, side by side under the scroll.
-	var apple := _badge("badge_app_store.png", BADGE_HEIGHT)
-	var google := _badge("badge_google_play.png", BADGE_HEIGHT / (1.0 - 2.0 * GOOGLE_MARGIN))
+	var height := TALL_BADGE_HEIGHT if _tall else BADGE_HEIGHT
+	var top := TALL_BADGE_Y if _tall else BADGE_Y
+	var apple := _badge("badge_app_store.png", height)
+	var google := _badge("badge_google_play.png", height / (1.0 - 2.0 * GOOGLE_MARGIN))
 	var margin := google.size.y * GOOGLE_MARGIN
 	var google_seen := google.size.x - 2.0 * margin
-	var left := roundf((SIZE.x - apple.size.x - BADGE_GAP - google_seen) / 2.0)
-	apple.position = Vector2(left, BADGE_Y)
-	google.position = Vector2(left + apple.size.x + BADGE_GAP - margin, BADGE_Y - margin)
+	var left := roundf((_size.x - apple.size.x - BADGE_GAP - google_seen) / 2.0)
+	apple.position = Vector2(left, top)
+	google.position = Vector2(left + apple.size.x + BADGE_GAP - margin, top - margin)
 
 
 func _text(size: int, colour: Color, outline: int) -> Label:
@@ -410,22 +515,25 @@ func _draw_segment(k: int, seg: Dictionary, now: float, local: float, length: fl
 	_vignette.modulate.a = clampf(since / 0.2, 0.0, 1.0)
 	_logo.visible = logo
 	if logo:
-		var y := END_LOGO_Y if is_end else LOGO_Y
+		var y := (TALL_LOGO_Y if _tall else END_LOGO_Y) if is_end else LOGO_Y
 		_logo.position = Vector2(roundf((_overlay.size.x - _logo.texture.get_width()) / 2.0), y)
-		_vignette.position = Vector2(SIZE.x / 2.0 - _vignette.size.x / 2.0, (y + _logo.texture.get_height() / 2.0) * PIXEL - _vignette.size.y / 2.0)
+		_vignette.position = Vector2(_size.x / 2.0 - _vignette.size.x / 2.0, (y + _logo.texture.get_height() / 2.0) * PIXEL - _vignette.size.y / 2.0)
 		var s := lerpf(POP_SCALE, 1.0, _ease(since / POP))
 		_logo.scale = Vector2(s, s)
 	_scroll.visible = is_end
 	_line.visible = is_end
 	for b in _badges:
-		b.visible = is_end and _cut["badges"]
+		b.visible = is_end and _badges_on
 	if is_end:
 		var scroll := clampf((local - 1.2) / 0.4, 0.0, 1.0)
 		_scroll.modulate.a = scroll
 		_line.modulate.a = scroll
 		for b in _badges:
 			b.modulate.a = clampf((local - 1.8) / 0.4, 0.0, 1.0)
-	_draw_caption(k, seg, now)
+	if _tall:
+		_draw_stack(k, seg, now, local)
+	else:
+		_draw_caption(k, seg, now)
 	# The shot's own sound fades in and out quickly at its cuts, so cuts never click.
 	var next_follows: bool = k + 1 < _edit.size() and _edit[k + 1].get("follows", false)
 	var fade_in := 1.0 if seg.get("follows", false) else clampf(local / 0.05, 0.0, 1.0)
@@ -435,6 +543,10 @@ func _draw_segment(k: int, seg: Dictionary, now: float, local: float, length: fl
 
 ## The caption lands larger and settles to its size; a caption kept across cuts lands once, with the first of them.
 func _draw_caption(k: int, seg: Dictionary, now: float) -> void:
+	_sub.visible = false
+	_counter.visible = false
+	for c in _choices:
+		c.visible = false
 	var text := String(seg.get("caption", ""))
 	var shown := text != ""
 	_caption.visible = shown
@@ -453,6 +565,112 @@ func _draw_caption(k: int, seg: Dictionary, now: float) -> void:
 	if seg.has("label"):
 		_label.text = String(seg["label"])
 		_pop(_label, now - float(_starts[k]) / FPS, LABEL_Y)
+
+
+## A short's text, stacked down from the top of the frame over one dark band: the province, the caption, the line under
+## it, the choices and the live count. Each lands once, with the first of the segments in a row that show it.
+func _draw_stack(k: int, seg: Dictionary, now: float, local: float) -> void:
+	var shot := String(seg.get("shot", seg.get("end", "")))
+	var index := int(round((_froms[k] + local) * FPS))
+	var first := int(round(_froms[k] * FPS))
+	var y := STACK_TOP
+	_label.visible = seg.has("label")
+	if _label.visible:
+		_label.text = String(seg["label"])
+		y = _stack(_label, CAPTION_SIZE, _age(k, "label", now), y)
+	_caption.visible = seg.has("caption")
+	if _caption.visible:
+		var age := _age(k, "caption", now)
+		var grow := clampf(age / COUNT_TIME, 0.0, 1.0) if seg.get("count", false) else 1.0
+		_caption.text = _fill(String(seg["caption"]), shot, index, first, grow)
+		y = _stack(_caption, int(seg.get("size", CAPTION_SIZE)), age, y)
+	_sub.visible = seg.has("sub")
+	if _sub.visible:
+		_sub.text = _fill(String(seg["sub"]), shot, index, first, 1.0)
+		y = _stack(_sub, SUB_SIZE, _age(k, "sub", now), y)
+	var choices: Array = seg.get("choices", [])
+	var asked := float(_starts[_first_with(k, "choices")]) / FPS
+	for j in _choices.size():
+		var c := _choices[j]
+		c.visible = j < choices.size()
+		if not c.visible:
+			continue
+		c.text = "%s) %s" % ["ABC"[j], choices[j]]
+		var shown := asked + CHOICE_FIRST + j * CHOICE_EVERY
+		if seg.has("answer"):
+			var right: bool = j == int(seg["answer"])
+			c.add_theme_color_override("font_color", GOLD if right else CREAM)
+			y = _stack(c, CAPTION_SIZE, now - float(_starts[k]) / FPS if right else 1.0, y, 1.0 if right else 0.35)
+		else:
+			c.add_theme_color_override("font_color", CREAM)
+			c.visible = now >= shown
+			y = _stack(c, CAPTION_SIZE, now - shown, y)
+	_counter.visible = seg.has("counter")
+	if _counter.visible:
+		_counter.text = _fill(String(seg["counter"]), shot, index, first, 1.0)
+		y = _stack(_counter, CAPTION_SIZE, _age(k, "counter", now), y)
+	_band.visible = y > STACK_TOP
+	_band.position = Vector2(0, STACK_TOP - 24.0)
+	_band.size = Vector2(_overlay.size.x, y - STACK_TOP + 48.0)
+	_band.modulate.a = clampf(_age(k, "caption", now) / 0.1, 0.0, 1.0) if seg.has("caption") else 1.0
+
+
+## Lays a line of the stack at the height `y`, landing larger and brighter as it appears; returns the height below it.
+func _stack(l: Label, size: int, age: float, y: float, alpha := 1.0) -> float:
+	l.add_theme_font_size_override("font_size", size)
+	l.size = Vector2(_overlay.size.x, 0.0)
+	var h := l.get_minimum_size().y
+	l.size = Vector2(_overlay.size.x, h)
+	var s := lerpf(POP_SCALE, 1.0, _ease(age / POP))
+	l.pivot_offset = l.size / 2.0
+	l.scale = Vector2(s, s)
+	l.position = Vector2(0, y)
+	l.modulate = Color(1.6, 1.6, 1.6, alpha) if age < 0.07 else Color(1, 1, 1, alpha)
+	return y + h + STACK_GAP
+
+
+## Seconds since the first of the segments in a row up to k that show the same `key`.
+func _age(k: int, key: String, now: float) -> float:
+	return now - float(_starts[_first_with(k, key)]) / FPS
+
+
+func _first_with(k: int, key: String) -> int:
+	var first := k
+	while first > 0 and _edit[first - 1].get(key) == _edit[k].get(key):
+		first -= 1
+	return first
+
+
+## The text with each {stat} filled in from the shot's stats: at the frame shown, at second S with @S or at the segment's
+## first frame with a bare @, plus or minus a number after it. `grow` below 1 counts the numbers up from nothing.
+func _fill(text: String, shot: String, index: int, first: int, grow: float) -> String:
+	var out := text
+	for m in _token.search_all(text):
+		var at := index
+		var when := m.get_string(2)
+		if when == "@":
+			at = first
+		elif when != "":
+			at = int(round(float(when.substr(1)) * FPS))
+		var v := _stat(shot, at, m.get_string(1)) + float(m.get_string(3).to_int())
+		out = out.replace(m.get_string(0), str(int(round(v * grow))))
+	return out
+
+
+## A number from the stats a shot's recording wrote beside its frames, one line per frame.
+func _stat(shot: String, index: int, key: String) -> float:
+	if not _stats.has(shot):
+		var rows: Array = []
+		var f := FileAccess.open(_shots_dir.path_join(shot).path_join("stats.jsonl"), FileAccess.READ)
+		while f != null and not f.eof_reached():
+			var line := f.get_line()
+			if line != "":
+				rows.append(JSON.parse_string(line))
+		_stats[shot] = rows
+	var rows: Array = _stats[shot]
+	if rows.is_empty():
+		return 0.0
+	return float(rows[clampi(index, 0, rows.size() - 1)].get(key, 0))
 
 
 ## Lands a line of text larger and brighter than it settles to, centred on the height `y`.

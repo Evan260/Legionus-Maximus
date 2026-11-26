@@ -1,5 +1,6 @@
-"""Make the Steam trailer and the Google Play listing's video: record each staged shot in movie mode, then cut them
-together with the captions, the end card and the game's own music, all in Godot, and keep an .mp4 copy beside the .avi.
+"""Make the Steam trailer, the Google Play listing's video and the vertical shorts for YouTube Shorts, Reels and TikTok:
+record each staged shot in movie mode, then cut them together with the captions, the end card and the game's own music,
+all in Godot, and keep an .mp4 copy beside the .avi.
 
 Usage:
   python tools/trailer/make_trailer.py              records any shot not yet recorded, then renders the trailer
@@ -10,6 +11,10 @@ Usage:
                                                     one frame per segment of the edit and the end card at 1920x1080
   Add --cut=play_store to the first four for the Google Play video, whose shots, named in PHONE_SHOTS, are recorded
   with the phone's touch controls (--phone) into marketing/recordings/content/phone_shots/.
+  Add --cut=NAME to the first four for one of the shorts named in SHORTS, whose shots, in SHORT_SHOTS, are recorded in a
+  tall 360 by 640 view into marketing/recordings/content/short_shots/. Each short goes to its own folder as an .avi, an
+  .mp4 with the App Store and Google Play badges on its end card and a _steam_only.mp4 without them, all at the Google
+  Play video's loudness, beside a thumbnail.
 
 The finished trailer goes to marketing/recordings/videos/steam_trailer/, beside its title, description and thumbnail;
 the shot frames it is cut from, at the game's own 640 by 360, are kept in marketing/recordings/content/trailer_shots/, so a change to the edit renders
@@ -96,6 +101,49 @@ PHONE_SHOTS = ["hook", "skirmish", "march", "archers", "dodge", "ravine", "p_gau
                "gods", "reveal", "chief", "endcard"]
 PHONE_DIR = WORK / "phone_shots"
 PHONE_OUT = VIDEOS / "play_store_trailer" / "play_store_trailer.avi"
+# The shorts' tall frame, the game's view inside it at three screen pixels to the game pixel, and where their shots are kept.
+TALL = (1080, 1920)
+TALL_VIEW = (360, 640)
+SHORT_DIR = WORK / "short_shots"
+# The shorts' shots: (seconds to record, look flags). --fixed keeps a legion to the men it starts with, --mortal lets it
+# lose them, --testudo raises the shields against a charge and --aim moves the view off the commander.
+SHORT_SHOTS = {
+    "how_many": (19, [*LOOK, "--trailer-shot=hook", "--province=gaul", "--men=8", "--give=archer:2,centurion:1", "--livery=2,2",
+                      "--fixed"]),
+    "storm": (20, [*LOOK, "--trailer-shot=storm", "--men=12", f"--give={MIXED}", "--livery=1,1", "--god=jupiter",
+                   "--god-at=12.65"]),
+    "whirl": (5, [*LOOK, "--trailer-shot=whirl", "--men=10", f"--give={MIXED}", "--boss=berserker", "--boss-act=whirl",
+                  "--zoom=2", "--livery=1,1"]),
+    "cliff": (20, [*LOOK, "--trailer-shot=ravine", "--give=legionary:24,centurion:2,standard_bearer:1,medicus:1",
+                   "--go-to=ravine", "--boss=berserker", "--boss-act=fall", "--livery=1,1", "--back=300", "--pace=0.35"]),
+    "volley": (14, [*LOOK, "--trailer-shot=volley", "--commander=archer_captain", "--give=archer:37", "--livery=1,1",
+                    "--aim=0,-110"]),
+    "trample": (8, [*LOOK, "--trailer-shot=elephant", "--province=parthia", "--men=12:legionary", "--give=archer:4",
+                    "--boss=war_elephant", "--boss-act=trample", "--livery=0,0"]),
+    "trample_testudo": (8, [*LOOK, "--trailer-shot=elephant", "--province=parthia", "--men=12:legionary", "--give=archer:4",
+                            "--boss=war_elephant", "--boss-act=trample", "--livery=0,0", "--testudo"]),
+    "first": (8, [*LOOK, "--trailer-shot=skirmish", "--men=2", "--zoom=2", "--livery=0,0", "--march=0,-0.45"]),
+    "last": (10, [*LOOK, "--trailer-shot=hold", "--province=sarmatia", "--men=45", f"--give={LARGE}", "--go-to=kurgan",
+                  "--livery=2,2", "--march=0,-0.4"]),
+    "close": (22, [*LOOK, "--trailer-shot=close", "--province=sarmatia", "--hard", "--men=4", "--mortal", "--fixed",
+                   "--livery=0,0", "--crowd=80", "--zoom=2"]),
+    "endcard": (9, [*LOOK, "--trailer-shot=endcard", "--province=gaul", "--men=85", f"--give={LARGE}", "--go-to=field",
+                    "--livery=2,2"]),
+}
+# Each short's edit in edit.gd: (its folder's name after short_, its shots, the second its thumbnail is taken at).
+SHORTS = {
+    "how_many": ("guess_how_many", ["how_many", "endcard"], 6.0),
+    "jupiter": ("pray_to_jupiter", ["storm", "endcard"], 7.0),
+    "cliff": ("off_a_cliff", ["whirl", "cliff", "endcard"], 7.0),
+    "archers": ("archers", ["volley", "endcard"], 6.0),
+    "testudo": ("testudo", ["trample", "trample_testudo", "endcard"], 7.0),
+    "first_vs_last": ("first_vs_last", ["first", "last", "endcard"], 8.0),
+    "close_call": ("close_call", ["close", "endcard"], 10.0),
+}
+# The loudness the Google Play video's .mp4 measures at, in LUFS, which the shorts are brought to, and the most bits a
+# second their .mp4s take, so a horde of moving pixels stays a size the phone apps accept.
+SHORT_LUFS = -16.2
+SHORT_RATE = "20M"
 # The thumbnail: the second of the thumb shot it is taken from, the logo's size in screen pixels to its own, and its top.
 THUMB_AT = 5.5
 THUMB_LOGO_SCALE = 4
@@ -103,14 +151,20 @@ THUMB_LOGO_Y = 60
 OUT = VIDEOS / "steam_trailer" / "steam_trailer.avi"
 
 
-def godot(args, size=SIZE, full=False):
-    """Runs Godot in a window of the given size. Movie mode records the game's own 640 by 360 view, which the edit
-    scales up by whole pixels; with `full` the view is the whole window, so the edit itself is recorded at full size."""
+def godot(args, size=SIZE, full=False, view=None):
+    """Runs Godot in a window of the given size. Movie mode records the game's own 640 by 360 view, or the `view` given,
+    which the edit scales up by whole pixels; with `full` the view is the whole window, so the edit itself is recorded
+    at full size."""
     override = ROOT / "game" / "override.cfg"
     if override.exists():
         sys.exit(f"{override} already exists; move it aside first")
-    view = (f"window/size/viewport_width={size[0]}\nwindow/size/viewport_height={size[1]}\nwindow/stretch/mode=\"disabled\"\n"
-            if full else "")
+    if full:
+        view = (f"window/size/viewport_width={size[0]}\nwindow/size/viewport_height={size[1]}\n"
+                "window/stretch/mode=\"disabled\"\n")
+    elif view:
+        view = f"window/size/viewport_width={view[0]}\nwindow/size/viewport_height={view[1]}\n"
+    else:
+        view = ""
     override.write_text(f"[display]\n\nwindow/size/window_width_override={size[0]}\nwindow/size/window_height_override={size[1]}\n{view}\n"
                         "[editor]\n\nmovie_writer/mjpeg_quality=0.95\n")
     try:
@@ -146,16 +200,75 @@ def render(start=0.0, phone=False):
     print(f"ready: {out}")
 
 
-def mp4_copy(avi):
+def mp4_copy(avi, out=None, gain=None, rate=None):
     """Writes an .mp4 beside the .avi: about a tenth of its size, and the format Steam wants, with its sound brought to
-    the loudness video sites play at. Skipped without ffmpeg."""
+    the loudness video sites play at, or changed by `gain` decibels, and its bit rate held under `rate` when given.
+    Skipped without ffmpeg."""
     if not FFMPEG.exists():
         print("no ffmpeg, so no .mp4 copy")
         return
     # The AAC encoder overshoots sharp clicks by about 2 dB, so peaks are held at -3 dBTP to stay under 0 once encoded.
+    sound = "loudnorm=I=-16:TP=-3:LRA=11" if gain is None else f"volume={gain:.2f}dB"
+    cap = ["-maxrate", rate, "-bufsize", rate] if rate else []
     subprocess.run([str(FFMPEG), "-y", "-loglevel", "error", "-i", str(avi), "-c:v", "libx264", "-preset", "slow", "-crf", "16",
-                    "-pix_fmt", "yuv420p", "-af", "loudnorm=I=-16:TP=-3:LRA=11", "-ar", "48000", "-c:a", "aac", "-b:a", "192k",
-                    "-movflags", "+faststart", str(avi.with_suffix(".mp4"))], check=True)
+                    *cap, "-pix_fmt", "yuv420p", "-af", sound, "-ar", "48000", "-c:a", "aac", "-b:a", "192k",
+                    "-movflags", "+faststart", str(out or avi.with_suffix(".mp4"))], check=True)
+
+
+def record_short(name):
+    folder = SHORT_DIR / name
+    if folder.exists():
+        shutil.rmtree(folder)
+    folder.mkdir(parents=True)
+    seconds, flags = SHORT_SHOTS[name]
+    godot(["--write-movie", str(folder / "f.png"), "--fixed-fps", str(FPS), "--quit-after", str(seconds * FPS), "--", *flags],
+          TALL, view=TALL_VIEW)
+
+
+def render_short(name, start=0.0):
+    """Renders a short, or with a start time a preview from that moment on into the work folder. The .avi and the
+    _steam_only.mp4 end on the Steam scroll alone; the .mp4 is rendered again with the store badges under it."""
+    folder, _, thumb_at = SHORTS[name]
+    out_dir = VIDEOS / f"short_{folder}"
+    avi = WORK / "preview.avi" if start else out_dir / f"short_{folder}.avi"
+    avi.parent.mkdir(parents=True, exist_ok=True)
+    edit = ["--fixed-fps", str(FPS), "--quit-after", str(200 * FPS), "res://tools/trailer/edit.tscn", "--", "--no-save",
+            f"--shots={SHORT_DIR}", f"--from={start}", f"--cut={name}"]
+    godot(["--write-movie", str(avi), *edit], TALL, full=True)
+    if start:
+        print(f"ready: {avi}")
+        return
+    # One steady change of volume brings the short to the Google Play video's loudness without touching its dynamics.
+    gain = SHORT_LUFS - loudness(avi)[0]
+    level_avi(avi, gain)
+    mp4_copy(avi, avi.with_name(f"short_{folder}_steam_only.mp4"), gain=0.0, rate=SHORT_RATE)
+    badged = WORK / "badged.avi"
+    try:
+        godot(["--write-movie", str(badged), *edit, "--badges"], TALL, full=True)
+        mp4_copy(badged, avi.with_suffix(".mp4"), gain=gain, rate=SHORT_RATE)
+    finally:
+        badged.unlink(missing_ok=True)
+    subprocess.run([str(FFMPEG), "-y", "-loglevel", "error", "-ss", str(thumb_at), "-i", str(avi), "-frames:v", "1",
+                    str(out_dir / "thumbnail.png")], check=True)
+    print(f"ready: {avi}")
+
+
+def loudness(media):
+    """The integrated loudness in LUFS and the true peak in dBTP of a file's sound, as ffmpeg's ebur128 filter measures them."""
+    import re
+    run = subprocess.run([str(FFMPEG), "-hide_banner", "-nostats", "-i", str(media), "-vn", "-af", "ebur128=peak=true",
+                          "-f", "null", "-"], capture_output=True, text=True, check=True)
+    summary = run.stderr[run.stderr.rindex("Summary:"):]
+    peak = re.search(r"Peak:\s+(-?[\d.]+|-inf) dBFS", summary).group(1)
+    return float(re.search(r"I:\s+(-?[\d.]+) LUFS", summary).group(1)), float(peak.replace("-inf", "-1e9"))
+
+
+def level_avi(avi, gain):
+    """Changes the .avi's sound by `gain` decibels, leaving its picture as it is."""
+    tmp = avi.with_name("levelled.avi")
+    subprocess.run([str(FFMPEG), "-y", "-loglevel", "error", "-i", str(avi), "-c:v", "copy", "-af", f"volume={gain:.2f}dB",
+                    "-c:a", "pcm_s16le", str(tmp)], check=True)
+    tmp.replace(avi)
 
 
 def edit_frame(at, out):
@@ -238,6 +351,22 @@ def stills(folder):
 
 def main():
     args = sys.argv[1:]
+    short = next((a.split("=", 1)[1] for a in args if a.startswith("--cut=") and a != "--cut=play_store"), None)
+    if short is not None:
+        if short not in SHORTS:
+            sys.exit(f"no short named {short}; the shorts are {', '.join(SHORTS)}")
+        args = [a for a in args if not a.startswith("--cut=")]
+        shots = SHORTS[short][1]
+        if args[:1] == ["shots"]:
+            for shot in args[1:] or shots:
+                record_short(shot)
+            return
+        if args[:1] != ["render"]:
+            for shot in shots:
+                if not (SHORT_DIR / shot / "f.wav").exists():
+                    record_short(shot)
+        render_short(short, float(args[1]) if args[:1] == ["render"] and len(args) > 1 else 0.0)
+        return
     phone = "--cut=play_store" in args
     args = [a for a in args if a != "--cut=play_store"]
     if args[:1] == ["stills"]:

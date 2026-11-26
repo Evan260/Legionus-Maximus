@@ -7,10 +7,18 @@ extends Node
 ##   --hud=L,S,K    show the top bar as a run at level L, S seconds in with K kills would, counting on from there
 ##   --zoom=Z       draw the field Z times larger round the commander, with the interface at its own size
 ##   --march=X,Y    keep the legion marching that way, at that share of its full pace
+##   --testudo      raise the testudo as a charging elite's warning runs out
+##   --fixed        take no level-ups, so the legion keeps the men it started with
+##   --back=PX, --pace=X  how far back from the ravine's lip the legion starts, and at what share of its pace it marches up
+##   --aim=X,Y      move the view this far from the commander, in game pixels, to frame what he marches towards
+## A recording also writes stats.jsonl beside its frames, a line per frame of the men, the commander's health, the kills,
+## the barbarians in view, those that have reached the line, the gods called and the testudo, so the edit's captions can
+## quote what really happened.
 
 const MIX := ["legionary", "legionary", "archer"]
-## How far down the end card's field is moved, in game pixels, so the legion stands below the logo.
+## How far down the end card's field is moved in the wide view and in the shorts' tall one, in game pixels, so the legion stands below the logo.
 const END_DROP := 75.0
+const END_DROP_TALL := 150.0
 ## How far below a wheat field the legion marches in the Gaul shot, and how far west of one it stands on the end card, in game pixels.
 const FIELD_SIDE := 80.0
 const END_SIDE := 170.0
@@ -33,11 +41,27 @@ const GOD_CALL_AT := 7.0
 const CHIEF_FALLS_AT := 2.2
 ## How fast the legion marches along the ravine's lip once the berserker has gone over, as a share of its full pace.
 const LIP_MARCH := 0.6
-## The great horde's shots, the gap between its barbarians, the open ground left round the commander and how far it reaches, in game pixels.
-const HORDE_SHOTS := ["hook", "gods", "reveal"]
+## The great horde's shots, the gap between its barbarians, the open ground left round the commander and how far it reaches
+## past the edges of the view, in game pixels.
+const HORDE_SHOTS := ["hook", "gods", "reveal", "storm"]
 const HORDE_STEP := 28.0
 const HORDE_CLEAR := 110.0
-const HORDE_REACH := Vector2(380.0, 230.0)
+const HORDE_BEYOND := Vector2(60.0, 50.0)
+## Where the war elephant is moved to in the shorts' charge, from the commander, in game pixels.
+const ELEPHANT_FROM := Vector2(10.0, -215.0)
+## Seconds of the elephant's warning left when --testudo raises the shields, as a player who saw the lane would.
+const TESTUDO_LEAD := 0.6
+## The archers' short: the band charging them, how many and between which distances, in game pixels.
+const VOLLEY_BAND := 60
+const VOLLEY_NEAR := 230.0
+const VOLLEY_FAR := 420.0
+## The close call: the crowd ringing the small legion, and the men left when Apollo is called.
+const CLOSE_CROWD := 70
+const CLOSE_LEFT := 3
+## Seconds between the legion falling to its last men and Apollo's call, as long as a player takes to see it and call him.
+const CLOSE_WAIT := 1.0
+## How near a barbarian comes to a soldier, in game pixels, to count as having reached the line.
+const REACH := 14.0
 ## How many barbarians walk in from beyond the edges each frame at most, to make up for the fallen.
 const HORDE_INFLOW := 8
 ## Where the chieftain comes from in his shot and how far in front of the legion's ranks he starts, in game pixels.
@@ -69,6 +93,13 @@ var _ripples: Array[Texture2D] = []
 var _fade: Tween
 var _shielded := false
 var _god_taps := 0
+var _raised := false
+var _prayed := false
+var _low_at := -1.0
+var _aim := Vector2.ZERO
+## The barbarians, by id, that have come within REACH of a soldier.
+var _reached := {}
+var _stats: FileAccess
 
 
 func _init() -> void:
@@ -118,9 +149,14 @@ func _ready() -> void:
 	# A legion that marches without fighting is hunted by extra beasts, which would swamp the marching shots.
 	if main.balance.has("pursuit"):
 		main.balance.pursuit.cap = 0.0
+	# The gods strike what is on screen, so a tall view is struck from top to bottom.
+	var half := _view() / 2.0
+	main.balance.gods.view_half = [half.x + 10.0, half.y + 10.0]
 	var sim: Sim = main.sim
 	if sim == null:
 		return
+	if Engine.get_write_movie_path() != "":
+		_stats = FileAccess.open(Engine.get_write_movie_path().get_base_dir().path_join("stats.jsonl"), FileAccess.WRITE)
 	var men := str(main.args.get("men", "0")).split(":")
 	for i in int(men[0]):
 		sim.add_soldier(men[1] if men.size() > 1 else MIX[i % MIX.size()])
@@ -129,6 +165,9 @@ func _ready() -> void:
 	sim.show_numbers = false
 	sim.blood = true
 	_zoom = float(main.args.get("zoom", "1"))
+	if main.args.has("aim"):
+		var aim := str(main.args.aim).split(",")
+		_aim = Vector2(float(aim[0]), float(aim[1]))
 	if main.args.has("hud"):
 		_hud = str(main.args.hud).split(",")
 	if main.args.has("march"):
@@ -150,22 +189,37 @@ func _process(dt: float) -> void:
 	var sim: Sim = main.sim
 	if sim == null:
 		return
+	if _stats != null:
+		_stats.store_line(JSON.stringify({"t": snappedf(_clock, 0.001), "men": sim.soldiers.size(), "hp": snappedf(sim.commander.hp / sim.commander.max_hp, 0.001),
+			"kills": sim.kills, "seen": _seen(sim), "reached": _reach_count(sim), "calls": sim.gods.calls, "testudo": sim.testudo_left > 0.0}))
+		_stats.flush()
+	if shot == "elephant" and main.args.has("testudo") and not _raised:
+		_testudo_for_charge(sim)
+	if shot == "close" and _low_at < 0.0 and sim.soldiers.size() <= CLOSE_LEFT:
+		_low_at = _clock
+	if shot == "close" and not _prayed and _low_at >= 0.0 and _clock >= _low_at + CLOSE_WAIT:
+		_prayed = true
+		main._look_at_god("apollo")
 	if _touch and main.touch_pad != null:
 		_touch_controls(sim, main.touch_pad)
-	if _zoom != 1.0:
-		# The field is drawn larger round the middle of the view, which the commander stands at.
+	if _zoom != 1.0 or _aim != Vector2.ZERO:
+		# The field is drawn larger round the middle of the view, which the commander stands at unless --aim moves it.
 		var world: Node2D = main.world
 		var middle := get_viewport().get_visible_rect().size / 2.0
 		world.scale = Vector2(_zoom, _zoom)
-		world.position = ((world.position - middle) * _zoom + middle).round()
+		world.position = ((world.position - middle - _aim) * _zoom + middle).round()
 	if shot == "levelup":
 		_level_up(sim)
 	if main.state == "pray":
 		_pray()
 	if not main.state in ["play", "choose", "supply"] or (shot == "levelup" and main.state == "choose"):
 		return
+	# With --fixed the legion is only what it started with, so every man lost shows and none is added.
 	while sim.pending_levels > 0:
-		Upgrades.apply(sim, Upgrades.offers(sim)[0])
+		if main.args.has("fixed"):
+			sim.pending_levels = 0
+		else:
+			Upgrades.apply(sim, Upgrades.offers(sim)[0])
 	sim.free_choices = 0
 	sim.supplies.clear()
 	main.state = "play"
@@ -174,11 +228,12 @@ func _process(dt: float) -> void:
 		for s in sim.soldiers:
 			s.hp = s.max_hp
 	if shot == "endcard":
-		main.world.position.y += END_DROP
-	if shot in HORDE_SHOTS:
+		main.world.position.y += END_DROP_TALL if _tall() else END_DROP
+	# Once Jupiter is called the storm's horde is left to fall, so the screen it clears stays clear.
+	if shot in HORDE_SHOTS and not (shot == "storm" and sim.gods.calls > 0):
 		_top_up(sim)
 	if shot == "whirl" and _whirling(sim):
-		main.look_march = Vector2(-1.0, 0.15)
+		main.look_march = Vector2(0.15, -1.0) if _tall() else Vector2(-1.0, 0.15)
 	if shot == "ravine" and not _turned and _boss_went_over(sim):
 		# Once he is over, the legion wheels and marches along the lip rather than on into the edge.
 		_turned = true
@@ -257,7 +312,7 @@ func _shot_fell(sim: Sim) -> void:
 ## The commander and a handful of men stand against a small band coming on from the right, for a close look at the fight.
 func _shot_skirmish(sim: Sim) -> void:
 	_quiet(sim)
-	_wave(sim, sim.commander.pos, 0.0, 1.6, 70.0, 150.0, 16)
+	_wave(sim, sim.commander.pos, _across(), 1.6, 70.0, 150.0, 16)
 
 
 ## The skirmish again, with a level-up in the middle of it; --hold-choice keeps main.gd from taking the first card.
@@ -269,7 +324,7 @@ func _shot_levelup(sim: Sim) -> void:
 ## A block of archers looses at a band charging from the right, so the arrows fly the whole gap.
 func _shot_archers(sim: Sim) -> void:
 	_quiet(sim)
-	_wave(sim, sim.commander.pos, 0.0, 0.9, 170.0, 300.0, 18)
+	_wave(sim, sim.commander.pos, _across(), 0.9, 170.0, 300.0, 18)
 
 
 ## A legion of forty ringed by a medium crowd, from every side.
@@ -305,10 +360,11 @@ func _horde(sim: Sim) -> void:
 	sim.terrain.clear()
 	_quiet(sim)
 	var c: Vector2 = sim.commander.pos
-	var x := -HORDE_REACH.x
-	while x <= HORDE_REACH.x:
-		var y := -HORDE_REACH.y
-		while y <= HORDE_REACH.y:
+	var reach := _reach()
+	var x := -reach.x
+	while x <= reach.x:
+		var y := -reach.y
+		while y <= reach.y:
 			var at := Vector2(x, y) + Vector2(_rng.randf_range(-0.4, 0.4), _rng.randf_range(-0.4, 0.4)) * HORDE_STEP
 			if at.length() > HORDE_CLEAR and _rng.randf() > 0.12:
 				_spawn_ordinary(sim, c + at)
@@ -323,7 +379,51 @@ func _top_up(sim: Sim) -> void:
 	for k in mini(HORDE_INFLOW, _horde_size - sim.horde.e_pos.size()):
 		var edge := Vector2(_rng.randf_range(-1.0, 1.0), _rng.randf_range(-1.0, 1.0))
 		edge = edge / maxf(absf(edge.x), absf(edge.y))
-		_spawn_ordinary(sim, c + edge * HORDE_REACH)
+		_spawn_ordinary(sim, c + edge * _reach())
+
+
+## The size of the recorded view, wide for the trailer and tall for the shorts.
+func _view() -> Vector2:
+	return get_viewport().get_visible_rect().size
+
+
+func _tall() -> bool:
+	return _view().y > _view().x
+
+
+## How far the great horde reaches from the commander: just past the edges of the view.
+func _reach() -> Vector2:
+	return _view() / 2.0 + HORDE_BEYOND
+
+
+## The angle a staged band comes on from: the right of a wide view, the top of a tall one, so it crosses the view's long side.
+func _across() -> float:
+	return -PI / 2.0 if _tall() else 0.0
+
+
+## How many barbarians have come within REACH of a soldier so far.
+func _reach_count(sim: Sim) -> int:
+	var h := sim.horde
+	for i in h.e_pos.size():
+		if h.e_hp[i] <= 0.0 or _reached.has(h.e_id[i]):
+			continue
+		for u in sim.units:
+			if (u.pos - h.e_pos[i]).length_squared() <= pow(REACH + h.k_radius[h.e_kind[i]], 2.0):
+				_reached[h.e_id[i]] = true
+				break
+	return _reached.size()
+
+
+## The living barbarians within the view round the camera, as the field is drawn.
+func _seen(sim: Sim) -> int:
+	var half := _view() / 2.0 / _zoom
+	var c: Vector2 = main.world.eye() + _aim
+	var h := sim.horde
+	var n := 0
+	for i in h.e_pos.size():
+		if h.e_hp[i] > 0.0 and absf(h.e_pos[i].x - c.x) <= half.x and absf(h.e_pos[i].y - c.y) <= half.y:
+			n += 1
+	return n
 
 
 func _spawn_ordinary(sim: Sim, at: Vector2) -> void:
@@ -334,9 +434,10 @@ func _spawn_ordinary(sim: Sim, at: Vector2) -> void:
 ## The berserker waits at the ravine's lip while the legion, set back from it, marches up and shoves him over.
 func _shot_ravine(sim: Sim) -> void:
 	var ahead := Vector2.from_angle(sim.facing_angle)
-	sim.commander.pos -= ahead * 120.0
+	sim.commander.pos -= ahead * float(main.args.get("back", "120"))
 	sim.legion.place_all(sim.facing_angle)
 	sim.terrain.refresh(sim.commander.pos)
+	main.look_march = ahead * float(main.args.get("pace", "0.5"))
 
 
 ## The berserker stands at the edge of a small legion; when his whirlwind's ring shows, the legion marches out of it.
@@ -345,7 +446,7 @@ func _shot_whirl(sim: Sim) -> void:
 	var h := sim.horde
 	var i := h.e_pos.size() - 1
 	if i >= 0:
-		h.e_pos[i] = sim.commander.pos + Vector2(62, 10)
+		h.e_pos[i] = sim.commander.pos + (Vector2(10, 62) if _tall() else Vector2(62, 10))
 	main.look_march = Vector2.ZERO
 
 
@@ -360,6 +461,49 @@ func _shot_onrush(sim: Sim) -> void:
 	# More falx warriors come on behind the charge, so the legion has a fight once it is spent.
 	_wave(sim, sim.commander.pos, 0.0, 1.4, 230.0, 330.0, 16)
 	main.look_march = Vector2.ZERO
+
+
+## Parthia's war elephant stands above the legion, which faces him, and marks his lane straight down through its ranks.
+func _shot_elephant(sim: Sim) -> void:
+	_quiet(sim)
+	_stand(sim, sim.commander.pos, -PI / 2.0)
+	var h := sim.horde
+	var i := h.e_pos.size() - 1
+	if i >= 0:
+		h.e_pos[i] = sim.commander.pos + ELEPHANT_FROM
+	main.look_march = Vector2.ZERO
+
+
+## The shields go up as the elephant's warning runs out, as they would for a player who saw his lane marked.
+func _testudo_for_charge(sim: Sim) -> void:
+	var h := sim.horde
+	for i in h.e_pos.size():
+		if not h.elite_ids.has(h.e_id[i]):
+			continue
+		var st := h.boss_state(i)
+		if float(st.get("rush_warn", 0.0)) > 0.0 and float(st.rush_warn) <= TESTUDO_LEAD:
+			_raised = true
+			# What Sim.update does when the testudo key is pressed.
+			sim.event("testudo", sim.commander.pos)
+			sim.testudo_left = sim.testudo_hold_at(sim.rank("testudo"))
+			sim.testudo_charge = 0.0
+			sim.shake = maxf(sim.shake, float(sim.b.shake.testudo))
+			return
+
+
+## A legion of archers stands facing a big band that charges it across the view, so the arrows fly the whole way.
+func _shot_volley(sim: Sim) -> void:
+	sim.terrain.clear()
+	_quiet(sim)
+	_stand(sim, sim.commander.pos, _across())
+	_wave(sim, sim.commander.pos, _across(), 1.0, VOLLEY_NEAR, VOLLEY_FAR, VOLLEY_BAND)
+
+
+## A small legion ringed by a crowd takes its losses as in a real run; with --mortal, Apollo is called when it is down to its last men.
+func _shot_close(sim: Sim) -> void:
+	sim.terrain.clear()
+	_quiet(sim)
+	_wave(sim, sim.commander.pos, 0.0, TAU, 100.0, 330.0, int(main.args.get("crowd", CLOSE_CROWD)))
 
 
 ## The chieftain stands off to the side and charges at once, through the ranks.
@@ -402,7 +546,8 @@ func _shot_endcard(sim: Sim) -> void:
 	for f: Rect2 in fields:
 		var at := Vector2(f.position.x - END_SIDE, f.get_center().y)
 		# The card moves the field down by END_DROP, so more of the ground above the legion is in view.
-		var view := Rect2(at - Vector2(320.0, 180.0 + END_DROP), Vector2(640.0, 360.0))
+		var drop := END_DROP_TALL if _tall() else END_DROP
+		var view := Rect2(at - Vector2(_view().x / 2.0, _view().y / 2.0 + drop), _view())
 		if f.size.y >= 140.0 and sim.terrain.ravines_in(view).is_empty() and not props.any(func(p: Array) -> bool: return view.has_point(p[1])):
 			_stand(sim, at, 0.0)
 			break
