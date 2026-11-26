@@ -30,8 +30,10 @@ func _ready() -> void:
 	_rng.randomize()
 	cfg = JSON.parse_string(FileAccess.get_file_as_string("res://data/balance.json")).audio
 	_kinds = cfg.kinds
-	# The everything-unlocked mode is for playing, so it keeps its sound though it never saves.
-	var with_sound := "--with-sound" in OS.get_cmdline_user_args() or "--max-state" in OS.get_cmdline_user_args()
+	# The everything-unlocked mode is for playing and a trailer shot's sound goes into the trailer, so both keep their sound
+	# though they never save, at the default volumes since neither reads the player's settings.
+	var args := OS.get_cmdline_user_args()
+	var with_sound := "--with-sound" in args or "--max-state" in args or Array(args).any(func(a: String) -> bool: return a.begins_with("--trailer-shot="))
 	enabled = (not Profile.disabled or with_sound) and DisplayServer.get_name() != "headless"
 	if not enabled:
 		set_process(false)
