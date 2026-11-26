@@ -5029,6 +5029,49 @@ func test_the_titles_goal_on_two_lines_breaks_evenly(b: Dictionary) -> void:
 	check(lopsided.is_empty(), "the goal's two lines are about as long as each other (%s)" % [lopsided])
 
 
+func test_the_titles_version_stays_clear_of_the_corners_and_the_buttons(b: Dictionary) -> void:
+	var before := Ui.scale
+	var before_view := Ui.view
+	var kept := [Touch.phone, Touch.inset_tl, Touch.inset_br]
+	check(TitleScreen.version_text() == "v" + str(ProjectSettings.get_setting("application/config/version")), "the title writes the game's version (%s)" % TitleScreen.version_text())
+	var labels: Array = ["Continue", "New game", "Load", "Settings"].map(func(s: String) -> String: return TranslationServer.translate(s).to_upper())
+	labels.append(Ui.unlock_label().to_upper())
+	var problems := []
+	for scale in [1, 2]:
+		Ui.set_text_size(scale, b)
+		for screen in _big_screens() + _phone_screens().slice(-1):
+			Touch.phone = screen.phone
+			Ui.fit_view(screen.view)
+			Touch.inset_tl = screen.tl
+			Touch.inset_br = screen.br
+			var safe := Rect2(screen.tl - Ui.offset, screen.view - screen.tl - screen.br)
+			var g := TitleScreen.grid(b)
+			var layouts: Array = []
+			for n in range(2, TITLE_MOST_BUTTONS + 1):
+				layouts.append(TitleScreen.button_rects(g.box, n))
+				layouts.append(TitleScreen.unlock_rects(g.box, labels.slice(labels.size() - n)))
+			var corner: Rect2 = TitleScreen.version_rect([])
+			if corner.end.x < safe.end.x - 6.0 or corner.end.y < safe.end.y - 4.0:
+				problems.append("x%d %s: with no button near, the version at %s is not in the bottom right of %s" % [scale, screen.name, corner, safe])
+			for rects: Array in layouts:
+				var r: Rect2 = TitleScreen.version_rect(rects)
+				if not safe.encloses(r):
+					problems.append("x%d %s: the version at %s leaves the safe area %s" % [scale, screen.name, r, safe])
+				for k in rects.size():
+					if r.intersects(rects[k]):
+						problems.append("x%d %s: the version at %s is over button %d of %d at %s" % [scale, screen.name, r, k, rects.size(), rects[k]])
+				if r.intersects(g.box) or r.intersects(TitleScreen.logo_rect()):
+					problems.append("x%d %s: the version at %s is over the controls or the logo" % [scale, screen.name, r])
+	Ui.set_text_size(before, b)
+	Ui.fit_view(before_view)
+	Touch.phone = kept[0]
+	Touch.inset_tl = kept[1]
+	Touch.inset_br = kept[2]
+	for p in problems.slice(0, 16):
+		print("  ", p)
+	check(problems.is_empty(), "the title's version stays inside the safe area and off every button, the controls and the logo (%d problems)" % problems.size())
+
+
 ## Whether a tree or another picture the world view fades stands in front of the men on the line `y` between `from` and `to`.
 func _canopy_over(world: GDScript, atlas: Atlas, terrain: Terrain, from: float, to: float, y: float) -> bool:
 	var men := Rect2(from - 5.0, y - 26.0, to - from + 10.0, 26.0)

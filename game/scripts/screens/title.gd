@@ -25,6 +25,8 @@ const BIRD_UP := [Vector2(-4, -3), Vector2(-3, -2), Vector2(-2, -1), Vector2(-1,
 const BIRD_DOWN := [Vector2(-4, 1), Vector2(-3, 0), Vector2(-2, -1), Vector2(-1, 0), Vector2(0, 0), Vector2(0, 1), Vector2(1, 0), Vector2(2, -1), Vector2(3, 0), Vector2(4, 1)]
 # What the box for Google Play's reviewer code says to a wrong code; the box is in English, since only the reviewers see it.
 const WRONG := "That code isn't right."
+# How far the version keeps in from the window's right and bottom edges, as in the other Slow Sunday games.
+const VERSION_MARGIN := Vector2(4, 2)
 
 var main: Node
 ## Whether the box for Google Play's reviewer code is open, what has been typed into it, and whether the last code was wrong.
@@ -386,8 +388,30 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	_draw_controls(c, ui, g)
 	for i in ids.size():
 		ui.button(c, rects[i], ids[i][0], labels[i], "", ids[i][2], null, true)
+	_draw_version(c, rects)
 	if ui.focus == "new" and not ui.is_enabled("new"):
 		_full_note(c, ui, rects[ids.map(func(b: Array) -> String: return b[0]).find("new")])
+
+
+static func version_text() -> String:
+	return "v" + str(ProjectSettings.get_setting("application/config/version", ""))
+
+
+## The box round the version: in the window's bottom right corner clear of a phone's rounded corners, or the top right when a button reaches there.
+static func version_rect(buttons: Array) -> Rect2:
+	var f := Ui.font()
+	var size := Vector2(ceilf(Ui.width_at(version_text(), Ui.px)), ceilf(f.get_ascent(Ui.px) + f.get_descent(Ui.px)))
+	var r := Rect2(Ui.view - Ui.offset - Touch.inset_br - VERSION_MARGIN - size, size)
+	if buttons.any(func(b: Rect2) -> bool: return b.grow(VERSION_MARGIN.x).intersects(r)):
+		r.position.y = Touch.inset_tl.y - Ui.offset.y + VERSION_MARGIN.y
+	return r
+
+
+func _draw_version(c: CanvasItem, buttons: Array) -> void:
+	var r := version_rect(buttons)
+	var at := Vector2(r.position.x, r.position.y + roundf(Ui.font().get_ascent(Ui.px)))
+	c.draw_string_outline(Ui.font(), at, version_text(), HORIZONTAL_ALIGNMENT_LEFT, -1.0, Ui.px, 2, Color(Ui.INK, 0.7))
+	c.draw_string(Ui.font(), at, version_text(), HORIZONTAL_ALIGNMENT_LEFT, -1.0, Ui.px, Color(Ui.CREAM, 0.7))
 
 
 func _draw_review(c: CanvasItem, ui: Ui) -> void:
