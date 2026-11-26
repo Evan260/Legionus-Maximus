@@ -63,3 +63,7 @@ environment/defaults/default_clear_color=Color(0.16, 0.1, 0.08, 1)
 
 package_name="com.slowsunday.legionusmaximus"
 review_code_sha256="77fc5262ddddd3467d7dd1fb7154666ed6ce456e23802c364872876e50c9a440"
+
+[slowsunday_phone]
+
+notifications=false
