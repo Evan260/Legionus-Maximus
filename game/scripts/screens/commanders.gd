@@ -64,6 +64,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	_step = step
 	follow(ui.focus, maxi(focused, 0))
 	_scroll_marks(c, r, scroll > 0, scroll + visible < ids.size())
+	Ui.scroll_bar(c, Rect2(r.end.x - 9, r.position.y + 28, 4, (visible - 1) * step + h), scroll, visible, ids.size())
 	for i in ids.size():
 		var id: String = ids[i]
 		var info: Dictionary = content.commanders[id]

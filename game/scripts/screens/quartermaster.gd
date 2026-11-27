@@ -132,6 +132,7 @@ func _draw_touch(c: CanvasItem, ui: Ui) -> void:
 		if row.id == selected and ui.focus != "buy:" + row.id:
 			c.draw_rect(Rect2(row.rect.position - Vector2(3, 0), Vector2(2, row.rect.size.y)), Ui.GOLD)
 	CommandersScreen._scroll_marks(c, Rect2(r.position.x + 12, top - 24.0, TOUCH_LIST_W, r.end.y - top + 24.0), scroll > 0, scroll + _visible < _count)
+	Ui.scroll_bar(c, Rect2(r.position.x + 14 + TOUCH_LIST_W, top, 4, (_visible - 1) * size_of.y + size_of.x), scroll, _visible, _count)
 	var box := Rect2(r.position.x + 20 + TOUCH_LIST_W, top, r.end.x - 12 - (r.position.x + 20 + TOUCH_LIST_W), r.end.y - 6.0 - top)
 	ui.panel(c, box, Ui.CREAM)
 	var info: Dictionary = content.quartermaster[selected]
@@ -145,7 +146,7 @@ func _draw_touch(c: CanvasItem, ui: Ui) -> void:
 	ui.wrap_fit(c, info.text, Vector2(x, y), w, Ui.INK, maxi(1, room))
 	var cost := Profile.next_cost(selected, content)
 	var can := cost >= 0 and cost <= int(Profile.data.denarii) and Profile.waiting_for(selected, content) == ""
-	ui.button(c, Rect2(x, box.end.y - bh - 6.0, w, bh), "buy_shown", tr("buy a rank").to_upper(), str(cost) if cost >= 0 else "", can, null, false, Color(0.2, 0.45, 0.15))
+	ui.button(c, Rect2(x, box.end.y - bh - 6.0, w, bh), "buy_shown", tr("upgrade").to_upper(), str(cost) if cost >= 0 else "", can, null, false, Color(0.2, 0.45, 0.15))
 
 
 ## The line beside a focused entry's name: what the next rank costs, that it is done, or what it waits for.
@@ -157,7 +158,7 @@ func note(id: String) -> String:
 	var cost := Profile.next_cost(id, content)
 	if cost < 0:
 		return tr("Fully upgraded.")
-	return tr("Next rank costs %d denarii.") % cost
+	return tr("Next upgrade costs %d denarii.") % cost
 
 
 ## The name and rank; with large text the rank leads so a long name is the part that is cut. A repeating purchase shows how many were made.

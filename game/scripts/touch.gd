@@ -175,9 +175,11 @@ static func back_counts(now_ms: int, last_ms: int) -> bool:
 	return now_ms - last_ms > BACK_REPEAT_MS
 
 
-## Whether a tap acts at once; one that spends denarii acts only once the last tap (`picked`) picked it out, so it is read first.
+## Whether a tap acts at once: a quartermaster row only opens its details, since the upgrade button beside them does the buying, and a commander for sale is bought only by a second tap once picked out (`picked`).
 static func tap_acts(state: String, id: String, picked: String) -> bool:
-	if id.begins_with("buy:") or id.begins_with("see:"):
+	if id.begins_with("buy:"):
+		return false
+	if id.begins_with("see:"):
 		return id == picked
 	return true
 

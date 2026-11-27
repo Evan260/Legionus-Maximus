@@ -13776,8 +13776,8 @@ func test_touch_insets_clear_rounded_corners_and_the_camera(_b: Dictionary) -> v
 
 
 func test_touch_tap_on_a_purchase_or_choice_first_picks_it_out(_b: Dictionary) -> void:
-	check(not Touch.tap_acts("quartermaster", "buy:damage", "buy:start_health"), "a tap on another upgrade shows it before buying")
-	check(Touch.tap_acts("quartermaster", "buy:damage", "buy:damage"), "a tap on the upgrade shown buys it")
+	check(not Touch.tap_acts("quartermaster", "buy:damage", "buy:start_health"), "a tap on an upgrade shows its details")
+	check(not Touch.tap_acts("quartermaster", "buy:damage", "buy:damage"), "and a second tap on it still buys nothing, leaving that to the upgrade button")
 	check(not Touch.tap_acts("commanders", "see:centurion", "pick:tribune"), "a commander for sale is shown before he is bought")
 	check(Touch.tap_acts("choose", "choice:1", "choice:0"), "a level-up choice is taken by one tap")
 	check(Touch.tap_acts("supply", "choice:1", ""), "and so is a supply cart's")
@@ -13827,7 +13827,7 @@ func test_back_waits_a_moment_on_the_summary_of_a_defeat(b: Dictionary) -> void:
 	_return_profile(kept)
 
 
-func test_a_first_tap_picks_out_a_purchase_but_takes_a_level_up(b: Dictionary) -> void:
+func test_a_tap_shows_a_purchase_but_takes_a_level_up(b: Dictionary) -> void:
 	var kept := _borrow_profile()
 	Profile.new_game()
 	Profile.data.denarii = 100000
@@ -13843,11 +13843,10 @@ func test_a_first_tap_picks_out_a_purchase_but_takes_a_level_up(b: Dictionary) -
 	m._tap(Vector2(50, 10))
 	check(Profile.rank(ids[0]) == 0, "a first tap on it only picks it out, though the screen put the focus there")
 	m._tap(Vector2(50, 10))
-	check(Profile.rank(ids[0]) == 1, "a second tap buys a rank")
-	m.state = "camp"
-	m.state = "quartermaster"
-	m._tap(Vector2(50, 10))
-	check(Profile.rank(ids[0]) == 1, "coming back to the screen, the first tap picks it out again")
+	check(Profile.rank(ids[0]) == 0, "nor does a second, since only the upgrade button buys")
+	m.screens.quartermaster.selected = ids[0]
+	m.screens.quartermaster.activate("buy_shown")
+	check(Profile.rank(ids[0]) == 1, "the upgrade button buys the next level of the upgrade shown")
 	_free_main(m)
 	m = _bare_main(b, [Rect2(0, 0, 100, 40), Rect2(0, 50, 100, 40), Rect2(0, 100, 100, 40)])
 	m.sim = _quiet_sim(b, 4401)

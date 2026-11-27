@@ -232,6 +232,18 @@ static func scroll_for(index: int, count: int, visible: int, current: int) -> in
 	return clampi(clampi(current, index - visible + 1, index), 0, maxi(0, count - visible))
 
 
+## A scroll bar in `track` beside a list longer than its room, so it reads as scrollable at a glance: the gold thumb's length is the share in view and its place is where the view stands.
+static func scroll_bar(c: CanvasItem, track: Rect2, first: int, shown: int, total: int) -> void:
+	if total <= shown:
+		return
+	c.draw_rect(track, Color(INK, 0.3))
+	var h := maxf(roundf(track.size.y * float(shown) / float(total)), 12.0)
+	var y := roundf(track.position.y + (track.size.y - h) * float(first) / float(total - shown))
+	var thumb := Rect2(track.position.x, y, track.size.x, h)
+	c.draw_rect(thumb, GOLD)
+	c.draw_rect(thumb, INK, false, 1.0)
+
+
 func begin() -> void:
 	_next = []
 	_after = []

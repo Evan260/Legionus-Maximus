@@ -94,6 +94,7 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 			_picture(c, ui, e[0], e[2], met(e), rect.grow(-3))
 		row_y += STEP
 	CommandersScreen._scroll_marks(c, Rect2(origin.x, origin.y - 24.0, COLS * STEP - 4.0, r.end.y - origin.y + 24.0), scroll > 0, scroll + visible < rows.size())
+	Ui.scroll_bar(c, Rect2(origin.x + COLS * STEP - 2.0, origin.y, 4, room), scroll, visible, rows.size())
 	var box := box_of(r)
 	ui.panel(c, box, Ui.CREAM)
 	for e in list:
