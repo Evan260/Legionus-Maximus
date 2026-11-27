@@ -72,6 +72,8 @@ var main: Node
 var ui: Ui
 var icons := {}
 var choice_rects: Array = []
+## The build panel's icons as last drawn, as [rect, id], so a tap on one can open its details.
+var build_cells: Array = []
 ## The buttons under a choice on a phone, which stand in for its keys, as {id: rect}.
 var touch_buttons := {}
 ## The store's last answer about the full game, and when it came on the main clock.
@@ -1445,14 +1447,18 @@ static func _build_items_at(sim: Sim, r: Rect2, side: float) -> Array:
 
 
 ## The legion's soldiers, arms and drills on a dark plate, so a choice can be made knowing what the legion already has.
-func draw_build(sim: Sim, r: Rect2) -> void:
+func draw_build(sim: Sim, r: Rect2, picked := "") -> void:
 	draw_rect(r, Color(0.08, 0.05, 0.04, 0.92 if Touch.phone else 0.7))
 	draw_rect(r, Color(GOLD, 0.6), false, 1.0)
+	build_cells.clear()
 	for it in build_items(sim, r):
 		var at: Vector2 = it[1].position
 		if it[0] == "line":
 			draw_rect(it[1], Color(GOLD, 0.45))
 			continue
+		build_cells.append([it[1], it[2]])
+		if it[2] == picked:
+			draw_rect(it[1].grow(2.0), GOLD, false, 2.0)
 		# What the legion has none of yet is shown faded, so the whole set reads at a glance.
 		var none: bool = int(it[3]) == 0
 		var side := float(it[5])
@@ -1503,7 +1509,14 @@ func _choices(sim: Sim) -> void:
 	var banishing: bool = main.banishing
 	var build_shown: bool = Touch.phone and main.state == "choose" and main.showing_build
 	if build_shown:
-		draw_build(sim, Rect2(rows[0].position, rows[-1].end - rows[0].position))
+		var area := Rect2(rows[0].position, rows[-1].end - rows[0].position)
+		var pick: String = main.build_pick
+		if pick == "":
+			draw_build(sim, area)
+		else:
+			var split := floorf(area.size.x * 0.55)
+			draw_build(sim, Rect2(area.position, Vector2(split - 4.0, area.size.y)), pick)
+			draw_upgrade_panel(sim, pick, Rect2(area.position.x + split + 4.0, area.position.y, area.size.x - split - 4.0, area.size.y))
 	for i in (0 if build_shown else n):
 		var id: String = main.choices[i]
 		var r: Rect2 = rows[i]
@@ -1569,9 +1582,9 @@ func _choices(sim: Sim) -> void:
 		_centred_hint("     ".join(extras), hint_y + 13.0, GOLD_LIGHT)
 
 
-## A row of buttons under a phone's choice: call the god picked out or not now, or reroll and banish, each the size of `one` and the row centred where it is.
+## A row of buttons under a phone's choice: not now for the gods, or the legion, reroll and banish for a level-up, each the size of `one` and the row centred where it is.
 func _touch_choice_buttons(sim: Sim, praying: bool, one: Rect2) -> void:
-	var ids: Array = [["call", tr("call")], ["not_now", tr("not now")]] if praying else []
+	var ids: Array = [["not_now", tr("not now")]] if praying else []
 	var levelling: bool = main.state == "choose"
 	# Large text leaves no room for the build panel beside the rows, so a button swaps it in for them.
 	if levelling and not shows_build(false, Ui.scale > 1):
@@ -1585,10 +1598,7 @@ func _touch_choice_buttons(sim: Sim, praying: bool, one: Rect2) -> void:
 	for k in ids.size():
 		var r: Rect2 = row[ids[k][0]]
 		touch_buttons[ids[k][0]] = r
-		var main_one: bool = ids[k][0] == "call"
-		if main_one:
-			draw_rect(r.grow(3), GOLD)
-		panel(r, CREAM if main_one else PARCH)
+		panel(r, PARCH)
 		var label := str(ids[k][1]).to_upper()
 		var size := Ui.fit_size(label, w - 12.0)
 		ui.fit_text(self, label, w - 12.0, Vector2(r.position.x, Ui.label_y(r, label, size)), INK, HORIZONTAL_ALIGNMENT_CENTER, w, false, size)
@@ -1676,6 +1686,14 @@ func choice_at(p: Vector2) -> int:
 	return -1
 
 
+## The id of the build panel's icon under `p`, or "" for none.
+func build_item_at(p: Vector2) -> String:
+	for cell in build_cells:
+		if cell[0].grow(2.0).has_point(p):
+			return cell[1]
+	return ""
+
+
 
 ## The panel on the right of a level-up that tells of the choice picked out: the build panel mirrored across the middle of the screen.
 static func choice_panel_rect() -> Rect2:
@@ -1719,8 +1737,8 @@ static func choice_button_at(sim: Sim, p: Vector2) -> String:
 
 
 ## Where each piece of the choice panel goes inside `r` for the choice `id`, as [kind, rect, ...]: its icon, its name and group, a line, what it does now and next as a name and its numbers, how it forges, another line and its history. Text lines carry their words and look, and numbers their now and next.
-static func choice_panel_items(sim: Sim, id: String, r: Rect2) -> Array:
-	var room: float = choice_panel_buttons().reroll.position.y - PANEL_BUTTON_GAP
+static func choice_panel_items(sim: Sim, id: String, r: Rect2, foot := -1.0) -> Array:
+	var room: float = foot if foot >= 0.0 else choice_panel_buttons().reroll.position.y - PANEL_BUTTON_GAP
 	var items: Array = []
 	for each in PANEL_ROOMS:
 		items = _choice_panel_at(sim, id, r, each[0], each[1])
@@ -1804,10 +1822,30 @@ static func value_width(now: String, next: String) -> float:
 ## The choice picked out on a dark plate on the right, with the reroll and banish buttons at its foot.
 func draw_choice_panel(sim: Sim, id: String) -> void:
 	var r := choice_panel_rect()
-	draw_rect(r, Color(0.08, 0.05, 0.04, 0.7))
+	_upgrade_plate(r, choice_panel_items(sim, id, r))
+	var buttons := choice_panel_buttons()
+	var over := get_local_mouse_position() - Ui.offset
+	for b in buttons:
+		var br: Rect2 = buttons[b]
+		var live := choice_button_at(sim, br.get_center()) != ""
+		var armed: bool = b == "banish" and main.banishing
+		if armed or (live and br.has_point(over)):
+			draw_rect(br.grow(2), RED if armed else GOLD)
+		panel(br, CREAM if armed else (PARCH if live else Color(PARCH_DARK, 0.45)))
+		text(choice_button_label(sim, b), Vector2(br.position.x, br.position.y + floorf((br.size.y + Ui.px) / 2.0) - 1.0), INK if live else Color(INK, 0.5), HORIZONTAL_ALIGNMENT_CENTER, br.size.x, false)
+
+
+## An upgrade the legion has, as the choice panel tells of it, in `r` beside a phone's build; a soldier's or rank's details fill the panel to its foot.
+func draw_upgrade_panel(sim: Sim, id: String, r: Rect2) -> void:
+	_upgrade_plate(r, choice_panel_items(sim, id, r, r.end.y - BUILD_PAD))
+
+
+## The choice panel's dark plate and its pieces: the icon, the name and group, the lines, and each stat's numbers now and next.
+func _upgrade_plate(r: Rect2, items: Array) -> void:
+	draw_rect(r, Color(0.08, 0.05, 0.04, 0.92 if Touch.phone else 0.7))
 	draw_rect(r, Color(GOLD, 0.6), false, 1.0)
 	var colours := {"name": GOLD_LIGHT, "group": MUTED, "label": MUTED, "forge": GOLD, "history": HISTORY}
-	for it in choice_panel_items(sim, id, r):
+	for it in items:
 		var at: Rect2 = it[1]
 		var base := at.position.y + Ui.px
 		match it[0]:
@@ -1832,16 +1870,6 @@ func draw_choice_panel(sim: Sim, id: String) -> void:
 					_arrow(Vector2(vx + ARROW_W / 2.0, at.position.y + floorf(Ui.leading() / 2.0)))
 					vx += ARROW_W
 				text(next, Vector2(vx, base), GOLD_LIGHT, HORIZONTAL_ALIGNMENT_LEFT, -1, false)
-	var buttons := choice_panel_buttons()
-	var over := get_local_mouse_position() - Ui.offset
-	for b in buttons:
-		var br: Rect2 = buttons[b]
-		var live := choice_button_at(sim, br.get_center()) != ""
-		var armed: bool = b == "banish" and main.banishing
-		if armed or (live and br.has_point(over)):
-			draw_rect(br.grow(2), RED if armed else GOLD)
-		panel(br, CREAM if armed else (PARCH if live else Color(PARCH_DARK, 0.45)))
-		text(choice_button_label(sim, b), Vector2(br.position.x, br.position.y + floorf((br.size.y + Ui.px) / 2.0) - 1.0), INK if live else Color(INK, 0.5), HORIZONTAL_ALIGNMENT_CENTER, br.size.x, false)
 
 
 ## A small gold arrow pointing right from a stat's number now to its next.

@@ -77,11 +77,11 @@ func draw(c: CanvasItem, ui: Ui) -> void:
 	if not modes.is_empty():
 		line += ", " + " + ".join(modes)
 	# The line runs just under the legion's feet, so it sits on a dark plate like the camp's title.
-	var line_y := 198.0 if big else 252.0
+	var line_y := 195.0 if big else 252.0
 	var lw := minf(Ui.width_at(line, Ui.fit_size(line, Ui.W - 16.0)), Ui.W - 16.0)
 	c.draw_rect(Rect2(Ui.W / 2 - lw / 2 - 8, line_y - Ui.px - 2, lw + 16, Ui.leading() + 2), PLATE)
 	ui.fit_text(c, line, Ui.W - 16.0, Vector2(0, line_y), Ui.CREAM, HORIZONTAL_ALIGNMENT_CENTER, Ui.W, true)
-	ui.button(c, Rect2(Ui.W / 2 - 80, 204 if big else 258, 160, 28 if big else 24), "march", tr("March").to_upper(), "", true, null, true)
+	ui.button(c, Rect2(Ui.W / 2 - 80, 207 if big else 258, 160, 28 if big else 24), "march", tr("March").to_upper(), "", true, null, true)
 	if big:
 		_boards_large(c, ui)
 		return

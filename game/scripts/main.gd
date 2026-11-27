@@ -15,7 +15,7 @@ extends Node
 ##                      village or hedge stands it beside the nearest village or hedge, in a province that has them
 ##                      canal stands it before the nearest canal crossing, reeds, ruin or palms beside the nearest reed bed, obelisk or date palm
 ##                      grass, kurgan, wagons or birches beside the nearest feather grass, kurgan, wagon circle or birch
-##   --hold-choice      with --autoplay, give a level at once and leave its choices open; --select=N picks out choice N (from 0); --show-build shows a phone's legion build in their place
+##   --hold-choice      with --autoplay, give a level at once and leave its choices open; --select=N picks out choice N (from 0); --show-build shows a phone's legion build in their place, --build-pick=ID with that upgrade's details beside it
 ##   --easy, --hard     start the run at that difficulty
 ##   --endless, --decimatio   start the run in that mode
 ##   --screen=NAME      open a screen (camp, quartermaster, tablinum, map, commanders, settings, title, saves) with a sample profile, for screenshots;
@@ -95,6 +95,8 @@ var _picked := ""
 var banishing := false
 ## Whether a phone's level-up shows the legion's build in place of its choices, after a tap on the legion button.
 var showing_build := false
+## The upgrade in that build whose details show beside it, or "" for none.
+var build_pick := ""
 ## The volume whose bar the mouse is holding, empty when none is.
 var _sliding := ""
 ## Whether the phone's text size has been settled, which waits for the screen's size to be known.
@@ -958,6 +960,7 @@ func _open_choices() -> void:
 	selected = Upgrades.keep_in(int(args.get("select", "0")), choices)
 	opened_at = clock
 	showing_build = args.has("show-build")
+	build_pick = str(args.get("build-pick", ""))
 	state = "choose"
 
 
@@ -1213,15 +1216,10 @@ func _tap(at: Vector2) -> void:
 		Audio.play("click")
 
 
-## A tap on a choice: a level-up or supply row is taken at once, a god is picked out and then called by a second tap or the call button.
+## A tap on a choice: a level-up, supply or god row is taken at once, or a button under the rows acts.
 func _tap_choice(at: Vector2) -> void:
 	var button: String = hud.touch_button_at(at)
-	var ready := Game.confirm_allowed(state, opened_at, clock, balance)
 	match button:
-		"call":
-			if ready:
-				_take_row(selected)
-			return
 		"reroll":
 			_reroll()
 			return
@@ -1233,26 +1231,25 @@ func _tap_choice(at: Vector2) -> void:
 			return
 		"legion":
 			showing_build = not showing_build
+			build_pick = ""
 			Audio.play("click")
 			return
-	# While the build covers the rows, a tap where a row would be must not take a choice the player cannot see.
+	# While the build covers the rows, a tap opens an upgrade's details and never takes a choice the player cannot see.
 	if showing_build:
+		var item: String = hud.build_item_at(at)
+		if item != "":
+			build_pick = "" if item == build_pick else item
+			Audio.play("click")
 		return
 	var i: int = hud.choice_at(at)
 	if i >= 0:
 		_pick_row(i)
 
 
-## A tap on a choice row takes it, or for a god picks him out first, once the choice has been open long enough.
+## A tap on a choice row takes it, once the choice has been open long enough that the tap cannot be one meant for the battle.
 func _pick_row(i: int) -> void:
-	var id := "choice:%d" % i
-	if Touch.tap_acts(state, id, _picked):
-		if Game.confirm_allowed(state, opened_at, clock, balance):
-			_take_row(i)
-	else:
-		selected = i
-		_picked = id
-		Audio.play("click")
+	if Game.confirm_allowed(state, opened_at, clock, balance):
+		_take_row(i)
 
 
 func _bench() -> void:
