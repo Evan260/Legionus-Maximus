@@ -1367,12 +1367,23 @@ static func build_rect() -> Rect2:
 	return Rect2(BUILD_X, top, BUILD_W_BIG if Ui.scale > 1 else BUILD_W, BUILD_FOOT - top)
 
 
+## The build panel on the pause screen: on a phone it fills all the room left of the buttons, out to the screen's edge, so its icons can be large.
+static func pause_build_rect(button_w: float) -> Rect2:
+	var r := build_rect()
+	if not Touch.phone:
+		return r
+	var left := Touch.inset_tl.x + 8.0 - Ui.offset.x
+	var right := W / 2.0 - button_w / 2.0 - 12.0
+	var foot := Ui.view.y - Touch.inset_br.y - Ui.offset.y - Ui.leading() - 12.0
+	return Rect2(left, r.position.y, right - left, foot - r.position.y)
+
+
 ## The build panel sits beside a level-up's rows at the normal text size; large text needs the whole width, and the gods' and the supply cart's choices are not about the build.
 static func shows_build(other: bool, big: bool) -> bool:
 	return not other and not big
 
 
-## The legion's build as [part, [[id, count or rank, most ranks], ...]]: every kind of soldier, then every arm with the forged ones after, then every drill, with none for one not yet taken.
+## The legion's build as [part, [[id, count or rank, most ranks], ...]]: every kind of soldier, then every arm with the forged ones after, then every drill, with none for one not yet taken (left out on a phone).
 static func build_sections(sim: Sim) -> Array:
 	var parts := {"soldiers": [], "arms": [], "drills": []}
 	for kind in ["recruits", "arms", "forged", "drills"]:
@@ -1380,21 +1391,35 @@ static func build_sections(sim: Sim) -> Array:
 		for id in group:
 			if not group[id].get("implemented", false) or not sim.content.ready(kind, id):
 				continue
+			var have := sim.count(id) if kind == "recruits" else sim.rank(id)
+			# A phone lists only what the legion has, so the few icons can be large enough to see on a small screen.
+			if Touch.phone and have == 0:
+				continue
 			if kind == "recruits":
-				parts.soldiers.append([id, sim.count(id), 0])
+				parts.soldiers.append([id, have, 0])
 			else:
-				parts["drills" if kind == "drills" else "arms"].append([id, sim.rank(id), int(group[id].max)])
+				parts["drills" if kind == "drills" else "arms"].append([id, have, int(group[id].max)])
 	return [["soldiers", parts.soldiers], ["arms", parts.arms], ["drills", parts.drills]].filter(func(part: Array) -> bool: return not part[1].is_empty())
 
 
 ## Where each piece of the build panel goes inside `r`, as [kind, rect, id, number, most, icon side]: a soldier's icon with his count under it, an arm or drill's icon with its rank in pips under it, and a line between the parts; the icons are as large as lets everything fit.
 static func build_items(sim: Sim, r: Rect2) -> Array:
 	var items: Array = []
-	for side in BUILD_ICONS:
+	for side in build_icon_sides():
 		items = _build_items_at(sim, r, side)
 		if items.is_empty() or items[-1][1].end.y <= r.end.y - BUILD_PAD:
 			break
 	return items
+
+
+## The icon sides the build panel tries, largest first; a phone's small screen needs far larger ones to be seen at all.
+static func build_icon_sides() -> Array:
+	return [48.0, 44.0, 40.0, 36.0, 32.0, 28.0] + BUILD_ICONS if Touch.phone else BUILD_ICONS
+
+
+## The side of one rank pip under a build icon, growing with the icon so the ranks stay readable beside it.
+static func pip_size(side: float) -> float:
+	return maxf(2.0, roundf(side / 12.0))
 
 
 static func _build_items_at(sim: Sim, r: Rect2, side: float) -> Array:
@@ -1406,7 +1431,7 @@ static func _build_items_at(sim: Sim, r: Rect2, side: float) -> Array:
 			items.append(["line", Rect2(r.position.x + BUILD_PAD, y + 1.0, inner, 1.0), "", 0, 0, 0])
 			y += 4.0
 		var soldiers: bool = sec[0] == "soldiers"
-		var cell := Vector2(maxf(side, Ui.width_at("100", Ui.px)) + 2.0, side + Ui.px + 3.0) if soldiers else Vector2(side + 2.0, side + 4.0)
+		var cell := Vector2(maxf(side, Ui.width_at("100", Ui.px)) + 2.0, side + Ui.px + 3.0) if soldiers else Vector2(side + 2.0, side + pip_size(side) + 2.0)
 		var per_row := maxi(1, floori((inner + 2.0) / cell.x))
 		var list: Array = sec[1]
 		# Each part's grid is centred across the panel, so a short last row does not leave the panel lopsided.
@@ -1421,7 +1446,7 @@ static func _build_items_at(sim: Sim, r: Rect2, side: float) -> Array:
 
 ## The legion's soldiers, arms and drills on a dark plate, so a choice can be made knowing what the legion already has.
 func draw_build(sim: Sim, r: Rect2) -> void:
-	draw_rect(r, Color(0.08, 0.05, 0.04, 0.7))
+	draw_rect(r, Color(0.08, 0.05, 0.04, 0.92 if Touch.phone else 0.7))
 	draw_rect(r, Color(GOLD, 0.6), false, 1.0)
 	for it in build_items(sim, r):
 		var at: Vector2 = it[1].position
@@ -1439,9 +1464,10 @@ func draw_build(sim: Sim, r: Rect2) -> void:
 			text(str(it[3]), Vector2(at.x, at.y + side + Ui.px), MUTED if none else CREAM, HORIZONTAL_ALIGNMENT_CENTER, cell.size.x)
 			continue
 		var pips := int(it[4])
-		var px0 := at.x + floorf((cell.size.x - (pips * 3.0 - 1.0)) / 2.0)
+		var pip := pip_size(side)
+		var px0 := at.x + floorf((cell.size.x - (pips * (pip + 1.0) - 1.0)) / 2.0)
 		for k in pips:
-			draw_rect(Rect2(px0 + k * 3.0, at.y + side + 1.0, 2.0, 2.0), GOLD if k < int(it[3]) else PIP_DARK)
+			draw_rect(Rect2(px0 + k * (pip + 1.0), at.y + side + 1.0, pip, pip), GOLD if k < int(it[3]) else PIP_DARK)
 
 
 func _choices(sim: Sim) -> void:
@@ -1475,7 +1501,10 @@ func _choices(sim: Sim) -> void:
 		text(choose_hint(praying, picks), Vector2(0, ROW_TOP - 10.0), CREAM, HORIZONTAL_ALIGNMENT_CENTER, W)
 	choice_rects.clear()
 	var banishing: bool = main.banishing
-	for i in n:
+	var build_shown: bool = Touch.phone and main.state == "choose" and main.showing_build
+	if build_shown:
+		draw_build(sim, Rect2(rows[0].position, rows[-1].end - rows[0].position))
+	for i in (0 if build_shown else n):
 		var id: String = main.choices[i]
 		var r: Rect2 = rows[i]
 		choice_rects.append(r)
@@ -1544,9 +1573,12 @@ func _choices(sim: Sim) -> void:
 func _touch_choice_buttons(sim: Sim, praying: bool, one: Rect2) -> void:
 	var ids: Array = [["call", tr("call")], ["not_now", tr("not now")]] if praying else []
 	var levelling: bool = main.state == "choose"
-	if levelling and sim.rerolls > 0:
+	# Large text leaves no room for the build panel beside the rows, so a button swaps it in for them.
+	if levelling and not shows_build(false, Ui.scale > 1):
+		ids.append(["legion", tr("Back") if main.showing_build else tr("Legion")])
+	if levelling and sim.rerolls > 0 and not main.showing_build:
 		ids.append(["reroll", "%s (%d)" % [tr("reroll"), sim.rerolls]])
-	if levelling and sim.banishes > 0:
+	if levelling and sim.banishes > 0 and not main.showing_build:
 		ids.append(["banish", "%s (%d)" % [tr("banish"), sim.banishes]])
 	var w := one.size.x
 	var row := button_row(ids.map(func(pair: Array) -> String: return pair[0]), one)

@@ -15,7 +15,7 @@ extends Node
 ##                      village or hedge stands it beside the nearest village or hedge, in a province that has them
 ##                      canal stands it before the nearest canal crossing, reeds, ruin or palms beside the nearest reed bed, obelisk or date palm
 ##                      grass, kurgan, wagons or birches beside the nearest feather grass, kurgan, wagon circle or birch
-##   --hold-choice      with --autoplay, give a level at once and leave its choices open; --select=N picks out choice N (from 0)
+##   --hold-choice      with --autoplay, give a level at once and leave its choices open; --select=N picks out choice N (from 0); --show-build shows a phone's legion build in their place
 ##   --easy, --hard     start the run at that difficulty
 ##   --endless, --decimatio   start the run in that mode
 ##   --screen=NAME      open a screen (camp, quartermaster, tablinum, map, commanders, settings, title, saves) with a sample profile, for screenshots;
@@ -93,6 +93,8 @@ var _fingers := {}
 var _picked := ""
 ## Whether the Banish button has readied a banish for the next row clicked, since the pointer picks out other rows on its way to the button.
 var banishing := false
+## Whether a phone's level-up shows the legion's build in place of its choices, after a tap on the legion button.
+var showing_build := false
 ## The volume whose bar the mouse is holding, empty when none is.
 var _sliding := ""
 ## Whether the phone's text size has been settled, which waits for the screen's size to be known.
@@ -955,6 +957,7 @@ func _open_choices() -> void:
 		return
 	selected = Upgrades.keep_in(int(args.get("select", "0")), choices)
 	opened_at = clock
+	showing_build = args.has("show-build")
 	state = "choose"
 
 
@@ -1228,6 +1231,13 @@ func _tap_choice(at: Vector2) -> void:
 		"not_now":
 			_not_now()
 			return
+		"legion":
+			showing_build = not showing_build
+			Audio.play("click")
+			return
+	# While the build covers the rows, a tap where a row would be must not take a choice the player cannot see.
+	if showing_build:
+		return
 	var i: int = hud.choice_at(at)
 	if i >= 0:
 		_pick_row(i)
