@@ -9,6 +9,8 @@ const UNIT_RADIUS := 7.0
 const NEAR_RADIUS := 8.0
 ## How long a body falling into a ravine takes to vanish.
 const PLUNGE_SECONDS := 0.55
+## How long the flash of a war priest's blink lasts.
+const BLINK_SECONDS := 0.7
 ## Kinds that happen many times an update are counted and reported once per update; the rest are reported as they happen.
 const COUNTED := ["hit", "kill", "coin", "arrow", "pilum", "bolt"]
 const EVENT_CAP := 64
@@ -1345,7 +1347,7 @@ func _effects(dt: float) -> void:
 	var big_dying := float(b.deaths.big_seconds)
 	for e in effects:
 		e.t += dt
-		var last := 0.12 if e.kind == "slash" else (PLUNGE_SECONDS if e.kind == "plunge" else 0.45)
+		var last := 0.12 if e.kind == "slash" else (PLUNGE_SECONDS if e.kind == "plunge" else (BLINK_SECONDS if e.kind == "blink" else 0.45))
 		if e.kind == "death" or e.kind == "fallen":
 			last = float(b.chief_death.fall_seconds) if e.get("chief", false) else (big_dying if e.get("big", false) else dying)
 		if e.t < last:

@@ -1210,12 +1210,12 @@ func _tap(at: Vector2) -> void:
 		Audio.play("click")
 
 
-## A tap on the level-up or the gods' choice: a row is picked out, then taken by a second tap or the button under the rows.
+## A tap on a choice: a level-up or supply row is taken at once, a god is picked out and then called by a second tap or the call button.
 func _tap_choice(at: Vector2) -> void:
 	var button: String = hud.touch_button_at(at)
 	var ready := Game.confirm_allowed(state, opened_at, clock, balance)
 	match button:
-		"take", "call":
+		"call":
 			if ready:
 				_take_row(selected)
 			return
@@ -1233,7 +1233,7 @@ func _tap_choice(at: Vector2) -> void:
 		_pick_row(i)
 
 
-## A choice row is picked out by a first tap and taken by a second on it, once the choice has been open long enough.
+## A tap on a choice row takes it, or for a god picks him out first, once the choice has been open long enough.
 func _pick_row(i: int) -> void:
 	var id := "choice:%d" % i
 	if Touch.tap_acts(state, id, _picked):

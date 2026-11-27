@@ -372,20 +372,14 @@ func _top_bar_in(sim: Sim, W: float, H: float) -> void:
 	if main.screens.has(main.state):
 		_chieftain_line(sim, W, y1, big)
 		return
-	# The testudo charge sits bottom left, gold when it is ready.
-	var ready := sim.testudo_charge >= 1.0 and sim.testudo_left <= 0.0
-	var shield := icon_of("testudo")
-	if shield != null:
-		draw_texture(shield, Vector2(8, H - 42), Color.WHITE if ready or sim.testudo_left > 0.0 else Color(0.5, 0.5, 0.5))
-	draw_rect(Rect2(8, H - 9, 34, 4), INK)
-	var charge := 1.0 if sim.testudo_left > 0.0 else sim.testudo_charge
-	draw_rect(Rect2(9, H - 8, 32 * charge, 2), GOLD if ready or sim.testudo_left > 0.0 else PARCH_DARK)
 	# A large choice keeps only the testudo's and the favour's pictures down here, so its buttons and hints fit between them.
 	var bare := choosing and big
+	# A phone's testudo and gods buttons carry their own charge rings, so the bottom corners keep only the timber.
+	if not Touch.phone:
+		_testudo_charge(sim, H, bare)
+		_favour(sim, W, H, bare)
 	if not bare:
-		plated_text((tr("Testudo") if sim.testudo_left <= 0.0 else tr("Hold!")).to_upper(), Vector2(46, H - 6), GOLD_LIGHT if ready or sim.testudo_left > 0.0 else Color(0.7, 0.66, 0.6))
 		_timber(sim, W, H)
-	_favour(sim, W, H, bare)
 	_timber_keys(sim, W, H)
 	if choosing:
 		return
@@ -415,14 +409,7 @@ static func badges_top(sim: Sim) -> float:
 func _chieftain_line(sim: Sim, W: float, y1: float, big: bool) -> void:
 	var ci := sim.horde.chieftain_index()
 	var y3 := chieftain_y(y1, big)
-	var line := ""
-	if ci >= 0:
-		line = chief_name(sim).to_upper()
-	elif sim.endless and sim.endless_since >= 0.0:
-		var extra := int(sim.endless_seconds())
-		line = (tr("Endless  +%d:%02d") % [extra / 60, extra % 60]).to_upper()
-	elif sim.time > float(sim.b.chieftain_at) - 30.0 and sim.horde.chieftain_id == -1:
-		line = (tr("The %s is coming") % chief_name(sim)).to_upper()
+	var line := chieftain_line_text(sim)
 	if line == "":
 		return
 	var lay := chieftain_line_layout(line, Ui.view, _buttons())
@@ -432,26 +419,57 @@ func _chieftain_line(sim: Sim, W: float, y1: float, big: bool) -> void:
 		draw_rect(Rect2(W / 2 - 100, y3 + 5, 200 * clampf(sim.horde.e_hp[ci] / sim.horde.e_max[ci], 0, 1), 4), RED)
 
 
+## The words under the clock: the chieftain's name while he lives, the time won in endless mode, his coming, or "" for none.
+static func chieftain_line_text(sim: Sim) -> String:
+	if sim.horde.chieftain_index() >= 0:
+		return chief_name(sim).to_upper()
+	if sim.endless and sim.endless_since >= 0.0:
+		var extra := int(sim.endless_seconds())
+		return (TranslationServer.translate("Endless  +%d:%02d") % [extra / 60, extra % 60]).to_upper()
+	if sim.time > float(sim.b.chieftain_at) - 30.0 and sim.horde.chieftain_id == -1:
+		return (TranslationServer.translate("The %s is coming") % chief_name(sim)).to_upper()
+	return ""
+
+
 ## How the chieftain's line is written, as `fitted_line` gives it, centred in the safe area under the top bar.
 static func chieftain_line_layout(line: String, view: Vector2, buttons: Dictionary) -> Dictionary:
 	var safe := view - Touch.inset_tl - Touch.inset_br
 	return fitted_line(line, Touch.inset_tl.x + safe.x / 2.0, Touch.inset_tl.y + chieftain_y(16.0 + 8.0 * Ui.scale, Ui.scale > 1), view, buttons)
 
 
-## The logs of timber the legion carries, above the testudo's name, gold once there are enough for a palisade, and the notice when there are not.
+## The testudo's charge at the bottom left, gold when it is ready, with its name beside it.
+func _testudo_charge(sim: Sim, H: float, bare: bool) -> void:
+	var ready := sim.testudo_charge >= 1.0 and sim.testudo_left <= 0.0
+	var shield := icon_of("testudo")
+	if shield != null:
+		draw_texture(shield, Vector2(8, H - 42), Color.WHITE if ready or sim.testudo_left > 0.0 else Color(0.5, 0.5, 0.5))
+	draw_rect(Rect2(8, H - 9, 34, 4), INK)
+	var charge := 1.0 if sim.testudo_left > 0.0 else sim.testudo_charge
+	draw_rect(Rect2(9, H - 8, 32 * charge, 2), GOLD if ready or sim.testudo_left > 0.0 else PARCH_DARK)
+	if not bare:
+		plated_text((tr("Testudo") if sim.testudo_left <= 0.0 else tr("Hold!")).to_upper(), Vector2(46, H - 6), GOLD_LIGHT if ready or sim.testudo_left > 0.0 else Color(0.7, 0.66, 0.6))
+
+
+## Where the timber's logs go and the baseline of its count: above the testudo's name, or in the bottom-left corner on a phone.
+static func timber_spot(H: float) -> Vector2:
+	return Vector2(8, H - 6.0) if Touch.phone else Vector2(46, H - 8.0 - Ui.leading() - 4.0)
+
+
+## The logs of timber the legion carries, gold once there are enough for a palisade, and the notice when there are not.
 func _timber(sim: Sim, W: float, H: float) -> void:
 	var atlas: Atlas = main.world.atlas
 	var cost := int(sim.b.palisade.cost)
 	var enough := sim.timber >= cost
-	var y := H - 8.0 - Ui.leading() - 4.0
+	var at := timber_spot(H)
+	var y := at.y
 	if atlas != null and atlas.props.has("timber"):
 		var f := atlas.prop_frame("timber")
 		var r: Rect2 = f[0]
-		draw_texture_rect_region(atlas.texture, Rect2(Vector2(46, y - r.size.y + 2.0), r.size), r, Color.WHITE if enough else Color(0.75, 0.72, 0.68))
-	text(str(sim.timber), Vector2(66, y), GOLD_LIGHT if enough else CREAM)
+		draw_texture_rect_region(atlas.texture, Rect2(Vector2(at.x, y - r.size.y + 2.0), r.size), r, Color.WHITE if enough else Color(0.75, 0.72, 0.68))
+	text(str(sim.timber), Vector2(at.x + 20.0, y), GOLD_LIGHT if enough else CREAM)
 	var bridge_cost := int(sim.b.bridge.cost)
 	if sim.ravine_near:
-		_bridge_cost(Vector2(66.0 + Ui.width_at(str(sim.timber), Ui.px) + 6.0, y), bridge_cost, sim.timber >= bridge_cost)
+		_bridge_cost(Vector2(at.x + 20.0 + Ui.width_at(str(sim.timber), Ui.px) + 6.0, y), bridge_cost, sim.timber >= bridge_cost)
 	var line := ""
 	var refused: Dictionary = sim.bridge_refused
 	if not refused.is_empty() and sim.time - float(refused.at) < float(sim.b.bridge.notice_seconds) and float(refused.at) >= sim.palisade_refused_at:
@@ -552,8 +570,8 @@ static func bottom_layout(view: Vector2) -> Dictionary:
 	var lead := Ui.leading()
 	var testudo_w := maxf(Ui.width_at(TranslationServer.translate("Testudo").to_upper(), Ui.px), Ui.width_at(TranslationServer.translate("Hold!").to_upper(), Ui.px))
 	var testudo := Rect2(8, H - 42, 38 + testudo_w, 42)
-	var timber_y := H - 8.0 - lead - 4.0
-	var timber := Rect2(46, timber_y - 14.0, 30 + 12 * Ui.scale + Ui.width_at("999", Ui.px) + Ui.width_at("99", Ui.px), 16)
+	var timber_at := timber_spot(H)
+	var timber := Rect2(timber_at.x, timber_at.y - 14.0, 30 + 12 * Ui.scale + Ui.width_at("999", Ui.px) + Ui.width_at("99", Ui.px), 16)
 	var favour_w := Ui.width_at(TranslationServer.translate("Favour").to_upper(), Ui.px)
 	var favour := Rect2(W - 46 - favour_w, H - 42, 38 + favour_w, 42)
 	var pray_w := Ui.width_at(Controls.hint("pray").to_upper(), Ui.px)
@@ -948,9 +966,10 @@ static func centre_keep_out(view: Vector2) -> Rect2:
 
 ## Where each target's edge badge and label go, or just its name over it when on screen, every one clear of the others,
 ## of the middle of the screen and of the `avoid` rects (the bosses' names).
-static func arrow_layout(targets: Array, cpos: Vector2, view: Vector2, top: float, metre := 16.0, avoid: Array = []) -> Array:
+static func arrow_layout(targets: Array, cpos: Vector2, view: Vector2, top: float, metre := 16.0, avoid: Array = [], low := -1.0) -> Array:
 	var radius := badge_radius()
-	var low := bottom_band(view)
+	if low < 0.0:
+		low = bottom_band(view)
 	var out: Array = []
 	var placed: Array = avoid.duplicate()
 	placed.append(centre_keep_out(view))
@@ -964,7 +983,7 @@ static func arrow_layout(targets: Array, cpos: Vector2, view: Vector2, top: floa
 				out.append({"kind": t[0], "off": off, "on_screen": true, "badge": Rect2(), "foot": view / 2.0 + off - Vector2(0, LABEL_RISE.get(t[0], 50.0))}.merged(extra))
 			continue
 		# The badge and its point stay below the top bar and above the bridge hint and the rest of the bottom row.
-		var room := badge_room(Rect2(0, top, view.x, view.y - top - low), off.normalized())
+		var room := badge_room(Rect2(Touch.inset_tl.x, top, view.x - Touch.inset_tl.x - Touch.inset_br.x, view.y - top - low), off.normalized())
 		var c := _on_room_edge(room, view / 2.0, off)
 		var box := Rect2(c - Vector2.ONE * radius, Vector2.ONE * radius * 2.0)
 		# A badge that would cover another moves to the nearest clear spot along the edge of the screen.
@@ -1099,25 +1118,65 @@ static func badge_avoid(sim: Sim, view: Vector2, state: String, buttons: Diction
 		for spot in timber_key_spots(sim, view.x, view.y):
 			out.append(spot[1].grow(2.0))
 	if Touch.phone:
+		out = top_bar_rects(sim, view, buttons)
 		var parts := bottom_layout(view - Touch.inset_tl - Touch.inset_br)
-		out = [Rect2(parts.testudo.position + Touch.inset_tl, parts.testudo.size), Rect2(parts.favour.position + Touch.inset_tl, parts.favour.size)]
+		for r in [parts.health, parts.timber]:
+			out.append(Rect2(r.position + Touch.inset_tl, r.size).grow(3.0))
+		var stick := Touch.fingertip * Touch.STICK_RADIUS
+		if stick > 0.0:
+			out.append(Rect2(Touch.stick_home(view, Touch.inset_tl, Touch.inset_br, stick) - Vector2.ONE * stick, Vector2.ONE * stick * 2.0).grow(3.0))
 		for id in buttons:
 			out.append(Rect2(buttons[id].centre - Vector2.ONE * buttons[id].radius, Vector2.ONE * buttons[id].radius * 2.0).grow(3.0))
 	return out
 
 
+## The top bar's words on screen: the level and province at the left, the clock and the chieftain's line in the middle, the legion and kills at the right.
+static func top_bar_rects(sim: Sim, view: Vector2, buttons: Dictionary) -> Array:
+	var W := view.x - Touch.inset_tl.x - Touch.inset_br.x
+	var big := Ui.scale > 1
+	var y1 := 16.0 + 8.0 * Ui.scale
+	var y2 := y1 + (11.0 if not big else 20.0)
+	var level := Ui.width_at((TranslationServer.translate("Level %d") % sim.level).to_upper(), Ui.px)
+	var run := minf(Ui.width_at(run_line(sim), Ui.px), RUN_LINE_ROOM)
+	var right := W - 10.0
+	if buttons.has("pause"):
+		right = minf(right, buttons.pause.centre.x - buttons.pause.radius - 6.0 - Touch.inset_tl.x)
+	var legion := maxf(Ui.width_at((TranslationServer.translate("Legion %d") % (sim.soldiers.size() + 1)).to_upper(), Ui.px), Ui.width_at((TranslationServer.translate("Kills %d") % sim.kills).to_upper(), Ui.px))
+	var clock := Ui.width_at("88:88", Ui.px)
+	var out: Array = [
+		Rect2(6.0, 14.0, maxf(level, run) + 8.0, y2 - 10.0),
+		Rect2(right - legion - 4.0, 14.0, legion + 8.0, y2 - 10.0),
+		Rect2(W / 2.0 - clock / 2.0 - 4.0, 14.0, clock + 8.0, y1 - 10.0),
+	]
+	var line := chieftain_line_text(sim)
+	if line != "":
+		var lay := chieftain_line_layout(line, view, buttons)
+		var w := maxf(Ui.width_at(lay.text, lay.size), 204.0)
+		out.append(Rect2(W / 2.0 - w / 2.0 - 4.0, 14.0, w + 8.0, chieftain_y(y1, big) - 2.0))
+	return out.map(func(r: Rect2) -> Rect2: return Rect2(r.position + Touch.inset_tl, r.size).grow(3.0))
+
+
+## Where the edge badges may stand, as {top, low (the strip kept free along the bottom), avoid}: on a computer between the top bar and the bottom row, on a phone out to the edges of the screen, stepping round the words, the stick and the buttons there.
+static func badge_frame(sim: Sim, view: Vector2, state: String, buttons: Dictionary) -> Dictionary:
+	var avoid := badge_avoid(sim, view, state, buttons)
+	if Touch.phone:
+		return {"top": Touch.inset_tl.y + 16.0, "low": Touch.inset_br.y + 3.0, "avoid": avoid}
+	return {"top": badges_top(sim), "low": bottom_band(view), "avoid": avoid}
+
+
 ## Badges at the screen's edge pointing to each objective not yet done and to the fort, and a notice when one is done.
 func _objective_arrows(sim: Sim, avoid: Array) -> void:
 	var view := Ui.view
-	var top := badges_top(sim)
-	avoid = avoid + badge_avoid(sim, view, main.state, touch_layout())
+	var frame := badge_frame(sim, view, main.state, touch_layout())
+	var top: float = frame.top
+	avoid = avoid + frame.avoid
 	var note: Dictionary = sim.objectives.notice
 	var said := {}
 	if not note.is_empty() and sim.time >= float(note.at) and sim.time - float(note.at) < float(note.get("seconds", sim.b.objectives.notice_seconds)):
 		said = notice_layout(_notice_text(note.kind, sim).to_upper(), view, _buttons())
 		# The notice keeps its place under the legion and the badges and labels step round it.
 		avoid = avoid + [said.rect]
-	var laid := arrow_layout(targets_of(sim), sim.commander.pos, view, top, float(sim.b.objectives.metre_px), avoid)
+	var laid := arrow_layout(targets_of(sim), sim.commander.pos, view, top, float(sim.b.objectives.metre_px), avoid, frame.low)
 	var atlas: Atlas = main.world.atlas
 	var radius := badge_radius()
 	# The point pulses so it catches the eye at the edge of a busy screen.
@@ -1481,9 +1540,9 @@ func _choices(sim: Sim) -> void:
 		_centred_hint("     ".join(extras), hint_y + 13.0, GOLD_LIGHT)
 
 
-## A row of buttons under a phone's choice: take or call the one picked out, then reroll and banish, or not now, each the size of `one` and the row centred where it is.
+## A row of buttons under a phone's choice: call the god picked out or not now, or reroll and banish, each the size of `one` and the row centred where it is.
 func _touch_choice_buttons(sim: Sim, praying: bool, one: Rect2) -> void:
-	var ids: Array = [["call", tr("call")], ["not_now", tr("not now")]] if praying else [["take", tr("take it")]]
+	var ids: Array = [["call", tr("call")], ["not_now", tr("not now")]] if praying else []
 	var levelling: bool = main.state == "choose"
 	if levelling and sim.rerolls > 0:
 		ids.append(["reroll", "%s (%d)" % [tr("reroll"), sim.rerolls]])
@@ -1494,9 +1553,10 @@ func _touch_choice_buttons(sim: Sim, praying: bool, one: Rect2) -> void:
 	for k in ids.size():
 		var r: Rect2 = row[ids[k][0]]
 		touch_buttons[ids[k][0]] = r
-		if k == 0:
+		var main_one: bool = ids[k][0] == "call"
+		if main_one:
 			draw_rect(r.grow(3), GOLD)
-		panel(r, CREAM if k == 0 else PARCH)
+		panel(r, CREAM if main_one else PARCH)
 		var label := str(ids[k][1]).to_upper()
 		var size := Ui.fit_size(label, w - 12.0)
 		ui.fit_text(self, label, w - 12.0, Vector2(r.position.x, Ui.label_y(r, label, size)), INK, HORIZONTAL_ALIGNMENT_CENTER, w, false, size)

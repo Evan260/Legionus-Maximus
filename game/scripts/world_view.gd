@@ -2018,6 +2018,8 @@ func _draw_effects() -> void:
 			for n in 5:
 				var at: Vector2 = e.pos + Vector2.from_angle(n * 2.4) * e.radius * 0.6 * float(n % 3) / 2.0
 				draw_line(at, at + Vector2(1, -5), col, 1.0)
+		elif e.kind == "blink":
+			_blink_flash(e.pos, e.to, e.t / Sim.BLINK_SECONDS)
 		elif e.kind == "smoke":
 			var k: float = e.t / 0.45
 			for n in 6:
@@ -2043,6 +2045,33 @@ func _draw_effects() -> void:
 		if sim.horde.e_stun[i] > 0.0:
 			var q: Vector2 = sim.horde.e_pos[i] + Vector2(-3 + (int(sim.time * 12.0 + i) % 7), -26)
 			draw_rect(Rect2(q.round(), Vector2(2, 2)), Color(1, 0.95, 0.45))
+
+
+## A war priest's blink, `k` from 0 to 1 through it: a pillar of violet light swallows him where he stood, a trail of sparks runs to where he comes out, and a second pillar and a widening ring bring him back there.
+func _blink_flash(from: Vector2, to: Vector2, k: float) -> void:
+	var violet := Color(0.72, 0.45, 1.0)
+	var pale := Color(0.97, 0.9, 1.0)
+	var gone := clampf(k * 2.0, 0.0, 1.0)
+	if gone < 1.0:
+		var w := roundf(12.0 * (1.0 - gone)) + 2.0
+		draw_rect(Rect2(Vector2(roundf(from.x - w / 2.0), from.y - 52.0), Vector2(w, 54.0)), Color(violet, 0.55 * (1.0 - gone)))
+		draw_rect(Rect2(Vector2(roundf(from.x - w / 4.0), from.y - 52.0), Vector2(maxf(1.0, roundf(w / 2.0)), 54.0)), Color(pale, 0.8 * (1.0 - gone)))
+		draw_arc(from + Vector2(0, -2), 4.0 + 26.0 * (1.0 - gone), 0.0, TAU, 32, Color(violet, 1.0 - gone), 2.0)
+	var reach := clampf(k / 0.35, 0.0, 1.0)
+	for n in 14:
+		var t := float(n) / 13.0
+		if t > reach:
+			break
+		var p := from.lerp(to, t) + Vector2(0, -18.0 + 4.0 * sin(t * TAU * 1.5))
+		var a := (1.0 - k) * (0.35 + 0.65 * t)
+		draw_rect(Rect2((p - Vector2.ONE).round(), Vector2(2, 2)), Color(pale if n % 2 == 0 else violet, a))
+	var back := clampf((k - 0.15) / 0.85, 0.0, 1.0)
+	if k >= 0.15 and back < 1.0:
+		var w := roundf(14.0 * (1.0 - back)) + 2.0
+		draw_circle(to + Vector2(0, -18), 16.0 * (1.0 - back), Color(pale, 0.45 * (1.0 - back)))
+		draw_rect(Rect2(Vector2(roundf(to.x - w / 2.0), to.y - 56.0), Vector2(w, 58.0)), Color(violet, 0.5 * (1.0 - back)))
+		draw_rect(Rect2(Vector2(roundf(to.x - w / 4.0), to.y - 56.0), Vector2(maxf(1.0, roundf(w / 2.0)), 58.0)), Color(pale, 0.75 * (1.0 - back)))
+		draw_arc(to + Vector2(0, -2), 4.0 + 32.0 * back, 0.0, TAU, 40, Color(violet, 1.0 - back), 2.0)
 
 
 ## Damage numbers rise from the enemy that was hit and fade out.

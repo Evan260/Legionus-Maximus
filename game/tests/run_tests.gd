@@ -7302,6 +7302,8 @@ func test_the_war_priest_blinks_away(b: Dictionary) -> void:
 		if e.kind == "smoke":
 			smoke += 1
 	check(smoke == 2, "in a puff of smoke where he was and where he comes out")
+	var flash: Array = s.effects.filter(func(e: Dictionary) -> bool: return e.kind == "blink")
+	check(flash.size() == 1 and flash[0].pos == Vector2(200, 0) and flash[0].to == s.horde.e_pos[i], "and a flash of light joins the two, so the jump reads as his magic")
 	var then := s.horde.e_pos[i]
 	s.soldiers[0].pos = then + Vector2(-20, 0)
 	s.horde._bosses(1.0 / 60.0, s)
@@ -8041,6 +8043,41 @@ func test_phone_edge_badges_carry_no_words(_b: Dictionary) -> void:
 	check(laid.size() == 2 and laid.all(func(l: Dictionary) -> bool: return not l.on_screen and l.label.size.x == 0.0), "on a phone the edge badges carry no words")
 	check(near.size() == 1 and near[0].on_screen and near[0].label.size.x > 0.0, "though a camp on screen is still named")
 	check(phone_radius >= computer_radius * 1.2, "and the badges are a little larger (%s against %s)" % [phone_radius, computer_radius])
+
+
+func test_phone_edge_badges_hug_the_screen_edges(b: Dictionary) -> void:
+	var kept := [Touch.phone, Touch.inset_tl, Touch.inset_br, Ui.scale, Ui.view, Touch.fingertip]
+	Touch.phone = true
+	var s := Sim.new(b, content, {"seed": 5})
+	var c: Vector2 = s.commander.pos
+	var problems := []
+	for scale in [1, 2]:
+		Ui.set_text_size(scale, b)
+		for screen in _big_screens().filter(func(e: Dictionary) -> bool: return e.phone):
+			var view: Vector2 = screen.view
+			Ui.fit_view(view)
+			Touch.inset_tl = screen.tl
+			Touch.inset_br = screen.br
+			Touch.fingertip = screen.tip
+			var buttons := _touch_layout(view, screen.tl, screen.br, screen.tip)
+			var frame := Hud.badge_frame(s, view, "play", buttons)
+			for target in [Vector2(0, -3000), Vector2(0, 3000), Vector2(-3000, -300), Vector2(3000, 1500)]:
+				var laid: Array = Hud.arrow_layout([["camp", c + target]], c, view, frame.top, 16.0, frame.avoid, frame.low)
+				var box: Rect2 = laid[0].badge
+				var mid := box.get_center()
+				var edge := minf(minf(mid.x, view.x - mid.x), minf(mid.y, view.y - mid.y))
+				if edge > 80.0:
+					problems.append("x%d %s: the badge for %s stands %d px in from the nearest edge" % [scale, screen.name, target, edge])
+				for r in frame.avoid:
+					if r.intersects(box):
+						problems.append("x%d %s: the badge for %s at %s covers %s" % [scale, screen.name, target, box, r])
+	Touch.phone = kept[0]
+	Touch.inset_tl = kept[1]
+	Touch.inset_br = kept[2]
+	Ui.set_text_size(kept[3], b)
+	Ui.fit_view(kept[4])
+	Touch.fingertip = kept[5]
+	check(problems.is_empty(), "on a phone each edge badge stands near the edge of the screen, clear of the top bar, the stick and the buttons: %s" % [problems])
 
 
 func test_the_build_panel_starts_below_the_level(b: Dictionary) -> void:
@@ -13742,8 +13779,10 @@ func test_touch_tap_on_a_purchase_or_choice_first_picks_it_out(_b: Dictionary) -
 	check(not Touch.tap_acts("quartermaster", "buy:damage", "buy:start_health"), "a tap on another upgrade shows it before buying")
 	check(Touch.tap_acts("quartermaster", "buy:damage", "buy:damage"), "a tap on the upgrade shown buys it")
 	check(not Touch.tap_acts("commanders", "see:centurion", "pick:tribune"), "a commander for sale is shown before he is bought")
-	check(not Touch.tap_acts("choose", "choice:1", "choice:0"), "a level-up choice is shown before it is taken")
-	check(Touch.tap_acts("choose", "choice:1", "choice:1"), "and taken by a tap on it once shown")
+	check(Touch.tap_acts("choose", "choice:1", "choice:0"), "a level-up choice is taken by one tap")
+	check(Touch.tap_acts("supply", "choice:1", ""), "and so is a supply cart's")
+	check(not Touch.tap_acts("pray", "choice:1", "choice:0"), "while a god is picked out before he is called")
+	check(Touch.tap_acts("pray", "choice:1", "choice:1"), "and called by a tap on him once picked")
 	check(Touch.tap_acts("title", "settings", "continue"), "an ordinary button acts at once")
 	check(Touch.tap_acts("map", "prov:gaul", "prov:germania"), "and so does a province on the map")
 	check(Touch.is_tap(3.0, 8.0) and not Touch.is_tap(20.0, 8.0), "a finger that slid away is a drag, not a tap")
@@ -13789,7 +13828,7 @@ func test_back_waits_a_moment_on_the_summary_of_a_defeat(b: Dictionary) -> void:
 	_return_profile(kept)
 
 
-func test_a_first_tap_only_picks_out_a_purchase_or_a_choice(b: Dictionary) -> void:
+func test_a_first_tap_picks_out_a_purchase_but_takes_a_level_up(b: Dictionary) -> void:
 	var kept := _borrow_profile()
 	Profile.new_game()
 	Profile.data.denarii = 100000
@@ -13817,9 +13856,7 @@ func test_a_first_tap_only_picks_out_a_purchase_or_a_choice(b: Dictionary) -> vo
 	m._open_choices()
 	m.clock = 5.0
 	m._tap_choice(Vector2(50, 20))
-	check(m.state == "choose" and m.selected == 0, "a first tap on the first row, though it starts picked out, takes nothing")
-	m._tap_choice(Vector2(50, 20))
-	check(m.state == "play", "a second tap takes it")
+	check(m.state == "play", "a single tap on a level-up row takes it")
 	_free_main(m)
 	_return_profile(kept)
 

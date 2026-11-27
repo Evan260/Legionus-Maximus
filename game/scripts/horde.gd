@@ -2491,6 +2491,8 @@ func _blink(i: int, cfg: Dictionary, sim: Sim) -> bool:
 	sim.event("blink", to)
 	sim.effects.append({"kind": "smoke", "pos": p, "t": 0.0})
 	sim.effects.append({"kind": "smoke", "pos": to, "t": 0.0})
+	# Without a flash joining the two places his jump would read as a glitch rather than his magic.
+	sim.effects.append({"kind": "blink", "pos": p, "to": to, "t": 0.0})
 	e_pos[i] = to
 	boss[e_id[i]].at = to
 	return true
