@@ -13383,12 +13383,12 @@ func test_touch_stick_has_a_dead_zone_and_full_speed_near_the_rim(_b: Dictionary
 	check(Touch.stick_vector(Vector2(0, r * 0.4), r).length() > 0.15, "a push past the dead zone is enough to set the legion moving")
 
 
-func test_touch_stick_follows_a_finger_past_its_rim(_b: Dictionary) -> void:
-	var base := Vector2(100, 200)
-	check(Touch.stick_follow(base, base + Vector2(30, 0), 50.0) == base, "a finger inside the rim leaves the stick where it is")
-	var moved := Touch.stick_follow(base, base + Vector2(0, -80), 50.0)
-	check(moved.is_equal_approx(Vector2(100, 170)), "a finger past the rim drags the stick after it (%s)" % moved)
-	check(is_equal_approx(moved.distance_to(base + Vector2(0, -80)), 50.0), "keeping the finger on the rim")
+func test_touch_stick_stays_in_the_bottom_left_corner(_b: Dictionary) -> void:
+	var view := Vector2(808, 360)
+	var home := Touch.stick_home(view, Vector2(12, 8), Vector2(12, 8), 50.0)
+	check(home.is_equal_approx(Vector2(87, 257)), "the stick sits a stick and a half in from the left and nearly two up from the bottom (%s)" % home)
+	check(Touch.in_stick_zone(home, view), "where a thumb on it takes it")
+	check(Touch.stick_vector(Vector2(200, 80) - home, 50.0).is_equal_approx((Vector2(200, 80) - home).normalized()), "a thumb far from the stick marches full speed from the stick towards the thumb")
 
 
 func test_touch_stick_takes_touches_on_the_left_of_the_screen(_b: Dictionary) -> void:

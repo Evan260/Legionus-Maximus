@@ -1,6 +1,6 @@
 class_name TouchPad
 extends Node2D
-## The run's touch controls, drawn over the HUD: a floating stick under the left thumb and round buttons under the right.
+## The run's touch controls, drawn over the HUD: a stick that stays in the bottom-left corner and round buttons under the right thumb.
 
 const TESTUDO_ICON := preload("res://assets/icons/testudo.png")
 const LAUREL_ICON := preload("res://assets/icons/laurel.png")
@@ -13,7 +13,7 @@ const WOOD := Color(0.62, 0.42, 0.24)
 var main: Node
 ## Each button as {id: {centre, radius}}, laid out afresh every frame for the view and the text size.
 var layout := {}
-## The finger steering, or -1, with where the stick's centre and the finger are.
+## The finger steering, or -1, with the stick's fixed centre and where the finger is.
 var _stick := -1
 var _base := Vector2.ZERO
 var _finger := Vector2.ZERO
@@ -43,6 +43,7 @@ func lay_out() -> void:
 	var safe := view - Touch.inset_tl - Touch.inset_br
 	var favour: Rect2 = Hud.bottom_layout(safe).favour
 	layout = Touch.button_layout(view, Touch.inset_tl, Touch.inset_br, Touch.fingertip, Touch.inset_tl.y + favour.position.y, Touch.inset_tl.y + 14.0)
+	_base = Touch.stick_home(view, Touch.inset_tl, Touch.inset_br, radius())
 
 
 func _process(_dt: float) -> void:
@@ -70,7 +71,6 @@ func _input(event: InputEvent) -> void:
 				_pressed[id] = true
 			elif _stick < 0 and Touch.in_stick_zone(p, get_viewport_rect().size):
 				_stick = event.index
-				_base = p
 				_finger = p
 		else:
 			_held.erase(event.index)
@@ -78,14 +78,13 @@ func _input(event: InputEvent) -> void:
 				_stick = -1
 	elif event is InputEventScreenDrag and event.index == _stick:
 		_finger = event.position
-		_base = Touch.stick_follow(_base, _finger, radius())
 
 
 func _draw() -> void:
 	if main == null or main.state != "play" or main.sim == null or layout.is_empty():
 		return
 	var sim: Sim = main.sim
-	_draw_stick(sim)
+	_draw_stick()
 	var held := _held.values()
 	for id in layout:
 		var c: Vector2 = layout[id].centre
@@ -121,22 +120,15 @@ func _draw() -> void:
 				picture(self, id, c, r, true)
 
 
-## The stick while a thumb is on it, and a faint one where the left thumb rests at the start of a run, to show where to steer.
-func _draw_stick(sim: Sim) -> void:
+## The stick in its corner, a little fainter while no thumb is on it.
+func _draw_stick() -> void:
 	var r := radius()
-	var base := _base
-	var knob := _finger
-	if _stick < 0:
-		if sim.time > 8.0:
-			return
-		base = Vector2(Touch.inset_tl.x + r * 1.5, get_viewport_rect().size.y - Touch.inset_br.y - r * 1.9)
-		knob = base
-	var a := 1.0 if _stick >= 0 else 0.7 + 0.3 * sin(sim.time * 3.0)
-	draw_circle(base, r, Color(0.08, 0.05, 0.04, 0.3 * a))
-	draw_arc(base, r, 0.0, TAU, 48, Color(Ui.CREAM, 0.6 * a), 2.0)
-	var off := (knob - base).limit_length(r)
-	draw_circle(base + off, r * 0.42 + 1.0, Color(Ui.INK, 0.5 * a))
-	draw_circle(base + off, r * 0.42, Color(Ui.PARCH, 0.75 * a))
+	var a := 1.0 if _stick >= 0 else 0.75
+	draw_circle(_base, r, Color(0.08, 0.05, 0.04, 0.3 * a))
+	draw_arc(_base, r, 0.0, TAU, 48, Color(Ui.CREAM, 0.6 * a), 2.0)
+	var off := (_finger - _base).limit_length(r) if _stick >= 0 else Vector2.ZERO
+	draw_circle(_base + off, r * 0.42 + 1.0, Color(Ui.INK, 0.5 * a))
+	draw_circle(_base + off, r * 0.42, Color(Ui.PARCH, 0.75 * a))
 
 
 ## A button's parchment face in an ink rim, faded while it cannot be used and brighter while a finger is on it.

@@ -110,12 +110,9 @@ static func stick_vector(offset: Vector2, radius: float) -> Vector2:
 	return offset.normalized() * clampf((reach - DEAD) / (FULL - DEAD), 0.0, 1.0)
 
 
-## Where the stick's centre goes as the finger moves: it stays put while the finger is inside the rim and is dragged along past it.
-static func stick_follow(base: Vector2, finger: Vector2, radius: float) -> Vector2:
-	var off := finger - base
-	if off.length() <= radius:
-		return base
-	return finger - off.normalized() * radius
+## The stick's fixed centre in the bottom-left corner, clear of the rounded corner and the favour strip.
+static func stick_home(view: Vector2, tl: Vector2, br: Vector2, radius: float) -> Vector2:
+	return Vector2(tl.x + radius * 1.5, view.y - br.y - radius * 1.9)
 
 
 ## Whether a touch at `p` takes the stick: anywhere on the left part of the screen.
