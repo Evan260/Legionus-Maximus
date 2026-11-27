@@ -2008,37 +2008,37 @@ func test_a_free_level_up_from_a_supply_cart_chosen_twice_opens_at_once(b: Dicti
 		m.sim.add_supply(2)
 		m._open_supplies()
 		m.clock = 5.0
-		var row: int = m.choices.find("free_choice")
-		match way:
-			"click":
-				_mouse_motion(m, rows[row].get_center())
-				_mouse_click(m, rows[row].get_center())
-			"key":
-				m.selected = row
-				Input.action_press("confirm")
-				m._process(0.0)
-				Input.action_release("confirm")
-			"tap":
-				m._tap_choice(rows[row].get_center())
-				m._tap_choice(rows[row].get_center())
-		check(m.state == "choose" and m.sim.free_choices == 1, "by %s, the free level-up of a cart chosen from twice opens the level-up at once (%s %s)" % [way, m.state, m.choices])
+		for pick in [m.choices.find("free_choice"), m.choices.find("heal")]:
+			match way:
+				"click":
+					_mouse_motion(m, rows[pick].get_center())
+					_mouse_click(m, rows[pick].get_center())
+				"key":
+					m.selected = pick
+					Input.action_press("confirm")
+					m._process(0.0)
+					Input.action_release("confirm")
+				"tap":
+					m._tap_choice(rows[pick].get_center())
+			if pick == m.choices.find("free_choice") and m.state == "supply":
+				check(m.supply_marked.size() == 1 and m.sim.free_choices == 0, "by %s, the first reward of a cart chosen from twice is only marked (%s)" % [way, m.supply_marked])
+		check(m.state == "choose" and m.sim.supplies.is_empty() and m.sim.free_choices == 1, "by %s, the second takes both, opening the free level-up with the cart already spent (%s)" % [way, m.state])
 		m.clock = 10.0
 		m._take(0)
-		check(m.state == "supply" and m.choices == ["heal", "magnet"], "by %s, the cart's choice comes back for its second pick without the level-up (%s %s)" % [way, m.state, m.choices])
-		m.clock = 15.0
-		_mouse_click(m, rows[m.choices.find("heal")].get_center())
-		check(m.state == "play" and m.sim.supplies.is_empty() and m.sim.free_choices == 0, "by %s, the second pick closes the cart (%s)" % [way, m.state])
+		check(m.state == "play", "by %s, and the cart does not come back after the level-up (%s)" % [way, m.state])
 		_free_main(m)
 	var m := _bare_main(b, rows)
 	m.sim = _quiet_sim(b, 4411)
 	m.sim.add_supply(2)
 	m._open_supplies()
 	m.clock = 5.0
-	_mouse_click(m, rows[m.choices.find("heal")].get_center())
-	check(m.state == "supply" and m.choices == ["free_choice", "magnet"], "healing first leaves the cart open for its second pick (%s %s)" % [m.state, m.choices])
-	m.clock = 10.0
+	var heal: int = m.choices.find("heal")
+	_mouse_click(m, rows[heal].get_center())
+	_mouse_click(m, rows[heal].get_center())
+	check(m.state == "supply" and m.supply_marked.is_empty(), "picking a marked reward again unmarks it (%s)" % [m.supply_marked])
+	_mouse_click(m, rows[heal].get_center())
 	_mouse_click(m, rows[m.choices.find("free_choice")].get_center())
-	check(m.state == "choose" and m.sim.supplies.is_empty(), "and the level-up taken second opens once the cart is spent (%s)" % m.state)
+	check(m.state == "choose" and m.sim.supplies.is_empty(), "and healing with the level-up marked second also takes both at once (%s)" % m.state)
 	_free_main(m)
 	Ui.set_text_size(before, b)
 

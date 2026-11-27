@@ -1521,7 +1521,9 @@ func _choices(sim: Sim) -> void:
 		var id: String = main.choices[i]
 		var r: Rect2 = rows[i]
 		choice_rects.append(r)
-		var picked: bool = i == main.selected
+		var marked: bool = supply and main.supply_marked.has(i)
+		# A phone has no keys moving a highlight, so on a cart only the rows tapped stand out, and none looks chosen before it is.
+		var picked: bool = marked if (supply and Touch.phone) else (i == main.selected or marked)
 		if picked:
 			draw_rect(r.grow(3), RED if banishing else GOLD)
 		panel(r, CREAM if picked else PARCH)
@@ -1532,7 +1534,7 @@ func _choices(sim: Sim) -> void:
 			draw_texture_rect(icon, Rect2(r.position.x + 8.0, roundf(r.get_center().y - side / 2.0), side, side), false)
 		var area := row_text(r, big)
 		var words := _description(sim, id, praying)
-		var right := tr("God").to_upper() if praying else ("" if supply else Upgrades.level_text(sim, id))
+		var right := tr("God").to_upper() if praying else ((tr("Chosen").to_upper() if marked else "") if supply else Upgrades.level_text(sim, id))
 		# A readied banish marks every row with the word, so the click that follows plainly banishes.
 		if banishing:
 			right = tr("banish").to_upper()

@@ -167,7 +167,7 @@
   "cart": {"every": 90, "life": 45, "fade": 3.0, "radius": 14, "near": 90, "far": 140, "tip_seconds": 10},
   "easy": {"health_mult": 0.6, "spawn_mult": 0.65, "damage_mult": 0.6, "denarii_mult": 0.75, "xp_mult": 1.6667},
   "medium": {"spawn_mult": 0.8, "health_mult": 0.85, "damage_mult": 0.85, "denarii_mult": 1.25},
-  "hard": {"health_mult": 1.6, "spawn_mult": 1.4, "denarii_mult": 1.5, "xp_mult": 0.8333},
+  "hard": {"health_mult": 1.6, "spawn_mult": 1.4, "damage_mult": 1.75, "denarii_mult": 1.5, "xp_mult": 0.8333},
   "endless": {"health_per_minute": 0.15, "step_seconds": 60},
   "decimatio": {"start_soldiers": 30, "every": 90, "one_in": 10},
   "rerolls": 1,

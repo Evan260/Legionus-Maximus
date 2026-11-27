@@ -97,6 +97,8 @@ var banishing := false
 var showing_build := false
 ## The upgrade in that build whose details show beside it, or "" for none.
 var build_pick := ""
+## The rows of a supply cart chosen from twice marked so far, taken together once the second is picked.
+var supply_marked: Array = []
 ## The volume whose bar the mouse is holding, empty when none is.
 var _sliding := ""
 ## Whether the phone's text size has been settled, which waits for the screen's size to be known.
@@ -768,7 +770,7 @@ func _process(dt: float) -> void:
 				_banish()
 		"supply":
 			if args.has("autoplay") and clock - opened_at > 0.5 and not args.has("cart"):
-				_take_supply(choices.find(sim.bot_supply()))
+				_give_supplies([sim.bot_supply()])
 			elif Input.is_action_just_pressed("up") or Input.is_action_just_pressed("left"):
 				selected = posmod(selected - 1, choices.size())
 			elif Input.is_action_just_pressed("down") or Input.is_action_just_pressed("right"):
@@ -1016,12 +1018,34 @@ func _open_supplies() -> void:
 		return
 	selected = Upgrades.keep_in(int(args.get("select", "0")), choices)
 	opened_at = clock
+	supply_marked = []
 	state = "supply"
 
 
+## A row of a supply cart: a cart chosen from twice marks the first row picked and takes both rewards with the second, so its choice never comes back after a free level-up; picking a marked row again unmarks it.
 func _take_supply(i: int) -> void:
+	var picks := int(sim.supplies[0].picks) if not sim.supplies.is_empty() else 1
+	var need := mini(picks, choices.size())
+	if need >= 2:
+		if supply_marked.has(i):
+			supply_marked.erase(i)
+			Audio.play("click")
+			return
+		supply_marked.append(i)
+		if supply_marked.size() < need:
+			Audio.play("click")
+			return
+	else:
+		supply_marked = [i]
+	_give_supplies(supply_marked.map(func(k: int) -> String: return choices[k]))
+
+
+## Gives these rewards of the oldest cart and opens what waits after them, such as a free level-up among them.
+func _give_supplies(ids: Array) -> void:
 	Audio.play("confirm")
-	sim.take_supply(choices[i])
+	supply_marked = []
+	for id in ids:
+		sim.take_supply(id)
 	state = "play"
 	# The confirm key is also the testudo key, so the press that took the reward must not raise the shields.
 	Input.action_release("testudo")
