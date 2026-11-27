@@ -8026,6 +8026,23 @@ func test_edge_badges_keep_off_the_timber_keys(b: Dictionary) -> void:
 	Ui.fit_view(before_view)
 
 
+func test_phone_edge_badges_carry_no_words(_b: Dictionary) -> void:
+	var was_phone := Touch.phone
+	var view := Vector2(808, 360)
+	Touch.phone = false
+	var computer_radius := Hud.badge_radius()
+	var on_computer: Array = Hud.arrow_layout([["camp", Vector2(3000, 0)]], Vector2.ZERO, view, 40.0)
+	Touch.phone = true
+	var phone_radius := Hud.badge_radius()
+	var laid: Array = Hud.arrow_layout([["camp", Vector2(3000, 0)], ["column", Vector2(0, 3000)]], Vector2.ZERO, view, 40.0)
+	var near: Array = Hud.arrow_layout([["camp", Vector2(60, 0)]], Vector2.ZERO, view, 40.0)
+	Touch.phone = was_phone
+	check(on_computer.size() == 1 and on_computer[0].label.size.x > 0.0, "a computer still writes the name and distance beside the badge")
+	check(laid.size() == 2 and laid.all(func(l: Dictionary) -> bool: return not l.on_screen and l.label.size.x == 0.0), "on a phone the edge badges carry no words")
+	check(near.size() == 1 and near[0].on_screen and near[0].label.size.x > 0.0, "though a camp on screen is still named")
+	check(phone_radius >= computer_radius * 1.2, "and the badges are a little larger (%s against %s)" % [phone_radius, computer_radius])
+
+
 func test_the_build_panel_starts_below_the_level(b: Dictionary) -> void:
 	var before := Ui.scale
 	var before_view := Ui.view

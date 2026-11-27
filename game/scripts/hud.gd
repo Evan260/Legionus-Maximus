@@ -915,7 +915,9 @@ const BADGE_ICON := {"camp": "eagle_standard", "grove": "altar", "column": "supp
 
 ## The radius of the dark disc an edge arrow carries its target's picture on.
 static func badge_radius() -> float:
-	return 14.0 if Ui.scale == 1 else 17.0
+	var r := 14.0 if Ui.scale == 1 else 17.0
+	# A phone's badges stand without words beside them, so the picture is what has to be read.
+	return roundf(r * 1.25) if Touch.phone else r
 
 
 ## The strip along the bottom of the screen that the arrows keep out of, for the testudo, timber, favour and health bar.
@@ -926,7 +928,8 @@ static func bottom_band(view: Vector2) -> float:
 
 ## How far an edge arrow's point stands out from its disc.
 static func tip_length() -> float:
-	return 10.0 if Ui.scale == 1 else 12.0
+	var t := 10.0 if Ui.scale == 1 else 12.0
+	return roundf(t * 1.25) if Touch.phone else t
 
 
 ## The room a badge's centre may stand in so its disc and its pulsing point both stay inside `area`.
@@ -980,6 +983,9 @@ static func arrow_layout(targets: Array, cpos: Vector2, view: Vector2, top: floa
 		if l.on_screen:
 			var nw := Ui.width_at(name, Ui.px)
 			l.label = _free_spot(Rect2(l.foot.x - nw / 2.0, l.foot.y - Ui.px, nw, Ui.leading()), placed, view, top, low, 2)
+		elif Touch.phone:
+			# On a phone's small screen a name and distance beside each edge badge would crowd the middle, where the legion fights.
+			l.label = Rect2()
 		else:
 			var nw := Ui.width_at(name, Ui.px)
 			var spot := _beside_badge(l, maxf(nw, Ui.width_at(dist, Ui.px)), 2, placed, view, top, low)
