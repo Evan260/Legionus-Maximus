@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Installs the pinned Godot editor or its Linux and macOS export templates: editor | templates.
+# Installs the pinned Godot editor or its Linux, macOS and iOS export templates: editor | templates.
 set -euo pipefail
 
 VERSION=4.7.2
@@ -34,7 +34,7 @@ case "${1:-}" in
     rm -rf "$TEMPLATE_DIR"
     mkdir -p "$TEMPLATE_DIR"
     unzip -q -j "$DOWNLOADS/Godot_v$VERSION-stable_export_templates.tpz" -d "$TEMPLATE_DIR" \
-      templates/version.txt templates/icudt_godot.dat templates/linux_release.x86_64 templates/macos.zip
+      templates/version.txt templates/icudt_godot.dat templates/linux_release.x86_64 templates/macos.zip templates/ios.zip
     rm -f "$DOWNLOADS/Godot_v$VERSION-stable_export_templates.tpz"
     ls -l "$TEMPLATE_DIR"
     ;;
