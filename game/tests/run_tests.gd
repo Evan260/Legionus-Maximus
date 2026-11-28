@@ -14510,7 +14510,6 @@ func test_the_app_store_build_has_no_reviewer_code(_b: Dictionary) -> void:
 	check(not opened, "five quick taps open no code box on the App Store, where Apple allows no way in but buying")
 	check(not FullGame.redeem(REVIEW_CODE) and FullGame.locked(), "and Google Play's reviewer code opens nothing there")
 	_shop_done()
-	_return_profile(kept)
 
 
 func test_the_reviewer_code_may_be_typed_in_lower_case_with_spaces_or_dashes(_b: Dictionary) -> void:
