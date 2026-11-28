@@ -1,0 +1,140 @@
+LEGIONUS MAXIMUS: APP STORE LISTING TEXT
+
+For App Store Connect (appstoreconnect.apple.com) > Apps > Legionus Maximus. The name, subtitle, category and age
+rating are under App Information, the privacy answers under App Privacy, and the promotional text, description and
+keywords on the version being prepared. Each count is the number of characters Apple counts for that field, line
+breaks included, against the field's limit. The description is store/google_play/listing.txt's full description with
+only the changes listed under it, and none of the text names another platform or says "demo" or "trial" (App Review
+guidelines 2.2 and 2.3.10).
+
+
+NAME (30 of 30 characters, already set)
+
+Legionus Maximus: Roman Legion
+
+
+SUBTITLE (27 of 30 characters)
+
+Battle the barbarian hordes
+
+
+PROMOTIONAL TEXT (160 of 170 characters)
+
+You steer, the legion fights. Grow a handful of soldiers into a hundred men holding off the barbarian hordes across eight provinces. Free to start, with no ads.
+
+
+DESCRIPTION (3,587 of 4,000 characters)
+
+You steer. The legion fights.
+
+Legionus Maximus is a survivors-style action game in pixel art. Lead a Roman legion across eight provinces of the ancient world, from the forests of Germania to the steppes of Sarmatia. You move the commander and nothing else. Every legionary stabs, every archer shoots and every weapon fires on its own, while the barbarians pour in from every side. Each level-up adds men, a weapon or a drill, so a run that starts with a handful of soldiers ends with a hundred men in formation holding off a screen full of enemies.
+
+Free to start, one purchase for the whole game
+Download Legionus Maximus for free and march into Germania with the first three commanders. One purchase opens the whole road from Rome: all eight provinces, all six commanders, full campaigns with the chieftain and the fort, and the Endless and Decimatio modes. Your upgrades and records carry straight on. No ads, ever, and nothing else for sale.
+
+Made for touch
+Steer with a floating stick under your left thumb. Round buttons under your right thumb raise the testudo, call on the gods and build palisades, walls and bridges. Tap a choice to look at it and tap again to take it, and tap the pause button whenever you need a moment.
+
+At a glance
+• One control that matters: where you march. The formation turns as you turn, shields to the front and archers behind.
+• Seven kinds of soldier to recruit, from legionaries and archers to cavalry, a medicus, a ballista crew and a centurion.
+• Twelve weapons that fire on their own, six forged forms to make from them, and fifteen drills for the whole legion.
+• Five gods of Rome to call on when their favour is full: Jupiter's lightning, Neptune's earthquake, Mars's war frenzy, Vulcan's rain of fire and Apollo's healing light.
+• Fell trees for timber, drive palisades across the barbarians' path and lay bridges over the ravines.
+• Retake the eagles, burn the sacred grove and march into the Roman fort to win the province.
+
+Eight provinces on the road from Rome
+The campaign map follows the real geography of the empire, and winning a province opens the road to the next: the dark forests of Germania, the wheat fields and hedges of Gaul, the moors and stone circles of Britannia, the olive terraces of Hispania, the canals of Aegyptus, the desert dunes of Parthia, the frozen streams of Dacia and the feather grass of the Sarmatian steppe. Each has its own ground, its own warriors, its own elites and its own chieftain, from Arminius and Vercingetorix to Boudica and Decebalus.
+
+Bosses that warn you
+Elites come on their own timer, and every ability is marked on the ground before it lands, so a legion that is watching can step out of it. The berserker spins in a whirlwind inside a red ring, the war elephant tramples down a marked line, and every chieftain fights differently, from Vercingetorix's ring of stakes to Boudica's war chariot and the Sarmatian king's charging lancers.
+
+Between runs
+• The denarii you carry home buy permanent upgrades from the quartermaster.
+• Six commanders to unlock, each starting the run his own way.
+• The tablinum keeps every soldier, weapon, enemy and god you have met, with a line of real history for each.
+• A run summary with your time, kills, denarii, the damage each weapon did and the size of your legion over time.
+
+Made to play your way
+• Three difficulties: Easy, Medium and Hard.
+• Larger text, screen shake, damage numbers and blood can each be turned on or off in the options.
+• Pixel art that stays sharp on every screen.
+• 28 achievements, three save slots, and play in 14 languages.
+
+Changed from the Google Play text: "use the back gesture to pause" reads "tap the pause button": the back gesture is
+Android's, and the touch controls have a round pause button at the top right (touch.gd). Nothing else changes.
+
+
+KEYWORDS (100 of 100 characters)
+
+survivor,roguelite,roguelike,bullet,heaven,rome,ancient,army,soldier,war,action,pixel,empire,offline
+
+Apple already searches the name and subtitle, so none of their words, or their plurals, are repeated here.
+
+
+CATEGORY
+
+Primary category: Games
+Subcategories: Action and Strategy
+Why: Real-time battles steered with one thumb, with a choice of men, weapons and drills at every level-up and
+palisades and bridges to build.
+
+
+AGE RATING (App Information > Age Rating; these answers give 13+)
+
+Frequent cartoon violence and frequent weapons each give 13+ in Apple's table, so the rating is 13+, close to the Teen
+and 12+ the game expects elsewhere.
+
+Content, each None, Infrequent or Mild, or Frequent or Intense:
+- Alcohol, Tobacco, or Drug Use or References (alcoholTobaccoOrDrugUseOrReferences): Infrequent or Mild. One line of
+  history in the tablinum says priests fed a sacred crocodile on cakes, meat and wine; nobody drinks, and there is no
+  tobacco or drugs.
+- Contests (contests): None. Single player with no leaderboards; records are kept only on the device.
+- Simulated Gambling (gamblingSimulated): None. Chests and supply carts give rewards in play, but nothing is bet or
+  bought.
+- Guns or Other Weapons (gunsOrOtherWeapons): Frequent or Intense. Swords, spears, bows, a ballista, fire pots and
+  Greek fire are in use all through every run.
+- Horror/Fear Themes (horrorOrFearThemes): None. No horror or jump scares; the battles are busy rather than
+  frightening.
+- Mature or Suggestive Themes (matureOrSuggestiveThemes): Infrequent or Mild. The setting is Rome's wars against real
+  peoples and their chieftains (burning a sacred grove and barbarian camps), told as arcade battles with no story of
+  suffering or politics.
+- Medical or Treatment Information (medicalOrTreatmentInformation): None. The medicus and Apollo's healing light
+  restore health in play; no medical information.
+- Profanity or Crude Humor (profanityOrCrudeHumor): None. No profanity or crude humour; the onager's note names the
+  wild ass, the animal.
+- Graphic Sexual Content and Nudity (sexualContentGraphicAndNudity): None. No sexual content or nudity.
+- Sexual Content or Nudity (sexualContentOrNudity): None. No sexual content or nudity.
+- Cartoon or Fantasy Violence (violenceCartoonOrFantasy): Frequent or Intense. Combat is the whole game: hundreds of
+  warriors and animals fall each run under a kill count, with a few red pixels of blood on by default, all small
+  top-down pixel art with fantasy powers of the gods.
+- Realistic Violence (violenceRealistic): None. Nothing is lifelike: tiny pixel-art figures seen from above, and a
+  fallen warrior is knocked back, topples and fades.
+- Prolonged Graphic or Sadistic Realistic Violence (violenceRealisticProlongedGraphicOrSadistic): None. No gore,
+  dismemberment or torture; the blood stain fades within seconds (a chieftain's in 20), and the Blood setting turns it
+  off.
+
+Features and controls, each Yes or No:
+- Advertising (advertising): No. No ads of any kind, and no ad library in the build.
+- Age Assurance (ageAssurance): No. The game never asks for, estimates or checks anyone's age.
+- Dating and Relationships (datingAndRelationships): No. Single player, with no dating, matching or romantic
+  companion.
+- Gambling (gambling): No. Nothing can be bet, with real money or otherwise; the one purchase buys the full game.
+- Health or Wellness Topics (healthOrWellnessTopics): No. No self-care, diet or exercise advice.
+- Loot Boxes (lootBox): No. The one purchase unlocks the full game; nothing random is sold.
+- Messaging and Chat (messagingAndChat): No. Single player, with no way to talk to other players.
+- Parental Controls (parentalControls): No. The game has no parental control settings of its own.
+- Shared Location (sharedLocation): No. The game never reads the player's location.
+- Social Media (socialMedia): No. No feeds, posting, likes or sharing.
+- Unrestricted Web Access (unrestrictedWebAccess): No. No browser inside the game; the Privacy policy button opens
+  that one page in the phone's own browser.
+- User-Generated Content (userGeneratedContent): No. Nothing the player makes is shown to anyone else.
+
+
+APP PRIVACY
+
+Data Not Collected is the true answer. The iPhone and iPad build's only native plugin is SlowSundayStore, which asks
+StoreKit for the full game's price, buys it and restores it; the purchase is handled by Apple, which does not count as
+collection by the developer. The game has no networking, analytics, crash reporting or ads in its code, on iPhone and
+iPad it has no Game Center and sends no notifications, its iOS export has tracking switched off, and saves, settings
+and the record of the purchase are files on the device that never leave it.
