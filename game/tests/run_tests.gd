@@ -14499,6 +14499,17 @@ func test_the_reviewer_code_opens_the_full_game_and_is_kept(b: Dictionary) -> vo
 	FullGame.use_store(FakeStore.new())
 	check(not FullGame.locked() and not Game.is_demo(), "a later start keeps the full game open before the store has said anything")
 	_shop_done()
+
+
+func test_the_app_store_build_has_no_reviewer_code(_b: Dictionary) -> void:
+	var store := _reviewer_shop()
+	FullGame.use_store(store, "com.slowsunday.example.full_game")
+	var opened := false
+	for i in 5:
+		opened = FullGame.review_tap(10.0 + i * 0.1) or opened
+	check(not opened, "five quick taps open no code box on the App Store, where Apple allows no way in but buying")
+	check(not FullGame.redeem(REVIEW_CODE) and FullGame.locked(), "and Google Play's reviewer code opens nothing there")
+	_shop_done()
 	_return_profile(kept)
 
 
