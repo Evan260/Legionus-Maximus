@@ -14649,6 +14649,42 @@ func _key(code: Key, unicode: int) -> InputEventKey:
 	e.pressed = true
 	return e
 
+func test_the_game_opens_on_the_loading_screen(_b: Dictionary) -> void:
+	var boot: GDScript = load("res://scripts/boot.gd")
+	check(ProjectSettings.get_setting("application/run/main_scene") == "res://scenes/boot.tscn", "the game starts on the loading screen")
+	check(ResourceLoader.exists(boot.MAIN), "which hands over to the game's own scene")
+
+
+func test_the_loading_screen_loads_files_that_exist(_b: Dictionary) -> void:
+	var files: Array[String] = load("res://scripts/startup_files.gd").FILES
+	check(not files.is_empty(), "the loading screen has the title's files to load")
+	for path in files:
+		check(ResourceLoader.exists(path), "%s, which the loading screen loads, exists" % path)
+		check(path.get_extension() not in ["gd", "tscn"], "%s is a file, not a script or scene loading with the game" % path)
+
+
+func test_the_loading_bar_grows_a_whole_pixel_of_the_art_at_a_time(_b: Dictionary) -> void:
+	var bar: GDScript = load("res://scripts/load_bar.gd")
+	check(bar.filled(0.0, 126) == 0, "an empty bar has no gold")
+	check(bar.filled(0.5, 126) == 63, "half the files fill half the bar")
+	check(bar.filled(0.999, 126) == 125, "the last pixel fills only when every file is in")
+	check(bar.filled(1.0, 126) == 126, "a full bar is all gold")
+	check(bar.filled(1.5, 126) == 126 and bar.filled(-0.5, 126) == 0, "and never spills past either end")
+
+
+func test_the_loading_bar_stays_in_sight_on_every_screen_shape(_b: Dictionary) -> void:
+	var picture: Texture2D = load("res://scripts/boot.gd").PICTURE
+	for window in [Vector2(1212, 540), Vector2(1024, 768), Vector2(1440, 810), Vector2(3840, 1080), Vector2(540, 1212)]:
+		var bar: Control = load("res://scripts/load_bar.gd").new()
+		bar.picture_size = picture.get_size()
+		bar.size = window
+		var box: Rect2 = bar.box()
+		check(Rect2(Vector2.ZERO, window).encloses(box), "the bar is inside a %dx%d window" % [window.x, window.y])
+		check(box.position.y > window.y * 0.75, "and along its bottom")
+		check(is_equal_approx(box.get_center().x, window.x / 2.0), "and centred")
+		bar.free()
+
+
 ## The SlowSundayPhone plugin's purchase methods and signals, answered by hand.
 class FakeStore:
 	signal billing_connected
